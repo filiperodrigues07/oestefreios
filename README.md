@@ -2,7 +2,7 @@
 
 Sistema PWA de controle de Ordens de Serviço, integrado ao ERP Firebird (CHERP). Monorepo com backend (Express/TypeScript, arquitetura em camadas) e frontend (Vite/React/TypeScript, PWA).
 
-Status: **Fase 1 (Fundação), Fase 2 (Autenticação) e Fase 3 (Design System)** concluídas e testadas. Ver "Roadmap" no fim deste README para as próximas fases.
+Status: **Fase 1 (Fundação), Fase 2 (Autenticação), Fase 3 (Design System) e Fase 4 (Ordens de Serviço)** concluídas e testadas. Ver "Roadmap" no fim deste README para as próximas fases.
 
 ## Stack
 
@@ -65,13 +65,19 @@ npm run build        # build de produção dos dois workspaces
 
 Usuário operacional (ex.: Mecânico) **nunca** recebe campo financeiro (preço, desconto, total, custo, faturamento) em nenhuma resposta de API — o backend monta DTOs diferentes por perfil (`OperationalOSDTO`/`AdminOSDTO`, `OperationalProdutoDTO`/`AdminProdutoDTO`, etc.), nunca confiando em role enviada pelo frontend. Ver `backend/src/dto/` e o teste `backend/src/dto/__tests__/os.dto.test.ts`.
 
+## Módulo de OS (Fase 4)
+
+Ciclo completo: criar (cliente → equipamento → problema → prioridade), visualizar, editar diagnóstico/observações/solução, adicionar e remover produtos/serviços, mudar status e acompanhar o histórico. Cada ação tem sua própria permissão granular (`OS_CREATE`, `OS_EDIT`, `OS_CHANGE_STATUS`, `PRODUCT_ADD_TO_OS`, `SERVICE_ADD_TO_OS`), então um Mecânico pode mudar status e lançar peça/serviço mas não edita campos administrativos — reflexo direto do RBAC, não uma regra separada na UI.
+
+Transições de status são validadas **só no backend** (`backend/src/services/osWorkflow.ts`); o frontend (`frontend/src/types/os.types.ts`) tem uma cópia do mapa de transições só para não oferecer opções óbvias-inválidas no seletor — nunca é ela quem decide.
+
 ## Estrutura
 
 ```
 backend/src/
   config/        env, CORS, Firebird, Swagger
   controllers/   HTTP handlers
-  services/      regra de negócio, monta DTOs por permissão
+  services/      regra de negócio, monta DTOs por permissão, workflow de status da OS
   repositories/  interfaces + mocks CHERP (Fase 5 troca por Firebird real) + Postgres (auth)
   database/      firebird/ (pool, não usado ainda) · postgres/ (Drizzle: schema, migrations, seed)
   dto/           DTOs por perfil + mappers
@@ -80,15 +86,16 @@ backend/src/
   errors/        AppError e subclasses
 
 frontend/src/
-  api/               httpClient (refresh automático), auth.api, produtos.api, queryClient
+  api/               httpClient (refresh automático), auth/produtos/servicos/clientes/equipamentos/os.api
   store/             Zustand: auth, tema
   routes/            router, ProtectedRoute
-  pages/             Login, Início, OS (placeholder), Produtos, Perfil
-  components/ui/     biblioteca de componentes (Button, Input, Select, Badge/StatusBadge,
+  pages/             Login, Início, OS (lista/criar/detalhe), Produtos, Perfil
+  components/ui/     biblioteca de componentes (Button/LinkButton, Input, Select, Badge/StatusBadge,
                       Card, Modal/Drawer, ConfirmDialog, Toast, Skeleton, EmptyState,
                       ErrorState, Pagination, SearchCombobox)
   components/layout/ AppShell (sidebar desktop + bottom nav mobile, mesma lista de itens)
-  components/search/ instâncias concretas do SearchCombobox (ProdutoSearch já ligado à API real)
+  components/search/ ProdutoSearch, ServicoSearch, ClienteSearch, EquipamentoSearch (SearchCombobox + API real)
+  components/os/      HistoryTimeline, StatusChanger (só filtra opções — backend sempre revalida)
   hooks/             useTheme, useDebouncedValue, useFocusTrap
   constants/         catálogo de status/prioridade de OS (rótulo + cor semântica)
   styles/            design tokens (claro/escuro, espaçamento, sombra, z-index)
@@ -96,4 +103,4 @@ frontend/src/
 
 ## Roadmap (próximas fases)
 
-Fase 4 (módulo de OS completo) · Fase 5 (Firebird real, substituindo os mocks) · Fase 6 (consulta completa de Produtos/Serviços, ClienteSearch/EquipamentoSearch) · Fase 7 (Dashboard/relatórios) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
+Fase 5 (Firebird real, substituindo os mocks) · Fase 6 (catálogo completo de Produtos/Serviços com filtros avançados) · Fase 7 (Dashboard/relatórios) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
