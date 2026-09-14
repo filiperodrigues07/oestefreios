@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { RouterProvider } from 'react-router';
 import { bootstrapSession } from './api/httpClient.js';
+import { ToastProvider } from './components/ui/ToastProvider.js';
 import { useTheme } from './hooks/useTheme.js';
 import { router } from './routes/router.js';
 import { useAuthStore } from './store/authStore.js';
@@ -15,5 +16,9 @@ export function App() {
     });
   }, [clearSession]);
 
-  return <RouterProvider router={router} />;
+  return (
+    <ToastProvider>
+      <RouterProvider router={router} />
+    </ToastProvider>
+  );
 }

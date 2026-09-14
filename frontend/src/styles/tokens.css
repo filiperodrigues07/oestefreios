@@ -22,6 +22,40 @@
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 16px;
+  --radius-full: 999px;
+
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-md: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 20px;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.16);
+
+  --overlay: rgba(15, 23, 42, 0.5);
+
+  --z-nav: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+
+  --bottom-nav-height: 64px;
+  --sidebar-width: 240px;
+
+  --color-success-surface: #dcfce7;
+  --color-warning-surface: #fef3c7;
+  --color-danger-surface: #fee2e2;
+  --color-info-surface: #e0f2fe;
+  --color-primary-surface: #e0f2fe;
+  --color-neutral-surface: #f1f5f9;
+
+  /* Tons mais escuros que os tokens base, só para texto sobre *-surface (contraste AA em fonte pequena). */
+  --color-success-on-surface: #15803d;
+  --color-warning-on-surface: #b45309;
+  --color-danger-on-surface: #b91c1c;
+  --color-info-on-surface: #075985;
+  --color-primary-on-surface: #075985;
 
   color-scheme: light;
 }
@@ -39,6 +73,25 @@
   --color-warning: #fbbf24;
   --color-danger: #f87171;
   --color-info: #38bdf8;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
+
+  --overlay: rgba(0, 0, 0, 0.65);
+
+  --color-success-surface: #14532d;
+  --color-warning-surface: #78350f;
+  --color-danger-surface: #7f1d1d;
+  --color-info-surface: #0c4a6e;
+  --color-primary-surface: #0c4a6e;
+  --color-neutral-surface: #1e293b;
+
+  --color-success-on-surface: #86efac;
+  --color-warning-on-surface: #fcd34d;
+  --color-danger-on-surface: #fca5a5;
+  --color-info-on-surface: #7dd3fc;
+  --color-primary-on-surface: #7dd3fc;
 
   color-scheme: dark;
 }
