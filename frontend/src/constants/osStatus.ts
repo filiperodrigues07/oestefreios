@@ -1,13 +1,7 @@
 import type { BadgeTone } from '../components/ui/Badge.js';
+import type { OSPrioridade, OSStatus } from '../types/os.types.js';
 
-export type OSStatus =
-  | 'ABERTA'
-  | 'EM_ANALISE'
-  | 'EM_ANDAMENTO'
-  | 'AGUARDANDO_PECA'
-  | 'AGUARDANDO_CLIENTE'
-  | 'CONCLUIDA'
-  | 'CANCELADA';
+export type { OSStatus };
 
 interface OSStatusConfig {
   label: string;
@@ -25,7 +19,7 @@ export const OS_STATUS_CONFIG: Record<OSStatus, OSStatusConfig> = {
   CANCELADA: { label: 'Cancelada', tone: 'danger' },
 };
 
-export const OS_PRIORITY_CONFIG: Record<'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE', OSStatusConfig> = {
+export const OS_PRIORITY_CONFIG: Record<OSPrioridade, OSStatusConfig> = {
   BAIXA: { label: 'Baixa', tone: 'neutral' },
   NORMAL: { label: 'Normal', tone: 'info' },
   ALTA: { label: 'Alta', tone: 'warning' },

@@ -1,4 +1,4 @@
-import type { OSPrioridade, OSStatus } from '../types/cherp.types.js';
+import type { OSHistoricoEntry, OSPrioridade, OSStatus } from '../types/cherp.types.js';
 
 interface OSItemProdutoBase {
   produtoCodigo: string;
@@ -30,6 +30,7 @@ export interface OperationalOSDTO {
   solucao?: string;
   produtos: OSItemProdutoBase[];
   servicos: OSItemServicoBase[];
+  historico: OSHistoricoEntry[];
   dataAbertura: string;
   dataPrevista?: string;
   dataConclusao?: string;

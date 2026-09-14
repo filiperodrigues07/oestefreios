@@ -21,6 +21,7 @@ const os: OrdemServico = {
   status: 'EM_ANDAMENTO',
   prioridade: 'NORMAL',
   problema: 'Barulho no motor',
+  historico: [{ timestamp: new Date().toISOString(), evento: 'OS criada', usuarioNome: 'Admin (dev)' }],
   produtos: [
     {
       produtoCodigo: '00012345',

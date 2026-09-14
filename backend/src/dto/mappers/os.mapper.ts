@@ -32,6 +32,7 @@ export function toOSDTO(
       unidade: s.unidade,
       quantidade: s.quantidade,
     })),
+    historico: os.historico,
     dataAbertura: os.dataAbertura,
     dataPrevista: os.dataPrevista,
     dataConclusao: os.dataConclusao,

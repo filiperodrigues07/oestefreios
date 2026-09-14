@@ -1,6 +1,6 @@
 export { Badge, type BadgeTone } from './Badge.js';
 export { StatusBadge, PriorityBadge } from './StatusBadge.js';
-export { Button } from './Button.js';
+export { Button, LinkButton } from './Button.js';
 export { Card, CardButton } from './Card.js';
 export { Input } from './Input.js';
 export { Select } from './Select.js';

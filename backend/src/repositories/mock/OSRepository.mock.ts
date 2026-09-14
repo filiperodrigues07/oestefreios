@@ -5,7 +5,10 @@ import type { IOSRepository, OSListFilter } from '../interfaces/IOSRepository.js
 /**
  * MOCK — dados em memória, não vem do Firebird/CHERP.
  * TODO(Fase 5): substituir por implementação real contra o Firebird, mantendo esta mesma interface.
+ * Construir entradas de `historico` é responsabilidade do service (services/os.service.ts),
+ * não deste repositório — aqui só persistimos o que for passado.
  */
+const abertaEm = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
 const OS_LIST: OrdemServico[] = [
   {
     id: randomUUID(),
@@ -16,6 +19,10 @@ const OS_LIST: OrdemServico[] = [
     prioridade: 'NORMAL',
     problema: 'Barulho estranho no motor ao acelerar',
     diagnostico: 'Correia dentada desgastada',
+    historico: [
+      { timestamp: abertaEm, evento: 'OS criada', usuarioNome: 'Atendente (dev)' },
+      { timestamp: abertaEm, evento: 'Status alterado para Em andamento', usuarioNome: 'Atendente (dev)' },
+    ],
     produtos: [
       {
         produtoCodigo: '00012349',

@@ -8,6 +8,27 @@ export interface ProdutoDTO {
   custo?: number;
 }
 
+export interface ServicoDTO {
+  codigo: string;
+  descricao: string;
+  unidade: string;
+  valorUnitario?: number;
+}
+
+export interface ClienteDTO {
+  codigo: string;
+  nome: string;
+  documento?: string;
+  telefone?: string;
+}
+
+export interface EquipamentoDTO {
+  codigo: string;
+  descricao: string;
+  clienteCodigo: string;
+  identificacao?: string;
+}
+
 export interface ApiSuccess<T> {
   success: true;
   data: T;

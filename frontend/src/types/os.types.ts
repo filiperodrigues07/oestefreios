@@ -1,38 +1,3 @@
-/**
- * Entidades do domínio CHERP/Firebird. `codigo` é sempre string: o CHERP
- * usa códigos com zeros à esquerda (ex. "00012345") que não podem virar number.
- */
-
-export interface Produto {
-  codigo: string;
-  descricao: string;
-  unidade: string;
-  disponivel?: number;
-  precoUnitario?: number;
-  custo?: number;
-}
-
-export interface Servico {
-  codigo: string;
-  descricao: string;
-  unidade: string;
-  valorUnitario?: number;
-}
-
-export interface Cliente {
-  codigo: string;
-  nome: string;
-  documento?: string;
-  telefone?: string;
-}
-
-export interface Equipamento {
-  codigo: string;
-  descricao: string;
-  clienteCodigo: string;
-  identificacao?: string;
-}
-
 export type OSStatus =
   | 'ABERTA'
   | 'EM_ANALISE'
@@ -70,7 +35,9 @@ export interface OSHistoricoEntry {
   usuarioNome: string;
 }
 
-export interface OrdemServico {
+/** Espelha backend/src/dto/os.dto.ts. Campos financeiros (precoUnitario/valorUnitario/total/faturamento)
+ * só existem quando o backend os envia (perfil com FINANCIAL_VIEW) — nunca assuma presentes. */
+export interface OrdemServicoDTO {
   id: string;
   numero: number;
   clienteCodigo: string;
@@ -92,18 +59,16 @@ export interface OrdemServico {
   faturamento?: number;
 }
 
-export interface PaginatedResult<T> {
-  items: T[];
-  page: number;
-  limit: number;
-  total: number;
-}
-
-export interface SearchQuery {
-  codigo?: string;
-  descricao?: string;
-  /** Só usado por equipamentos: filtra pelo cliente já selecionado no fluxo de criação de OS. */
-  clienteCodigo?: string;
-  page?: number;
-  limit?: number;
-}
+/**
+ * Espelha backend/src/services/osWorkflow.ts. Só para filtrar opções na UI —
+ * o backend sempre revalida a transição, esta cópia nunca é a fonte de verdade.
+ */
+export const ALLOWED_TRANSITIONS: Record<OSStatus, OSStatus[]> = {
+  ABERTA: ['EM_ANALISE', 'CANCELADA'],
+  EM_ANALISE: ['EM_ANDAMENTO', 'ABERTA', 'CANCELADA'],
+  EM_ANDAMENTO: ['AGUARDANDO_PECA', 'AGUARDANDO_CLIENTE', 'CONCLUIDA', 'CANCELADA'],
+  AGUARDANDO_PECA: ['EM_ANDAMENTO', 'CANCELADA'],
+  AGUARDANDO_CLIENTE: ['EM_ANDAMENTO', 'CANCELADA'],
+  CONCLUIDA: [],
+  CANCELADA: [],
+};

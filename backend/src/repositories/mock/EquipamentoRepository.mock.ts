@@ -22,6 +22,9 @@ export class EquipamentoRepositoryMock implements IEquipamentoRepository {
 
   async buscar(query: SearchQuery): Promise<PaginatedResult<Equipamento>> {
     let filtered = EQUIPAMENTOS;
+    if (query.clienteCodigo) {
+      filtered = filtered.filter((e) => e.clienteCodigo === query.clienteCodigo);
+    }
     if (query.codigo) {
       filtered = filtered.filter((e) => e.codigo === query.codigo);
     } else if (query.descricao) {
