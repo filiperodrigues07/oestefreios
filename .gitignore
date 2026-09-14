@@ -1,0 +1,20 @@
+node_modules/
+dist/
+build/
+coverage/
+*.tsbuildinfo
+*.local
+.env
+.env.*
+!.env.example
+logs/
+*.log
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+frontend/dev-dist/
+
+# Skills/tooling do Claude Code instalados localmente (não são código do projeto)
+.claude/
+.agents/
+skills-lock.json
