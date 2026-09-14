@@ -2,7 +2,7 @@
 
 Sistema PWA de controle de Ordens de Serviço, integrado ao ERP Firebird (CHERP). Monorepo com backend (Express/TypeScript, arquitetura em camadas) e frontend (Vite/React/TypeScript, PWA).
 
-Status: **Fase 1 (Fundação) e Fase 2 (Autenticação)** concluídas e testadas. Ver `docs/roadmap` (seção final deste README) para as próximas fases.
+Status: **Fase 1 (Fundação), Fase 2 (Autenticação) e Fase 3 (Design System)** concluídas e testadas. Ver "Roadmap" no fim deste README para as próximas fases.
 
 ## Stack
 
@@ -80,13 +80,20 @@ backend/src/
   errors/        AppError e subclasses
 
 frontend/src/
-  api/           httpClient (refresh automático), auth.api, queryClient
-  store/         Zustand: auth, tema
-  routes/        router, ProtectedRoute
-  pages/         Login, Dashboard (placeholder)
-  styles/        design tokens (claro/escuro)
+  api/               httpClient (refresh automático), auth.api, produtos.api, queryClient
+  store/             Zustand: auth, tema
+  routes/            router, ProtectedRoute
+  pages/             Login, Início, OS (placeholder), Produtos, Perfil
+  components/ui/     biblioteca de componentes (Button, Input, Select, Badge/StatusBadge,
+                      Card, Modal/Drawer, ConfirmDialog, Toast, Skeleton, EmptyState,
+                      ErrorState, Pagination, SearchCombobox)
+  components/layout/ AppShell (sidebar desktop + bottom nav mobile, mesma lista de itens)
+  components/search/ instâncias concretas do SearchCombobox (ProdutoSearch já ligado à API real)
+  hooks/             useTheme, useDebouncedValue, useFocusTrap
+  constants/         catálogo de status/prioridade de OS (rótulo + cor semântica)
+  styles/            design tokens (claro/escuro, espaçamento, sombra, z-index)
 ```
 
 ## Roadmap (próximas fases)
 
-Fase 3 (Design System — sidebar/bottom-nav, componentes WCAG AA) · Fase 4 (módulo de OS completo) · Fase 5 (Firebird real, substituindo os mocks) · Fase 6 (busca de Produtos/Serviços na OS) · Fase 7 (Dashboard/relatórios) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
+Fase 4 (módulo de OS completo) · Fase 5 (Firebird real, substituindo os mocks) · Fase 6 (consulta completa de Produtos/Serviços, ClienteSearch/EquipamentoSearch) · Fase 7 (Dashboard/relatórios) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
