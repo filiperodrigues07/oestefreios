@@ -36,7 +36,11 @@ export interface CriarOSInput {
 }
 
 export function criarOS(input: CriarOSInput): Promise<OrdemServicoDTO> {
-  return apiFetch<OrdemServicoDTO>('/os', { method: 'POST', body: input });
+  return apiFetch<OrdemServicoDTO>('/os', {
+    method: 'POST',
+    body: input,
+    offlineDescription: `Criar OS para o cliente ${input.clienteCodigo}`,
+  });
 }
 
 export interface AtualizarOSInput {
@@ -47,25 +51,43 @@ export interface AtualizarOSInput {
 }
 
 export function atualizarOS(id: string, input: AtualizarOSInput): Promise<OrdemServicoDTO> {
-  return apiFetch<OrdemServicoDTO>(`/os/${id}`, { method: 'PUT', body: input });
+  return apiFetch<OrdemServicoDTO>(`/os/${id}`, { method: 'PUT', body: input, offlineDescription: `Atualizar OS ${id}` });
 }
 
 export function alterarStatusOS(id: string, status: OSStatus): Promise<OrdemServicoDTO> {
-  return apiFetch<OrdemServicoDTO>(`/os/${id}/status`, { method: 'PATCH', body: { status } });
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/status`, {
+    method: 'PATCH',
+    body: { status },
+    offlineDescription: `Alterar status da OS ${id} para ${status}`,
+  });
 }
 
 export function adicionarProdutoOS(id: string, produtoCodigo: string, quantidade: number): Promise<OrdemServicoDTO> {
-  return apiFetch<OrdemServicoDTO>(`/os/${id}/produtos`, { method: 'POST', body: { produtoCodigo, quantidade } });
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/produtos`, {
+    method: 'POST',
+    body: { produtoCodigo, quantidade },
+    offlineDescription: `Adicionar produto ${produtoCodigo} na OS ${id}`,
+  });
 }
 
 export function removerProdutoOS(id: string, produtoCodigo: string): Promise<OrdemServicoDTO> {
-  return apiFetch<OrdemServicoDTO>(`/os/${id}/produtos/${produtoCodigo}`, { method: 'DELETE' });
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/produtos/${produtoCodigo}`, {
+    method: 'DELETE',
+    offlineDescription: `Remover produto ${produtoCodigo} da OS ${id}`,
+  });
 }
 
 export function adicionarServicoOS(id: string, servicoCodigo: string, quantidade: number): Promise<OrdemServicoDTO> {
-  return apiFetch<OrdemServicoDTO>(`/os/${id}/servicos`, { method: 'POST', body: { servicoCodigo, quantidade } });
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/servicos`, {
+    method: 'POST',
+    body: { servicoCodigo, quantidade },
+    offlineDescription: `Adicionar serviço ${servicoCodigo} na OS ${id}`,
+  });
 }
 
 export function removerServicoOS(id: string, servicoCodigo: string): Promise<OrdemServicoDTO> {
-  return apiFetch<OrdemServicoDTO>(`/os/${id}/servicos/${servicoCodigo}`, { method: 'DELETE' });
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/servicos/${servicoCodigo}`, {
+    method: 'DELETE',
+    offlineDescription: `Remover serviço ${servicoCodigo} da OS ${id}`,
+  });
 }

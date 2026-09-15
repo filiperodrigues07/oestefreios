@@ -3,6 +3,7 @@ import { NavLink } from 'react-router';
 import styles from './AppShell.module.css';
 import { NavIcon } from './NavIcon.js';
 import { NAV_ITEMS } from './navItems.js';
+import { OfflineBanner } from './OfflineBanner.js';
 
 /**
  * Shell responsivo: sidebar fixa a partir de 768px, bottom navigation abaixo disso.
@@ -28,7 +29,10 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
       </aside>
 
-      <main className={styles.main}>{children}</main>
+      <main className={styles.main}>
+        <OfflineBanner />
+        {children}
+      </main>
 
       <nav className={styles.bottomNav} aria-label="Navegação principal">
         {NAV_ITEMS.map((item) => (

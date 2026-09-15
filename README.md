@@ -2,7 +2,7 @@
 
 Sistema PWA de controle de Ordens de Serviço, integrado ao ERP Firebird (CHERP). Monorepo com backend (Express/TypeScript, arquitetura em camadas) e frontend (Vite/React/TypeScript, PWA).
 
-Status: **Fases 1-4, 6 (catálogo) e 7 (dashboard)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
+Status: **Fases 1-4, 6 (catálogo), 7 (dashboard) e 8 (PWA offline)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
 
 ## Stack
 
@@ -94,6 +94,18 @@ Tela Início vira dashboard administrativo ou operacional conforme a permissão 
 
 Paleta categórica dos gráficos validada contra as superfícies reais do app (`node scripts/validate_palette.js` do skill de dataviz, luz e escuro) antes de virar token em `frontend/src/styles/tokens.css` (`--chart-series-*`) — não foi escolhida no olho.
 
+## PWA offline (Fase 8)
+
+- **Ícones e manifest reais**: PNG 192/512 + maskable + apple-touch-icon (gerados a partir do SVG), não só o `icon.svg` que a Fase 1 deixou.
+- **Estratégia de cache** (seção 25): assets do build ficam cache-first via precache do Workbox; `GET /api/*` usa `NetworkFirst` com timeout de 4s — tenta a rede, cai pro cache só quando não responde. Mutação (`POST/PUT/PATCH/DELETE`) nunca é cacheada.
+- **Indicador de conexão**: banner fixo "Você está offline" (`useOnlineStatus` + `OfflineBanner`) sempre que a conexão cai, e a tela de login explica por que não dá pra entrar offline (o token só vive em memória — decisão de segurança da Fase 2 — então um reload a frio sem internet não tem sessão pra restaurar; isso é intencional, não um bug).
+- **Atualização automática**: `registerType:'autoUpdate'` já troca a versão sozinho; um toast avisa quando o app fica pronto para uso offline.
+- **Fila de sincronização** (seção 26): mutação que falha por falta de conexão de verdade vai pro IndexedDB (`frontend/src/pwa/offlineQueue.ts`) em vez de tentar e fingir sucesso — a UI mostra "a alteração foi guardada e será sincronizada quando a internet voltar" (nunca um toast de sucesso genérico). Ao reconectar, a fila sincroniza sozinha e avisa quantas alterações foram sincronizadas ou falharam.
+
+**Pegadinha real que apareceu testando**: o TanStack Query tem um `networkMode` padrão que *pausa* mutações inteiras quando `navigator.onLine` é falso, sem nunca chamar a função da mutação — isso deixava a fila offline morta silenciosamente, porque o `apiFetch` nunca era invocado pra detectar a falha. Corrigido com `mutations: { networkMode: 'always' }` em `frontend/src/api/queryClient.ts`, pra ser o próprio `httpClient.ts` quem decide o que fazer com a falha de rede.
+
+Validado contra o build de produção real (`vite preview`, com o service worker de verdade, não o dev server): manifest com ícones PNG, SW ativo, banner offline, dado de uma OS já visitada continua na tela sem internet, mutação abortada de propósito vai pra fila (nunca atualiza o status na tela até sincronizar de verdade), e ao reconectar sincroniza sozinha com toast de confirmação.
+
 ## Estrutura
 
 ```
@@ -122,11 +134,12 @@ frontend/src/
   components/catalog/ CatalogList (busca + ordenação + paginação, genérico, usado por Produtos e Serviços)
   components/charts/  StatTile, BarList, formatters (número/dinheiro compactos) — paleta validada, ver Fase 7
   components/dashboard/ AdminDashboard, OperationalDashboard
-  hooks/             useTheme, useDebouncedValue, useFocusTrap
+  hooks/             useTheme, useDebouncedValue, useFocusTrap, useOnlineStatus, useOfflineSync, usePwaUpdate
+  pwa/               offlineQueue (IndexedDB), OfflineQueuedError, offlineErrorToast
   constants/         catálogo de status/prioridade de OS (rótulo + cor semântica)
-  styles/            design tokens (claro/escuro, espaçamento, sombra, z-index)
+  styles/            design tokens (claro/escuro, espaçamento, sombra, z-index, paleta de gráficos)
 ```
 
 ## Roadmap (próximas fases)
 
-Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
+Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).

@@ -27,6 +27,7 @@ import {
   StatusBadge,
   useToast,
 } from '../components/ui/index.js';
+import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import { hasPermission } from '../store/authStore.js';
 import type { ProdutoDTO, ServicoDTO } from '../types/cherp.types.js';
 import type { OSStatus } from '../types/os.types.js';
@@ -80,7 +81,7 @@ export function OSDetailPage() {
       setEditando(false);
       showToast('Alterações salvas.', 'success');
     },
-    onError: () => showToast('Não foi possível salvar as alterações. Tente novamente.', 'danger'),
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível salvar as alterações. Tente novamente.'),
   });
 
   const statusMutation = useMutation({
@@ -89,7 +90,7 @@ export function OSDetailPage() {
       await invalidate();
       showToast('Status alterado.', 'success');
     },
-    onError: (err) => showToast(err instanceof Error ? err.message : 'Não foi possível alterar o status.', 'danger'),
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível alterar o status.'),
   });
 
   const addProdutoMutation = useMutation({
@@ -99,7 +100,7 @@ export function OSDetailPage() {
       setDrawerAberto(null);
       showToast('Produto adicionado.', 'success');
     },
-    onError: (err) => showToast(err instanceof Error ? err.message : 'Não foi possível adicionar o produto.', 'danger'),
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível adicionar o produto.'),
   });
 
   const addServicoMutation = useMutation({
@@ -109,7 +110,7 @@ export function OSDetailPage() {
       setDrawerAberto(null);
       showToast('Serviço adicionado.', 'success');
     },
-    onError: (err) => showToast(err instanceof Error ? err.message : 'Não foi possível adicionar o serviço.', 'danger'),
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível adicionar o serviço.'),
   });
 
   const removerMutation = useMutation({
@@ -120,7 +121,7 @@ export function OSDetailPage() {
       setRemovendo(null);
       showToast('Removido.', 'success');
     },
-    onError: () => showToast('Não foi possível remover. Tente novamente.', 'danger'),
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível remover. Tente novamente.'),
   });
 
   function iniciarEdicao() {

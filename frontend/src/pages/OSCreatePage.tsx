@@ -4,7 +4,8 @@ import { useNavigate } from 'react-router';
 import { criarOS } from '../api/os.api.js';
 import { ClienteSearch } from '../components/search/ClienteSearch.js';
 import { EquipamentoSearch } from '../components/search/EquipamentoSearch.js';
-import { Button, Card, Select } from '../components/ui/index.js';
+import { Button, Card, Select, useToast } from '../components/ui/index.js';
+import { OfflineQueuedError } from '../pwa/OfflineQueuedError.js';
 import type { ClienteDTO, EquipamentoDTO } from '../types/cherp.types.js';
 import type { OSPrioridade } from '../types/os.types.js';
 
@@ -21,6 +22,7 @@ const PRIORIDADE_OPTIONS = [
  */
 export function OSCreatePage() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const [cliente, setCliente] = useState<ClienteDTO | null>(null);
   const [equipamento, setEquipamento] = useState<EquipamentoDTO | null>(null);
   const [problema, setProblema] = useState('');
@@ -35,6 +37,13 @@ export function OSCreatePage() {
         prioridade,
       }),
     onSuccess: (os) => navigate(`/os/${os.id}`, { replace: true }),
+    onError: (err) => {
+      // Sem ID de servidor pra navegar (a OS ainda não existe de verdade) — volta pra lista com aviso claro.
+      if (err instanceof OfflineQueuedError) {
+        showToast(err.message, 'warning');
+        navigate('/os', { replace: true });
+      }
+    },
   });
 
   const podeSalvar = cliente && equipamento && problema.trim().length > 0 && !mutation.isPending;

@@ -1,8 +1,11 @@
+import { enqueueOperation } from '../pwa/offlineQueue.js';
+import { OfflineQueuedError } from '../pwa/OfflineQueuedError.js';
 import { useAuthStore } from '../store/authStore.js';
 import type { ApiResponse } from '../types/cherp.types.js';
 import type { LoginResponse } from '../types/auth.types.js';
 
 const API_BASE = '/api';
+const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 class ApiError extends Error {
   code: string;
@@ -45,22 +48,48 @@ export function bootstrapSession(): Promise<boolean> {
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
+  /**
+   * Texto curto pro usuário, usado só se a mutação precisar ser enfileirada por falta de
+   * conexão (seção 26). Sem isso, a fila usa uma descrição genérica "MÉTODO /rota".
+   */
+  offlineDescription?: string;
 }
 
 /** Cliente HTTP com renovação automática de access token expirado (uma tentativa, sem loop). */
 export async function apiFetch<T>(path: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
   const { accessToken } = useAuthStore.getState();
+  const { offlineDescription, ...requestOptions } = options;
+  const method = (requestOptions.method ?? 'GET').toUpperCase();
 
-  const res = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...options.headers,
-    },
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}${path}`, {
+      ...requestOptions,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...requestOptions.headers,
+      },
+      body: requestOptions.body !== undefined ? JSON.stringify(requestOptions.body) : undefined,
+    });
+  } catch (networkError) {
+    const isMutation = MUTATING_METHODS.has(method);
+    const isAuthRoute = path.startsWith('/auth');
+    const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
+
+    if (isMutation && !isAuthRoute && isOffline) {
+      const queueId = await enqueueOperation({
+        method: method as 'POST' | 'PUT' | 'PATCH' | 'DELETE',
+        path,
+        body: requestOptions.body,
+        description: offlineDescription ?? `${method} ${path}`,
+      });
+      throw new OfflineQueuedError(queueId);
+    }
+
+    throw networkError;
+  }
 
   const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
 

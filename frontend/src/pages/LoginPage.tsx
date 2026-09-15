@@ -3,6 +3,7 @@ import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { login } from '../api/auth.api.js';
 import { Button, Card, Input } from '../components/ui/index.js';
+import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { useAuthStore } from '../store/authStore.js';
 
 export function LoginPage() {
@@ -10,6 +11,7 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const setSession = useAuthStore((s) => s.setSession);
   const navigate = useNavigate();
+  const online = useOnlineStatus();
 
   const mutation = useMutation({
     mutationFn: () => login(email, password),
@@ -65,13 +67,19 @@ export function LoginPage() {
             autoComplete="current-password"
           />
 
-          {mutation.isError && (
+          {!online && (
+            <p role="alert" style={{ color: 'var(--color-warning-on-surface)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+              Você está offline. Por segurança, a sessão não fica salva no aparelho — conecte-se à internet para entrar.
+            </p>
+          )}
+
+          {online && mutation.isError && (
             <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
               {mutation.error instanceof Error ? mutation.error.message : 'Erro ao entrar.'}
             </p>
           )}
 
-          <Button type="submit" loading={mutation.isPending} fullWidth>
+          <Button type="submit" loading={mutation.isPending} disabled={!online} fullWidth>
             Entrar
           </Button>
         </form>
