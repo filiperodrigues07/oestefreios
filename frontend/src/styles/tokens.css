@@ -57,6 +57,18 @@
   --color-info-on-surface: #075985;
   --color-primary-on-surface: #075985;
 
+  /* Paleta categórica pra gráficos (dataviz skill) — validada com scripts/validate_palette.js
+     contra --color-surface claro (#ffffff): todos os 8 passam CVD/lightness/chroma;
+     slots 3/5/4 ficam abaixo de 3:1 de contraste — por isso todo gráfico usa label direto,
+     nunca só a cor, pra esses casos (regra de "relief" do skill). */
+  --chart-series-1: #2a78d6;
+  --chart-series-2: #eb6834;
+  --chart-series-3: #1baf7a;
+  --chart-series-4: #eda100;
+  --chart-series-5: #e87ba4;
+  --chart-grid: #e1e0d9;
+  --chart-muted: #898781;
+
   color-scheme: light;
 }
 
@@ -92,6 +104,15 @@
   --color-danger-on-surface: #fca5a5;
   --color-info-on-surface: #7dd3fc;
   --color-primary-on-surface: #7dd3fc;
+
+  /* Paleta categórica — passos escuros validados contra --color-surface escuro (#111827). */
+  --chart-series-1: #3987e5;
+  --chart-series-2: #d95926;
+  --chart-series-3: #199e70;
+  --chart-series-4: #c98500;
+  --chart-series-5: #d55181;
+  --chart-grid: #2c2c2a;
+  --chart-muted: #898781;
 
   color-scheme: dark;
 }

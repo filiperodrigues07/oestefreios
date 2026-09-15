@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { authRouter } from './auth.routes.js';
 import { clienteRouter } from './cliente.routes.js';
+import { dashboardRouter } from './dashboard.routes.js';
 import { equipamentoRouter } from './equipamento.routes.js';
 import { healthRouter } from './health.routes.js';
 import { osRouter } from './os.routes.js';
@@ -16,3 +17,4 @@ apiRouter.use('/servicos', servicoRouter);
 apiRouter.use('/clientes', clienteRouter);
 apiRouter.use('/equipamentos', equipamentoRouter);
 apiRouter.use('/os', osRouter);
+apiRouter.use('/dashboard', dashboardRouter);

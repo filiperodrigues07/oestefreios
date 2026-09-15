@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { OrdemServico } from '../../types/cherp.types.js';
+import type { OrdemServico, OSItemProduto, OSItemServico, OSPrioridade, OSStatus } from '../../types/cherp.types.js';
 import type { IOSRepository, OSListFilter } from '../interfaces/IOSRepository.js';
 
 /**
@@ -8,48 +8,134 @@ import type { IOSRepository, OSListFilter } from '../interfaces/IOSRepository.js
  * Construir entradas de `historico` é responsabilidade do service (services/os.service.ts),
  * não deste repositório — aqui só persistimos o que for passado.
  */
-const abertaEm = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-const OS_LIST: OrdemServico[] = [
-  {
+
+function horasAtras(h: number): string {
+  return new Date(Date.now() - h * 60 * 60 * 1000).toISOString();
+}
+
+function item(produto: Omit<OSItemProduto, 'total'>): OSItemProduto {
+  return { ...produto, total: produto.precoUnitario !== undefined ? produto.precoUnitario * produto.quantidade : undefined };
+}
+
+function servicoItem(servico: Omit<OSItemServico, 'total'>): OSItemServico {
+  return { ...servico, total: servico.valorUnitario !== undefined ? servico.valorUnitario * servico.quantidade : undefined };
+}
+
+interface SeedOSInput {
+  numero: number;
+  clienteCodigo: string;
+  equipamentoCodigo: string;
+  status: OSStatus;
+  prioridade: OSPrioridade;
+  problema: string;
+  abertaHaHoras: number;
+  concluidaHaHoras?: number;
+  produtos?: OSItemProduto[];
+  servicos?: OSItemServico[];
+}
+
+function seedOS(input: SeedOSInput): OrdemServico {
+  const dataAbertura = horasAtras(input.abertaHaHoras);
+  const produtos = input.produtos ?? [];
+  const servicos = input.servicos ?? [];
+  const totais = [...produtos.map((p) => p.total), ...servicos.map((s) => s.total)];
+  const faturamento = totais.some((t) => t === undefined)
+    ? undefined
+    : totais.reduce<number>((acc, t) => acc + (t ?? 0), 0);
+
+  return {
     id: randomUUID(),
+    numero: input.numero,
+    clienteCodigo: input.clienteCodigo,
+    equipamentoCodigo: input.equipamentoCodigo,
+    status: input.status,
+    prioridade: input.prioridade,
+    problema: input.problema,
+    produtos,
+    servicos,
+    historico: [{ timestamp: dataAbertura, evento: 'OS criada', usuarioNome: 'Atendente (dev)' }],
+    dataAbertura,
+    dataConclusao: input.concluidaHaHoras !== undefined ? horasAtras(input.concluidaHaHoras) : undefined,
+    faturamento,
+  };
+}
+
+const OS_LIST: OrdemServico[] = [
+  seedOS({
     numero: 1234,
     clienteCodigo: '000001',
     equipamentoCodigo: 'EQ01',
     status: 'EM_ANDAMENTO',
     prioridade: 'NORMAL',
     problema: 'Barulho estranho no motor ao acelerar',
-    diagnostico: 'Correia dentada desgastada',
-    historico: [
-      { timestamp: abertaEm, evento: 'OS criada', usuarioNome: 'Atendente (dev)' },
-      { timestamp: abertaEm, evento: 'Status alterado para Em andamento', usuarioNome: 'Atendente (dev)' },
-    ],
-    produtos: [
-      {
-        produtoCodigo: '00012349',
-        descricao: 'Correia dentada',
-        unidade: 'UN',
-        quantidade: 1,
-        precoUnitario: 180,
-        desconto: 0,
-        total: 180,
-      },
-    ],
-    servicos: [
-      {
-        servicoCodigo: '5016',
-        descricao: 'Troca de correia dentada',
-        unidade: 'SERV',
-        quantidade: 1,
-        valorUnitario: 280,
-        total: 280,
-      },
-    ],
-    dataAbertura: new Date().toISOString(),
-    faturamento: 460,
-  },
+    abertaHaHoras: 6,
+    produtos: [item({ produtoCodigo: '00012349', descricao: 'Correia dentada', unidade: 'UN', quantidade: 1, precoUnitario: 180, desconto: 0 })],
+    servicos: [servicoItem({ servicoCodigo: '5016', descricao: 'Troca de correia dentada', unidade: 'SERV', quantidade: 1, valorUnitario: 280, desconto: 0 })],
+  }),
+  seedOS({
+    numero: 1230,
+    clienteCodigo: '000002',
+    equipamentoCodigo: 'EQ02',
+    status: 'CONCLUIDA',
+    prioridade: 'ALTA',
+    problema: 'Freio traseiro raspando',
+    abertaHaHoras: 72,
+    concluidaHaHoras: 48,
+    produtos: [item({ produtoCodigo: '00012350', descricao: 'Pastilha de freio traseira', unidade: 'JG', quantidade: 1, precoUnitario: 190, desconto: 0 })],
+    servicos: [servicoItem({ servicoCodigo: '5014', descricao: 'Troca de pastilha de freio', unidade: 'SERV', quantidade: 1, valorUnitario: 150, desconto: 0 })],
+  }),
+  seedOS({
+    numero: 1231,
+    clienteCodigo: '000001',
+    equipamentoCodigo: 'EQ01',
+    status: 'CONCLUIDA',
+    prioridade: 'NORMAL',
+    problema: 'Revisão dos 20.000km',
+    abertaHaHoras: 120,
+    concluidaHaHoras: 96,
+    produtos: [item({ produtoCodigo: '00012345', descricao: 'Filtro de óleo', unidade: 'UN', quantidade: 1, precoUnitario: 50, desconto: 0 })],
+    servicos: [servicoItem({ servicoCodigo: '5015', descricao: 'Revisão completa', unidade: 'SERV', quantidade: 1, valorUnitario: 350, desconto: 0 })],
+  }),
+  seedOS({
+    numero: 1232,
+    clienteCodigo: '000003',
+    equipamentoCodigo: 'EQ03',
+    status: 'ABERTA',
+    prioridade: 'URGENTE',
+    problema: 'Carro não liga',
+    abertaHaHoras: 1,
+  }),
+  seedOS({
+    numero: 1233,
+    clienteCodigo: '000002',
+    equipamentoCodigo: 'EQ02',
+    status: 'AGUARDANDO_PECA',
+    prioridade: 'ALTA',
+    problema: 'Amortecedor dianteiro vazando',
+    abertaHaHoras: 30,
+    produtos: [item({ produtoCodigo: '00012351', descricao: 'Amortecedor dianteiro', unidade: 'UN', quantidade: 2, precoUnitario: 320, desconto: 0 })],
+  }),
+  seedOS({
+    numero: 1229,
+    clienteCodigo: '000003',
+    equipamentoCodigo: 'EQ03',
+    status: 'CANCELADA',
+    prioridade: 'BAIXA',
+    problema: 'Ruído no painel — cliente desistiu',
+    abertaHaHoras: 200,
+  }),
+  seedOS({
+    numero: 1235,
+    clienteCodigo: '000001',
+    equipamentoCodigo: 'EQ01',
+    status: 'EM_ANALISE',
+    prioridade: 'NORMAL',
+    problema: 'Consumo de combustível acima do normal',
+    abertaHaHoras: 3,
+  }),
 ];
 
-let nextNumero = 1235;
+let nextNumero = 1236;
 
 export class OSRepositoryMock implements IOSRepository {
   async buscarPorId(id: string): Promise<OrdemServico | null> {

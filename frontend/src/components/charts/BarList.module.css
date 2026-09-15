@@ -1,0 +1,48 @@
+.chart {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(90px, 30%) 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rowLabel {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track {
+  background: var(--chart-grid);
+  border-radius: 4px;
+  height: 20px;
+  position: relative;
+}
+
+.bar {
+  height: 20px;
+  max-height: 24px;
+  /* 4px arredondado na ponta (valor), quadrado na base (0) — spec de marca do skill. */
+  border-radius: 0 4px 4px 0;
+  min-width: 4px;
+}
+
+.rowValue {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  min-width: 32px;
+  text-align: right;
+}
+
+.empty {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}

@@ -2,7 +2,7 @@
 
 Sistema PWA de controle de Ordens de Serviço, integrado ao ERP Firebird (CHERP). Monorepo com backend (Express/TypeScript, arquitetura em camadas) e frontend (Vite/React/TypeScript, PWA).
 
-Status: **Fases 1-4 e Fase 6 (catálogo de Produtos/Serviços)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
+Status: **Fases 1-4, 6 (catálogo) e 7 (dashboard)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
 
 ## Stack
 
@@ -85,6 +85,15 @@ Enquanto uma query não for preenchida, o endpoint correspondente responde `501 
 
 Tela única em `/produtos` com abas Produtos/Serviços, cada uma com busca (código prioriza sobre descrição, seção 36), ordenação por código ou descrição, paginação e um modal de detalhe. Reaproveita o componente genérico `frontend/src/components/catalog/CatalogList.tsx` — a única coisa que muda entre as abas é a função de busca e qual campo de preço mostrar. Preço/valor só aparecem, na lista e no detalhe, quando o backend os envia (perfil com `FINANCIAL_VIEW`); testei lado a lado admin vs. Mecânico e confirmei zero "R$" na tela do Mecânico.
 
+## Dashboard (Fase 7)
+
+Tela Início vira dashboard administrativo ou operacional conforme a permissão `REPORT_VIEW`:
+
+- **Administrativo**: cards de OS por status, tempo médio de conclusão, indicadores financeiros (só com `FINANCIAL_VIEW` — testado: some inteiro pro Mecânico, nem a seção aparece), gráficos de barra "OS por status"/"OS por prioridade" (cor = mesma identidade dos badges já usados no resto do app) e rankings de "Produtos/Serviços mais utilizados" + "OS por técnico" (cor única por regra do skill de dataviz — nominal ranking não ganha cor por barra, isso seria um encoding falso).
+- **Operacional** (seção 19 do briefing): só "Minhas OS" — 4 cards de contagem (Pendentes/Em andamento/Aguardando/Concluídas) e a lista das OS onde o usuário é técnico ou responsável, sem nenhum campo financeiro.
+
+Paleta categórica dos gráficos validada contra as superfícies reais do app (`node scripts/validate_palette.js` do skill de dataviz, luz e escuro) antes de virar token em `frontend/src/styles/tokens.css` (`--chart-series-*`) — não foi escolhida no olho.
+
 ## Estrutura
 
 ```
@@ -111,6 +120,8 @@ frontend/src/
   components/search/ ProdutoSearch, ServicoSearch, ClienteSearch, EquipamentoSearch (SearchCombobox + API real)
   components/os/      HistoryTimeline, StatusChanger (só filtra opções — backend sempre revalida)
   components/catalog/ CatalogList (busca + ordenação + paginação, genérico, usado por Produtos e Serviços)
+  components/charts/  StatTile, BarList, formatters (número/dinheiro compactos) — paleta validada, ver Fase 7
+  components/dashboard/ AdminDashboard, OperationalDashboard
   hooks/             useTheme, useDebouncedValue, useFocusTrap
   constants/         catálogo de status/prioridade de OS (rótulo + cor semântica)
   styles/            design tokens (claro/escuro, espaçamento, sombra, z-index)
@@ -118,4 +129,4 @@ frontend/src/
 
 ## Roadmap (próximas fases)
 
-Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 7 (Dashboard/relatórios) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
+Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
