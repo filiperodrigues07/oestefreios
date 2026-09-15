@@ -106,4 +106,6 @@ export interface SearchQuery {
   clienteCodigo?: string;
   page?: number;
   limit?: number;
+  sortBy?: 'codigo' | 'descricao';
+  sortOrder?: 'asc' | 'desc';
 }

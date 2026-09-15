@@ -8,6 +8,9 @@ export const searchQuerySchema = z.object({
   clienteCodigo: z.string().trim().min(1).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
+  /** Usado pela tela de catálogo (Fase 6) — ordenação estável para paginação previsível. */
+  sortBy: z.enum(['codigo', 'descricao']).default('descricao'),
+  sortOrder: z.enum(['asc', 'desc']).default('asc'),
 });
 
 export const codigoParamSchema = z.object({

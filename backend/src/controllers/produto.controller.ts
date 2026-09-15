@@ -1,9 +1,10 @@
 import type { Request, Response } from 'express';
 import * as produtoService from '../services/produto.service.js';
+import type { SearchQuery } from '../types/cherp.types.js';
 import { success } from '../utils/apiResponse.js';
 
 export async function searchProdutosHandler(req: Request, res: Response) {
-  const query = req.query as unknown as { codigo?: string; descricao?: string; page: number; limit: number };
+  const query = req.query as unknown as SearchQuery;
   const result = await produtoService.searchProdutos(query, req.user!.permissions);
   success(res, result);
 }

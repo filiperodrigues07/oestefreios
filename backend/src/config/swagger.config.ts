@@ -8,7 +8,6 @@ import {
   atualizarOSSchema,
   criarOSSchema,
 } from '../validators/os.validator.js';
-import { produtoSearchQuerySchema } from '../validators/produto.validator.js';
 import { searchQuerySchema } from '../validators/search.validator.js';
 
 extendZodWithOpenApi(z);
@@ -69,7 +68,7 @@ registry.registerPath({
   summary: 'Busca produtos do CHERP por código ou descrição (mock nas Fases 1-4).',
   security: [{ bearerAuth: [] }],
   request: {
-    query: produtoSearchQuerySchema,
+    query: searchQuerySchema,
   },
   responses: {
     200: { description: 'Lista paginada de produtos (campos financeiros só com FINANCIAL_VIEW).' },

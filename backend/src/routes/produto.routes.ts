@@ -4,15 +4,11 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { produtoCodigoParamSchema, produtoSearchQuerySchema } from '../validators/produto.validator.js';
+import { codigoParamSchema, searchQuerySchema } from '../validators/search.validator.js';
 
 export const produtoRouter = Router();
 
 produtoRouter.use(authenticate, requirePermission('PRODUCT_VIEW'));
 
-produtoRouter.get('/', validate(produtoSearchQuerySchema, 'query'), asyncHandler(searchProdutosHandler));
-produtoRouter.get(
-  '/:codigo',
-  validate(produtoCodigoParamSchema, 'params'),
-  asyncHandler(getProdutoByCodigoHandler),
-);
+produtoRouter.get('/', validate(searchQuerySchema, 'query'), asyncHandler(searchProdutosHandler));
+produtoRouter.get('/:codigo', validate(codigoParamSchema, 'params'), asyncHandler(getProdutoByCodigoHandler));

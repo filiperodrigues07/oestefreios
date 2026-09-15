@@ -1,4 +1,5 @@
 import type { PaginatedResult, SearchQuery, Servico } from '../../types/cherp.types.js';
+import { sortByField } from '../../utils/sortItems.js';
 import type { IServicoRepository } from '../interfaces/IServicoRepository.js';
 
 /**
@@ -11,6 +12,11 @@ const SERVICOS: Servico[] = [
   { codigo: '5014', descricao: 'Troca de pastilha de freio', unidade: 'SERV', valorUnitario: 150 },
   { codigo: '5015', descricao: 'Revisão completa', unidade: 'SERV', valorUnitario: 350 },
   { codigo: '5016', descricao: 'Troca de correia dentada', unidade: 'SERV', valorUnitario: 280 },
+  { codigo: '5017', descricao: 'Troca de amortecedor', unidade: 'SERV', valorUnitario: 180 },
+  { codigo: '5018', descricao: 'Troca de bateria', unidade: 'SERV', valorUnitario: 40 },
+  { codigo: '5019', descricao: 'Diagnóstico eletrônico', unidade: 'SERV', valorUnitario: 90 },
+  { codigo: '5020', descricao: 'Troca de disco de freio', unidade: 'SERV', valorUnitario: 160 },
+  { codigo: '5021', descricao: 'Higienização do ar-condicionado', unidade: 'SERV', valorUnitario: 110 },
 ];
 
 export class ServicoRepositoryMock implements IServicoRepository {
@@ -31,6 +37,9 @@ export class ServicoRepositoryMock implements IServicoRepository {
       const termo = query.descricao.toLowerCase();
       filtered = filtered.filter((s) => s.descricao.toLowerCase().includes(termo));
     }
+
+    filtered = sortByField(filtered, query.sortBy ?? 'descricao', query.sortOrder ?? 'asc', (item, field) => item[field]);
+
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const start = (page - 1) * limit;

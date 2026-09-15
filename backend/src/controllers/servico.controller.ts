@@ -1,9 +1,10 @@
 import type { Request, Response } from 'express';
 import * as servicoService from '../services/servico.service.js';
+import type { SearchQuery } from '../types/cherp.types.js';
 import { success } from '../utils/apiResponse.js';
 
 export async function searchServicosHandler(req: Request, res: Response) {
-  const query = req.query as unknown as { codigo?: string; descricao?: string; page: number; limit: number };
+  const query = req.query as unknown as SearchQuery;
   const result = await servicoService.searchServicos(query, req.user!.permissions);
   success(res, result);
 }

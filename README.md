@@ -2,7 +2,7 @@
 
 Sistema PWA de controle de Ordens de Serviço, integrado ao ERP Firebird (CHERP). Monorepo com backend (Express/TypeScript, arquitetura em camadas) e frontend (Vite/React/TypeScript, PWA).
 
-Status: **Fase 1 (Fundação), Fase 2 (Autenticação), Fase 3 (Design System) e Fase 4 (Ordens de Serviço)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
+Status: **Fases 1-4 e Fase 6 (catálogo de Produtos/Serviços)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
 
 ## Stack
 
@@ -81,6 +81,10 @@ A troca do mock pelo Firebird real está pronta, só falta o SQL:
 
 Enquanto uma query não for preenchida, o endpoint correspondente responde `501 CHERP_QUERY_NOT_IMPLEMENTED` (nunca dado inventado ou silêncio) — comportamento garantido por teste (`backend/src/repositories/firebird/__tests__/firebirdGuard.test.ts`). OS não tem variante Firebird: sua persistência é decisão própria da aplicação, ainda em aberto.
 
+## Catálogo de Produtos e Serviços (Fase 6)
+
+Tela única em `/produtos` com abas Produtos/Serviços, cada uma com busca (código prioriza sobre descrição, seção 36), ordenação por código ou descrição, paginação e um modal de detalhe. Reaproveita o componente genérico `frontend/src/components/catalog/CatalogList.tsx` — a única coisa que muda entre as abas é a função de busca e qual campo de preço mostrar. Preço/valor só aparecem, na lista e no detalhe, quando o backend os envia (perfil com `FINANCIAL_VIEW`); testei lado a lado admin vs. Mecânico e confirmei zero "R$" na tela do Mecânico.
+
 ## Estrutura
 
 ```
@@ -99,13 +103,14 @@ frontend/src/
   api/               httpClient (refresh automático), auth/produtos/servicos/clientes/equipamentos/os.api
   store/             Zustand: auth, tema
   routes/            router, ProtectedRoute
-  pages/             Login, Início, OS (lista/criar/detalhe), Produtos, Perfil
+  pages/             Login, Início, OS (lista/criar/detalhe), Produtos (catálogo com abas), Perfil
   components/ui/     biblioteca de componentes (Button/LinkButton, Input, Select, Badge/StatusBadge,
                       Card, Modal/Drawer, ConfirmDialog, Toast, Skeleton, EmptyState,
                       ErrorState, Pagination, SearchCombobox)
   components/layout/ AppShell (sidebar desktop + bottom nav mobile, mesma lista de itens)
   components/search/ ProdutoSearch, ServicoSearch, ClienteSearch, EquipamentoSearch (SearchCombobox + API real)
   components/os/      HistoryTimeline, StatusChanger (só filtra opções — backend sempre revalida)
+  components/catalog/ CatalogList (busca + ordenação + paginação, genérico, usado por Produtos e Serviços)
   hooks/             useTheme, useDebouncedValue, useFocusTrap
   constants/         catálogo de status/prioridade de OS (rótulo + cor semântica)
   styles/            design tokens (claro/escuro, espaçamento, sombra, z-index)
@@ -113,4 +118,4 @@ frontend/src/
 
 ## Roadmap (próximas fases)
 
-Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 6 (catálogo completo de Produtos/Serviços com filtros avançados) · Fase 7 (Dashboard/relatórios) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
+Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 7 (Dashboard/relatórios) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
