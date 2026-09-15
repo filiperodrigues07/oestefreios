@@ -12,10 +12,30 @@ import {
 import type { OSListFilter } from '../repositories/interfaces/IOSRepository.js';
 import type { AuthenticatedUser, Permission } from '../types/auth.types.js';
 import type { OrdemServico, OSHistoricoEntry, OSPrioridade, OSStatus } from '../types/cherp.types.js';
+import { recordAudit } from './auditLog.service.js';
 import { assertValidTransition } from './osWorkflow.js';
+
+export interface RequestContext {
+  ip?: string;
+  userAgent?: string;
+}
 
 function historicoEntry(evento: string, usuario: AuthenticatedUser): OSHistoricoEntry {
   return { timestamp: new Date().toISOString(), evento, usuarioNome: usuario.name };
+}
+
+/** Auditoria de negócio (seção 24) — trilha durável e protegida, separada do histórico exibido na OS. */
+function auditOS(event: string, osId: string, usuario: AuthenticatedUser, ctx: RequestContext, changes?: unknown) {
+  return recordAudit({
+    userId: usuario.id,
+    userName: usuario.name,
+    event,
+    entityType: 'OS',
+    entityId: osId,
+    changes,
+    ip: ctx.ip,
+    userAgent: ctx.userAgent,
+  });
 }
 
 /** Soma os totais de produtos e serviços. `undefined` se algum item não tiver preço (nunca inventa valor). */
@@ -62,6 +82,7 @@ interface CriarOSInput {
 export async function criarOS(
   input: CriarOSInput,
   usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const cliente = await clienteRepository.buscarPorCodigo(input.clienteCodigo);
   if (!cliente) {
@@ -90,6 +111,8 @@ export async function criarOS(
     dataAbertura: new Date().toISOString(),
   });
 
+  await auditOS('OS_CREATED', novo.id, usuario, ctx, { after: input });
+
   return toOSDTO(novo, usuario.permissions);
 }
 
@@ -107,17 +130,22 @@ export async function atualizarOS(
   id: string,
   patch: AtualizarOSInput,
   usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
 
   const camposAlterados = Object.keys(patch).filter(
     (key) => patch[key as keyof AtualizarOSInput] !== undefined,
-  );
+  ) as (keyof AtualizarOSInput)[];
 
   const atualizado = await osRepository.atualizar(id, {
     ...patch,
     historico: [...atual.historico, historicoEntry(`OS atualizada (${camposAlterados.join(', ')})`, usuario)],
   });
+
+  const before = Object.fromEntries(camposAlterados.map((k) => [k, atual[k]]));
+  const after = Object.fromEntries(camposAlterados.map((k) => [k, patch[k]]));
+  await auditOS('OS_UPDATED', id, usuario, ctx, { before, after });
 
   return toOSDTO(atualizado, usuario.permissions);
 }
@@ -126,6 +154,7 @@ export async function alterarStatusOS(
   id: string,
   novoStatus: OSStatus,
   usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
   assertValidTransition(atual.status, novoStatus);
@@ -139,6 +168,9 @@ export async function alterarStatusOS(
   }
 
   const atualizado = await osRepository.atualizar(id, patch);
+
+  await auditOS('OS_STATUS_CHANGED', id, usuario, ctx, { before: atual.status, after: novoStatus });
+
   return toOSDTO(atualizado, usuario.permissions);
 }
 
@@ -147,6 +179,7 @@ export async function adicionarProdutoOS(
   produtoCodigo: string,
   quantidade: number,
   usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
   const produto = await produtoRepository.buscarPorCodigo(produtoCodigo);
@@ -161,24 +194,24 @@ export async function adicionarProdutoOS(
 
   const precoUnitario = produto.precoUnitario;
   const total = precoUnitario !== undefined ? precoUnitario * quantidade : undefined;
-  const produtos = [
-    ...atual.produtos,
-    {
-      produtoCodigo: produto.codigo,
-      descricao: produto.descricao,
-      unidade: produto.unidade,
-      quantidade,
-      precoUnitario,
-      desconto: 0,
-      total,
-    },
-  ];
+  const novoItem = {
+    produtoCodigo: produto.codigo,
+    descricao: produto.descricao,
+    unidade: produto.unidade,
+    quantidade,
+    precoUnitario,
+    desconto: 0,
+    total,
+  };
+  const produtos = [...atual.produtos, novoItem];
 
   const atualizado = await osRepository.atualizar(id, {
     produtos,
     faturamento: calcularFaturamento(produtos, atual.servicos),
     historico: [...atual.historico, historicoEntry(`Produto adicionado: ${produto.descricao}`, usuario)],
   });
+
+  await auditOS('OS_PRODUCT_ADDED', id, usuario, ctx, { after: novoItem });
 
   return toOSDTO(atualizado, usuario.permissions);
 }
@@ -187,6 +220,7 @@ export async function removerProdutoOS(
   id: string,
   produtoCodigo: string,
   usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
   const item = atual.produtos.find((p) => p.produtoCodigo === produtoCodigo);
@@ -201,6 +235,8 @@ export async function removerProdutoOS(
     historico: [...atual.historico, historicoEntry(`Produto removido: ${item.descricao}`, usuario)],
   });
 
+  await auditOS('OS_PRODUCT_REMOVED', id, usuario, ctx, { before: item });
+
   return toOSDTO(atualizado, usuario.permissions);
 }
 
@@ -209,6 +245,7 @@ export async function adicionarServicoOS(
   servicoCodigo: string,
   quantidade: number,
   usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
   const servico = await servicoRepository.buscarPorCodigo(servicoCodigo);
@@ -223,24 +260,24 @@ export async function adicionarServicoOS(
 
   const valorUnitario = servico.valorUnitario;
   const total = valorUnitario !== undefined ? valorUnitario * quantidade : undefined;
-  const servicos = [
-    ...atual.servicos,
-    {
-      servicoCodigo: servico.codigo,
-      descricao: servico.descricao,
-      unidade: servico.unidade,
-      quantidade,
-      valorUnitario,
-      desconto: 0,
-      total,
-    },
-  ];
+  const novoItem = {
+    servicoCodigo: servico.codigo,
+    descricao: servico.descricao,
+    unidade: servico.unidade,
+    quantidade,
+    valorUnitario,
+    desconto: 0,
+    total,
+  };
+  const servicos = [...atual.servicos, novoItem];
 
   const atualizado = await osRepository.atualizar(id, {
     servicos,
     faturamento: calcularFaturamento(atual.produtos, servicos),
     historico: [...atual.historico, historicoEntry(`Serviço adicionado: ${servico.descricao}`, usuario)],
   });
+
+  await auditOS('OS_SERVICE_ADDED', id, usuario, ctx, { after: novoItem });
 
   return toOSDTO(atualizado, usuario.permissions);
 }
@@ -249,6 +286,7 @@ export async function removerServicoOS(
   id: string,
   servicoCodigo: string,
   usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
   const item = atual.servicos.find((s) => s.servicoCodigo === servicoCodigo);
@@ -262,6 +300,8 @@ export async function removerServicoOS(
     faturamento: calcularFaturamento(atual.produtos, servicos),
     historico: [...atual.historico, historicoEntry(`Serviço removido: ${item.descricao}`, usuario)],
   });
+
+  await auditOS('OS_SERVICE_REMOVED', id, usuario, ctx, { before: item });
 
   return toOSDTO(atualizado, usuario.permissions);
 }

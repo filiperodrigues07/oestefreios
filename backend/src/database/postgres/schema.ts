@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { boolean, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 export const roles = pgTable('roles', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -59,7 +59,18 @@ export const refreshTokens = pgTable('refresh_tokens', {
 export const auditLogs = pgTable('audit_logs', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'set null' }),
+  /** Nome do usuário no momento do evento — sobrevive mesmo se o usuário for depois removido/renomeado. */
+  userName: text('user_name'),
   event: text('event').notNull(),
+  /** Entidade afetada (ex. "OS", "USER"). Null pros eventos de auth (login/logout), que não têm uma entidade de negócio. */
+  entityType: text('entity_type'),
+  entityId: text('entity_id'),
+  /**
+   * Diff estruturado { before, after } da ação, quando aplicável. Nunca grave senha/token aqui —
+   * valores financeiros (preço/custo/faturamento) podem entrar, então o endpoint de leitura filtra
+   * por FINANCIAL_VIEW igual a qualquer outro DTO da aplicação (auditLog.dto.ts).
+   */
+  changes: jsonb('changes'),
   ip: text('ip'),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { auditLogRouter } from './auditLog.routes.js';
 import { authRouter } from './auth.routes.js';
 import { clienteRouter } from './cliente.routes.js';
 import { dashboardRouter } from './dashboard.routes.js';
@@ -18,3 +19,4 @@ apiRouter.use('/clientes', clienteRouter);
 apiRouter.use('/equipamentos', equipamentoRouter);
 apiRouter.use('/os', osRouter);
 apiRouter.use('/dashboard', dashboardRouter);
+apiRouter.use('/audit-logs', auditLogRouter);

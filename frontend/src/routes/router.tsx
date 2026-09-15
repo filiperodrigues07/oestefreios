@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { createBrowserRouter } from 'react-router';
 import { AppShell } from '../components/layout/AppShell.js';
+import { AuditLogPage } from '../pages/AuditLogPage.js';
 import { HomePage } from '../pages/HomePage.js';
 import { LoginPage } from '../pages/LoginPage.js';
 import { OSCreatePage } from '../pages/OSCreatePage.js';
@@ -26,4 +27,5 @@ export const router = createBrowserRouter([
   { path: '/os/:id', element: withShell(<OSDetailPage />) },
   { path: '/produtos', element: withShell(<ProdutosPage />) },
   { path: '/perfil', element: withShell(<PerfilPage />) },
+  { path: '/auditoria', element: withShell(<AuditLogPage />) },
 ]);

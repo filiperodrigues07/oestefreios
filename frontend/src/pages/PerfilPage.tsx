@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { logout } from '../api/auth.api.js';
-import { Badge, Button, Card } from '../components/ui/index.js';
-import { useAuthStore } from '../store/authStore.js';
+import { Badge, Button, Card, LinkButton } from '../components/ui/index.js';
+import { hasPermission, useAuthStore } from '../store/authStore.js';
 import { useThemeStore } from '../store/themeStore.js';
 
 export function PerfilPage() {
@@ -47,10 +47,15 @@ export function PerfilPage() {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)' }}>
+        <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 'var(--space-2)', flexWrap: 'wrap' }}>
           <Button variant="secondary" onClick={toggleTheme}>
             Tema: {theme === 'dark' ? 'Escuro' : 'Claro'}
           </Button>
+          {hasPermission('SYSTEM_SETTINGS') && (
+            <LinkButton to="/auditoria" variant="secondary">
+              Auditoria
+            </LinkButton>
+          )}
           <Button variant="danger" onClick={() => logoutMutation.mutate()} loading={logoutMutation.isPending}>
             Sair
           </Button>

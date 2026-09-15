@@ -2,7 +2,7 @@ import pino, { type LoggerOptions } from 'pino';
 import { env } from '../config/env.js';
 
 const baseOptions: LoggerOptions = {
-  level: env.NODE_ENV === 'production' ? 'info' : 'debug',
+  level: env.NODE_ENV === 'test' ? 'silent' : env.NODE_ENV === 'production' ? 'info' : 'debug',
   redact: {
     paths: [
       'req.headers.authorization',

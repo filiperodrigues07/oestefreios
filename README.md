@@ -2,7 +2,7 @@
 
 Sistema PWA de controle de Ordens de Serviço, integrado ao ERP Firebird (CHERP). Monorepo com backend (Express/TypeScript, arquitetura em camadas) e frontend (Vite/React/TypeScript, PWA).
 
-Status: **Fases 1-4, 6 (catálogo), 7 (dashboard) e 8 (PWA offline)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
+Status: **Fases 1-4, 6 (catálogo), 7 (dashboard), 8 (PWA offline) e 9 (auditoria/hardening)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
 
 ## Stack
 
@@ -106,13 +106,19 @@ Paleta categórica dos gráficos validada contra as superfícies reais do app (`
 
 Validado contra o build de produção real (`vite preview`, com o service worker de verdade, não o dev server): manifest com ícones PNG, SW ativo, banner offline, dado de uma OS já visitada continua na tela sem internet, mutação abortada de propósito vai pra fila (nunca atualiza o status na tela até sincronizar de verdade), e ao reconectar sincroniza sozinha com toast de confirmação.
 
+## Auditoria e testes de autorização (Fase 9)
+
+- **Trilha de auditoria de negócio** (seção 24): toda mutação de OS (criar, atualizar, mudar status, adicionar/remover produto/serviço) grava um evento durável em `audit_logs` no Postgres — usuário, entidade afetada, diff `{before, after}`, IP, data/hora. Separada do `historico` embutido na OS (que é a linha do tempo mostrada pro usuário, seção 15); esta é a trilha protegida, só para quem tem `SYSTEM_SETTINGS`. Mesma regra financeira do resto do app: campos como `precoUnitario`/`total` são removidos do diff se o perfil não tiver `FINANCIAL_VIEW` (`backend/src/services/auditLog.service.ts`).
+- **Tela `/auditoria`**: lista paginada com filtro por evento/entidade, modal de detalhe com o diff completo. Só aparece no Perfil (nunca na navegação principal) para quem tem `SYSTEM_SETTINGS` — testado que o Mecânico não vê o link **e** que a API responde 403 se ele tentar acessar a URL direto (nunca confiar só em esconder na UI).
+- **Suite de testes de autorização** (`backend/src/__tests__/authorization.test.ts`, via `supertest` contra a instância real do Express): 401 sem token, 403 com token válido mas sem a permissão certa, 200 com a permissão certa, em `/os`, `/dashboard/admin`, `/audit-logs` e `/produtos` — incluindo a regra crítica (produto sem `precoUnitario` pro token sem `FINANCIAL_VIEW`). Mais um teste de ponta a ponta (`auditLog.test.ts`) provando que criar uma OS de verdade grava e aparece na consulta de auditoria.
+
 ## Estrutura
 
 ```
 backend/src/
   config/        env, CORS, Firebird, Swagger
   controllers/   HTTP handlers
-  services/      regra de negócio, monta DTOs por permissão, workflow de status da OS
+  services/      regra de negócio, monta DTOs por permissão, workflow de status da OS, auditLog.service
   repositories/  interfaces + mock/ (padrão) + firebird/ (real, falta só o SQL — CHERP_MODE) + postgres/ (auth)
   database/      firebird/ (pool) · postgres/ (Drizzle: schema, migrations, seed) · queries/CONTRATO.md
   dto/           DTOs por perfil + mappers
@@ -124,7 +130,7 @@ frontend/src/
   api/               httpClient (refresh automático), auth/produtos/servicos/clientes/equipamentos/os.api
   store/             Zustand: auth, tema
   routes/            router, ProtectedRoute
-  pages/             Login, Início, OS (lista/criar/detalhe), Produtos (catálogo com abas), Perfil
+  pages/             Login, Início, OS (lista/criar/detalhe), Produtos (catálogo com abas), Perfil, Auditoria
   components/ui/     biblioteca de componentes (Button/LinkButton, Input, Select, Badge/StatusBadge,
                       Card, Modal/Drawer, ConfirmDialog, Toast, Skeleton, EmptyState,
                       ErrorState, Pagination, SearchCombobox)
@@ -142,4 +148,4 @@ frontend/src/
 
 ## Roadmap (próximas fases)
 
-Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
+Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 10 (testes abrangentes — E2E, cobertura mais ampla além da autorização já feita na Fase 9).

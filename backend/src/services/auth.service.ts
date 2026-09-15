@@ -2,13 +2,12 @@ import { env } from '../config/env.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../auth/jwt.js';
 import { verifyPassword } from '../auth/password.js';
 import type { LoginResponseDTO } from '../dto/auth.dto.js';
-import { db } from '../database/postgres/client.js';
-import { auditLogs } from '../database/postgres/schema.js';
 import { UnauthorizedError } from '../errors/UnauthorizedError.js';
 import { refreshTokenRepository } from '../repositories/postgres/RefreshTokenRepository.js';
 import { userRepository, type UserWithRole } from '../repositories/postgres/UserRepository.js';
 import type { JwtPayload } from '../types/auth.types.js';
 import { parseDurationMs } from '../utils/parseDuration.js';
+import { recordAudit } from './auditLog.service.js';
 
 interface RequestContext {
   ip?: string;
@@ -54,8 +53,8 @@ async function issueRefreshToken(userId: string, familyId: string | undefined, c
   return { refreshToken, familyId: row.familyId };
 }
 
-async function audit(event: string, userId: string | null, ctx: RequestContext) {
-  await db.insert(auditLogs).values({ userId, event, ip: ctx.ip, userAgent: ctx.userAgent });
+async function audit(event: string, userId: string | null, ctx: RequestContext, userName?: string) {
+  await recordAudit({ userId, userName, event, ip: ctx.ip, userAgent: ctx.userAgent });
 }
 
 export async function login(email: string, password: string, ctx: RequestContext) {
@@ -65,20 +64,20 @@ export async function login(email: string, password: string, ctx: RequestContext
   const genericError = () => new UnauthorizedError('Credenciais inválidas.', 'INVALID_CREDENTIALS');
 
   if (!user || !user.isActive) {
-    await audit('LOGIN_FAILURE', user?.id ?? null, ctx);
+    await audit('LOGIN_FAILURE', user?.id ?? null, ctx, user?.name);
     throw genericError();
   }
 
   const valid = await verifyPassword(user.passwordHash, password);
   if (!valid) {
-    await audit('LOGIN_FAILURE', user.id, ctx);
+    await audit('LOGIN_FAILURE', user.id, ctx, user.name);
     throw genericError();
   }
 
   const accessToken = signAccessToken(toJwtPayload(user));
   const { refreshToken } = await issueRefreshToken(user.id, undefined, ctx);
 
-  await audit('LOGIN_SUCCESS', user.id, ctx);
+  await audit('LOGIN_SUCCESS', user.id, ctx, user.name);
 
   return { response: toLoginResponse(user, accessToken), refreshToken };
 }
