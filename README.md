@@ -2,14 +2,14 @@
 
 Sistema PWA de controle de Ordens de Serviço, integrado ao ERP Firebird (CHERP). Monorepo com backend (Express/TypeScript, arquitetura em camadas) e frontend (Vite/React/TypeScript, PWA).
 
-Status: **Fase 1 (Fundação), Fase 2 (Autenticação), Fase 3 (Design System) e Fase 4 (Ordens de Serviço)** concluídas e testadas. Ver "Roadmap" no fim deste README para as próximas fases.
+Status: **Fase 1 (Fundação), Fase 2 (Autenticação), Fase 3 (Design System) e Fase 4 (Ordens de Serviço)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
 
 ## Stack
 
 - **Backend**: Node.js, TypeScript, Express, Zod, JWT + refresh token rotativo, Argon2id, Pino, Helmet, Drizzle ORM (Postgres), Swagger/OpenAPI.
 - **Frontend**: React, TypeScript, Vite, React Router, Zustand, TanStack Query, PWA (vite-plugin-pwa), design tokens CSS com tema claro/escuro.
 - **Banco da aplicação**: PostgreSQL (usuários, perfis, permissões, refresh tokens, auditoria).
-- **CHERP/Firebird**: repositórios com interface pronta, implementação **mock** em memória até a Fase 5 (queries reais ainda não fornecidas).
+- **CHERP/Firebird**: repositórios com interface pronta. Por padrão (`CHERP_MODE=mock`) rodam em memória; a implementação real em `backend/src/repositories/firebird/` já existe e só falta o SQL — ver "CHERP real (Fase 5)" abaixo.
 
 ## Pré-requisitos
 
@@ -71,6 +71,16 @@ Ciclo completo: criar (cliente → equipamento → problema → prioridade), vis
 
 Transições de status são validadas **só no backend** (`backend/src/services/osWorkflow.ts`); o frontend (`frontend/src/types/os.types.ts`) tem uma cópia do mapa de transições só para não oferecer opções óbvias-inválidas no seletor — nunca é ela quem decide.
 
+## CHERP real (Fase 5)
+
+A troca do mock pelo Firebird real está pronta, só falta o SQL:
+
+1. Preencha as constantes `QUERY_*` em `backend/src/repositories/firebird/*.firebird.ts` com as queries reais (contrato completo, coluna a coluna, em `backend/src/database/queries/CONTRATO.md`).
+2. No `.env`, defina `CHERP_MODE=firebird` e as credenciais `FIREBIRD_*`.
+3. Reinicie o backend — nenhum controller, service ou DTO muda.
+
+Enquanto uma query não for preenchida, o endpoint correspondente responde `501 CHERP_QUERY_NOT_IMPLEMENTED` (nunca dado inventado ou silêncio) — comportamento garantido por teste (`backend/src/repositories/firebird/__tests__/firebirdGuard.test.ts`). OS não tem variante Firebird: sua persistência é decisão própria da aplicação, ainda em aberto.
+
 ## Estrutura
 
 ```
@@ -78,8 +88,8 @@ backend/src/
   config/        env, CORS, Firebird, Swagger
   controllers/   HTTP handlers
   services/      regra de negócio, monta DTOs por permissão, workflow de status da OS
-  repositories/  interfaces + mocks CHERP (Fase 5 troca por Firebird real) + Postgres (auth)
-  database/      firebird/ (pool, não usado ainda) · postgres/ (Drizzle: schema, migrations, seed)
+  repositories/  interfaces + mock/ (padrão) + firebird/ (real, falta só o SQL — CHERP_MODE) + postgres/ (auth)
+  database/      firebird/ (pool) · postgres/ (Drizzle: schema, migrations, seed) · queries/CONTRATO.md
   dto/           DTOs por perfil + mappers
   middlewares/   auth, RBAC, validação, rate limit, error handler
   auth/          JWT, hash de senha
@@ -103,4 +113,4 @@ frontend/src/
 
 ## Roadmap (próximas fases)
 
-Fase 5 (Firebird real, substituindo os mocks) · Fase 6 (catálogo completo de Produtos/Serviços com filtros avançados) · Fase 7 (Dashboard/relatórios) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).
+Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 6 (catálogo completo de Produtos/Serviços com filtros avançados) · Fase 7 (Dashboard/relatórios) · Fase 8 (PWA offline completo) · Fase 9 (auditoria de negócio, hardening) · Fase 10 (testes abrangentes).

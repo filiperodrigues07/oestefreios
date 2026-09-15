@@ -6,6 +6,12 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   FRONTEND_URL: z.url().default('http://localhost:5173'),
 
+  /**
+   * 'mock' (default): repositories/mock/* em memória, sem depender do Firebird.
+   * 'firebird': repositories/firebird/*, que exigem as queries reais (Fase 5) já
+   * preenchidas em cada arquivo — ver database/queries/CONTRATO.md.
+   */
+  CHERP_MODE: z.enum(['mock', 'firebird']).default('mock'),
   FIREBIRD_HOST: z.string().default('localhost'),
   FIREBIRD_PORT: z.coerce.number().int().positive().default(3050),
   FIREBIRD_DATABASE: z.string().default(''),
