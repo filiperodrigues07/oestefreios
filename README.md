@@ -2,14 +2,14 @@
 
 Sistema PWA de controle de Ordens de Serviço, integrado ao ERP Firebird (CHERP). Monorepo com backend (Express/TypeScript, arquitetura em camadas) e frontend (Vite/React/TypeScript, PWA).
 
-Status: **Fases 1-4, 6 (catálogo), 7 (dashboard), 8 (PWA offline) e 9 (auditoria/hardening)** concluídas e testadas. Estrutura da **Fase 5 (Firebird real)** pronta, aguardando as queries reais do CHERP. Ver "Roadmap" no fim deste README.
+Status: **Fases 1-9** concluídas e testadas (**Fase 5 — Firebird real — com SQL real escrito e validado contra o banco CHERP do cliente, incluindo OS gravando de verdade em `ORDEMSERVICO`**, não só catálogo/consulta). Fase 10 (testes abrangentes) em stand by. Ver "Roadmap" no fim deste README.
 
 ## Stack
 
 - **Backend**: Node.js, TypeScript, Express, Zod, JWT + refresh token rotativo, Argon2id, Pino, Helmet, Drizzle ORM (Postgres), Swagger/OpenAPI.
 - **Frontend**: React, TypeScript, Vite, React Router, Zustand, TanStack Query, PWA (vite-plugin-pwa), design tokens CSS com tema claro/escuro.
 - **Banco da aplicação**: PostgreSQL (usuários, perfis, permissões, refresh tokens, auditoria).
-- **CHERP/Firebird**: repositórios com interface pronta. Por padrão (`CHERP_MODE=mock`) rodam em memória; a implementação real em `backend/src/repositories/firebird/` já existe e só falta o SQL — ver "CHERP real (Fase 5)" abaixo.
+- **CHERP/Firebird**: schema real é o Questor (`node-firebird`). SQL real escrito e validado contra o banco do cliente — ver "CHERP real (Fase 5)" abaixo. `CHERP_MODE=firebird` já é o padrão no `.env` local; `mock` continua disponível para rodar sem o banco.
 
 ## Pré-requisitos
 
@@ -73,13 +73,30 @@ Transições de status são validadas **só no backend** (`backend/src/services/
 
 ## CHERP real (Fase 5)
 
-A troca do mock pelo Firebird real está pronta, só falta o SQL:
+Schema real descoberto explorando o banco do cliente (RDB$RELATIONS/RDB$RELATION_FIELDS) — é o ERP **Questor**. Produtos e serviços moram na mesma tabela `PRODUTO` (`TIPO = 9` é serviço, `PRODUTOTIPO.CODIGO = 9` "SERVIÇOS"); preço vem de `PRODUTOVENDA`, custo de `PRODUTOCUSTO`, estoque de `PRODUTOESTOQUE`; clientes ficam em `CLIFOR` (`CLIENTE = 'S'`); equipamentos em `EQUIPAMENTOS`, ligados a `CLIFOR` por `CHAVECLIFOR`. As queries reais estão em `backend/src/repositories/firebird/*.firebird.ts`; o contrato coluna-a-coluna documentado em `backend/src/database/queries/CONTRATO.md` continua valendo como referência.
 
-1. Preencha as constantes `QUERY_*` em `backend/src/repositories/firebird/*.firebird.ts` com as queries reais (contrato completo, coluna a coluna, em `backend/src/database/queries/CONTRATO.md`).
-2. No `.env`, defina `CHERP_MODE=firebird` e as credenciais `FIREBIRD_*`.
-3. Reinicie o backend — nenhum controller, service ou DTO muda.
+**Pegadinha real que apareceu testando** (a mais cara desta fase): o banco do cliente declara as colunas de texto com charset `NONE`, mas os bytes são Windows-1252 — o driver `node-firebird` decodifica colunas `NONE` como UTF-8 e corrompe qualquer acentuação (`SERVIÇO` virava `SERVI�O`, irreversível). Resolvido em duas pontas, centralizadas em `backend/src/database/firebird/encoding.ts`:
+- **Leitura**: todo campo de texto livre (descrição, nome) é lido via `CAST(coluna AS VARCHAR(n) CHARACTER SET OCTETS)`, que faz o driver devolver `Buffer` cru em vez de tentar decodificar como texto; `firebirdQuery()` (`database/firebird/pool.ts`) decodifica esse `Buffer` como latin1 automaticamente em todo resultado, então nenhum `mapRowToX()` precisou mudar.
+- **Busca (`LIKE`)**: o termo digitado precisa ir como `Buffer` latin1 (`toLatin1SearchParam`), nunca como `string` JS — senão o driver manda os bytes em UTF-8 e não bate com os bytes latin1 armazenados. Busca é case-insensitive via `UPPER()` no SQL, mas o fallback `COALESCE(?, '%')` para "sem filtro" precisou ser `CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS)` explícito — sem o `CHARACTER SET OCTETS`, o Firebird infere o tipo do parâmetro a partir do literal `'%'` (`CHAR(1)`) e trunca/rejeita qualquer termo acentuado com `-303 Malformed string`.
 
-Enquanto uma query não for preenchida, o endpoint correspondente responde `501 CHERP_QUERY_NOT_IMPLEMENTED` (nunca dado inventado ou silêncio) — comportamento garantido por teste (`backend/src/repositories/firebird/__tests__/firebirdGuard.test.ts`). OS não tem variante Firebird: sua persistência é decisão própria da aplicação, ainda em aberto.
+Para trocar entre mock e Firebird real:
+
+1. No `.env`, defina `CHERP_MODE=firebird` (ou `mock`) e as credenciais `FIREBIRD_*`.
+2. Reinicie o backend — nenhum controller, service ou DTO muda (`repositories/index.ts` resolve pela env).
+
+## OS gravada direto no CHERP (Fase 5+)
+
+Requisito do cliente: toda OS lançada pelo app tem que existir de verdade no CHERP (fazer INSERT em `ORDEMSERVICO`), e uma OS lançada direto no CHERP tem que aparecer na nossa aplicação. `backend/src/repositories/firebird/OSRepository.firebird.ts` faz as duas pontas:
+
+- **Cabeçalho, itens e totais** (cliente, equipamento, problema, produtos/serviços lançados, `TOTALPRODUTO`/`TOTALSERVICO`/`TOTALOS`) gravam de verdade em `ORDEMSERVICO` + `ITENSORDEMSERVICOPROD`/`ITENSORDEMSERVICOSERV`, igual a uma OS aberta na tela do CHERP. Remover um item marca `ATIVO = 0` (soft delete), o mesmo padrão que as triggers do próprio CHERP já esperam — nunca `DELETE`.
+- **O que o CHERP não tem campo pra guardar** (nosso workflow de 7 status contra o binário aberto/fechado dele, prioridade, histórico de eventos, responsável/técnico — usuários do app, sem cadastro no CHERP) fica em `os_workflow` (Postgres), ligado por `id` = `ORDEMSERVICO.IDENTIFICADOR` (UUID que o próprio CHERP gera). Uma OS que nasceu direto no CHERP não tem linha aí ainda — a leitura usa um fallback (aberta/concluída inferido de `SITUACAO`, prioridade "NORMAL", histórico sintético "OS aberta no CHERP") até a primeira edição feita pelo app, que materializa a linha.
+- `CHAVEUSUARIOINICIOU`/`CHAVEUSUARIOFECHOU` sempre gravam um usuário fixo de integração do CHERP (`FIREBIRD_OS_USUARIO_CHAVE` no `.env`, decisão do cliente — não é mapeado por usuário do app).
+- `SITUACAO`: `0` = aberta, `5` = fechada (confirmado pela mensagem da exception `SITUACAO_DAVOS` do próprio CHERP: `"DAV-OS 'FECHADO' NÃO PODE SER 'ABERTO'"`). Nossos status intermediários (`EM_ANALISE`, `AGUARDANDO_PECA` etc.) só existem no lado do app — pro CHERP, qualquer coisa que não seja `CONCLUIDA`/`CANCELADA` é "aberta".
+- **Pegadinha cara desta parte**: os domínios `DATAFECHA` e `DATAENTREGA` em `ORDEMSERVICO` têm `DEFAULT 'NOW'` — se você não inclui a coluna no INSERT (achando que "fica NULL por padrão"), o CHERP silenciosamente preenche com a data de hoje, e uma OS recém-aberta aparece como se já tivesse sido fechada/entregue. As duas colunas têm que ir com `NULL` explícito no INSERT.
+- Números da OS (`ORDEM`, ex. `"000007"`) vêm de `GEN_ID(GEN_ORDEMSERVICO_ID, 1)`, o mesmo gerador que o CHERP usa — nunca inventado no app.
+- `listar()` faz o filtro de `clienteCodigo` no Firebird, mas `status`/`tecnicoId` (que só existem em `os_workflow`) são aplicados em memória sobre uma janela das últimas ~500 OS — funciona bem pro volume de uma oficina, mas não escala pra um histórico muito grande sem repensar a paginação cross-banco.
+
+**Buscador de equipamento por placa/código do veículo**: pendente — aguardando print da tela do CH pra confirmar os campos exatos antes de mexer em `EquipamentoRepository.firebird.ts`/`EquipamentoSearch.tsx`.
 
 ## Catálogo de Produtos e Serviços (Fase 6)
 
@@ -119,8 +136,8 @@ backend/src/
   config/        env, CORS, Firebird, Swagger
   controllers/   HTTP handlers
   services/      regra de negócio, monta DTOs por permissão, workflow de status da OS, auditLog.service
-  repositories/  interfaces + mock/ (padrão) + firebird/ (real, falta só o SQL — CHERP_MODE) + postgres/ (auth)
-  database/      firebird/ (pool) · postgres/ (Drizzle: schema, migrations, seed) · queries/CONTRATO.md
+  repositories/  interfaces + mock/ + firebird/ (SQL real, schema Questor, OS inclusive — CHERP_MODE) + postgres/ (auth)
+  database/      firebird/ (pool + transação + encoding NONE→latin1) · postgres/ (Drizzle: schema incl. os_workflow, migrations, seed) · queries/CONTRATO.md
   dto/           DTOs por perfil + mappers
   middlewares/   auth, RBAC, validação, rate limit, error handler
   auth/          JWT, hash de senha
@@ -148,4 +165,4 @@ frontend/src/
 
 ## Roadmap (próximas fases)
 
-Fase 5 (SQL real do CHERP — estrutura pronta, ver acima) · Fase 10 (testes abrangentes — E2E, cobertura mais ampla além da autorização já feita na Fase 9).
+Fase 10 (testes abrangentes — E2E, cobertura mais ampla além da autorização já feita na Fase 9) — em stand by. Visual/design: pendente, próximo passo combinado com o cliente depois de validar o funcional.

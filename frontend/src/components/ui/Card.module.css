@@ -11,6 +11,10 @@
 }
 
 .interactive {
+  width: 100%;
+  font: inherit;
+  color: inherit;
+  text-align: left;
   cursor: pointer;
   transition:
     box-shadow 0.15s ease,

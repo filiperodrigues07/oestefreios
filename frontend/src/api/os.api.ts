@@ -7,7 +7,7 @@ interface PaginatedOS {
 }
 
 export interface ListarOSFiltro {
-  status?: OSStatus;
+  status?: OSStatus | 'AGUARDANDO';
   clienteCodigo?: string;
   page?: number;
   limit?: number;
@@ -48,6 +48,11 @@ export interface AtualizarOSInput {
   observacoes?: string;
   solucao?: string;
   prioridade?: OSPrioridade;
+  responsavelId?: string;
+  tecnicoId?: string;
+  dataPrevista?: string;
+  kmAtual?: number;
+  kmFinal?: number;
 }
 
 export function atualizarOS(id: string, input: AtualizarOSInput): Promise<OrdemServicoDTO> {

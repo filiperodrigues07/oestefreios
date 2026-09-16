@@ -11,6 +11,7 @@
 
 .dialog {
   background: var(--color-surface-elevated);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   width: 100%;
@@ -64,6 +65,7 @@
   width: 100%;
   max-width: 420px;
   background: var(--color-surface-elevated);
+  border-left: 1px solid var(--color-border);
   box-shadow: var(--shadow-lg);
   z-index: var(--z-modal);
   padding: var(--space-6);
@@ -71,4 +73,30 @@
   flex-direction: column;
   gap: var(--space-4);
   overflow-y: auto;
+}
+
+@media (max-width: 520px) {
+  .overlay {
+    align-items: flex-end;
+    padding: var(--space-2);
+  }
+
+  .dialog {
+    max-height: calc(100dvh - var(--space-4));
+    border-radius: var(--radius-lg) var(--radius-lg) var(--radius-md) var(--radius-md);
+    padding: var(--space-4);
+  }
+
+  .footer {
+    flex-wrap: wrap-reverse;
+  }
+
+  .footer > * {
+    flex: 1;
+  }
+
+  .drawer {
+    max-width: 100%;
+    padding: var(--space-5) var(--space-4) calc(var(--space-5) + env(safe-area-inset-bottom));
+  }
 }

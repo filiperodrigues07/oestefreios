@@ -11,7 +11,9 @@ export function toOSDTO(
     id: os.id,
     numero: os.numero,
     clienteCodigo: os.clienteCodigo,
+    clienteNome: os.clienteNome,
     equipamentoCodigo: os.equipamentoCodigo,
+    equipamentoDescricao: os.equipamentoDescricao,
     status: os.status,
     prioridade: os.prioridade,
     responsavelId: os.responsavelId,
@@ -36,6 +38,9 @@ export function toOSDTO(
     dataAbertura: os.dataAbertura,
     dataPrevista: os.dataPrevista,
     dataConclusao: os.dataConclusao,
+    nroDav: os.nroDav,
+    kmAtual: os.kmAtual,
+    kmFinal: os.kmFinal,
   };
 
   if (!permissions.includes('FINANCIAL_VIEW')) {
@@ -63,6 +68,8 @@ export function toOSDTO(
       total: s.total,
     })),
     faturamento: os.faturamento,
+    frete: os.frete,
+    totalIpi: os.totalIpi,
   };
   return admin;
 }

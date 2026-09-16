@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
+import { resolve } from 'node:path';
 import helmet from 'helmet';
 import { pinoHttp } from 'pino-http';
 import swaggerUi from 'swagger-ui-express';
@@ -17,6 +18,7 @@ export const app = express();
 
 app.use(helmet());
 app.use(cors(corsOptions));
+app.use('/api/auth/me/photo', express.json({ limit: '1500kb' }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(generalLimiter);
@@ -27,6 +29,9 @@ app.use((req, _res, next) => {
 });
 
 app.use(pinoHttp({ logger, genReqId: (req: express.Request) => req.requestId ?? randomUUID() }));
+
+app.use('/uploads', express.static(resolve(process.cwd(), 'uploads'), { fallthrough: false, maxAge: '7d' }));
+app.use('/api/uploads', express.static(resolve(process.cwd(), 'uploads'), { fallthrough: false, maxAge: '7d' }));
 
 app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
 

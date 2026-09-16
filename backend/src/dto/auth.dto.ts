@@ -7,6 +7,7 @@ export interface LoginResponseDTO {
     id: string;
     name: string;
     email: string;
+    photoUrl: string | null;
     roleId: string;
     roleName: string;
     permissions: Permission[];

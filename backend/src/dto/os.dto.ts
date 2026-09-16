@@ -19,7 +19,9 @@ export interface OperationalOSDTO {
   id: string;
   numero: number;
   clienteCodigo: string;
+  clienteNome?: string;
   equipamentoCodigo: string;
+  equipamentoDescricao?: string;
   status: OSStatus;
   prioridade: OSPrioridade;
   responsavelId?: string;
@@ -34,6 +36,9 @@ export interface OperationalOSDTO {
   dataAbertura: string;
   dataPrevista?: string;
   dataConclusao?: string;
+  nroDav?: string;
+  kmAtual?: number;
+  kmFinal?: number;
 }
 
 /** Superset do OperationalOSDTO com campos financeiros. Servido só a perfis com FINANCIAL_VIEW. */
@@ -41,4 +46,6 @@ export interface AdminOSDTO extends OperationalOSDTO {
   produtos: (OSItemProdutoBase & { precoUnitario?: number; desconto?: number; total?: number })[];
   servicos: (OSItemServicoBase & { valorUnitario?: number; desconto?: number; total?: number })[];
   faturamento?: number;
+  frete?: number;
+  totalIpi?: number;
 }

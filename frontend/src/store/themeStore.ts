@@ -10,14 +10,11 @@ interface ThemeState {
   toggleTheme: () => void;
 }
 
-function systemPrefersDark(): boolean {
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
-}
-
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
-      theme: systemPrefersDark() ? 'dark' : 'light',
+      // Preferência persistida continua vencendo; instalações novas começam no tema premium escuro.
+      theme: 'dark',
       hasExplicitChoice: false,
       setTheme: (theme) => set({ theme, hasExplicitChoice: true }),
       toggleTheme: () => set({ theme: get().theme === 'dark' ? 'light' : 'dark', hasExplicitChoice: true }),

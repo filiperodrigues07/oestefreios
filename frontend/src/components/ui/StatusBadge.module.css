@@ -1,0 +1,27 @@
+/* Largura fixa independente do texto (status/prioridade variam bastante em tamanho) — alinha
+   colunas de tabela/badge lado a lado sem "pular" de largura por linha. */
+.statusBadge {
+  min-width: 132px;
+  justify-content: center;
+}
+
+.priorityBadge {
+  min-width: 76px;
+  justify-content: center;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+}
+
+.primary { color: var(--color-primary); }
+.success { color: var(--color-success); }
+.warning { color: var(--color-warning); }
+.danger { color: var(--color-danger); }
+.info { color: var(--color-info); }
+.neutral { color: var(--color-text-secondary); }

@@ -1,13 +1,18 @@
+import { randomBytes } from 'node:crypto';
 import { env } from '../config/env.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../auth/jwt.js';
-import { verifyPassword } from '../auth/password.js';
+import { hashPassword, verifyPassword } from '../auth/password.js';
 import type { LoginResponseDTO } from '../dto/auth.dto.js';
+import { ValidationError } from '../errors/ValidationError.js';
 import { UnauthorizedError } from '../errors/UnauthorizedError.js';
+import { passwordResetTokenRepository } from '../repositories/postgres/PasswordResetTokenRepository.js';
 import { refreshTokenRepository } from '../repositories/postgres/RefreshTokenRepository.js';
 import { userRepository, type UserWithRole } from '../repositories/postgres/UserRepository.js';
 import type { JwtPayload } from '../types/auth.types.js';
+import { logger } from '../utils/logger.js';
 import { parseDurationMs } from '../utils/parseDuration.js';
 import { recordAudit } from './auditLog.service.js';
+import { isSmtpConfigured, sendEmail } from './settings.service.js';
 
 interface RequestContext {
   ip?: string;
@@ -32,6 +37,7 @@ function toLoginResponse(user: UserWithRole, accessToken: string): LoginResponse
       id: user.id,
       name: user.name,
       email: user.email,
+      photoUrl: user.photoUrl,
       roleId: user.roleId,
       roleName: user.roleName,
       permissions: user.permissions,
@@ -127,6 +133,83 @@ export async function logout(currentRefreshToken: string | undefined, ctx: Reque
     await refreshTokenRepository.revoke(stored.id);
     await audit('LOGOUT', stored.userId, ctx);
   }
+}
+
+const RESET_TOKEN_TTL_MS = 45 * 60 * 1000;
+
+/**
+ * Sempre "sucede" do ponto de vista do chamador, exista ou não o e-mail — nunca revela se o
+ * e-mail está cadastrado (mesma regra de não-enumeração já aplicada no login). Falha de SMTP
+ * também não vaza pro chamador: fica só no log interno.
+ */
+export async function forgotPassword(email: string, ctx: RequestContext): Promise<void> {
+  const user = await userRepository.findByEmail(email);
+  if (!user || !user.isActive) return;
+
+  const token = randomBytes(32).toString('hex');
+  await passwordResetTokenRepository.create({
+    userId: user.id,
+    token,
+    expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+  });
+
+  const link = `${env.FRONTEND_URL}/redefinir-senha?token=${token}`;
+  try {
+    await sendEmail(
+      user.email,
+      'Redefinição de senha — Oeste Freios',
+      `<p>Olá, ${user.name}.</p>
+       <p>Recebemos um pedido para redefinir sua senha. Clique no link abaixo — ele expira em 45 minutos:</p>
+       <p><a href="${link}">${link}</a></p>
+       <p>Se você não pediu essa redefinição, pode ignorar este e-mail.</p>`,
+    );
+    await audit('PASSWORD_RESET_REQUESTED', user.id, ctx, user.name);
+  } catch (err) {
+    logger.warn({ err }, 'Falha ao enviar e-mail de redefinição de senha (SMTP não configurado ou indisponível)');
+  }
+}
+
+export async function resetPassword(token: string, newPassword: string, ctx: RequestContext): Promise<void> {
+  const stored = await passwordResetTokenRepository.findValidByToken(token);
+  if (!stored) {
+    throw new ValidationError('Link de redefinição inválido ou expirado.');
+  }
+
+  const passwordHash = await hashPassword(newPassword);
+  await userRepository.updatePasswordHash(stored.userId, passwordHash);
+  await passwordResetTokenRepository.markUsed(stored.id);
+  // Redefinir a senha derruba todas as sessões ativas — quem "roubou" a sessão antiga não continua logado.
+  await refreshTokenRepository.revokeAllForUser(stored.userId);
+
+  await audit('PASSWORD_RESET_COMPLETED', stored.userId, ctx);
+}
+
+export async function isPasswordResetAvailable(): Promise<boolean> {
+  return isSmtpConfigured();
+}
+
+/** Auto-edição de perfil (nome/e-mail) — qualquer usuário autenticado edita só a própria conta. */
+export async function updateMyProfile(
+  userId: string,
+  input: { name: string; email: string },
+  ctx: RequestContext,
+): Promise<LoginResponseDTO> {
+  const existing = await userRepository.findByEmail(input.email);
+  if (existing && existing.id !== userId) {
+    throw new ValidationError('Já existe um usuário cadastrado com este e-mail.');
+  }
+
+  await userRepository.update(userId, { name: input.name, email: input.email });
+  await audit('PROFILE_UPDATED', userId, ctx, input.name);
+
+  return getMe(userId);
+}
+
+/** URL da foto Ã© gravada somente para o prÃ³prio usuÃ¡rio autenticado. */
+export async function updateMyProfilePhoto(userId: string, photoUrl: string, ctx: RequestContext): Promise<LoginResponseDTO> {
+  await userRepository.update(userId, { photoUrl });
+  await audit('PROFILE_PHOTO_UPDATED', userId, ctx);
+  return getMe(userId);
 }
 
 export async function getMe(userId: string) {

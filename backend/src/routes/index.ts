@@ -8,6 +8,8 @@ import { healthRouter } from './health.routes.js';
 import { osRouter } from './os.routes.js';
 import { produtoRouter } from './produto.routes.js';
 import { servicoRouter } from './servico.routes.js';
+import { settingsRouter } from './settings.routes.js';
+import { userRouter } from './user.routes.js';
 
 export const apiRouter = Router();
 
@@ -20,3 +22,5 @@ apiRouter.use('/equipamentos', equipamentoRouter);
 apiRouter.use('/os', osRouter);
 apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/audit-logs', auditLogRouter);
+apiRouter.use('/settings', settingsRouter);
+apiRouter.use('/usuarios', userRouter);

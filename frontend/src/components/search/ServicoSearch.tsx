@@ -19,7 +19,6 @@ export function ServicoSearch({ label = 'Serviço', onSelect }: ServicoSearchPro
   const { data, isFetching, isError } = useQuery({
     queryKey: ['servicos-search', query],
     queryFn: () => searchServicos(query),
-    enabled: query.length > 0,
   });
 
   const items: ServicoItem[] = (data?.items ?? []).map((servico) => ({

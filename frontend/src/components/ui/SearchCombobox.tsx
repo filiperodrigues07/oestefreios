@@ -1,4 +1,14 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  forwardRef,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import styles from './Input.module.css';
 import comboStyles from './SearchCombobox.module.css';
@@ -7,6 +17,10 @@ export interface SearchComboboxItem {
   key: string;
   code: string;
   description: string;
+}
+
+export interface SearchComboboxHandle {
+  focus: () => void;
 }
 
 interface SearchComboboxProps<T extends SearchComboboxItem> {
@@ -21,33 +35,45 @@ interface SearchComboboxProps<T extends SearchComboboxItem> {
   onQueryChange: (query: string) => void;
   onSelect: (item: T) => void;
   renderItem?: (item: T) => ReactNode;
+  /** Enter sem nenhuma opção destacada (lista fechada ou vazia) — usado por grids que avançam pro próximo campo. */
+  onEnterWithoutSelection?: () => void;
 }
 
 /**
- * Combobox de busca genérico (código ou descrição), com debounce e navegação por teclado.
- * Base reutilizável para ProdutoSearch/ServicoSearch/ClienteSearch/EquipamentoSearch —
- * cada instância concreta só passa `items`/`isLoading` vindos de um hook de dados próprio.
+ * Combobox de busca genérico (código ou descrição), com debounce, navegação por teclado e
+ * F8 pra abrir a lista completa mesmo sem nada digitado — convenção de ERP (CHERP) aplicada
+ * de uma vez só aqui pra valer em todo canto que usa este componente. Base reutilizável para
+ * ProdutoSearch/ServicoSearch/ClienteSearch/EquipamentoSearch/ItemGrid.
  */
-export function SearchCombobox<T extends SearchComboboxItem>({
-  label,
-  placeholder = 'Digite o código ou a descrição',
-  items,
-  isLoading,
-  isError,
-  errorMessage = 'Não foi possível buscar agora. Tente novamente.',
-  minChars = 1,
-  debounceMs = 300,
-  onQueryChange,
-  onSelect,
-  renderItem,
-}: SearchComboboxProps<T>) {
+function SearchComboboxInner<T extends SearchComboboxItem>(
+  {
+    label,
+    placeholder = 'Digite o código ou a descrição',
+    items,
+    isLoading,
+    isError,
+    errorMessage = 'Não foi possível buscar agora. Tente novamente.',
+    minChars = 1,
+    debounceMs = 300,
+    onQueryChange,
+    onSelect,
+    renderItem,
+    onEnterWithoutSelection,
+  }: SearchComboboxProps<T>,
+  ref: Ref<SearchComboboxHandle>,
+) {
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  /** F8 força a lista a abrir mesmo com o campo vazio/abaixo de `minChars` — convenção de ERP (CHERP). */
+  const [forcedShow, setForcedShow] = useState(false);
   const debouncedQuery = useDebouncedValue(query, debounceMs);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const inputId = useId();
   const listboxId = useId();
+
+  useImperativeHandle(ref, () => ({ focus: () => inputRef.current?.focus() }));
 
   useEffect(() => {
     if (debouncedQuery.trim().length >= minChars) {
@@ -66,16 +92,25 @@ export function SearchCombobox<T extends SearchComboboxItem>({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const showResults = open && query.trim().length >= minChars;
+  const showResults = open && (query.trim().length >= minChars || forcedShow);
 
   function selectItem(item: T) {
     onSelect(item);
     setQuery('');
     setOpen(false);
     setActiveIndex(-1);
+    setForcedShow(false);
   }
 
   function handleKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'F8') {
+      // Convenção de ERP: F8 abre a busca completa, mesmo sem nada digitado ainda.
+      e.preventDefault();
+      setForcedShow(true);
+      setOpen(true);
+      onQueryChange(query.trim());
+      return;
+    }
     if (!showResults) return;
     if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -87,6 +122,9 @@ export function SearchCombobox<T extends SearchComboboxItem>({
       if (activeIndex >= 0 && items[activeIndex]) {
         e.preventDefault();
         selectItem(items[activeIndex]);
+      } else if (onEnterWithoutSelection) {
+        e.preventDefault();
+        onEnterWithoutSelection();
       }
     } else if (e.key === 'Escape') {
       setOpen(false);
@@ -102,8 +140,9 @@ export function SearchCombobox<T extends SearchComboboxItem>({
       )}
       <div className={comboStyles.wrapper}>
         <input
+          ref={inputRef}
           id={inputId}
-          className={styles.input}
+          className={`${styles.input} ${comboStyles.inputWithHint}`}
           role="combobox"
           aria-expanded={showResults}
           aria-controls={listboxId}
@@ -116,10 +155,12 @@ export function SearchCombobox<T extends SearchComboboxItem>({
             setQuery(e.target.value);
             setOpen(true);
             setActiveIndex(-1);
+            setForcedShow(false);
           }}
           onFocus={() => setOpen(true)}
           onKeyDown={handleKeyDown}
         />
+        <span className={comboStyles.hint}>F8 lista tudo</span>
 
         {showResults && (
           <ul id={listboxId} role="listbox" className={comboStyles.listbox}>
@@ -163,3 +204,7 @@ export function SearchCombobox<T extends SearchComboboxItem>({
     </div>
   );
 }
+
+export const SearchCombobox = forwardRef(SearchComboboxInner) as <T extends SearchComboboxItem>(
+  props: SearchComboboxProps<T> & { ref?: Ref<SearchComboboxHandle> },
+) => ReturnType<typeof SearchComboboxInner>;

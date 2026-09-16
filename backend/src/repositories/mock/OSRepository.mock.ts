@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { OrdemServico, OSItemProduto, OSItemServico, OSPrioridade, OSStatus } from '../../types/cherp.types.js';
-import type { IOSRepository, OSListFilter } from '../interfaces/IOSRepository.js';
+import type { IOSRepository, OSDashboardFilter, OSListFilter } from '../interfaces/IOSRepository.js';
 
 /**
  * MOCK — dados em memória, não vem do Firebird/CHERP.
@@ -142,9 +142,14 @@ export class OSRepositoryMock implements IOSRepository {
     return OS_LIST.find((os) => os.id === id) ?? null;
   }
 
+  /** Espelha a regra da implementação real: só OS em aberto (nunca concluída/cancelada) — ver OSRepository.firebird.ts. */
   async listar(filter: OSListFilter): Promise<{ items: OrdemServico[]; total: number }> {
-    let filtered = OS_LIST;
-    if (filter.status) {
+    let filtered = filter.status === 'CONCLUIDA' || filter.status === 'CANCELADA'
+      ? OS_LIST.filter((os) => os.status === filter.status)
+      : OS_LIST.filter((os) => os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA');
+    if (filter.status === 'AGUARDANDO') {
+      filtered = filtered.filter((os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE');
+    } else if (filter.status && filter.status !== 'CONCLUIDA' && filter.status !== 'CANCELADA') {
       filtered = filtered.filter((os) => os.status === filter.status);
     }
     if (filter.clienteCodigo) {
@@ -157,6 +162,21 @@ export class OSRepositoryMock implements IOSRepository {
     const limit = filter.limit ?? 20;
     const start = (page - 1) * limit;
     return { items: filtered.slice(start, start + limit), total: filtered.length };
+  }
+
+  async listarParaDashboard(filter: OSDashboardFilter): Promise<OrdemServico[]> {
+    const inicio = filter.dataInicial.getTime();
+    const fim = filter.dataFinal.getTime();
+    return OS_LIST.filter((os) => {
+      const abertaNoPeriodo = new Date(os.dataAbertura).getTime();
+      const concluidaNoPeriodo = os.dataConclusao ? new Date(os.dataConclusao).getTime() : NaN;
+      return (abertaNoPeriodo >= inicio && abertaNoPeriodo <= fim) || (concluidaNoPeriodo >= inicio && concluidaNoPeriodo <= fim);
+    });
+  }
+
+  async buscarParaDashboard(termo: string): Promise<OrdemServico[]> {
+    const needle = termo.toLocaleLowerCase('pt-BR');
+    return OS_LIST.filter((os) => [String(os.numero), os.clienteNome, os.clienteCodigo, os.equipamentoDescricao, os.equipamentoCodigo].some((value) => value?.toLocaleLowerCase('pt-BR').includes(needle))).slice(0, 8);
   }
 
   async criar(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico> {

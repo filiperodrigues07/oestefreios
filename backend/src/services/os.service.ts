@@ -56,6 +56,18 @@ async function getOSOrThrow(id: string): Promise<OrdemServico> {
   return os;
 }
 
+/**
+ * "Finalizar OS" (Fase OS-6) muda o status pra CONCLUIDA só no nosso app — nunca fecha a OS no
+ * CHERP (ver `situacaoFromStatus` em OSRepository.firebird.ts), de propósito, pro time de
+ * faturamento continuar processando por lá. Em compensação, o mecânico não pode mais editar
+ * nada por aqui depois disso — o backend garante isso em toda mutação, não só a UI.
+ */
+function assertNaoFinalizada(os: OrdemServico): void {
+  if (os.status === 'CONCLUIDA') {
+    throw new ValidationError('OS finalizada não pode mais ser editada.');
+  }
+}
+
 export async function listOS(
   filter: OSListFilter,
   permissions: Permission[],
@@ -124,6 +136,8 @@ interface AtualizarOSInput {
   responsavelId?: string;
   tecnicoId?: string;
   dataPrevista?: string;
+  kmAtual?: number;
+  kmFinal?: number;
 }
 
 export async function atualizarOS(
@@ -133,6 +147,7 @@ export async function atualizarOS(
   ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
 
   const camposAlterados = Object.keys(patch).filter(
     (key) => patch[key as keyof AtualizarOSInput] !== undefined,
@@ -157,6 +172,7 @@ export async function alterarStatusOS(
   ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
   assertValidTransition(atual.status, novoStatus);
 
   const patch: Partial<OrdemServico> = {
@@ -182,6 +198,7 @@ export async function adicionarProdutoOS(
   ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
   const produto = await produtoRepository.buscarPorCodigo(produtoCodigo);
   if (!produto) {
     throw new ValidationError(`Produto com código "${produtoCodigo}" não encontrado.`);
@@ -223,6 +240,7 @@ export async function removerProdutoOS(
   ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
   const item = atual.produtos.find((p) => p.produtoCodigo === produtoCodigo);
   if (!item) {
     throw new NotFoundError('Produto não encontrado nesta OS.', 'OS_ITEM_NOT_FOUND');
@@ -248,6 +266,7 @@ export async function adicionarServicoOS(
   ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
   const servico = await servicoRepository.buscarPorCodigo(servicoCodigo);
   if (!servico) {
     throw new ValidationError(`Serviço com código "${servicoCodigo}" não encontrado.`);
@@ -289,6 +308,7 @@ export async function removerServicoOS(
   ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
   const item = atual.servicos.find((s) => s.servicoCodigo === servicoCodigo);
   if (!item) {
     throw new NotFoundError('Serviço não encontrado nesta OS.', 'OS_ITEM_NOT_FOUND');

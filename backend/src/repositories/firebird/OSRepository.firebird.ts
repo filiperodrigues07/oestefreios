@@ -1,0 +1,701 @@
+import { eq, inArray } from 'drizzle-orm';
+import { env } from '../../config/env.js';
+import { db } from '../../database/postgres/client.js';
+import { osWorkflow } from '../../database/postgres/schema.js';
+import { toLatin1Param, toLatin1SearchParam } from '../../database/firebird/encoding.js';
+import { firebirdQuery, firebirdTransaction } from '../../database/firebird/pool.js';
+import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
+import { NotFoundError } from '../../errors/NotFoundError.js';
+import { ValidationError } from '../../errors/ValidationError.js';
+import type {
+  OrdemServico,
+  OSHistoricoEntry,
+  OSItemProduto,
+  OSItemServico,
+  OSPrioridade,
+  OSStatus,
+} from '../../types/cherp.types.js';
+import type { IOSRepository, OSDashboardFilter, OSListFilter } from '../interfaces/IOSRepository.js';
+
+/**
+ * Implementação real contra o Firebird/CHERP (schema Questor).
+ *
+ * A OS "de verdade" — cabeçalho, itens, totais — mora em ORDEMSERVICO +
+ * ITENSORDEMSERVICOPROD/SERV, igual a uma OS aberta direto no CHERP. Mas o
+ * CHERP não tem campo para o workflow mais granular do nosso app (7 status
+ * contra o ABERTO/FECHADO dele, prioridade, histórico de eventos, responsável/
+ * técnico — usuários nossos, sem cadastro lá). Isso mora em `os_workflow`
+ * (Postgres), ligado por `id` = ORDEMSERVICO.IDENTIFICADOR (UUID gerado pelo
+ * próprio CHERP na trigger ORDEMSERVICO_BI).
+ *
+ * Uma OS criada direto no CHERP (sem passar pelo app) não tem linha em
+ * `os_workflow` — a leitura já lida com isso (status/prioridade inferidos a
+ * partir de SITUACAO, histórico sintético). A linha só é criada de fato na
+ * primeira escrita feita pelo app (`atualizar`), nunca numa leitura.
+ *
+ * `CHAVEUSUARIOINICIOU`/`CHAVEUSUARIOFECHOU` sempre gravam o usuário fixo de
+ * integração (`FIREBIRD_OS_USUARIO_CHAVE`) — decisão registrada no README,
+ * não um mapeamento por usuário do app.
+ */
+
+const CHAVE_EMPRESA = 1;
+const CHAVE_TABELA_PRECO = 1;
+const SITUACAO_ABERTO = 0;
+const SITUACAO_FECHADO = 5;
+
+/** Grupo da tabela genérica TABELAS (Fase OS-0) com a "situação de atendimento" do CHERP. */
+const CHAVETABELA_SITUACAO_ATENDIMENTO = 15;
+
+/**
+ * Espelho só-escrita do nosso status (7 valores) pro campo nativo CHAVESITUACAOOS do CHERP —
+ * puramente informativo pra quem olha a OS direto no CHERP/faturamento, nunca lido de volta (o
+ * app continua sendo a fonte de verdade via os_workflow). Mapeamento aproximado por não haver
+ * correspondência 1:1: PRONTA (não ENCERRADA) para CONCLUIDA, porque "Finalizar OS" deliberadamente
+ * não fecha nada no CHERP (ver situacaoFromStatus) — PRONTA é o rótulo do CHERP mais próximo de
+ * "serviço pronto, falta faturar", que é exatamente o estado real nesse momento.
+ */
+const SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS: Record<OSStatus, string> = {
+  ABERTA: '000001', // EM ATENDIMENTO
+  EM_ANALISE: '000001', // EM ATENDIMENTO
+  EM_ANDAMENTO: '000001', // EM ATENDIMENTO
+  AGUARDANDO_CLIENTE: '000002', // AGUARDANDO RET. CLIENTE
+  AGUARDANDO_PECA: '000003', // AGUARDANDO PEÇAS
+  CONCLUIDA: '000004', // PRONTA
+  CANCELADA: '000006', // ENCERRADA
+};
+
+/**
+ * Espelho só-escrita da nossa prioridade (4 valores) pro campo nativo ORDEMSERVICO.PRIORIDADE —
+ * inteiro simples, não é FK pra TABELAS. Escala confirmada pelo usuário (mesma usada em outro
+ * projeto dele sobre o mesmo schema Questor/CHERP): 0=NORMAL, 1=BAIXA, 2=MEDIA, 3=ALTA. O CHERP não
+ * tem um nível "urgente" — URGENTE cai em ALTA (o mais alto que existe lá), igual não-lido-de-volta.
+ */
+const PRIORIDADE_CODIGO_POR_STATUS: Record<OSPrioridade, number> = {
+  NORMAL: 0,
+  BAIXA: 1,
+  ALTA: 3,
+  URGENTE: 3,
+};
+
+const OBS_MARK = '[OBSERVACOES]\n';
+const SOLUCAO_MARK = '\n[SOLUCAO]\n';
+
+function encodeObs(observacoes?: string, solucao?: string): Buffer | null {
+  if (!observacoes && !solucao) return null;
+  return toLatin1Param(`${OBS_MARK}${observacoes ?? ''}${SOLUCAO_MARK}${solucao ?? ''}`);
+}
+
+function decodeObs(raw: unknown): { observacoes?: string; solucao?: string } {
+  const texto = raw == null ? '' : String(raw);
+  if (!texto) return {};
+  const solIdx = texto.indexOf(SOLUCAO_MARK);
+  if (solIdx === -1) return { observacoes: texto || undefined };
+  const observacoes = texto.slice(OBS_MARK.length, solIdx) || undefined;
+  const solucao = texto.slice(solIdx + SOLUCAO_MARK.length) || undefined;
+  return { observacoes, solucao };
+}
+
+/**
+ * "Finalizar OS" (status CONCLUIDA) é uma decisão só do nosso app — nunca fecha a OS no CHERP
+ * de propósito, pro time de faturamento continuar processando por lá (ver assertNaoFinalizada
+ * em os.service.ts, que bloqueia edição posterior só do nosso lado). CANCELADA continua fechando
+ * de verdade no Firebird — é um estado morto dos dois lados, sem essa ressalva.
+ */
+function situacaoFromStatus(status: OSStatus): number {
+  return status === 'CANCELADA' ? SITUACAO_FECHADO : SITUACAO_ABERTO;
+}
+
+/** Sem workflow próprio (OS nascida no CHERP), só dá pra saber aberta/fechada — não a granularidade do nosso enum. */
+function statusFromSituacaoOnly(situacao: number): OSStatus {
+  return situacao === SITUACAO_FECHADO ? 'CONCLUIDA' : 'ABERTA';
+}
+
+function combineDateTime(date: unknown, time: unknown): string {
+  const d = date instanceof Date ? date : new Date(String(date));
+  const t = time instanceof Date ? time : new Date(String(time));
+  if (Number.isNaN(d.getTime())) return new Date().toISOString();
+  const combined = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Number.isNaN(t.getTime()) ? 0 : t.getHours(), Number.isNaN(t.getTime()) ? 0 : t.getMinutes(), Number.isNaN(t.getTime()) ? 0 : t.getSeconds());
+  return combined.toISOString();
+}
+
+interface OSHeaderRow {
+  CHAVE: number;
+  IDENTIFICADOR: string;
+  ORDEM: string;
+  CLIENTE_CODIGO: string | null;
+  CLIENTE_NOME: string | null;
+  EQUIPAMENTO_CODIGO: string | null;
+  EQUIPAMENTO_DESCRICAO: string | null;
+  PROBLEMA: string | null;
+  DIAGNOSTICO: string | null;
+  OBS: string | null;
+  SITUACAO: number;
+  DATA: unknown;
+  HORAABERTURA: unknown;
+  DATAFECHA: unknown;
+  HORAFECHAMENTO: unknown;
+  TOTALPRODUTO: number | null;
+  TOTALSERVICO: number | null;
+  TOTALOS: number | null;
+  NRODAV: string | null;
+  KMATUAL: number | null;
+  KMFINAL: number | null;
+  FRETE: number | null;
+  TOTALIPI: number | null;
+}
+
+const HEADER_SELECT = `
+  SELECT
+    OS.CHAVE AS CHAVE,
+    OS.IDENTIFICADOR AS IDENTIFICADOR,
+    OS.ORDEM AS ORDEM,
+    CLI.CODIGO AS CLIENTE_CODIGO,
+    CAST(COALESCE(NULLIF(TRIM(CLI.FANTASIA), ''), CLI.RAZAOSOCIAL) AS VARCHAR(100) CHARACTER SET OCTETS) AS CLIENTE_NOME,
+    EQ.CODIGO AS EQUIPAMENTO_CODIGO,
+    CAST(COALESCE(NULLIF(TRIM(EQ.IDENTIFICACAO), ''), EQ.DESCRICAO) AS VARCHAR(100) CHARACTER SET OCTETS) AS EQUIPAMENTO_DESCRICAO,
+    CAST(OS.PROBLEMAABERTURAOS AS VARCHAR(5000) CHARACTER SET OCTETS) AS PROBLEMA,
+    CAST(OS.LAUDOTECNICO AS VARCHAR(5000) CHARACTER SET OCTETS) AS DIAGNOSTICO,
+    CAST(OS.OBS AS VARCHAR(5000) CHARACTER SET OCTETS) AS OBS,
+    OS.SITUACAO AS SITUACAO,
+    OS.DATA AS DATA,
+    OS.HORAABERTURA AS HORAABERTURA,
+    OS.DATAFECHA AS DATAFECHA,
+    OS.HORAFECHAMENTO AS HORAFECHAMENTO,
+    OS.TOTALPRODUTO AS TOTALPRODUTO,
+    OS.TOTALSERVICO AS TOTALSERVICO,
+    OS.TOTALOS AS TOTALOS,
+    OS.NRODAV AS NRODAV,
+    OS.KMATUAL AS KMATUAL,
+    OS.KMFINAL AS KMFINAL,
+    OS.FRETE AS FRETE,
+    OS.TOTALIPI AS TOTALIPI
+  FROM ORDEMSERVICO OS
+  LEFT JOIN CLIFOR CLI ON CLI.CHAVE = OS.CHAVECLIFOR
+  LEFT JOIN EQUIPAMENTOS EQ ON EQ.CHAVE = OS.CHAVEEQUIPAMENTO
+`;
+
+interface ItemProdutoRow {
+  CHAVE: number;
+  CODIGO: string;
+  DESCRICAO: string;
+  UNIDADE: string;
+  QTDE: number;
+  VLRUNIT: number | null;
+  DESCVLR: number | null;
+  VLRTOTAL: number | null;
+}
+
+interface ItemServicoRow {
+  CHAVE: number;
+  CODIGO: string;
+  DESCRICAO: string;
+  UNIDADE: string;
+  QTDE: number;
+  VLRUNIT: number | null;
+  DESCVLR: number | null;
+  VLRTOTAL: number | null;
+}
+
+const ITEM_PRODUTO_SELECT = `
+  SELECT CHAVE AS CHAVE, CODPRODUTO AS CODIGO, CAST(PRODUTO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
+         UN AS UNIDADE, QTDE AS QTDE, VLRUNIT AS VLRUNIT, DESCVLR AS DESCVLR, VLRTOTAL AS VLRTOTAL
+  FROM ITENSORDEMSERVICOPROD
+  WHERE CHAVEOS = ? AND ATIVO = 1
+  ORDER BY NUMITEM, CHAVE
+`;
+
+const ITEM_SERVICO_SELECT = `
+  SELECT CHAVE AS CHAVE, CODPRODUTO AS CODIGO, CAST(PRODUTO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
+         UN AS UNIDADE, QTDE AS QTDE, VLRUNIT AS VLRUNIT, DESCVLR AS DESCVLR, VLRTOTAL AS VLRTOTAL
+  FROM ITENSORDEMSERVICOSERV
+  WHERE CHAVEOS = ? AND ATIVO = 1
+  ORDER BY NUMITEM, CHAVE
+`;
+
+interface WorkflowRow {
+  id: string;
+  status: string;
+  prioridade: string;
+  responsavelId: string | null;
+  tecnicoId: string | null;
+  dataPrevista: Date | null;
+  historico: unknown;
+}
+
+function mapItemProduto(row: ItemProdutoRow): OSItemProduto {
+  return {
+    produtoCodigo: row.CODIGO,
+    descricao: row.DESCRICAO,
+    unidade: row.UNIDADE,
+    quantidade: Number(row.QTDE),
+    precoUnitario: row.VLRUNIT !== null ? Number(row.VLRUNIT) : undefined,
+    desconto: row.DESCVLR !== null ? Number(row.DESCVLR) : undefined,
+    total: row.VLRTOTAL !== null ? Number(row.VLRTOTAL) : undefined,
+  };
+}
+
+function mapItemServico(row: ItemServicoRow): OSItemServico {
+  return {
+    servicoCodigo: row.CODIGO,
+    descricao: row.DESCRICAO,
+    unidade: row.UNIDADE,
+    quantidade: Number(row.QTDE),
+    valorUnitario: row.VLRUNIT !== null ? Number(row.VLRUNIT) : undefined,
+    desconto: row.DESCVLR !== null ? Number(row.DESCVLR) : undefined,
+    total: row.VLRTOTAL !== null ? Number(row.VLRTOTAL) : undefined,
+  };
+}
+
+function buildOrdemServico(
+  header: OSHeaderRow,
+  produtos: OSItemProduto[],
+  servicos: OSItemServico[],
+  workflow: WorkflowRow | undefined,
+): OrdemServico {
+  const { observacoes, solucao } = decodeObs(header.OBS);
+  const dataAbertura = combineDateTime(header.DATA, header.HORAABERTURA);
+  const dataConclusao =
+    header.DATAFECHA != null ? combineDateTime(header.DATAFECHA, header.HORAFECHAMENTO ?? header.DATAFECHA) : undefined;
+
+  const faturamento =
+    header.TOTALPRODUTO === null || header.TOTALSERVICO === null
+      ? undefined
+      : Number(header.TOTALPRODUTO) + Number(header.TOTALSERVICO);
+
+  return {
+    id: header.IDENTIFICADOR,
+    numero: Number(header.ORDEM),
+    clienteCodigo: header.CLIENTE_CODIGO ?? '',
+    clienteNome: header.CLIENTE_NOME ?? undefined,
+    equipamentoCodigo: header.EQUIPAMENTO_CODIGO ?? '',
+    equipamentoDescricao: header.EQUIPAMENTO_DESCRICAO ?? undefined,
+    status: workflow ? (workflow.status as OSStatus) : statusFromSituacaoOnly(header.SITUACAO),
+    prioridade: workflow ? (workflow.prioridade as OSPrioridade) : 'NORMAL',
+    responsavelId: workflow?.responsavelId ?? undefined,
+    tecnicoId: workflow?.tecnicoId ?? undefined,
+    problema: header.PROBLEMA ?? '',
+    diagnostico: header.DIAGNOSTICO || undefined,
+    observacoes,
+    solucao,
+    produtos,
+    servicos,
+    historico: workflow
+      ? (workflow.historico as OSHistoricoEntry[])
+      : [{ timestamp: dataAbertura, evento: 'OS aberta no CHERP', usuarioNome: '(CHERP)' }],
+    dataAbertura,
+    dataPrevista: workflow?.dataPrevista ? workflow.dataPrevista.toISOString() : undefined,
+    dataConclusao,
+    faturamento,
+    nroDav: header.NRODAV?.trim() || undefined,
+    kmAtual: header.KMATUAL !== null ? Number(header.KMATUAL) : undefined,
+    kmFinal: header.KMFINAL !== null ? Number(header.KMFINAL) : undefined,
+    frete: header.FRETE !== null ? Number(header.FRETE) : undefined,
+    totalIpi: header.TOTALIPI !== null ? Number(header.TOTALIPI) : undefined,
+  };
+}
+
+async function fetchWorkflow(id: string): Promise<WorkflowRow | undefined> {
+  const [row] = await db.select().from(osWorkflow).where(eq(osWorkflow.id, id));
+  return row as WorkflowRow | undefined;
+}
+
+/**
+ * Postgres normaliza `uuid` pra minúsculo ao gravar; o CHERP devolve o
+ * IDENTIFICADOR em maiúsculo (GEN_UUID()/UUID_TO_CHAR()). SQL compara uuid
+ * como valor (case-insensitive), mas um `Map.get()` em JS é comparação de
+ * string — por isso a chave do mapa é sempre normalizada aqui.
+ */
+async function fetchWorkflows(ids: string[]): Promise<Map<string, WorkflowRow>> {
+  if (ids.length === 0) return new Map();
+  const rows = await db.select().from(osWorkflow).where(inArray(osWorkflow.id, ids));
+  return new Map(rows.map((r) => [r.id.toLowerCase(), r as WorkflowRow]));
+}
+
+async function resolveChaveByCodigo(tabela: 'CLIFOR' | 'EQUIPAMENTOS', codigo: string): Promise<number> {
+  const rows = await firebirdQuery<{ CHAVE: number }>(`SELECT CHAVE FROM ${tabela} WHERE CODIGO = ? AND ATIVO = 1`, [codigo]);
+  const row = rows[0];
+  if (!row) {
+    throw new ValidationError(`Registro com código "${codigo}" não encontrado no CHERP (${tabela}).`);
+  }
+  return row.CHAVE;
+}
+
+/**
+ * TABELAS é a lista genérica de domínio do CHERP (Fase OS-0) — várias listas não relacionadas
+ * (situação de atendimento, situação de entrega, etc.) vivem nessa única tabela, distinguidas por
+ * CHAVETABELA. CHAVE é autoincrement por instalação, nunca hardcoded — sempre resolvido em tempo
+ * de escrita pelo CODIGO (esse sim estável entre bases).
+ */
+async function resolveTabelaChave(chaveTabela: number, codigo: string): Promise<number | undefined> {
+  const rows = await firebirdQuery<{ CHAVE: number }>(
+    `SELECT CHAVE FROM TABELAS WHERE CHAVETABELA = ? AND CODIGO = ? AND ATIVO = 1`,
+    [chaveTabela, codigo],
+  );
+  return rows[0]?.CHAVE;
+}
+
+async function resolveProduto(codigo: string): Promise<{ chave: number; chaveUnidade: number }> {
+  const rows = await firebirdQuery<{ CHAVE: number; CHAVEUNIDADE: number }>(
+    `SELECT CHAVE, CHAVEUNIDADE FROM PRODUTO WHERE CODIGO = ? AND ATIVO = 1`,
+    [codigo],
+  );
+  const row = rows[0];
+  if (!row) {
+    throw new ValidationError(`Produto/serviço com código "${codigo}" não encontrado no CHERP.`);
+  }
+  return { chave: row.CHAVE, chaveUnidade: row.CHAVEUNIDADE };
+}
+
+export class OSRepositoryFirebird implements IOSRepository {
+  async buscarPorId(id: string): Promise<OrdemServico | null> {
+    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} WHERE OS.IDENTIFICADOR = ?`, [id]);
+    const header = headers[0];
+    if (!header) return null;
+
+    const [itensProd, itensServ, workflow] = await Promise.all([
+      firebirdQuery<ItemProdutoRow>(ITEM_PRODUTO_SELECT, [header.CHAVE]),
+      firebirdQuery<ItemServicoRow>(ITEM_SERVICO_SELECT, [header.CHAVE]),
+      fetchWorkflow(id),
+    ]);
+
+    return buildOrdemServico(header, itensProd.map(mapItemProduto), itensServ.map(mapItemServico), workflow);
+  }
+
+  /**
+   * Só OS em aberto (SITUACAO = 0 no Firebird) entram na listagem — concluída/cancelada nunca
+   * aparecem aqui. Decisão de negócio (não só performance): diferente do histórico total, que só
+   * cresce com o tempo e não dá pra buscar inteiro sem paginação de verdade no SQL, o volume de OS
+   * em aberto é naturalmente limitado (não acumula ano após ano), então filtrar por SITUACAO no
+   * Firebird já é suficiente pra manter a consulta rápida numa base grande de verdade — sem o teto
+   * arbitrário de "só as 500 mais recentes" que existia antes (que também escondia OS antigas).
+   */
+  async listar(filter: OSListFilter): Promise<{ items: OrdemServico[]; total: number }> {
+    const closedStatus = filter.status === 'CONCLUIDA' || filter.status === 'CANCELADA';
+    const conditions = ['OS.SITUACAO = ?'];
+    const params: unknown[] = [closedStatus ? SITUACAO_FECHADO : SITUACAO_ABERTO];
+    if (filter.clienteCodigo) {
+      conditions.push('CLI.CODIGO = ?');
+      params.push(filter.clienteCodigo);
+    }
+    const candidateSql = `${HEADER_SELECT} WHERE ${conditions.join(' AND ')} ORDER BY OS.CHAVE DESC`;
+    const headers = await firebirdQuery<OSHeaderRow>(candidateSql, params);
+
+    const workflows = await fetchWorkflows(headers.map((h) => h.IDENTIFICADOR));
+
+    let merged = headers.map((h) => buildOrdemServico(h, [], [], workflows.get(h.IDENTIFICADOR.toLowerCase())));
+    if (filter.status === 'AGUARDANDO') {
+      merged = merged.filter((os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE');
+    } else if (filter.status) {
+      merged = merged.filter((os) => os.status === filter.status);
+    }
+    if (filter.tecnicoId) {
+      merged = merged.filter((os) => os.tecnicoId === filter.tecnicoId);
+    }
+
+    const total = merged.length;
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 20;
+    const start = (page - 1) * limit;
+    const pageItems = merged.slice(start, start + limit);
+
+    // Itens só pra página pedida — evita N+1 sobre a janela inteira de candidatos.
+    const withItens = await Promise.all(
+      pageItems.map(async (os) => {
+        const header = headers.find((h) => h.IDENTIFICADOR === os.id)!;
+        const [itensProd, itensServ] = await Promise.all([
+          firebirdQuery<ItemProdutoRow>(ITEM_PRODUTO_SELECT, [header.CHAVE]),
+          firebirdQuery<ItemServicoRow>(ITEM_SERVICO_SELECT, [header.CHAVE]),
+        ]);
+        return { ...os, produtos: itensProd.map(mapItemProduto), servicos: itensServ.map(mapItemServico) };
+      }),
+    );
+
+    return { items: withItens, total };
+  }
+
+  /**
+   * Indicadores usam somente cabeçalhos em duas janelas indexáveis (abertura e fechamento).
+   * A união em memória remove duplicidade sem trazer itens nem valores da OS.
+   */
+  async listarParaDashboard(filter: OSDashboardFilter): Promise<OrdemServico[]> {
+    const inicio = filter.dataInicial;
+    const fim = filter.dataFinal;
+    const [abertas, fechadas] = await Promise.all([
+      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} WHERE OS.DATA >= ? AND OS.DATA <= ?`, [inicio, fim]),
+      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} WHERE OS.DATAFECHA >= ? AND OS.DATAFECHA <= ?`, [inicio, fim]),
+    ]);
+    const headers = [...new Map([...abertas, ...fechadas].map((header) => [header.IDENTIFICADOR.toLowerCase(), header])).values()];
+    const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
+    return headers.map((header) => buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())));
+  }
+
+  async buscarParaDashboard(termo: string): Promise<OrdemServico[]> {
+    const term = toLatin1Param(termo);
+    const select = HEADER_SELECT.replace('SELECT', 'SELECT FIRST 8');
+    const headers = await firebirdQuery<OSHeaderRow>(
+      `${select} WHERE OS.ORDEM CONTAINING ? OR CLI.FANTASIA CONTAINING ? OR CLI.RAZAOSOCIAL CONTAINING ? OR EQ.IDENTIFICACAO CONTAINING ? OR EQ.DESCRICAO CONTAINING ? ORDER BY OS.CHAVE DESC`,
+      [term, term, term, term, term],
+    );
+    const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
+    return headers.map((header) => buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())));
+  }
+
+  async criar(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico> {
+    const [chaveCliente, chaveEquipamento, chaveSituacaoAtendimento] = await Promise.all([
+      resolveChaveByCodigo('CLIFOR', os.clienteCodigo),
+      resolveChaveByCodigo('EQUIPAMENTOS', os.equipamentoCodigo),
+      resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[os.status]),
+    ]);
+
+    const identificador = await firebirdTransaction(async (query) => {
+      const generatorRows = await query<{ PROXIMO: number }>(
+        `SELECT GEN_ID(GEN_ORDEMSERVICO_ID, 1) AS PROXIMO FROM RDB$DATABASE`,
+      );
+      const chave = generatorRows[0]?.PROXIMO;
+      if (chave === undefined) {
+        throw new ExternalServiceError();
+      }
+      const ordem = String(chave).padStart(6, '0');
+      const obs = encodeObs(os.observacoes, os.solucao);
+
+      const insertRows = await query<{ IDENTIFICADOR: string }>(
+        `INSERT INTO ORDEMSERVICO (
+           CHAVE, ATIVO, CHAVEEMPRESA, ORDEM, DATA, HORAABERTURA, DATAFECHA, HORAFECHAMENTO, DATAENTREGA, TIPO, SITUACAO,
+           CHAVECLIFOR, CHAVEEQUIPAMENTO, PROBLEMAABERTURAOS, LAUDOTECNICO, OBS, CHAVEUSUARIOINICIOU,
+           TOTALPRODUTO, TOTALSERVICO, TOTALOS, CHAVESITUACAOOS, PRIORIDADE
+         ) VALUES (?, 1, ?, ?, CURRENT_DATE, CURRENT_TIME, NULL, NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?)
+         RETURNING IDENTIFICADOR`,
+        [
+          chave,
+          CHAVE_EMPRESA,
+          ordem,
+          situacaoFromStatus(os.status),
+          chaveCliente,
+          chaveEquipamento,
+          toLatin1Param(os.problema),
+          os.diagnostico ? toLatin1Param(os.diagnostico) : null,
+          obs,
+          env.FIREBIRD_OS_USUARIO_CHAVE,
+          chaveSituacaoAtendimento ?? null,
+          PRIORIDADE_CODIGO_POR_STATUS[os.prioridade],
+        ],
+      );
+      const identificadorGerado = insertRows[0]?.IDENTIFICADOR;
+      if (!identificadorGerado) {
+        throw new ExternalServiceError();
+      }
+      return identificadorGerado;
+    });
+
+    await db.insert(osWorkflow).values({
+      id: identificador,
+      status: os.status,
+      prioridade: os.prioridade,
+      responsavelId: os.responsavelId ?? null,
+      tecnicoId: os.tecnicoId ?? null,
+      dataPrevista: os.dataPrevista ? new Date(os.dataPrevista) : null,
+      historico: os.historico,
+    });
+
+    const criada = await this.buscarPorId(identificador);
+    if (!criada) {
+      throw new NotFoundError('OS criada não pôde ser recarregada.', 'OS_NOT_FOUND');
+    }
+    return criada;
+  }
+
+  async atualizar(id: string, patch: Partial<OrdemServico>): Promise<OrdemServico> {
+    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} WHERE OS.IDENTIFICADOR = ?`, [id]);
+    const header = headers[0];
+    if (!header) {
+      throw new NotFoundError('Ordem de serviço não encontrada.', 'OS_NOT_FOUND');
+    }
+    const chaveOS = header.CHAVE;
+
+    const camposOSFB: Array<{ coluna: string; valor: unknown }> = [];
+    let fechandoAgora = false;
+
+    if (patch.diagnostico !== undefined) {
+      camposOSFB.push({ coluna: 'LAUDOTECNICO', valor: patch.diagnostico ? toLatin1Param(patch.diagnostico) : null });
+    }
+    if (patch.observacoes !== undefined || patch.solucao !== undefined) {
+      const atual = decodeObs(header.OBS);
+      const observacoes = patch.observacoes !== undefined ? patch.observacoes : atual.observacoes;
+      const solucao = patch.solucao !== undefined ? patch.solucao : atual.solucao;
+      camposOSFB.push({ coluna: 'OBS', valor: encodeObs(observacoes, solucao) });
+    }
+    if (patch.status !== undefined) {
+      const situacao = situacaoFromStatus(patch.status);
+      camposOSFB.push({ coluna: 'SITUACAO', valor: situacao });
+      fechandoAgora = situacao === SITUACAO_FECHADO && header.SITUACAO !== SITUACAO_FECHADO;
+
+      const codigoSituacaoAtendimento = SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[patch.status];
+      const chaveSituacaoAtendimento = await resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, codigoSituacaoAtendimento);
+      if (chaveSituacaoAtendimento !== undefined) {
+        camposOSFB.push({ coluna: 'CHAVESITUACAOOS', valor: chaveSituacaoAtendimento });
+      }
+    }
+    if (patch.prioridade !== undefined) {
+      camposOSFB.push({ coluna: 'PRIORIDADE', valor: PRIORIDADE_CODIGO_POR_STATUS[patch.prioridade] });
+    }
+    if (patch.kmAtual !== undefined) {
+      camposOSFB.push({ coluna: 'KMATUAL', valor: patch.kmAtual });
+    }
+    if (patch.kmFinal !== undefined) {
+      camposOSFB.push({ coluna: 'KMFINAL', valor: patch.kmFinal });
+    }
+
+    await firebirdTransaction(async (query) => {
+      if (patch.produtos !== undefined || patch.servicos !== undefined) {
+        // NUMITEM é uma sequência única COMPARTILHADA entre ITENSORDEMSERVICOPROD e SERV pra uma
+        // mesma OS (confirmado com dado real do CHERP na Fase B0 — produto e serviço se intercalam
+        // na mesma contagem) — nunca numerar cada tabela separadamente, senão colide.
+        const maxRows = await query<{ MAXIMO: number | null }>(
+          `SELECT MAX(NUMITEM) AS MAXIMO FROM (
+             SELECT NUMITEM FROM ITENSORDEMSERVICOPROD WHERE CHAVEOS = ?
+             UNION ALL
+             SELECT NUMITEM FROM ITENSORDEMSERVICOSERV WHERE CHAVEOS = ?
+           ) X`,
+          [chaveOS, chaveOS],
+        );
+        const numItemState = { proximo: (maxRows[0]?.MAXIMO ?? 0) + 1 };
+
+        if (patch.produtos !== undefined) {
+          await this.sincronizarItens(query, chaveOS, 'produto', patch.produtos, numItemState);
+        }
+        if (patch.servicos !== undefined) {
+          await this.sincronizarItens(query, chaveOS, 'servico', patch.servicos, numItemState);
+        }
+      }
+
+      if (patch.produtos !== undefined || patch.servicos !== undefined) {
+        const totaisRows = await query<{ TOTALPRODUTO: number | null; TOTALSERVICO: number | null }>(
+          `SELECT
+             (SELECT CASE WHEN COUNT(*) = 0 THEN 0 WHEN COUNT(*) <> COUNT(VLRTOTAL) THEN NULL ELSE SUM(VLRTOTAL) END FROM ITENSORDEMSERVICOPROD WHERE CHAVEOS = ? AND ATIVO = 1) AS TOTALPRODUTO,
+             (SELECT CASE WHEN COUNT(*) = 0 THEN 0 WHEN COUNT(*) <> COUNT(VLRTOTAL) THEN NULL ELSE SUM(VLRTOTAL) END FROM ITENSORDEMSERVICOSERV WHERE CHAVEOS = ? AND ATIVO = 1) AS TOTALSERVICO
+           FROM RDB$DATABASE`,
+          [chaveOS, chaveOS],
+        );
+        const totalProduto = totaisRows[0]?.TOTALPRODUTO ?? null;
+        const totalServico = totaisRows[0]?.TOTALSERVICO ?? null;
+        const totalOS = totalProduto === null || totalServico === null ? null : Number(totalProduto) + Number(totalServico);
+        await query(`UPDATE ORDEMSERVICO SET TOTALPRODUTO = ?, TOTALSERVICO = ?, TOTALOS = ? WHERE CHAVE = ?`, [
+          totalProduto,
+          totalServico,
+          totalOS,
+          chaveOS,
+        ]);
+      }
+
+      if (camposOSFB.length > 0) {
+        const sets: string[] = [];
+        const params: unknown[] = [];
+        for (const { coluna, valor } of camposOSFB) {
+          sets.push(`${coluna} = ?`);
+          params.push(valor);
+        }
+        if (fechandoAgora) {
+          sets.push('DATAFECHA = CURRENT_DATE', 'HORAFECHAMENTO = CURRENT_TIME', 'CHAVEUSUARIOFECHOU = ?');
+          params.push(env.FIREBIRD_OS_USUARIO_CHAVE);
+        }
+        params.push(chaveOS);
+        await query(`UPDATE ORDEMSERVICO SET ${sets.join(', ')} WHERE CHAVE = ?`, params);
+      }
+    });
+
+    const camposWorkflow: Partial<typeof osWorkflow.$inferInsert> = { updatedAt: new Date() };
+    if (patch.status !== undefined) camposWorkflow.status = patch.status;
+    if (patch.prioridade !== undefined) camposWorkflow.prioridade = patch.prioridade;
+    if (patch.responsavelId !== undefined) camposWorkflow.responsavelId = patch.responsavelId ?? null;
+    if (patch.tecnicoId !== undefined) camposWorkflow.tecnicoId = patch.tecnicoId ?? null;
+    if (patch.dataPrevista !== undefined) camposWorkflow.dataPrevista = patch.dataPrevista ? new Date(patch.dataPrevista) : null;
+    if (patch.historico !== undefined) camposWorkflow.historico = patch.historico;
+
+    const existente = await fetchWorkflow(id);
+    if (existente) {
+      await db.update(osWorkflow).set(camposWorkflow).where(eq(osWorkflow.id, id));
+    } else {
+      // Primeira escrita feita pelo app numa OS que nasceu direto no CHERP — materializa a linha agora.
+      const base = buildOrdemServico(header, [], [], undefined);
+      await db.insert(osWorkflow).values({
+        id,
+        status: patch.status ?? base.status,
+        prioridade: patch.prioridade ?? base.prioridade,
+        responsavelId: patch.responsavelId ?? null,
+        tecnicoId: patch.tecnicoId ?? null,
+        dataPrevista: patch.dataPrevista ? new Date(patch.dataPrevista) : null,
+        historico: patch.historico ?? base.historico,
+      });
+    }
+
+    const atualizada = await this.buscarPorId(id);
+    if (!atualizada) {
+      throw new NotFoundError('Ordem de serviço não encontrada.', 'OS_NOT_FOUND');
+    }
+    return atualizada;
+  }
+
+  private async sincronizarItens(
+    query: <R = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<R[]>,
+    chaveOS: number,
+    tipo: 'produto' | 'servico',
+    novos: (OSItemProduto | OSItemServico)[],
+    numItemState: { proximo: number },
+  ): Promise<void> {
+    const tabela = tipo === 'produto' ? 'ITENSORDEMSERVICOPROD' : 'ITENSORDEMSERVICOSERV';
+    const codigoDe = (item: OSItemProduto | OSItemServico): string =>
+      'produtoCodigo' in item ? item.produtoCodigo : item.servicoCodigo;
+    const valorUnitarioDe = (item: OSItemProduto | OSItemServico): number | undefined =>
+      'produtoCodigo' in item ? item.precoUnitario : item.valorUnitario;
+
+    const atuais = await query<{ CHAVE: number; CODIGO: string }>(
+      `SELECT CHAVE, CODPRODUTO AS CODIGO FROM ${tabela} WHERE CHAVEOS = ? AND ATIVO = 1`,
+      [chaveOS],
+    );
+
+    const novosCodigos = new Set(novos.map(codigoDe));
+    const atuaisCodigos = new Set(atuais.map((a) => a.CODIGO));
+
+    const remover = atuais.filter((a) => !novosCodigos.has(a.CODIGO));
+    const adicionar = novos.filter((n) => !atuaisCodigos.has(codigoDe(n)));
+
+    for (const item of remover) {
+      await query(`UPDATE ${tabela} SET ATIVO = 0 WHERE CHAVE = ?`, [item.CHAVE]);
+    }
+
+    // MOVESTOQUE só existe em ITENSORDEMSERVICOPROD (confirmado na Fase B0) — não em SERV.
+    const colunaMovEstoque = tipo === 'produto' ? ', MOVESTOQUE' : '';
+    const valorMovEstoque = tipo === 'produto' ? ', 0' : '';
+
+    for (const item of adicionar) {
+      const codigo = codigoDe(item);
+      const { chave: chaveProduto, chaveUnidade } = await resolveProduto(codigo);
+      const valorUnitario = valorUnitarioDe(item);
+      const total = item.total;
+      const desconto = item.desconto ?? null;
+
+      await query(
+        `INSERT INTO ${tabela} (
+           CHAVEEMPRESA, ATIVO, CHAVEOS, CHAVEPRODUTO, CODPRODUTO, PRODUTO, CHAVEUNIDADE, UN,
+           QTDE, VLRUNIT, DESCPORC, DESCVLR, VLRSUBTOTAL, VLRTOTAL, CHAVETABELAPRECO, DATA, NUMITEM${colunaMovEstoque}
+         ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, CURRENT_DATE, ?${valorMovEstoque})`,
+        [
+          CHAVE_EMPRESA,
+          chaveOS,
+          chaveProduto,
+          codigo,
+          toLatin1Param(item.descricao),
+          chaveUnidade,
+          item.unidade,
+          item.quantidade,
+          valorUnitario ?? null,
+          desconto,
+          total ?? null,
+          total ?? null,
+          CHAVE_TABELA_PRECO,
+          numItemState.proximo++,
+        ],
+      );
+    }
+  }
+}

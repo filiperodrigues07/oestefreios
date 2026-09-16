@@ -17,6 +17,8 @@ const envSchema = z.object({
   FIREBIRD_DATABASE: z.string().default(''),
   FIREBIRD_USER: z.string().default('SYSDBA'),
   FIREBIRD_PASSWORD: z.string().default(''),
+  /** CHAVE (USUARIOS) do CHERP registrado como responsável por toda OS aberta/fechada pelo app. */
+  FIREBIRD_OS_USUARIO_CHAVE: z.coerce.number().int().positive().default(2),
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatório'),
 

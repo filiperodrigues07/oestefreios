@@ -1,14 +1,29 @@
 import { Router } from 'express';
-import { loginHandler, logoutHandler, meHandler, refreshHandler } from '../controllers/auth.controller.js';
+import {
+  authConfigHandler,
+  forgotPasswordHandler,
+  loginHandler,
+  logoutHandler,
+  meHandler,
+  refreshHandler,
+  resetPasswordHandler,
+  updateMyProfileHandler,
+  updateMyProfilePhotoHandler,
+} from '../controllers/auth.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
-import { authLimiter } from '../middlewares/rateLimiter.js';
+import { authLimiter, refreshLimiter } from '../middlewares/rateLimiter.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { loginSchema } from '../validators/auth.validator.js';
+import { forgotPasswordSchema, loginSchema, resetPasswordSchema, updateMyProfileSchema } from '../validators/auth.validator.js';
 
 export const authRouter = Router();
 
+authRouter.get('/config', asyncHandler(authConfigHandler));
 authRouter.post('/login', authLimiter, validate(loginSchema), asyncHandler(loginHandler));
-authRouter.post('/refresh', authLimiter, asyncHandler(refreshHandler));
+authRouter.post('/refresh', refreshLimiter, asyncHandler(refreshHandler));
 authRouter.post('/logout', asyncHandler(logoutHandler));
 authRouter.get('/me', authenticate, asyncHandler(meHandler));
+authRouter.put('/me', authenticate, validate(updateMyProfileSchema), asyncHandler(updateMyProfileHandler));
+authRouter.put('/me/photo', authenticate, asyncHandler(updateMyProfilePhotoHandler));
+authRouter.post('/forgot-password', authLimiter, validate(forgotPasswordSchema), asyncHandler(forgotPasswordHandler));
+authRouter.post('/reset-password', authLimiter, validate(resetPasswordSchema), asyncHandler(resetPasswordHandler));

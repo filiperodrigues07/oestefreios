@@ -9,10 +9,17 @@ interface PaginatedProdutos {
   total: number;
 }
 
-/** Código informado exatamente (só dígitos) tem prioridade sobre busca por descrição — ver seção 36 do briefing. */
+/**
+ * Código informado exatamente (só dígitos) tem prioridade sobre busca por descrição — ver seção 36 do briefing.
+ * Sem termo digitado (F8/campo vazio), devolve a primeira página do catálogo em vez de exigir digitação.
+ */
 export function searchProdutos(query: string): Promise<PaginatedProdutos> {
-  const isCodigo = /^\d+$/.test(query);
-  const params = new URLSearchParams({ [isCodigo ? 'codigo' : 'descricao']: query, limit: '10' });
+  const params = new URLSearchParams({ limit: '10' });
+  const termo = query.trim();
+  if (termo.length > 0) {
+    const isCodigo = /^\d+$/.test(termo);
+    params.set(isCodigo ? 'codigo' : 'descricao', termo);
+  }
   return apiFetch<PaginatedProdutos>(`/produtos?${params.toString()}`);
 }
 

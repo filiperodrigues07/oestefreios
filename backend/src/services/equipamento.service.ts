@@ -1,6 +1,6 @@
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { equipamentoRepository } from '../repositories/index.js';
-import type { Equipamento, PaginatedResult, SearchQuery } from '../types/cherp.types.js';
+import type { Equipamento, EquipamentoInput, PaginatedResult, SearchQuery } from '../types/cherp.types.js';
 
 export async function searchEquipamentos(query: SearchQuery): Promise<PaginatedResult<Equipamento>> {
   return equipamentoRepository.buscar(query);
@@ -16,4 +16,12 @@ export async function getEquipamentoByCodigo(codigo: string): Promise<Equipament
 
 export async function listEquipamentosByCliente(clienteCodigo: string): Promise<Equipamento[]> {
   return equipamentoRepository.buscarPorCliente(clienteCodigo);
+}
+
+export async function criarEquipamento(input: EquipamentoInput): Promise<Equipamento> {
+  return equipamentoRepository.criar(input);
+}
+
+export async function atualizarEquipamento(codigo: string, input: EquipamentoInput): Promise<Equipamento> {
+  return equipamentoRepository.atualizar(codigo, input);
 }

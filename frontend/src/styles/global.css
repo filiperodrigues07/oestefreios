@@ -22,9 +22,14 @@ body {
     'Segoe UI',
     Roboto,
     sans-serif;
-  transition:
-    background-color 0.15s ease,
-    color 0.15s ease;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-primary-surface);
+  color: var(--color-text-primary);
 }
 
 button,

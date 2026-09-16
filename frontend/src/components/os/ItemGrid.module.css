@@ -1,0 +1,203 @@
+.wrapper {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  /* Sem overflow aqui: cortava o dropdown do combobox de busca (position: absolute), que fica
+     fora da tabela mas dentro deste wrapper. Overflow horizontal fica só na tabela em si. */
+}
+
+.tableScroll {
+  overflow-x: auto;
+}
+
+/* Desktop: tabela (mobile-first — escondida por padrão, ligada a partir de 768px) */
+.table {
+  display: none;
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-md);
+}
+
+.table th {
+  text-align: left;
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Mobile: lista de cards (Fase OS-5) — visível por padrão, desligada a partir de 768px */
+.cardList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+.itemCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-elevated);
+}
+
+.itemCardMain {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.itemCardDescricao {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.itemCardMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+@media (min-width: 768px) {
+  .table {
+    display: table;
+  }
+
+  .cardList {
+    display: none;
+  }
+}
+
+.right {
+  text-align: right;
+}
+
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.emptyCell {
+  text-align: center;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  padding: var(--space-4);
+  margin: 0;
+}
+
+/* Controles de adicionar — um bloco só, reflui via flexbox pro desktop (linha) e mobile (empilhado) */
+.addControls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+}
+
+.addSearch {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.addQty {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.addQtyUnidade {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  min-width: 32px;
+}
+
+.addQtyPreco {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.qtyInput {
+  width: 72px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+}
+
+.qtyInput:disabled {
+  opacity: 0.5;
+}
+
+.iconButton {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.iconButton:hover {
+  background: var(--color-neutral-surface);
+}
+
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.trashButton {
+  composes: iconButton;
+  color: var(--color-danger);
+}
+
+.confirmButton {
+  composes: iconButton;
+  color: var(--color-success);
+}
+
+.cancelButton {
+  composes: iconButton;
+  color: var(--color-text-secondary);
+}
+
+.errorText {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}

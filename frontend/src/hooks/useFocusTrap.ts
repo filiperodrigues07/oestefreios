@@ -10,6 +10,11 @@ const FOCUSABLE_SELECTOR =
 export function useFocusTrap<T extends HTMLElement>(active: boolean, onEscape?: () => void) {
   const containerRef = useRef<T>(null);
   const previouslyFocused = useRef<HTMLElement | null>(null);
+  // Callers costumam passar `onEscape` inline (nova referência a cada render) — guardar num ref e
+  // não colocar na dependência do efeito evita reabrir o trap (e reforçar foco no 1º elemento) a
+  // cada tecla digitada dentro do modal, que antes chutava o foco pro botão de fechar.
+  const onEscapeRef = useRef(onEscape);
+  onEscapeRef.current = onEscape;
 
   useEffect(() => {
     if (!active) return;
@@ -21,7 +26,7 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, onEscape?: 
 
     function handleKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        onEscape?.();
+        onEscapeRef.current?.();
         return;
       }
       if (e.key !== 'Tab' || !container) return;
@@ -45,7 +50,7 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, onEscape?: 
       document.removeEventListener('keydown', handleKeyDown);
       previouslyFocused.current?.focus();
     };
-  }, [active, onEscape]);
+  }, [active]);
 
   return containerRef;
 }

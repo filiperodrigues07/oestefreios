@@ -16,7 +16,9 @@ interface StatusChangerProps {
  * sempre revalida, então uma cópia desatualizada aqui nunca vira brecha).
  */
 export function StatusChanger({ current, onChange, loading }: StatusChangerProps) {
-  const options = ALLOWED_TRANSITIONS[current];
+  // CONCLUIDA só é alcançável pelo botão dedicado "Finalizar OS" (Fase OS-6) — ele avisa o
+  // mecânico que não dá mais pra editar depois, o que este select genérico não faz.
+  const options = ALLOWED_TRANSITIONS[current].filter((status) => status !== 'CONCLUIDA');
   const [selected, setSelected] = useState<OSStatus | ''>('');
 
   if (options.length === 0) {

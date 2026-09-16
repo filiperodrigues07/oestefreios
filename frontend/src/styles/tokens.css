@@ -1,16 +1,19 @@
 :root {
-  --color-primary: #0369a1;
-  --color-primary-hover: #075985;
-  --color-background: #f8fafc;
-  --color-surface: #ffffff;
-  --color-surface-elevated: #ffffff;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #475569;
-  --color-border: #e2e8f0;
-  --color-success: #16a34a;
-  --color-warning: #d97706;
-  --color-danger: #dc2626;
-  --color-info: #0284c7;
+  --color-primary: #38bdf8;
+  --color-primary-hover: #7dd3fc;
+  --color-background: #080d18;
+  --color-sidebar: #0b1424;
+  --color-sidebar-elevated: #0d1728;
+  --color-surface: #101a2c;
+  --color-surface-elevated: #111d31;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-border: rgba(148, 163, 184, 0.12);
+  --color-success: #4ade80;
+  --color-warning: #fbbf24;
+  --color-danger: #fb7185;
+  --color-info: #38bdf8;
 
   --space-1: 4px;
   --space-2: 8px;
@@ -19,8 +22,8 @@
   --space-6: 24px;
   --space-8: 32px;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
+  --radius-sm: 10px;
+  --radius-md: 12px;
   --radius-lg: 16px;
   --radius-full: 999px;
 
@@ -30,9 +33,16 @@
   --font-size-lg: 16px;
   --font-size-xl: 20px;
 
-  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
-  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.1);
-  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.16);
+  /* Pra código/saldo/valores — números tabulares (largura fixa por dígito, colunas alinham). */
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+
+  /* Alias configurável (tela de Configurações, aba Geral) — hoje igual a --color-primary,
+     pode divergir por tenant/cliente sem precisar tocar nos outros tokens de cor. */
+  --color-brand-primary: var(--color-primary);
+
+  --shadow-sm: 0 6px 16px rgba(0, 0, 0, 0.14);
+  --shadow-md: 0 14px 32px rgba(0, 0, 0, 0.24);
+  --shadow-lg: 0 20px 48px rgba(0, 0, 0, 0.32);
 
   --overlay: rgba(15, 23, 42, 0.5);
 
@@ -41,7 +51,60 @@
   --z-toast: 300;
 
   --bottom-nav-height: 64px;
-  --sidebar-width: 240px;
+  --sidebar-width: 200px;
+  --sidebar-width-collapsed: 72px;
+
+  --color-success-surface: rgba(34, 197, 94, 0.14);
+  --color-warning-surface: rgba(245, 158, 11, 0.14);
+  --color-danger-surface: rgba(244, 63, 94, 0.14);
+  --color-info-surface: rgba(56, 189, 248, 0.14);
+  --color-primary-surface: rgba(56, 189, 248, 0.14);
+  --color-neutral-surface: rgba(148, 163, 184, 0.1);
+
+  /* Tons mais escuros que os tokens base, só para texto sobre *-surface (contraste AA em fonte pequena). */
+  --color-success-on-surface: #86efac;
+  --color-warning-on-surface: #fcd34d;
+  --color-danger-on-surface: #fda4af;
+  --color-info-on-surface: #7dd3fc;
+  --color-primary-on-surface: #7dd3fc;
+
+  /* Paleta categórica pra gráficos (dataviz skill) — validada com scripts/validate_palette.js
+     contra --color-surface claro (#ffffff): todos os 8 passam CVD/lightness/chroma;
+     slots 3/5/4 ficam abaixo de 3:1 de contraste — por isso todo gráfico usa label direto,
+     nunca só a cor, pra esses casos (regra de "relief" do skill). */
+  --chart-series-1: #38bdf8;
+  --chart-series-2: #a78bfa;
+  --chart-series-3: #4ade80;
+  --chart-series-4: #fbbf24;
+  --chart-series-5: #fb7185;
+  --chart-grid: rgba(148, 163, 184, 0.16);
+  --chart-muted: #94a3b8;
+
+  color-scheme: dark;
+}
+
+[data-theme='light'] {
+  --color-primary: #0369a1;
+  --color-primary-hover: #075985;
+  --color-background: #f8fafc;
+  --color-sidebar: #ffffff;
+  --color-sidebar-elevated: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-elevated: #ffffff;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #475569;
+  --color-text-muted: #64748b;
+  --color-border: #e2e8f0;
+  --color-success: #16a34a;
+  --color-warning: #d97706;
+  --color-danger: #dc2626;
+  --color-info: #0284c7;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.1);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.16);
+
+  --overlay: rgba(15, 23, 42, 0.5);
 
   --color-success-surface: #dcfce7;
   --color-warning-surface: #fef3c7;
@@ -50,17 +113,13 @@
   --color-primary-surface: #e0f2fe;
   --color-neutral-surface: #f1f5f9;
 
-  /* Tons mais escuros que os tokens base, só para texto sobre *-surface (contraste AA em fonte pequena). */
   --color-success-on-surface: #15803d;
   --color-warning-on-surface: #b45309;
   --color-danger-on-surface: #b91c1c;
   --color-info-on-surface: #075985;
   --color-primary-on-surface: #075985;
 
-  /* Paleta categórica pra gráficos (dataviz skill) — validada com scripts/validate_palette.js
-     contra --color-surface claro (#ffffff): todos os 8 passam CVD/lightness/chroma;
-     slots 3/5/4 ficam abaixo de 3:1 de contraste — por isso todo gráfico usa label direto,
-     nunca só a cor, pra esses casos (regra de "relief" do skill). */
+  /* Paleta categórica — passos escuros validados contra --color-surface escuro (#111827). */
   --chart-series-1: #2a78d6;
   --chart-series-2: #eb6834;
   --chart-series-3: #1baf7a;
@@ -70,49 +129,4 @@
   --chart-muted: #898781;
 
   color-scheme: light;
-}
-
-[data-theme='dark'] {
-  --color-primary: #38bdf8;
-  --color-primary-hover: #7dd3fc;
-  --color-background: #0b1220;
-  --color-surface: #111827;
-  --color-surface-elevated: #1a2332;
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-border: #1e293b;
-  --color-success: #4ade80;
-  --color-warning: #fbbf24;
-  --color-danger: #f87171;
-  --color-info: #38bdf8;
-
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5);
-
-  --overlay: rgba(0, 0, 0, 0.65);
-
-  --color-success-surface: #14532d;
-  --color-warning-surface: #78350f;
-  --color-danger-surface: #7f1d1d;
-  --color-info-surface: #0c4a6e;
-  --color-primary-surface: #0c4a6e;
-  --color-neutral-surface: #1e293b;
-
-  --color-success-on-surface: #86efac;
-  --color-warning-on-surface: #fcd34d;
-  --color-danger-on-surface: #fca5a5;
-  --color-info-on-surface: #7dd3fc;
-  --color-primary-on-surface: #7dd3fc;
-
-  /* Paleta categórica — passos escuros validados contra --color-surface escuro (#111827). */
-  --chart-series-1: #3987e5;
-  --chart-series-2: #d95926;
-  --chart-series-3: #199e70;
-  --chart-series-4: #c98500;
-  --chart-series-5: #d55181;
-  --chart-grid: #2c2c2a;
-  --chart-muted: #898781;
-
-  color-scheme: dark;
 }

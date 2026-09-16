@@ -9,9 +9,14 @@ interface PaginatedServicos {
   total: number;
 }
 
+/** Sem termo digitado (F8/campo vazio), devolve a primeira página do catálogo em vez de exigir digitação. */
 export function searchServicos(query: string): Promise<PaginatedServicos> {
-  const isCodigo = /^\d+$/.test(query);
-  const params = new URLSearchParams({ [isCodigo ? 'codigo' : 'descricao']: query, limit: '10' });
+  const params = new URLSearchParams({ limit: '10' });
+  const termo = query.trim();
+  if (termo.length > 0) {
+    const isCodigo = /^\d+$/.test(termo);
+    params.set(isCodigo ? 'codigo' : 'descricao', termo);
+  }
   return apiFetch<PaginatedServicos>(`/servicos?${params.toString()}`);
 }
 

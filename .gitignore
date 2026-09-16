@@ -14,6 +14,9 @@ logs/
 !.vscode/extensions.json
 frontend/dev-dist/
 
+# Uploads de usuário (avatares etc.) — dado gerado em runtime, não faz parte do código.
+backend/uploads/
+
 # Skills/tooling do Claude Code instalados localmente (não são código do projeto)
 .claude/
 .agents/

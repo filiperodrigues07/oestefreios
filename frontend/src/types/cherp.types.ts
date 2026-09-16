@@ -3,7 +3,9 @@ export interface ProdutoDTO {
   codigo: string;
   descricao: string;
   unidade: string;
+  categoria?: string;
   disponivel?: number;
+  estoqueMinimo?: number;
   precoUnitario?: number;
   custo?: number;
 }
@@ -12,21 +14,82 @@ export interface ServicoDTO {
   codigo: string;
   descricao: string;
   unidade: string;
+  categoria?: string;
   valorUnitario?: number;
 }
+
+export type TipoPessoa = 'PF' | 'PJ';
+
+/** CRT (Código de Regime Tributário) padrão SEFAZ/NFe: 1=Simples Nacional, 2=Simples excesso sublimite, 3=Regime Normal. */
+export type RegimeTributario = 0 | 1 | 2 | 3;
 
 export interface ClienteDTO {
   codigo: string;
   nome: string;
   documento?: string;
   telefone?: string;
+  tipoPessoa?: TipoPessoa;
+  razaoSocial?: string;
+  nomeFantasia?: string;
+  email?: string;
+  endereco?: string;
+  numero?: string;
+  bairro?: string;
+  complemento?: string;
+  cidade?: string;
+  uf?: string;
+  cep?: string;
+  fornecedor?: boolean;
+  transportador?: boolean;
+  representante?: boolean;
+  regimeTributario?: RegimeTributario;
 }
 
+export interface ClienteInput {
+  tipoPessoa: TipoPessoa;
+  nome: string;
+  nomeFantasia?: string;
+  documento: string;
+  telefone?: string;
+  email?: string;
+  endereco?: string;
+  numero?: string;
+  bairro?: string;
+  complemento?: string;
+  cidade?: string;
+  uf?: string;
+  cep?: string;
+  fornecedor?: boolean;
+  transportador?: boolean;
+  representante?: boolean;
+  regimeTributario?: RegimeTributario;
+}
+
+/** "Veículo" na interface — nome de campo espelha a coluna EQUIPAMENTOS/IDENTIFICACAO do CHERP. */
 export interface EquipamentoDTO {
   codigo: string;
   descricao: string;
   clienteCodigo: string;
   identificacao?: string;
+  marca?: string;
+  modelo?: string;
+  anoFabricacao?: string;
+  anoModelo?: string;
+  cor?: string;
+  chassi?: string;
+  kmAtual?: number;
+}
+
+export interface EquipamentoInput {
+  clienteCodigo: string;
+  placa: string;
+  marca?: string;
+  modelo?: string;
+  anoFabricacao?: string;
+  anoModelo?: string;
+  cor?: string;
+  chassi?: string;
+  kmAtual?: number;
 }
 
 export interface ApiSuccess<T> {

@@ -1,0 +1,2 @@
+.label { display: inline-flex; align-items: center; gap: 5px; color: var(--color-text-secondary); font-size: var(--font-size-xs); }
+.info { border: 0; background: transparent; color: var(--color-text-muted); cursor: help; font-size: 12px; line-height: 1; padding: 0; }.info:hover { color: var(--color-primary); }

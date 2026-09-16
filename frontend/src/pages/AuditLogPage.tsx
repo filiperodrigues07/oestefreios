@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { listarAuditLogs } from '../api/auditLog.api.js';
-import { Card, EmptyState, ErrorState, Modal, Pagination, Skeleton } from '../components/ui/index.js';
+import { Card, EmptyState, ErrorState, Modal, PageHeader, Pagination, Skeleton } from '../components/ui/index.js';
 import type { AuditLogDTO } from '../types/auditLog.types.js';
+import styles from './AuditLogPage.module.css';
 
 const EVENT_LABELS: Record<string, string> = {
   LOGIN_SUCCESS: 'Login bem-sucedido',
@@ -29,8 +30,8 @@ export function AuditLogPage() {
   });
 
   return (
-    <div style={{ padding: 'var(--space-6)', maxWidth: 760 }}>
-      <h1 style={{ margin: '0 0 var(--space-4)', fontSize: 'var(--font-size-xl)' }}>Auditoria</h1>
+    <div className={styles.page}>
+      <PageHeader title="Auditoria" description="Acompanhe os eventos registrados no sistema." />
 
       {isLoading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
@@ -44,7 +45,7 @@ export function AuditLogPage() {
 
       {!isLoading && !isError && data?.items.length === 0 && <EmptyState title="Nenhum evento registrado ainda." />}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+      <div className={styles.logList}>
         {data?.items.map((entry) => (
           <button
             key={entry.id}
@@ -69,7 +70,7 @@ export function AuditLogPage() {
       </div>
 
       {data && (
-        <div style={{ marginTop: 'var(--space-4)' }}>
+        <div className={styles.pagination}>
           <Pagination page={data.page} limit={data.limit} total={data.total} onPageChange={setPage} />
         </div>
       )}

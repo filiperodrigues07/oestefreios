@@ -13,4 +13,24 @@ export function me(): Promise<LoginResponse> {
   return apiFetch<LoginResponse>('/auth/me');
 }
 
+export function getAuthConfig(): Promise<{ passwordResetEnabled: boolean }> {
+  return apiFetch<{ passwordResetEnabled: boolean }>('/auth/config');
+}
+
+export function forgotPassword(email: string): Promise<null> {
+  return apiFetch<null>('/auth/forgot-password', { method: 'POST', body: { email } });
+}
+
+export function resetPassword(token: string, password: string): Promise<null> {
+  return apiFetch<null>('/auth/reset-password', { method: 'POST', body: { token, password } });
+}
+
+export function updateMyProfile(name: string, email: string): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>('/auth/me', { method: 'PUT', body: { name, email } });
+}
+
+export function updateMyProfilePhoto(image: string): Promise<LoginResponse> {
+  return apiFetch<LoginResponse>('/auth/me/photo', { method: 'PUT', body: { image } });
+}
+
 export type { AuthUser };

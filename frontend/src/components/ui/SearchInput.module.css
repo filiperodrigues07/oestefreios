@@ -1,0 +1,21 @@
+.wrapper {
+  position: relative;
+}
+
+.icon {
+  position: absolute;
+  top: 50%;
+  left: var(--space-3);
+  z-index: 1;
+  color: var(--color-text-secondary);
+  pointer-events: none;
+  transform: translateY(-50%);
+}
+
+.withLabel .icon {
+  top: calc(50% + 11px);
+}
+
+.input {
+  padding-left: 40px;
+}

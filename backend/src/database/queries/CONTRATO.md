@@ -79,9 +79,11 @@ do briefing: equipamento só aparece depois do cliente selecionado).
 
 ## O que NÃO está neste contrato
 
-- **Ordem de Serviço (OS)**: não tem variante Firebird. A persistência da OS
-  em si (criar/editar/histórico) é decisão própria da aplicação, ainda não
-  definida se fica no Postgres da aplicação ou é espelhada no CHERP — fora
-  do escopo deste contrato até essa decisão ser tomada.
+- **Ordem de Serviço (OS)**: tem variante Firebird própria, mas fora do
+  padrão `QUERY_*`/`CONTRATO.md` deste arquivo — grava/lê direto em
+  `ORDEMSERVICO` + `ITENSORDEMSERVICOPROD`/`ITENSORDEMSERVICOSERV`. Ver
+  `OSRepository.firebird.ts` e a seção "OS gravada direto no CHERP" no
+  README (mapeamento de status, usuário de integração, pegadinhas de
+  DEFAULT de coluna).
 - **Autenticação/RBAC**: já roda 100% no Postgres da aplicação
   (`database/postgres/schema.ts`), não depende do CHERP.

@@ -47,3 +47,30 @@ export interface OperationalDashboardDTO {
   };
   minhasOS: OSSummaryDTO[];
 }
+
+export type DashboardGranularidade = 'diario' | 'semanal' | 'mensal';
+
+export interface DashboardSerieDTO {
+  chave: string;
+  rotulo: string;
+  abertas: number;
+  concluidas: number;
+}
+
+export interface DashboardAtencaoDTO {
+  id: string;
+  numero: number;
+  clienteNome?: string;
+  status: OSStatus;
+  prioridade: OSPrioridade;
+  dias: number;
+}
+
+export interface DashboardOperacionalDTO {
+  periodo: { inicio: string; fim: string; granularidade: DashboardGranularidade };
+  total: number;
+  countsByStatus: Record<OSStatus, number>;
+  countsByPrioridade: Record<OSPrioridade, number>;
+  evolucao: DashboardSerieDTO[];
+  atencao: DashboardAtencaoDTO[];
+}

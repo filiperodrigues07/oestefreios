@@ -1,4 +1,4 @@
-import type { Equipamento, PaginatedResult, SearchQuery } from '../../types/cherp.types.js';
+import type { Equipamento, EquipamentoInput, PaginatedResult, SearchQuery } from '../../types/cherp.types.js';
 import type { IEquipamentoRepository } from '../interfaces/IEquipamentoRepository.js';
 
 /**
@@ -6,10 +6,12 @@ import type { IEquipamentoRepository } from '../interfaces/IEquipamentoRepositor
  * TODO(Fase 5): substituir por implementação real contra o Firebird, mantendo esta mesma interface.
  */
 const EQUIPAMENTOS: Equipamento[] = [
-  { codigo: 'EQ01', descricao: 'Caminhão ABC', clienteCodigo: '000001', identificacao: 'Placa ABC-1234' },
-  { codigo: 'EQ02', descricao: 'Van de Entrega', clienteCodigo: '000002', identificacao: 'Placa DEF-5678' },
-  { codigo: 'EQ03', descricao: 'Carreta Graneleira', clienteCodigo: '000002', identificacao: 'Placa GHI-9012' },
+  { codigo: 'EQ01', descricao: 'Caminhão ABC', clienteCodigo: '000001', identificacao: 'ABC-1234' },
+  { codigo: 'EQ02', descricao: 'Van de Entrega', clienteCodigo: '000002', identificacao: 'DEF-5678' },
+  { codigo: 'EQ03', descricao: 'Carreta Graneleira', clienteCodigo: '000002', identificacao: 'GHI-9012' },
 ];
+
+let proximoCodigo = 4;
 
 export class EquipamentoRepositoryMock implements IEquipamentoRepository {
   async buscarPorCodigo(codigo: string): Promise<Equipamento | null> {
@@ -35,5 +37,45 @@ export class EquipamentoRepositoryMock implements IEquipamentoRepository {
     const limit = query.limit ?? 20;
     const start = (page - 1) * limit;
     return { items: filtered.slice(start, start + limit), page, limit, total: filtered.length };
+  }
+
+  async criar(input: EquipamentoInput): Promise<Equipamento> {
+    const descricao = [input.marca, input.modelo].filter(Boolean).join(' ') || input.placa;
+    const equipamento: Equipamento = {
+      codigo: `EQ${String(proximoCodigo++).padStart(2, '0')}`,
+      descricao,
+      clienteCodigo: input.clienteCodigo,
+      identificacao: input.placa,
+      marca: input.marca,
+      modelo: input.modelo,
+      anoFabricacao: input.anoFabricacao,
+      anoModelo: input.anoModelo,
+      cor: input.cor,
+      chassi: input.chassi,
+      kmAtual: input.kmAtual,
+    };
+    EQUIPAMENTOS.push(equipamento);
+    return equipamento;
+  }
+
+  async atualizar(codigo: string, input: EquipamentoInput): Promise<Equipamento> {
+    const idx = EQUIPAMENTOS.findIndex((e) => e.codigo === codigo);
+    if (idx === -1) throw new Error('Equipamento não encontrado.');
+    const descricao = [input.marca, input.modelo].filter(Boolean).join(' ') || input.placa;
+    const atualizado: Equipamento = {
+      ...EQUIPAMENTOS[idx]!,
+      descricao,
+      clienteCodigo: input.clienteCodigo,
+      identificacao: input.placa,
+      marca: input.marca,
+      modelo: input.modelo,
+      anoFabricacao: input.anoFabricacao,
+      anoModelo: input.anoModelo,
+      cor: input.cor,
+      chassi: input.chassi,
+      kmAtual: input.kmAtual,
+    };
+    EQUIPAMENTOS[idx] = atualizado;
+    return atualizado;
   }
 }

@@ -23,7 +23,6 @@ export function CardButton({ elevated, className, ...rest }: CardButtonProps) {
     <button
       type="button"
       className={classes}
-      style={{ textAlign: 'left', width: '100%', font: 'inherit', color: 'inherit' }}
       {...rest}
     />
   );

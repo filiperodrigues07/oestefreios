@@ -1,6 +1,6 @@
 .banner {
   position: sticky;
-  top: 0;
+  top: var(--app-header-height, 0px);
   z-index: var(--z-nav);
   background: var(--color-warning-surface);
   color: var(--color-warning-on-surface);

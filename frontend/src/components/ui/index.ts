@@ -1,3 +1,4 @@
+export { Avatar } from './Avatar.js';
 export { Badge, type BadgeTone } from './Badge.js';
 export { StatusBadge, PriorityBadge } from './StatusBadge.js';
 export { Button, LinkButton } from './Button.js';
@@ -13,3 +14,12 @@ export { Skeleton } from './Skeleton.js';
 export { EmptyState } from './EmptyState.js';
 export { ErrorState } from './ErrorState.js';
 export { Pagination } from './Pagination.js';
+export { Table, type TableColumn } from './Table.js';
+export { Checkbox } from './Checkbox.js';
+export { Tabs, type TabItem } from './Tabs.js';
+export { PasswordInput } from './PasswordInput.js';
+export { RefreshButton } from './RefreshButton.js';
+export { MetricCard } from './MetricCard.js';
+export { SearchInput } from './SearchInput.js';
+export { Tooltip } from './Tooltip.js';
+export { PageHeader } from './PageHeader.js';

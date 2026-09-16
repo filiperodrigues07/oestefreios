@@ -1,0 +1,184 @@
+.page {
+  --login-hero: none;
+  position: relative;
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  overflow: hidden;
+  background: #020a16;
+}
+
+.page::before,
+.page::after {
+  position: absolute;
+  z-index: 0;
+  content: '';
+  pointer-events: none;
+}
+
+.page::before {
+  inset: 0;
+  background:
+    linear-gradient(90deg, rgba(1, 11, 26, 0.96) 0%, rgba(2, 11, 25, 0.72) 38%, rgba(2, 10, 22, 0.78) 100%),
+    linear-gradient(180deg, rgba(0, 31, 74, 0.32), rgba(1, 8, 20, 0.85)),
+    var(--login-hero) center / cover no-repeat;
+}
+
+.page::after {
+  width: min(58vw, 880px);
+  height: 420px;
+  right: -12vw;
+  bottom: -310px;
+  border: 2px solid rgba(14, 165, 233, 0.7);
+  border-radius: 50%;
+  box-shadow: 0 -10px 40px rgba(14, 165, 233, 0.24);
+  transform: rotate(-12deg);
+}
+
+.main {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: min(100%, 1440px);
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 440px);
+  align-items: center;
+  gap: clamp(var(--space-8), 9vw, 10rem);
+  margin: 0 auto;
+  padding: clamp(var(--space-6), 6vw, 6rem) clamp(var(--space-5), 6vw, 7rem);
+}
+
+.intro { max-width: 560px; }
+
+.logoFrame,
+.mobileLogoFrame {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.logoFrame {
+  width: 190px;
+  margin-bottom: clamp(var(--space-6), 5vw, 4.5rem);
+}
+
+.brandLogo,
+.mobileBrandLogo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.intro h2 {
+  max-width: 520px;
+  margin: 0;
+  color: #f8fbff;
+  font-size: clamp(2.15rem, 4vw, 3.55rem);
+  line-height: 1.08;
+  letter-spacing: -0.048em;
+  text-wrap: balance;
+}
+
+.introCopy {
+  max-width: 430px;
+  margin: var(--space-5) 0 0;
+  color: #bdd4f3;
+  font-size: clamp(1rem, 1.4vw, 1.15rem);
+  line-height: 1.65;
+}
+
+.card {
+  width: 100%;
+  border: 1px solid rgba(42, 151, 255, 0.45);
+  background: linear-gradient(145deg, rgba(8, 29, 57, 0.9), rgba(3, 15, 33, 0.92));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  padding: clamp(var(--space-6), 4vw, var(--space-8));
+  backdrop-filter: blur(14px);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.heading { text-align: center; }
+
+.heading h1 {
+  margin: 0;
+  color: #fff;
+  font-size: clamp(1.85rem, 3vw, 2.25rem);
+  letter-spacing: -0.04em;
+}
+
+.heading p {
+  margin: var(--space-2) 0 0;
+  color: #adc7e9;
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+}
+
+.mobileLogoFrame {
+  display: none;
+  width: 120px;
+  margin: 0 auto var(--space-5);
+}
+
+.warning,
+.error {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.45;
+}
+
+.warning { color: var(--color-warning-on-surface); }
+.error { color: var(--color-danger); }
+
+.secure {
+  position: relative;
+  margin: var(--space-2) 0 0;
+  color: #88a8d3;
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+.secure::before,
+.secure::after {
+  display: inline-block;
+  width: 28%;
+  height: 1px;
+  margin: 0 var(--space-2) 0.25em;
+  background: rgba(96, 165, 250, 0.24);
+  content: '';
+  vertical-align: middle;
+}
+
+.resetLink {
+  color: #67c5ff;
+  font-size: var(--font-size-sm);
+  text-align: center;
+}
+
+.page > :last-child {
+  position: relative;
+  z-index: 1;
+  color: #88a8d3;
+}
+
+@media (max-width: 860px) {
+  .main {
+    display: flex;
+    max-width: 500px;
+    align-items: center;
+    padding: var(--space-6) var(--space-4);
+  }
+
+  .intro { display: none; }
+  .mobileLogoFrame { display: inline-flex; }
+
+  .page::before {
+    background:
+      linear-gradient(180deg, rgba(1, 11, 26, 0.74), rgba(1, 8, 20, 0.94)),
+      var(--login-hero) center / cover no-repeat;
+  }
+}

@@ -1,21 +1,73 @@
 import { firebirdQuery } from '../../database/firebird/pool.js';
+import { toLatin1SearchParam } from '../../database/firebird/encoding.js';
 import { NotImplementedError } from '../../errors/NotImplementedError.js';
 import type { PaginatedResult, SearchQuery, Servico } from '../../types/cherp.types.js';
 import type { IServicoRepository } from '../interfaces/IServicoRepository.js';
 
-/** Ver ProdutoRepository.firebird.ts para o padrão geral (placeholder + guarda). */
+/**
+ * Ver ProdutoRepository.firebird.ts para o padrão geral e para a explicação do
+ * charset (CAST ... OCTETS + toLatin1Param). Serviços moram na mesma tabela
+ * PRODUTO do produto, só que com TIPO = 9 (PRODUTOTIPO.CODIGO = 9 "SERVIÇOS").
+ * Categoria vem de GRUPOPRODUTO via CHAVEGRUPO, igual produto. CHERP não tem
+ * campo de "tempo estimado" pra serviço nesse schema — fora do contrato.
+ */
 
-// TODO(Fase 5): deve devolver CODIGO, DESCRICAO, UNIDADE, VALOR_UNITARIO (nomes exemplificativos).
-const QUERY_BUSCAR_POR_CODIGO: string | null = null;
-const QUERY_BUSCAR_POR_DESCRICAO: string | null = null;
-const QUERY_BUSCAR_PAGINADO: string | null = null;
-const QUERY_CONTAR_TOTAL: string | null = null;
+const SERVICO_SELECT = `
+  P.CODIGO AS CODIGO,
+  CAST(P.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
+  U.UNMAIOR AS UNIDADE,
+  CAST(G.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS CATEGORIA,
+  PV.PRECOVENDA AS VALOR_UNITARIO
+FROM PRODUTO P
+LEFT JOIN UNIDADE U ON U.CHAVE = P.CHAVEUNIDADE
+LEFT JOIN GRUPOPRODUTO G ON G.CHAVE = P.CHAVEGRUPO
+LEFT JOIN PRODUTOVENDA PV ON PV.CHAVE = (
+  SELECT FIRST 1 PV2.CHAVE FROM PRODUTOVENDA PV2
+  WHERE PV2.CHAVEPRODUTO = P.CHAVE AND PV2.ATIVO = 1
+  ORDER BY PV2.CHAVETABELAPRECO
+)`;
+
+const QUERY_BUSCAR_POR_CODIGO: string | null = `
+  SELECT ${SERVICO_SELECT}
+  WHERE P.ATIVO = 1 AND P.TIPO = 9 AND P.CODIGO = ?
+`;
+
+const QUERY_BUSCAR_POR_DESCRICAO: string | null = `
+  SELECT ${SERVICO_SELECT}
+  WHERE P.ATIVO = 1 AND P.TIPO = 9 AND UPPER(P.DESCRICAO) LIKE ?
+`;
+
+// Parâmetros nesta ordem: limit, skip, codigo|null, descricaoLike|null (ver buscar() abaixo).
+// Sem ORDER BY fixo — buscar() completa com a coluna/direção validadas pelo zod (sortBy/sortOrder).
+// CODIGO por LIKE (não igualdade) — ver ProdutoRepository.firebird.ts, mesmo motivo/fix.
+const QUERY_BUSCAR_PAGINADO_BASE: string | null = `
+  SELECT FIRST ? SKIP ? ${SERVICO_SELECT}
+  WHERE P.ATIVO = 1 AND P.TIPO = 9
+    AND P.CODIGO LIKE COALESCE(?, CAST('%' AS VARCHAR(50) CHARACTER SET OCTETS))
+    AND UPPER(P.DESCRICAO) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS))
+`;
+
+const QUERY_CONTAR_TOTAL: string | null = `
+  SELECT COUNT(*) AS TOTAL
+  FROM PRODUTO P
+  WHERE P.ATIVO = 1 AND P.TIPO = 9
+    AND P.CODIGO LIKE COALESCE(?, CAST('%' AS VARCHAR(50) CHARACTER SET OCTETS))
+    AND UPPER(P.DESCRICAO) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS))
+`;
+
+/** sortBy/sortOrder já vêm validados por enum no zod (search.validator.ts) — seguro interpolar direto. */
+function buildOrderBy(query: SearchQuery): string {
+  const coluna = query.sortBy === 'codigo' ? 'P.CODIGO' : 'P.DESCRICAO';
+  const direcao = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
+  return `${coluna} ${direcao}`;
+}
 
 function mapRowToServico(row: Record<string, unknown>): Servico {
   return {
     codigo: String(row.CODIGO ?? row.codigo),
     descricao: String(row.DESCRICAO ?? row.descricao),
     unidade: String(row.UNIDADE ?? row.unidade),
+    categoria: row.CATEGORIA ? String(row.CATEGORIA) : undefined,
     valorUnitario: row.VALOR_UNITARIO !== undefined ? Number(row.VALOR_UNITARIO) : undefined,
   };
 }
@@ -29,19 +81,22 @@ export class ServicoRepositoryFirebird implements IServicoRepository {
 
   async buscarPorDescricao(descricao: string): Promise<Servico[]> {
     if (!QUERY_BUSCAR_POR_DESCRICAO) throw new NotImplementedError('ServicoRepository.buscarPorDescricao');
-    const rows = await firebirdQuery(QUERY_BUSCAR_POR_DESCRICAO, [`%${descricao}%`]);
+    const rows = await firebirdQuery(QUERY_BUSCAR_POR_DESCRICAO, [toLatin1SearchParam(descricao)]);
     return rows.map(mapRowToServico);
   }
 
   async buscar(query: SearchQuery): Promise<PaginatedResult<Servico>> {
-    if (!QUERY_BUSCAR_PAGINADO || !QUERY_CONTAR_TOTAL) throw new NotImplementedError('ServicoRepository.buscar');
+    if (!QUERY_BUSCAR_PAGINADO_BASE || !QUERY_CONTAR_TOTAL) throw new NotImplementedError('ServicoRepository.buscar');
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
+    const descricaoLike = query.descricao ? toLatin1SearchParam(query.descricao) : null;
+    const codigoLike = query.codigo ? `%${query.codigo}%` : null;
+    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE} ORDER BY ${buildOrderBy(query)}`;
 
     const [rows, countRows] = await Promise.all([
-      firebirdQuery(QUERY_BUSCAR_PAGINADO, [query.codigo ?? null, query.descricao ? `%${query.descricao}%` : null, skip, limit]),
-      firebirdQuery<{ TOTAL: number }>(QUERY_CONTAR_TOTAL, [query.codigo ?? null, query.descricao ? `%${query.descricao}%` : null]),
+      firebirdQuery(queryPaginada, [limit, skip, codigoLike, descricaoLike]),
+      firebirdQuery<{ TOTAL: number }>(QUERY_CONTAR_TOTAL, [codigoLike, descricaoLike]),
     ]);
 
     return { items: rows.map(mapRowToServico), page, limit, total: Number(countRows[0]?.TOTAL ?? 0) };

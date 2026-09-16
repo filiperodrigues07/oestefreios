@@ -29,6 +29,39 @@ export interface AdminDashboardDTO {
   financeiro?: DashboardFinanceiro;
 }
 
+export type DashboardGranularidade = 'diario' | 'semanal' | 'mensal';
+
+export interface DashboardPeriodoDTO {
+  inicio: string;
+  fim: string;
+  granularidade: DashboardGranularidade;
+}
+
+export interface DashboardSerieDTO {
+  chave: string;
+  rotulo: string;
+  abertas: number;
+  concluidas: number;
+}
+
+export interface DashboardAtencaoDTO {
+  id: string;
+  numero: number;
+  clienteNome?: string;
+  status: OSStatus;
+  prioridade: OSPrioridade;
+  dias: number;
+}
+
+export interface DashboardOperacionalDTO {
+  periodo: DashboardPeriodoDTO;
+  total: number;
+  countsByStatus: Record<OSStatus, number>;
+  countsByPrioridade: Record<OSPrioridade, number>;
+  evolucao: DashboardSerieDTO[];
+  atencao: DashboardAtencaoDTO[];
+}
+
 /** Linha resumida de OS pro dashboard operacional — nunca carrega produto/serviço/valor. */
 export interface OSSummaryDTO {
   id: string;

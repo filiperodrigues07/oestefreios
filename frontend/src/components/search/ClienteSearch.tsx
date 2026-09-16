@@ -20,7 +20,6 @@ export function ClienteSearch({ label = 'Cliente', onSelect }: ClienteSearchProp
   const { data, isFetching, isError } = useQuery({
     queryKey: ['clientes-search', query],
     queryFn: () => searchClientes(query),
-    enabled: query.length > 0,
   });
 
   const items: ClienteItem[] = (data?.items ?? []).map((cliente) => ({

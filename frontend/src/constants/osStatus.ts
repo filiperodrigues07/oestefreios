@@ -19,9 +19,26 @@ export const OS_STATUS_CONFIG: Record<OSStatus, OSStatusConfig> = {
   CANCELADA: { label: 'Cancelada', tone: 'danger' },
 };
 
+/**
+ * Status "em aberto" — os únicos que a listagem de OS mostra (backend nunca traz
+ * concluída/cancelada na lista, ver OSRepository.firebird.ts). Usado pro filtro da tela.
+ */
+export const OS_STATUS_ABERTOS: OSStatus[] = [
+  'ABERTA',
+  'EM_ANALISE',
+  'EM_ANDAMENTO',
+  'AGUARDANDO_PECA',
+  'AGUARDANDO_CLIENTE',
+];
+
 export const OS_PRIORITY_CONFIG: Record<OSPrioridade, OSStatusConfig> = {
   BAIXA: { label: 'Baixa', tone: 'neutral' },
   NORMAL: { label: 'Normal', tone: 'info' },
   ALTA: { label: 'Alta', tone: 'warning' },
   URGENTE: { label: 'Urgente', tone: 'danger' },
 };
+
+const PRIORIDADE_ORDEM: OSPrioridade[] = ['BAIXA', 'NORMAL', 'ALTA', 'URGENTE'];
+
+/** Opções pra Select de prioridade — mesma fonte de rótulo do badge, sem duplicar em cada tela. */
+export const OS_PRIORIDADE_OPTIONS = PRIORIDADE_ORDEM.map((value) => ({ value, label: OS_PRIORITY_CONFIG[value].label }));

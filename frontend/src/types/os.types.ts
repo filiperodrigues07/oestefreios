@@ -41,7 +41,9 @@ export interface OrdemServicoDTO {
   id: string;
   numero: number;
   clienteCodigo: string;
+  clienteNome?: string;
   equipamentoCodigo: string;
+  equipamentoDescricao?: string;
   status: OSStatus;
   prioridade: OSPrioridade;
   responsavelId?: string;
@@ -57,6 +59,11 @@ export interface OrdemServicoDTO {
   dataPrevista?: string;
   dataConclusao?: string;
   faturamento?: number;
+  nroDav?: string;
+  kmAtual?: number;
+  kmFinal?: number;
+  frete?: number;
+  totalIpi?: number;
 }
 
 /**

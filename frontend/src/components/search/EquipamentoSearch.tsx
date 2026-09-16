@@ -14,14 +14,14 @@ interface EquipamentoSearchProps {
   onSelect: (equipamento: EquipamentoDTO) => void;
 }
 
-/** Busca de equipamento restrita ao cliente já selecionado (seção 8 do briefing). */
-export function EquipamentoSearch({ label = 'Equipamento', clienteCodigo, onSelect }: EquipamentoSearchProps) {
+/** Busca de veículo restrita ao cliente já selecionado (seção 8 do briefing). */
+export function EquipamentoSearch({ label = 'Veículo', clienteCodigo, onSelect }: EquipamentoSearchProps) {
   const [query, setQuery] = useState('');
 
   const { data, isFetching, isError } = useQuery({
     queryKey: ['equipamentos-search', clienteCodigo, query],
     queryFn: () => searchEquipamentos(query, clienteCodigo),
-    enabled: query.length > 0 && clienteCodigo.length > 0,
+    enabled: clienteCodigo.length > 0,
   });
 
   const items: EquipamentoItem[] = (data?.items ?? []).map((equipamento) => ({
@@ -34,10 +34,11 @@ export function EquipamentoSearch({ label = 'Equipamento', clienteCodigo, onSele
   return (
     <SearchCombobox<EquipamentoItem>
       label={label}
-      placeholder="Descrição ou código do equipamento"
+      placeholder="Placa, descrição ou código do veículo"
       items={items}
       isLoading={isFetching}
       isError={isError}
+      minChars={0}
       onQueryChange={setQuery}
       onSelect={(item) => onSelect(item.equipamento)}
       renderItem={(item) => (

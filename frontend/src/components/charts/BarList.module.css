@@ -1,48 +1,55 @@
 .chart {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .row {
   display: grid;
-  grid-template-columns: minmax(90px, 30%) 1fr auto;
+  grid-template-columns: minmax(90px, 32%) 1fr auto;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .rowLabel {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
   overflow: hidden;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .track {
-  background: var(--chart-grid);
-  border-radius: 4px;
-  height: 20px;
   position: relative;
+  height: 8px;
+  overflow: hidden;
+  border-radius: var(--radius-full);
+  background: var(--chart-grid);
 }
 
 .bar {
-  height: 20px;
-  max-height: 24px;
-  /* 4px arredondado na ponta (valor), quadrado na base (0) — spec de marca do skill. */
-  border-radius: 0 4px 4px 0;
+  height: 100%;
   min-width: 4px;
+  border-radius: var(--radius-full);
 }
 
 .rowValue {
-  font-size: var(--font-size-sm);
-  font-weight: 600;
-  color: var(--color-text-primary);
   min-width: 32px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
   text-align: right;
 }
 
 .empty {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+}
+
+@media (max-width: 480px) {
+  .row {
+    grid-template-columns: minmax(72px, 38%) 1fr auto;
+    gap: var(--space-2);
+  }
 }

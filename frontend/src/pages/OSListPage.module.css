@@ -1,0 +1,42 @@
+.page {
+  width: min(100%, 1600px);
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+.toolbar {
+  display: grid;
+  width: min(100%, 280px);
+  margin-bottom: var(--space-4);
+}
+
+.content {
+  margin-top: var(--space-4);
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.pagination {
+  margin-top: var(--space-4);
+}
+
+.codigo {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding: var(--space-4);
+  }
+
+  .toolbar {
+    width: 100%;
+  }
+}

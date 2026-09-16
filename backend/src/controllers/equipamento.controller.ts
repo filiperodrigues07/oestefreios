@@ -19,3 +19,14 @@ export async function getEquipamentoByCodigoHandler(req: Request, res: Response)
   const equipamento = await equipamentoService.getEquipamentoByCodigo(codigo);
   success(res, equipamento);
 }
+
+export async function criarEquipamentoHandler(req: Request, res: Response) {
+  const equipamento = await equipamentoService.criarEquipamento(req.body);
+  success(res, equipamento, 'Veículo cadastrado com sucesso.', 201);
+}
+
+export async function atualizarEquipamentoHandler(req: Request, res: Response) {
+  const { codigo } = req.params as { codigo: string };
+  const equipamento = await equipamentoService.atualizarEquipamento(codigo, req.body);
+  success(res, equipamento, 'Veículo atualizado com sucesso.');
+}

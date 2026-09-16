@@ -1,0 +1,32 @@
+.page {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cnpjRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.cnpjRow > *:first-child {
+  flex: 1;
+}
+
+.codigo {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767px) {
+  .page {
+    padding: var(--space-4);
+  }
+}

@@ -31,6 +31,8 @@ export const atualizarOSSchema = z
     responsavelId: z.string().trim().min(1).optional(),
     tecnicoId: z.string().trim().min(1).optional(),
     dataPrevista: z.iso.datetime().optional(),
+    kmAtual: z.coerce.number().nonnegative().optional(),
+    kmFinal: z.coerce.number().nonnegative().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'Nenhum campo para atualizar.' });
 
@@ -63,7 +65,7 @@ export const adicionarServicoSchema = z.object({
 });
 
 export const listarOSQuerySchema = z.object({
-  status: z.enum(OS_STATUS_VALUES).optional(),
+  status: z.union([z.enum(OS_STATUS_VALUES), z.literal('AGUARDANDO')]).optional(),
   clienteCodigo: z.string().trim().min(1).optional(),
   tecnicoId: z.string().trim().min(1).optional(),
   page: z.coerce.number().int().positive().default(1),

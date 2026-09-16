@@ -1,5 +1,6 @@
 .pagination {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
@@ -10,7 +11,7 @@
   height: 36px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
-  background: var(--color-surface);
+  background: var(--color-surface-elevated);
   color: var(--color-text-primary);
   cursor: pointer;
   font-size: var(--font-size-sm);

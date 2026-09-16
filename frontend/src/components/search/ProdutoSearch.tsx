@@ -24,7 +24,6 @@ export function ProdutoSearch({ label = 'Produto', onSelect }: ProdutoSearchProp
   const { data, isFetching, isError } = useQuery({
     queryKey: ['produtos-search', query],
     queryFn: () => searchProdutos(query),
-    enabled: query.length > 0,
   });
 
   const items: ProdutoItem[] = (data?.items ?? []).map((produto) => ({

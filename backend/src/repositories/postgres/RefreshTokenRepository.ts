@@ -62,6 +62,14 @@ export class RefreshTokenRepository {
       .set({ revokedAt: new Date() })
       .where(and(eq(refreshTokens.familyId, familyId), isNull(refreshTokens.revokedAt)));
   }
+
+  /** Derruba todas as sessões ativas do usuário — usado após redefinição de senha por e-mail. */
+  async revokeAllForUser(userId: string) {
+    await db
+      .update(refreshTokens)
+      .set({ revokedAt: new Date() })
+      .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)));
+  }
 }
 
 export const refreshTokenRepository = new RefreshTokenRepository();
