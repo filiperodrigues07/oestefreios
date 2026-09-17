@@ -6,9 +6,15 @@ interface PaginatedOS {
   total: number;
 }
 
+export type OSSortBy = 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';
+
 export interface ListarOSFiltro {
   status?: OSStatus | 'AGUARDANDO';
   clienteCodigo?: string;
+  prioridade?: OSPrioridade;
+  busca?: string;
+  sortBy?: OSSortBy;
+  sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
 }
@@ -17,6 +23,10 @@ export function listarOS(filtro: ListarOSFiltro = {}): Promise<PaginatedOS> {
   const params = new URLSearchParams();
   if (filtro.status) params.set('status', filtro.status);
   if (filtro.clienteCodigo) params.set('clienteCodigo', filtro.clienteCodigo);
+  if (filtro.prioridade) params.set('prioridade', filtro.prioridade);
+  if (filtro.busca) params.set('busca', filtro.busca);
+  if (filtro.sortBy) params.set('sortBy', filtro.sortBy);
+  if (filtro.sortOrder) params.set('sortOrder', filtro.sortOrder);
   params.set('page', String(filtro.page ?? 1));
   params.set('limit', String(filtro.limit ?? 20));
   return apiFetch<PaginatedOS>(`/os?${params.toString()}`);

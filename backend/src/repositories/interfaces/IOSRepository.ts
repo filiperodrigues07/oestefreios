@@ -4,6 +4,11 @@ export interface OSListFilter {
   status?: string;
   clienteCodigo?: string;
   tecnicoId?: string;
+  prioridade?: string;
+  /** Busca livre — casa contra número da OS, código/nome do cliente, código/placa/descrição do veículo. */
+  busca?: string;
+  sortBy?: 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';
+  sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
 }

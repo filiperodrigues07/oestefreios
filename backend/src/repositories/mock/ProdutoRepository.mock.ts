@@ -42,7 +42,8 @@ export class ProdutoRepositoryMock implements IProdutoRepository {
       filtered = filtered.filter((p) => p.descricao.toLowerCase().includes(termo));
     }
 
-    filtered = sortByField(filtered, query.sortBy ?? 'descricao', query.sortOrder ?? 'asc', (item, field) => item[field]);
+    const sortBy = query.sortBy === 'codigo' ? 'codigo' : 'descricao';
+    filtered = sortByField(filtered, sortBy, query.sortOrder ?? 'asc', (item, field) => item[field]);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;

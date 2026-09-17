@@ -1,8 +1,10 @@
+import { env } from '../../config/env.js';
 import { toLatin1Param, toLatin1SearchParam } from '../../database/firebird/encoding.js';
 import { firebirdQuery, firebirdTransaction } from '../../database/firebird/pool.js';
 import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { NotFoundError } from '../../errors/NotFoundError.js';
 import { NotImplementedError } from '../../errors/NotImplementedError.js';
+import { ValidationError } from '../../errors/ValidationError.js';
 import type { Cliente, ClienteInput, PaginatedResult, RegimeTributario, SearchQuery } from '../../types/cherp.types.js';
 import type { IClienteRepository } from '../interfaces/IClienteRepository.js';
 
@@ -19,13 +21,23 @@ const CHAVE_EMPRESA = 1;
 
 const CLIFOR_SELECT = `
   C.CODIGO AS CODIGO,
+  C.ATIVO AS ATIVO,
+  C.STATUS AS STATUS,
   CAST(COALESCE(NULLIF(TRIM(C.FANTASIA), ''), C.RAZAOSOCIAL) AS VARCHAR(100) CHARACTER SET OCTETS) AS NOME,
   CAST(C.RAZAOSOCIAL AS VARCHAR(100) CHARACTER SET OCTETS) AS RAZAOSOCIAL,
   CAST(C.FANTASIA AS VARCHAR(100) CHARACTER SET OCTETS) AS FANTASIA,
   C.CNPJCPF AS DOCUMENTO,
+  C.IERG AS INSCRICAOESTADUAL,
+  C.INSCRICAOMUNICIPAL AS INSCRICAOMUNICIPAL,
+  C.REDUCAOMVA AS REDUCAOMVA,
+  C.REPRCORE AS COREREPRESENTANTE,
   C.PESSOA AS PESSOA,
-  COALESCE(NULLIF(TRIM(C.CELULAR), ''), C.TELEFONE) AS TELEFONE,
+  C.TELEFONE AS TELEFONE,
+  C.CELULAR AS CELULAR,
   C.EMAIL AS EMAIL,
+  C.EMAILFINANCEIRO AS EMAILFINANCEIRO,
+  C.EMAILNFECTE AS EMAILNFE,
+  C.HOMEPAGE AS HOMEPAGE,
   CAST(C.ENDERECO AS VARCHAR(100) CHARACTER SET OCTETS) AS ENDERECO,
   C.NUMERO AS NUMERO,
   CAST(C.BAIRRO AS VARCHAR(50) CHARACTER SET OCTETS) AS BAIRRO,
@@ -42,37 +54,74 @@ LEFT JOIN CIDADE CID ON CID.CHAVE = C.CHAVECIDADE`;
 
 const QUERY_BUSCAR_POR_CODIGO: string | null = `
   SELECT ${CLIFOR_SELECT}
-  WHERE C.ATIVO = 1 AND C.CLIENTE = 'S' AND C.CODIGO = ?
+  WHERE C.CLIENTE = 'S' AND C.CODIGO = ?
 `;
 
 const QUERY_BUSCAR_POR_NOME: string | null = `
   SELECT ${CLIFOR_SELECT}
-  WHERE C.ATIVO = 1 AND C.CLIENTE = 'S' AND (UPPER(C.RAZAOSOCIAL) LIKE ? OR UPPER(C.FANTASIA) LIKE ?)
+  WHERE C.ATIVO = 1 AND COALESCE(C.STATUS, 0) = 0 AND C.CLIENTE = 'S' AND (UPPER(C.RAZAOSOCIAL) LIKE ? OR UPPER(C.FANTASIA) LIKE ?)
 `;
 
-// Parâmetros nesta ordem: limit, skip, codigo|null, nomeLike|null, nomeLike|null, pessoa|null, pessoa|null, uf|null, uf|null (ver buscar() abaixo).
+// Parâmetros nesta ordem: limit, skip, codigo|null, nomeLike|null, nomeLike|null, pessoa|null, pessoa|null,
+// uf|null, uf|null, buscaFlag|null x1, codigoLike, nomeLike, nomeLike, docLike, telLike, celLike (ver buscar()).
 // PESSOA/UF usam "(? IS NULL OR col = ?)" em vez de "col = COALESCE(?, col)" — esse segundo padrão
 // falha quando a própria coluna é NULL (ex. cliente sem cidade cadastrada: NULL = NULL não é TRUE em SQL).
+// "busca" é livre — casa contra código, nome/razão social, documento e telefone/celular de uma vez,
+// igual ao padrão já usado na lista de OS.
+// CAST(... AS VARCHAR(n)) SEM "CHARACTER SET OCTETS" pras colunas curtas (CODIGO é só VARCHAR(6) —
+// termo de busca mais longo vira erro de truncamento, SQL -303, sem isso). RAZAOSOCIAL/FANTASIA
+// ficam sem CAST nenhum — colocar CHARACTER SET OCTETS na própria coluna (em vez de só no literal
+// de fallback) quebra o LIKE por completo (mesmo bug já visto na placa: CAST na coluna comparada,
+// não no valor, faz o driver parar de casar bytes iguais). Confirmado ao vivo antes desse fix.
+const BUSCA_CONDICAO = `
+  (
+    ? IS NULL OR (
+      UPPER(CAST(C.CODIGO AS VARCHAR(50))) LIKE ?
+      OR UPPER(C.RAZAOSOCIAL) LIKE ?
+      OR UPPER(C.FANTASIA) LIKE ?
+      OR CAST(C.CNPJCPF AS VARCHAR(50)) LIKE ?
+      OR CAST(C.TELEFONE AS VARCHAR(50)) LIKE ?
+      OR CAST(C.CELULAR AS VARCHAR(50)) LIKE ?
+    )
+  )
+`;
+
 const QUERY_BUSCAR_PAGINADO: string | null = `
   SELECT FIRST ? SKIP ? ${CLIFOR_SELECT}
-  WHERE C.ATIVO = 1 AND C.CLIENTE = 'S'
+  WHERE C.ATIVO = 1 AND COALESCE(C.STATUS, 0) = 0 AND C.CLIENTE = 'S'
     AND C.CODIGO = COALESCE(?, C.CODIGO)
     AND (UPPER(C.RAZAOSOCIAL) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS)) OR UPPER(C.FANTASIA) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS)))
     AND (? IS NULL OR C.PESSOA = ?)
     AND (? IS NULL OR CID.UF = ?)
-  ORDER BY C.RAZAOSOCIAL
+    AND ${BUSCA_CONDICAO}
 `;
 
 const QUERY_CONTAR_TOTAL: string | null = `
   SELECT COUNT(*) AS TOTAL
   FROM CLIFOR C
   LEFT JOIN CIDADE CID ON CID.CHAVE = C.CHAVECIDADE
-  WHERE C.ATIVO = 1 AND C.CLIENTE = 'S'
+  WHERE C.ATIVO = 1 AND COALESCE(C.STATUS, 0) = 0 AND C.CLIENTE = 'S'
     AND C.CODIGO = COALESCE(?, C.CODIGO)
     AND (UPPER(C.RAZAOSOCIAL) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS)) OR UPPER(C.FANTASIA) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS)))
     AND (? IS NULL OR C.PESSOA = ?)
     AND (? IS NULL OR CID.UF = ?)
+    AND ${BUSCA_CONDICAO}
 `;
+
+/** Coluna real por trás de cada chave de ordenação aceita pra clientes — nunca interpolar direto o que vem do cliente HTTP. */
+const ORDEM_POR_SORT_BY: Record<string, string> = {
+  codigo: 'C.CODIGO',
+  nome: 'C.RAZAOSOCIAL',
+  documento: 'C.CNPJCPF',
+  telefone: 'C.TELEFONE',
+  cidade: 'CID.CIDADE',
+};
+
+function buildOrderBy(sortBy: string | undefined, sortOrder: string | undefined): string {
+  const coluna = ORDEM_POR_SORT_BY[sortBy ?? ''] ?? 'C.RAZAOSOCIAL';
+  const direcao = sortOrder === 'desc' ? 'DESC' : 'ASC';
+  return `${coluna} ${direcao}`;
+}
 
 /** CIDADE.CIDADE vem como "NOME (UF)" sem acento (base IBGE) — tira o sufixo pra exibir só o nome. */
 function limparNomeCidade(raw: string | undefined): string | undefined {
@@ -96,25 +145,36 @@ function paraSN(valor: boolean | undefined): string {
 
 /** Acha a CHAVE de CIDADE por nome+UF (formato BrasilAPI) — nome sem acento, prefixo antes do " (UF)". */
 async function resolveChaveCidade(cidade: string | undefined, uf: string | undefined): Promise<number | null> {
-  if (!cidade || !uf) return null;
+  if (!cidade && !uf) return null;
+  if (!cidade || !uf) throw new ValidationError('Informe cidade e UF juntas.');
   const nomeNormalizado = stripAccents(cidade).toUpperCase();
   const rows = await firebirdQuery<{ CHAVE: number }>(
     `SELECT FIRST 1 CHAVE FROM CIDADE WHERE UF = ? AND UPPER(CIDADE) LIKE ?`,
     [uf.toUpperCase(), toLatin1Param(`${nomeNormalizado} (%`)],
   );
-  return rows[0]?.CHAVE ?? null;
+  if (!rows[0]) throw new ValidationError(`Cidade "${cidade}/${uf}" não encontrada no CHERP.`);
+  return rows[0].CHAVE;
 }
 
 function mapRowToCliente(row: Record<string, unknown>): Cliente {
   return {
     codigo: String(row.CODIGO ?? row.codigo),
+    ativo: Number(row.ATIVO ?? row.ativo) === 1 && Number(row.STATUS ?? row.status ?? 0) === 0,
     nome: String(row.NOME ?? row.nome),
     razaoSocial: row.RAZAOSOCIAL ? String(row.RAZAOSOCIAL) : undefined,
     nomeFantasia: row.FANTASIA ? String(row.FANTASIA) : undefined,
     documento: row.DOCUMENTO !== undefined && row.DOCUMENTO !== null ? String(row.DOCUMENTO) : undefined,
     tipoPessoa: row.PESSOA === 1 ? 'PF' : 'PJ',
     telefone: row.TELEFONE !== undefined && row.TELEFONE !== null ? String(row.TELEFONE) : undefined,
+    celular: row.CELULAR !== undefined && row.CELULAR !== null ? String(row.CELULAR) : undefined,
     email: row.EMAIL ? String(row.EMAIL) : undefined,
+    emailFinanceiro: row.EMAILFINANCEIRO ? String(row.EMAILFINANCEIRO) : undefined,
+    emailNfe: row.EMAILNFE ? String(row.EMAILNFE) : undefined,
+    homePage: row.HOMEPAGE ? String(row.HOMEPAGE) : undefined,
+    inscricaoEstadual: row.INSCRICAOESTADUAL ? String(row.INSCRICAOESTADUAL) : undefined,
+    inscricaoMunicipal: row.INSCRICAOMUNICIPAL ? String(row.INSCRICAOMUNICIPAL) : undefined,
+    reducaoMva: row.REDUCAOMVA !== undefined && row.REDUCAOMVA !== null ? Number(row.REDUCAOMVA) : undefined,
+    coreRepresentante: row.COREREPRESENTANTE ? String(row.COREREPRESENTANTE) : undefined,
     endereco: row.ENDERECO ? String(row.ENDERECO) : undefined,
     numero: row.NUMERO ? String(row.NUMERO) : undefined,
     bairro: row.BAIRRO ? String(row.BAIRRO) : undefined,
@@ -155,9 +215,31 @@ export class ClienteRepositoryFirebird implements IClienteRepository {
     const pessoa = query.tipoPessoa ? (query.tipoPessoa === 'PF' ? 1 : 0) : null;
     const uf = query.uf ? query.uf.toUpperCase() : null;
 
+    // Buffer latin1 (não string JS) nos três — comparação contra UPPER()/coluna sem CAST ainda assim
+    // não bate de forma confiável com string comum enviada em UTF-8 pelo driver (ver plate-mask bug).
+    const buscaFlag = query.busca ? query.busca.trim() : null;
+    const buscaDigits = buscaFlag ? buscaFlag.replace(/\D/g, '') : '';
+    const buscaCodigoLike = buscaFlag ? Buffer.from(`%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`, 'latin1') : null;
+    const buscaNomeLike = buscaFlag ? toLatin1SearchParam(buscaFlag) : null;
+    // Termo sem nenhum dígito (ex. "CRISTIANO") não pode virar "%%" — isso bateria com qualquer
+    // documento/telefone (até vazio) e faria a busca "achar tudo" por engano.
+    const buscaDocTelLike = buscaFlag ? Buffer.from(buscaDigits ? `%${buscaDigits}%` : '￿', 'latin1') : null;
+    const buscaParams = [
+      buscaFlag,
+      buscaCodigoLike,
+      buscaNomeLike,
+      buscaNomeLike,
+      buscaDocTelLike,
+      buscaDocTelLike,
+      buscaDocTelLike,
+    ];
+
+    const orderBy = buildOrderBy(query.sortBy, query.sortOrder);
+    const queryPaginada = `${QUERY_BUSCAR_PAGINADO} ORDER BY ${orderBy}`;
+
     const [rows, countRows] = await Promise.all([
-      firebirdQuery(QUERY_BUSCAR_PAGINADO, [limit, skip, query.codigo ?? null, nomeLike, nomeLike, pessoa, pessoa, uf, uf]),
-      firebirdQuery<{ TOTAL: number }>(QUERY_CONTAR_TOTAL, [query.codigo ?? null, nomeLike, nomeLike, pessoa, pessoa, uf, uf]),
+      firebirdQuery(queryPaginada, [limit, skip, query.codigo ?? null, nomeLike, nomeLike, pessoa, pessoa, uf, uf, ...buscaParams]),
+      firebirdQuery<{ TOTAL: number }>(QUERY_CONTAR_TOTAL, [query.codigo ?? null, nomeLike, nomeLike, pessoa, pessoa, uf, uf, ...buscaParams]),
     ]);
 
     return { items: rows.map(mapRowToCliente), page, limit, total: Number(countRows[0]?.TOTAL ?? 0) };
@@ -175,30 +257,42 @@ export class ClienteRepositoryFirebird implements IClienteRepository {
 
       await query(
         `INSERT INTO CLIFOR (
-           CHAVE, CHAVEEMPRESA, CODIGO, CLIENTE, PESSOA, RAZAOSOCIAL, FANTASIA, CNPJCPF,
-           ENDERECO, NUMERO, BAIRRO, COMPLEMENTO, CHAVECIDADE, CEP, TELEFONE, EMAIL,
-           FORNECEDOR, TRANSPORTADOR, REPRESENTANTE, REGIMETRIBUTARIO
-         ) VALUES (?, ?, ?, 'S', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           CHAVE, ATIVO, STATUS, CHAVEEMPRESA, CODIGO, CLIENTE, PESSOA, RAZAOSOCIAL, FANTASIA, CNPJCPF,
+           IERG, INSCRICAOMUNICIPAL, REDUCAOMVA, REPRCORE,
+           ENDERECO, NUMERO, BAIRRO, COMPLEMENTO, CHAVECIDADE, CEP, CELULAR, TELEFONE,
+           EMAIL, EMAILFINANCEIRO, EMAILNFECTE, HOMEPAGE,
+           FORNECEDOR, TRANSPORTADOR, REPRESENTANTE, REGIMETRIBUTARIO, CHAVEUSUARIOCAD
+         ) VALUES (?, 1, ?, ?, ?, 'S', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           chave,
+          input.ativo === false ? 1 : 0,
           CHAVE_EMPRESA,
           codigoGerado,
           pessoa,
           toLatin1Param(input.nome),
           input.nomeFantasia ? toLatin1Param(input.nomeFantasia) : null,
           input.documento,
+          input.inscricaoEstadual ?? null,
+          input.inscricaoMunicipal ?? null,
+          input.reducaoMva ?? null,
+          input.coreRepresentante ?? null,
           input.endereco ? toLatin1Param(input.endereco) : null,
           input.numero ?? null,
           input.bairro ? toLatin1Param(input.bairro) : null,
           input.complemento ? toLatin1Param(input.complemento) : null,
           chaveCidade,
           input.cep ?? null,
+          input.celular ?? null,
           input.telefone ?? null,
-          input.email ?? null,
+          input.email || null,
+          input.emailFinanceiro || null,
+          input.emailNfe || null,
+          input.homePage || null,
           paraSN(input.fornecedor),
           paraSN(input.transportador),
           paraSN(input.representante),
           input.regimeTributario ?? null,
+          env.FIREBIRD_OS_USUARIO_CHAVE,
         ],
       );
       return codigoGerado;
@@ -218,23 +312,34 @@ export class ClienteRepositoryFirebird implements IClienteRepository {
 
     await firebirdQuery(
       `UPDATE CLIFOR SET
-         PESSOA = ?, RAZAOSOCIAL = ?, FANTASIA = ?, CNPJCPF = ?,
-         ENDERECO = ?, NUMERO = ?, BAIRRO = ?, COMPLEMENTO = ?, CHAVECIDADE = ?, CEP = ?,
-         TELEFONE = ?, EMAIL = ?, FORNECEDOR = ?, TRANSPORTADOR = ?, REPRESENTANTE = ?, REGIMETRIBUTARIO = ?
+         ATIVO = 1, STATUS = ?, PESSOA = ?, RAZAOSOCIAL = ?, FANTASIA = ?, CNPJCPF = ?,
+         IERG = ?, INSCRICAOMUNICIPAL = ?, REDUCAOMVA = ?, REPRCORE = ?,
+         ENDERECO = ?, NUMERO = ?, BAIRRO = ?, COMPLEMENTO = ?, CHAVECIDADE = ?, CEP = ?, CELULAR = ?,
+         TELEFONE = ?, EMAIL = ?, EMAILFINANCEIRO = ?, EMAILNFECTE = ?, HOMEPAGE = ?,
+         FORNECEDOR = ?, TRANSPORTADOR = ?, REPRESENTANTE = ?, REGIMETRIBUTARIO = ?
        WHERE CODIGO = ? AND CLIENTE = 'S'`,
       [
+        input.ativo === false ? 1 : 0,
         pessoa,
         toLatin1Param(input.nome),
         input.nomeFantasia ? toLatin1Param(input.nomeFantasia) : null,
         input.documento,
+        input.inscricaoEstadual ?? null,
+        input.inscricaoMunicipal ?? null,
+        input.reducaoMva ?? null,
+        input.coreRepresentante ?? null,
         input.endereco ? toLatin1Param(input.endereco) : null,
         input.numero ?? null,
         input.bairro ? toLatin1Param(input.bairro) : null,
         input.complemento ? toLatin1Param(input.complemento) : null,
         chaveCidade,
         input.cep ?? null,
+        input.celular ?? null,
         input.telefone ?? null,
-        input.email ?? null,
+        input.email || null,
+        input.emailFinanceiro || null,
+        input.emailNfe || null,
+        input.homePage || null,
         paraSN(input.fornecedor),
         paraSN(input.transportador),
         paraSN(input.representante),

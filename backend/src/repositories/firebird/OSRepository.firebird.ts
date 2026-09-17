@@ -334,16 +334,89 @@ async function resolveTabelaChave(chaveTabela: number, codigo: string): Promise<
   return rows[0]?.CHAVE;
 }
 
-async function resolveProduto(codigo: string): Promise<{ chave: number; chaveUnidade: number }> {
-  const rows = await firebirdQuery<{ CHAVE: number; CHAVEUNIDADE: number }>(
-    `SELECT CHAVE, CHAVEUNIDADE FROM PRODUTO WHERE CODIGO = ? AND ATIVO = 1`,
-    [codigo],
+interface PerfilFiscal {
+  chave: number;
+  chaveCfopProduto: number | null;
+  chaveCfopServico: number | null;
+}
+
+interface ProdutoParaOS {
+  chave: number;
+  chaveUnidade: number;
+  chaveTributacao: number | null;
+  precoCusto: number | null;
+  precoVenda: number | null;
+  precoVendaMinimo: number | null;
+  chaveDptoEstoque: number | null;
+  chavePerfilFiscalProduto: number | null;
+  chaveCfopProduto: number | null;
+}
+
+/** Perfis e CFOPs vêm da configuração desta instalação do CHERP, nunca de constantes da aplicação. */
+async function resolvePerfilFiscalPadrao(principalDocumento: 'S' | 'N'): Promise<PerfilFiscal> {
+  const rows = await firebirdQuery<{
+    CHAVE: number;
+    CHAVECFOPPRODDE: number | null;
+    CHAVECFOPSERVDE: number | null;
+  }>(
+    `SELECT FIRST 1 CHAVE, CHAVECFOPPRODDE, CHAVECFOPSERVDE
+       FROM CFOPOPERFISCAIS
+      WHERE CHAVEEMPRESA = ? AND ATIVO = 1 AND OPERFISCPRINCIPALDOC = ?
+      ORDER BY CHAVE`,
+    [CHAVE_EMPRESA, principalDocumento],
+  );
+  const row = rows[0];
+  if (!row) throw new ValidationError('Perfil fiscal padrão não encontrado no CHERP.');
+  return {
+    chave: row.CHAVE,
+    chaveCfopProduto: row.CHAVECFOPPRODDE,
+    chaveCfopServico: row.CHAVECFOPSERVDE,
+  };
+}
+
+async function resolveProduto(codigo: string): Promise<ProdutoParaOS> {
+  const rows = await firebirdQuery<{
+    CHAVE: number;
+    CHAVEUNIDADE: number;
+    CHAVETRIBUTACAO: number | null;
+    PRECOCUSTO: number | null;
+    PRECOVENDA: number | null;
+    PRECOVENDAMINIMO: number | null;
+    CHAVEDPTOESTOQUE: number | null;
+    CHAVEPERFILFISCALPRODUTO: number | null;
+    CHAVECFOPPRODUTO: number | null;
+  }>(
+    `SELECT P.CHAVE AS CHAVE, P.CHAVEUNIDADE AS CHAVEUNIDADE,
+            GF.CHAVETRIBUTACAO AS CHAVETRIBUTACAO,
+            PC.PRECOCUSTO AS PRECOCUSTO,
+            PV.PRECOVENDA AS PRECOVENDA, PV.PRECOVENDAMINIMO AS PRECOVENDAMINIMO,
+            PDE.CHAVEDPTOESTOQUE AS CHAVEDPTOESTOQUE,
+            GF.CHAVECFOPOPERFISCAIS AS CHAVEPERFILFISCALPRODUTO,
+            PERFIL.CHAVECFOPPRODDE AS CHAVECFOPPRODUTO
+       FROM PRODUTO P
+       LEFT JOIN GRUPOFISCAL GF ON GF.CHAVE = P.CHAVEGRUPOFISCAL
+       LEFT JOIN PRODUTOCUSTO PC ON PC.CHAVEPRODUTO = P.CHAVE AND PC.CHAVEEMPRESA = ? AND PC.ATIVO = 1
+       LEFT JOIN PRODUTOVENDA PV ON PV.CHAVEPRODUTO = P.CHAVE AND PV.CHAVEEMPRESA = ? AND PV.CHAVETABELAPRECO = ? AND PV.ATIVO = 1
+       LEFT JOIN PRODUTODPTOESTOQUE PDE ON PDE.CHAVEPRODUTO = P.CHAVE AND PDE.CHAVEEMPRESA = ? AND PDE.ATIVO = 1
+       LEFT JOIN CFOPOPERFISCAIS PERFIL ON PERFIL.CHAVE = GF.CHAVECFOPOPERFISCAIS AND PERFIL.ATIVO = 1
+      WHERE P.CODIGO = ? AND P.ATIVO = 1`,
+    [CHAVE_EMPRESA, CHAVE_EMPRESA, CHAVE_TABELA_PRECO, CHAVE_EMPRESA, codigo],
   );
   const row = rows[0];
   if (!row) {
     throw new ValidationError(`Produto/serviço com código "${codigo}" não encontrado no CHERP.`);
   }
-  return { chave: row.CHAVE, chaveUnidade: row.CHAVEUNIDADE };
+  return {
+    chave: row.CHAVE,
+    chaveUnidade: row.CHAVEUNIDADE,
+    chaveTributacao: row.CHAVETRIBUTACAO,
+    precoCusto: row.PRECOCUSTO,
+    precoVenda: row.PRECOVENDA,
+    precoVendaMinimo: row.PRECOVENDAMINIMO,
+    chaveDptoEstoque: row.CHAVEDPTOESTOQUE,
+    chavePerfilFiscalProduto: row.CHAVEPERFILFISCALPRODUTO,
+    chaveCfopProduto: row.CHAVECFOPPRODUTO,
+  };
 }
 
 export class OSRepositoryFirebird implements IOSRepository {
@@ -390,6 +463,32 @@ export class OSRepositoryFirebird implements IOSRepository {
     }
     if (filter.tecnicoId) {
       merged = merged.filter((os) => os.tecnicoId === filter.tecnicoId);
+    }
+    if (filter.prioridade) {
+      merged = merged.filter((os) => os.prioridade === filter.prioridade);
+    }
+    if (filter.busca) {
+      const termo = filter.busca.trim().toUpperCase();
+      merged = merged.filter((os) =>
+        [
+          String(os.numero),
+          os.clienteCodigo,
+          os.clienteNome,
+          os.equipamentoCodigo,
+          os.equipamentoDescricao,
+        ].some((campo) => campo?.toUpperCase().includes(termo)),
+      );
+    }
+
+    if (filter.sortBy) {
+      const direcao = filter.sortOrder === 'desc' ? -1 : 1;
+      const chave = filter.sortBy;
+      merged = [...merged].sort((a, b) => {
+        const va = a[chave as keyof OrdemServico];
+        const vb = b[chave as keyof OrdemServico];
+        if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * direcao;
+        return String(va ?? '').localeCompare(String(vb ?? ''), 'pt-BR') * direcao;
+      });
     }
 
     const total = merged.length;
@@ -441,10 +540,11 @@ export class OSRepositoryFirebird implements IOSRepository {
   }
 
   async criar(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico> {
-    const [chaveCliente, chaveEquipamento, chaveSituacaoAtendimento] = await Promise.all([
+    const [chaveCliente, chaveEquipamento, chaveSituacaoAtendimento, perfilFiscalProduto] = await Promise.all([
       resolveChaveByCodigo('CLIFOR', os.clienteCodigo),
       resolveChaveByCodigo('EQUIPAMENTOS', os.equipamentoCodigo),
       resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[os.status]),
+      resolvePerfilFiscalPadrao('N'),
     ]);
 
     const identificador = await firebirdTransaction(async (query) => {
@@ -462,8 +562,9 @@ export class OSRepositoryFirebird implements IOSRepository {
         `INSERT INTO ORDEMSERVICO (
            CHAVE, ATIVO, CHAVEEMPRESA, ORDEM, DATA, HORAABERTURA, DATAFECHA, HORAFECHAMENTO, DATAENTREGA, TIPO, SITUACAO,
            CHAVECLIFOR, CHAVEEQUIPAMENTO, PROBLEMAABERTURAOS, LAUDOTECNICO, OBS, CHAVEUSUARIOINICIOU,
-           TOTALPRODUTO, TOTALSERVICO, TOTALOS, CHAVESITUACAOOS, PRIORIDADE
-         ) VALUES (?, 1, ?, ?, CURRENT_DATE, CURRENT_TIME, NULL, NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?)
+           TOTALPRODUTO, TOTALSERVICO, TOTALOS, CHAVESITUACAOOS, PRIORIDADE,
+           CHAVECFOPOPERFISCAIS, CHAVECFOPPROD, CHAVECFOPSERV, CHAVETIPOATENDIMENTO
+         ) VALUES (?, 1, ?, ?, CURRENT_DATE, CURRENT_TIME, NULL, NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, 0)
          RETURNING IDENTIFICADOR`,
         [
           chave,
@@ -478,6 +579,9 @@ export class OSRepositoryFirebird implements IOSRepository {
           env.FIREBIRD_OS_USUARIO_CHAVE,
           chaveSituacaoAtendimento ?? null,
           PRIORIDADE_CODIGO_POR_STATUS[os.prioridade],
+          perfilFiscalProduto.chave,
+          perfilFiscalProduto.chaveCfopProduto,
+          perfilFiscalProduto.chaveCfopServico,
         ],
       );
       const identificadorGerado = insertRows[0]?.IDENTIFICADOR;
@@ -545,8 +649,23 @@ export class OSRepositoryFirebird implements IOSRepository {
       camposOSFB.push({ coluna: 'KMFINAL', valor: patch.kmFinal });
     }
 
+    const perfisFiscais =
+      patch.produtos !== undefined || patch.servicos !== undefined
+        ? await Promise.all([resolvePerfilFiscalPadrao('N'), resolvePerfilFiscalPadrao('S')])
+        : undefined;
+
     await firebirdTransaction(async (query) => {
       if (patch.produtos !== undefined || patch.servicos !== undefined) {
+        const [perfilFiscalProduto, perfilFiscalServico] = perfisFiscais!;
+        await query(
+          `UPDATE ORDEMSERVICO SET
+             CHAVECFOPOPERFISCAIS = COALESCE(CHAVECFOPOPERFISCAIS, ?),
+             CHAVECFOPPROD = COALESCE(CHAVECFOPPROD, ?),
+             CHAVECFOPSERV = COALESCE(CHAVECFOPSERV, ?),
+             CHAVETIPOATENDIMENTO = COALESCE(CHAVETIPOATENDIMENTO, 0)
+           WHERE CHAVE = ?`,
+          [perfilFiscalProduto.chave, perfilFiscalProduto.chaveCfopProduto, perfilFiscalProduto.chaveCfopServico, chaveOS],
+        );
         // NUMITEM é uma sequência única COMPARTILHADA entre ITENSORDEMSERVICOPROD e SERV pra uma
         // mesma OS (confirmado com dado real do CHERP na Fase B0 — produto e serviço se intercalam
         // na mesma contagem) — nunca numerar cada tabela separadamente, senão colide.
@@ -561,10 +680,10 @@ export class OSRepositoryFirebird implements IOSRepository {
         const numItemState = { proximo: (maxRows[0]?.MAXIMO ?? 0) + 1 };
 
         if (patch.produtos !== undefined) {
-          await this.sincronizarItens(query, chaveOS, 'produto', patch.produtos, numItemState);
+          await this.sincronizarItens(query, chaveOS, 'produto', patch.produtos, numItemState, perfilFiscalProduto);
         }
         if (patch.servicos !== undefined) {
-          await this.sincronizarItens(query, chaveOS, 'servico', patch.servicos, numItemState);
+          await this.sincronizarItens(query, chaveOS, 'servico', patch.servicos, numItemState, perfilFiscalServico);
         }
       }
 
@@ -641,6 +760,7 @@ export class OSRepositoryFirebird implements IOSRepository {
     tipo: 'produto' | 'servico',
     novos: (OSItemProduto | OSItemServico)[],
     numItemState: { proximo: number },
+    perfilFiscal: PerfilFiscal,
   ): Promise<void> {
     const tabela = tipo === 'produto' ? 'ITENSORDEMSERVICOPROD' : 'ITENSORDEMSERVICOSERV';
     const codigoDe = (item: OSItemProduto | OSItemServico): string =>
@@ -659,8 +779,43 @@ export class OSRepositoryFirebird implements IOSRepository {
     const remover = atuais.filter((a) => !novosCodigos.has(a.CODIGO));
     const adicionar = novos.filter((n) => !atuaisCodigos.has(codigoDe(n)));
 
+    const dadosFiscais = (produto: ProdutoParaOS) => {
+      const chavePerfil = tipo === 'produto' ? produto.chavePerfilFiscalProduto ?? perfilFiscal.chave : perfilFiscal.chave;
+      const chaveCfop = tipo === 'produto' ? produto.chaveCfopProduto ?? perfilFiscal.chaveCfopProduto : perfilFiscal.chaveCfopServico;
+      return { chavePerfil, chaveCfop };
+    };
+
+    const preencherCompatibilidade = async (chaveItem: number, produto: ProdutoParaOS) => {
+      const fiscal = dadosFiscais(produto);
+      if (tipo === 'produto') {
+        await query(
+          `UPDATE ITENSORDEMSERVICOPROD SET
+             CHAVETRIBUTACAO = COALESCE(CHAVETRIBUTACAO, ?), CHAVECFOP = COALESCE(CHAVECFOP, ?),
+             CHAVECFOPOPERFISCAIS = COALESCE(CHAVECFOPOPERFISCAIS, ?), PRECOCUSTO = COALESCE(PRECOCUSTO, ?),
+             VLRUNITTABELA = COALESCE(VLRUNITTABELA, ?), VLRVENDAMINIMO = COALESCE(VLRVENDAMINIMO, ?),
+             CHAVEDPTOESTOQUE = COALESCE(CHAVEDPTOESTOQUE, ?)
+           WHERE CHAVE = ?`,
+          [produto.chaveTributacao, fiscal.chaveCfop, fiscal.chavePerfil, produto.precoCusto, produto.precoVenda, produto.precoVendaMinimo, produto.chaveDptoEstoque, chaveItem],
+        );
+      } else {
+        await query(
+          `UPDATE ITENSORDEMSERVICOSERV SET
+             CHAVECFOP = COALESCE(CHAVECFOP, ?), CHAVECFOPOPERFISCAIS = COALESCE(CHAVECFOPOPERFISCAIS, ?),
+             PRECOCUSTO = COALESCE(PRECOCUSTO, ?), VLRUNITTABELA = COALESCE(VLRUNITTABELA, ?),
+             VLRVENDAMINIMO = COALESCE(VLRVENDAMINIMO, ?)
+           WHERE CHAVE = ?`,
+          [fiscal.chaveCfop, fiscal.chavePerfil, produto.precoCusto, produto.precoVenda, produto.precoVendaMinimo, chaveItem],
+        );
+      }
+    };
+
     for (const item of remover) {
       await query(`UPDATE ${tabela} SET ATIVO = 0 WHERE CHAVE = ?`, [item.CHAVE]);
+    }
+
+    // Corrige itens já criados pelo app nas versões anteriores, sem alterar valores que o CHERP calculou.
+    for (const item of atuais.filter((atual) => novosCodigos.has(atual.CODIGO))) {
+      await preencherCompatibilidade(item.CHAVE, await resolveProduto(item.CODIGO));
     }
 
     // MOVESTOQUE só existe em ITENSORDEMSERVICOPROD (confirmado na Fase B0) — não em SERV.
@@ -669,7 +824,8 @@ export class OSRepositoryFirebird implements IOSRepository {
 
     for (const item of adicionar) {
       const codigo = codigoDe(item);
-      const { chave: chaveProduto, chaveUnidade } = await resolveProduto(codigo);
+      const produto = await resolveProduto(codigo);
+      const fiscal = dadosFiscais(produto);
       const valorUnitario = valorUnitarioDe(item);
       const total = item.total;
       const desconto = item.desconto ?? null;
@@ -677,15 +833,17 @@ export class OSRepositoryFirebird implements IOSRepository {
       await query(
         `INSERT INTO ${tabela} (
            CHAVEEMPRESA, ATIVO, CHAVEOS, CHAVEPRODUTO, CODPRODUTO, PRODUTO, CHAVEUNIDADE, UN,
-           QTDE, VLRUNIT, DESCPORC, DESCVLR, VLRSUBTOTAL, VLRTOTAL, CHAVETABELAPRECO, DATA, NUMITEM${colunaMovEstoque}
-         ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, CURRENT_DATE, ?${valorMovEstoque})`,
+           QTDE, VLRUNIT, DESCPORC, DESCVLR, VLRSUBTOTAL, VLRTOTAL, CHAVETABELAPRECO,
+           CHAVECFOP, CHAVECFOPOPERFISCAIS, PRECOCUSTO, VLRUNITTABELA, VLRVENDAMINIMO${tipo === 'produto' ? ', CHAVETRIBUTACAO, CHAVEDPTOESTOQUE' : ''},
+           DATA, NUMITEM${colunaMovEstoque}
+         ) VALUES (?, 1, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?, ?, ?, ?${tipo === 'produto' ? ', ?, ?' : ''}, CURRENT_DATE, ?${valorMovEstoque})`,
         [
           CHAVE_EMPRESA,
           chaveOS,
-          chaveProduto,
+          produto.chave,
           codigo,
           toLatin1Param(item.descricao),
-          chaveUnidade,
+          produto.chaveUnidade,
           item.unidade,
           item.quantidade,
           valorUnitario ?? null,
@@ -693,6 +851,12 @@ export class OSRepositoryFirebird implements IOSRepository {
           total ?? null,
           total ?? null,
           CHAVE_TABELA_PRECO,
+          fiscal.chaveCfop,
+          fiscal.chavePerfil,
+          produto.precoCusto,
+          produto.precoVenda,
+          produto.precoVendaMinimo,
+          ...(tipo === 'produto' ? [produto.chaveTributacao, produto.chaveDptoEstoque] : []),
           numItemState.proximo++,
         ],
       );

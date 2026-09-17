@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { atualizarCliente, consultarCnpj, criarCliente, getClienteByCodigo } from '../api/clientes.api.js';
+import { atualizarCliente, consultarCep, consultarCnpj, criarCliente, getClienteByCodigo } from '../api/clientes.api.js';
 import { Button, Card, Checkbox, ErrorState, Input, LinkButton, PageHeader, Select, Skeleton, useToast } from '../components/ui/index.js';
 import type { ClienteDTO, ClienteInput, RegimeTributario, TipoPessoa } from '../types/cherp.types.js';
 import styles from './ClienteFormPage.module.css';
@@ -18,13 +18,53 @@ const UF_OPTIONS = [
   'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ].map((uf) => ({ value: uf, label: uf }));
 
+function apenasDigitos(valor: string, limite: number): string {
+  return valor.replace(/\D/g, '').slice(0, limite);
+}
+
+function formatarDocumento(valor: string, tipo: TipoPessoa): string {
+  const digitos = apenasDigitos(valor, tipo === 'PJ' ? 14 : 11);
+  if (tipo === 'PJ') {
+    return digitos
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return digitos
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1-$2');
+}
+
+function formatarCep(valor: string): string {
+  return apenasDigitos(valor, 8).replace(/^(\d{5})(\d)/, '$1-$2');
+}
+
+function formatarTelefone(valor: string): string {
+  const digitos = apenasDigitos(valor, 11);
+  if (digitos.length <= 10) {
+    return digitos.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
+  }
+  return digitos.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
+}
+
 const FORM_VAZIO: ClienteInput = {
+  ativo: true,
   tipoPessoa: 'PJ',
   nome: '',
   nomeFantasia: '',
   documento: '',
   telefone: '',
+  celular: '',
   email: '',
+  emailFinanceiro: '',
+  emailNfe: '',
+  homePage: '',
+  inscricaoEstadual: '',
+  inscricaoMunicipal: '',
+  reducaoMva: undefined,
+  coreRepresentante: '',
   endereco: '',
   numero: '',
   bairro: '',
@@ -40,19 +80,28 @@ const FORM_VAZIO: ClienteInput = {
 
 function clienteParaInput(cliente: ClienteDTO): ClienteInput {
   return {
+    ativo: cliente.ativo ?? true,
     tipoPessoa: cliente.tipoPessoa ?? 'PJ',
     nome: cliente.razaoSocial ?? cliente.nome,
     nomeFantasia: cliente.nomeFantasia ?? '',
-    documento: cliente.documento ?? '',
-    telefone: cliente.telefone ?? '',
+    documento: formatarDocumento(cliente.documento ?? '', cliente.tipoPessoa ?? 'PJ'),
+    telefone: formatarTelefone(cliente.telefone ?? ''),
+    celular: formatarTelefone(cliente.celular ?? ''),
     email: cliente.email ?? '',
+    emailFinanceiro: cliente.emailFinanceiro ?? '',
+    emailNfe: cliente.emailNfe ?? '',
+    homePage: cliente.homePage ?? '',
+    inscricaoEstadual: cliente.inscricaoEstadual ?? '',
+    inscricaoMunicipal: cliente.inscricaoMunicipal ?? '',
+    reducaoMva: cliente.reducaoMva,
+    coreRepresentante: cliente.coreRepresentante ?? '',
     endereco: cliente.endereco ?? '',
     numero: cliente.numero ?? '',
     bairro: cliente.bairro ?? '',
     complemento: cliente.complemento ?? '',
     cidade: cliente.cidade ?? '',
     uf: cliente.uf ?? '',
-    cep: cliente.cep ?? '',
+    cep: formatarCep(cliente.cep ?? ''),
     fornecedor: cliente.fornecedor ?? false,
     transportador: cliente.transportador ?? false,
     representante: cliente.representante ?? false,
@@ -77,6 +126,7 @@ export function ClienteFormPage() {
   const [form, setForm] = useState<ClienteInput>(FORM_VAZIO);
   const [carregado, setCarregado] = useState(false);
   const [cnpjErro, setCnpjErro] = useState<string | null>(null);
+  const [cepErro, setCepErro] = useState<string | null>(null);
 
   if (modoEdicao && cliente && !carregado) {
     setForm(clienteParaInput(cliente));
@@ -97,7 +147,7 @@ export function ClienteFormPage() {
         cidade: dados.cidade || f.cidade,
         uf: dados.uf || f.uf,
         cep: dados.cep || f.cep,
-        telefone: dados.telefone || f.telefone,
+        telefone: dados.telefone ? formatarTelefone(dados.telefone) : f.telefone,
         email: dados.email || f.email,
         regimeTributario: dados.regimeTributario ?? f.regimeTributario,
       }));
@@ -105,6 +155,22 @@ export function ClienteFormPage() {
     onError: (err) => {
       setCnpjErro(err instanceof Error ? err.message : 'Não foi possível consultar o CNPJ — preencha manualmente.');
     },
+  });
+
+  const cepMutation = useMutation({
+    mutationFn: (cep: string) => consultarCep(cep),
+    onSuccess: (dados) => {
+      setCepErro(null);
+      setForm((f) => ({
+        ...f,
+        cep: dados.cep ? formatarCep(dados.cep) : f.cep,
+        endereco: dados.endereco || f.endereco,
+        bairro: dados.bairro || f.bairro,
+        cidade: dados.cidade,
+        uf: dados.uf,
+      }));
+    },
+    onError: (err) => setCepErro(err instanceof Error ? err.message : 'Não foi possível consultar o CEP.'),
   });
 
   const saveMutation = useMutation({
@@ -123,6 +189,15 @@ export function ClienteFormPage() {
       return;
     }
     cnpjMutation.mutate(digits);
+  }
+
+  function buscarCep() {
+    const digits = (form.cep ?? '').replace(/\D/g, '');
+    if (digits.length !== 8) {
+      setCepErro('CEP precisa ter 8 dígitos.');
+      return;
+    }
+    cepMutation.mutate(digits);
   }
 
   function handleTipoPessoa(tipo: TipoPessoa) {
@@ -166,23 +241,34 @@ export function ClienteFormPage() {
           <Input label="Código" value={codigo ?? ''} disabled className={styles.codigo} />
         )}
 
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <Button
-            type="button"
-            variant={form.tipoPessoa === 'PJ' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => handleTipoPessoa('PJ')}
-          >
-            Pessoa Jurídica
-          </Button>
-          <Button
-            type="button"
-            variant={form.tipoPessoa === 'PF' ? 'primary' : 'secondary'}
-            size="sm"
-            onClick={() => handleTipoPessoa('PF')}
-          >
-            Pessoa Física
-          </Button>
+        <div className={styles.sectionTitle}>Pessoa</div>
+
+        <div className={styles.statusRow}>
+          <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <Button
+              type="button"
+              variant={form.tipoPessoa === 'PJ' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => handleTipoPessoa('PJ')}
+            >
+              Pessoa Jurídica
+            </Button>
+            <Button
+              type="button"
+              variant={form.tipoPessoa === 'PF' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => handleTipoPessoa('PF')}
+            >
+              Pessoa Física
+            </Button>
+          </div>
+          <div>
+            <div className={styles.fieldLabel}>Status</div>
+            <div className={styles.statusOptions} role="group" aria-label="Status do cliente">
+              <Button type="button" variant={form.ativo !== false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: true })}>Ativo</Button>
+              <Button type="button" variant={form.ativo === false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: false })}>Inativo</Button>
+            </div>
+          </div>
         </div>
 
         <div>
@@ -190,7 +276,9 @@ export function ClienteFormPage() {
             <Input
               label={form.tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF'}
               value={form.documento}
-              onChange={(e) => setForm({ ...form, documento: e.target.value })}
+              inputMode="numeric"
+              maxLength={form.tipoPessoa === 'PJ' ? 18 : 14}
+              onChange={(e) => setForm({ ...form, documento: formatarDocumento(e.target.value, form.tipoPessoa) })}
             />
             {form.tipoPessoa === 'PJ' && (
               <Button type="button" variant="secondary" loading={cnpjMutation.isPending} onClick={buscarCnpj}>
@@ -203,22 +291,15 @@ export function ClienteFormPage() {
           )}
         </div>
 
-        <Input
-          label={form.tipoPessoa === 'PJ' ? 'Razão Social' : 'Nome completo'}
-          required
-          value={form.nome}
-          onChange={(e) => setForm({ ...form, nome: e.target.value })}
-        />
-        {form.tipoPessoa === 'PJ' && (
+        <div className={styles.twoColumns}>
           <Input
-            label="Nome Fantasia"
-            value={form.nomeFantasia}
-            onChange={(e) => setForm({ ...form, nomeFantasia: e.target.value })}
+            label={form.tipoPessoa === 'PJ' ? 'Razão Social' : 'Nome completo'}
+            required
+            value={form.nome}
+            onChange={(e) => setForm({ ...form, nome: e.target.value })}
           />
-        )}
-
-        <Input label="Telefone/WhatsApp" value={form.telefone} onChange={(e) => setForm({ ...form, telefone: e.target.value })} />
-        <Input label="E-mail" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Input label="Nome Fantasia" value={form.nomeFantasia} onChange={(e) => setForm({ ...form, nomeFantasia: e.target.value })} />
+        </div>
 
         <div>
           <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Tipo</div>
@@ -256,6 +337,17 @@ export function ClienteFormPage() {
           />
         )}
 
+        <div className={styles.threeColumns}>
+          <Input label="Inscrição estadual" value={form.inscricaoEstadual} onChange={(e) => setForm({ ...form, inscricaoEstadual: e.target.value })} />
+          <Input label="Inscrição municipal" value={form.inscricaoMunicipal} onChange={(e) => setForm({ ...form, inscricaoMunicipal: e.target.value })} />
+          <Input label="Redução MVA" type="number" min="0" value={form.reducaoMva ?? ''} onChange={(e) => setForm({ ...form, reducaoMva: e.target.value === '' ? undefined : Number(e.target.value) })} />
+        </div>
+
+        <div className={styles.addressHeader}>Endereço</div>
+        <div className={styles.cepRow}>
+          <Input label="CEP" value={form.cep ?? ''} inputMode="numeric" maxLength={9} onChange={(e) => setForm({ ...form, cep: formatarCep(e.target.value) })} onBlur={() => { if ((form.cep ?? '').replace(/\D/g, '').length === 8) buscarCep(); }} error={cepErro ?? undefined} />
+          <Button type="button" variant="secondary" loading={cepMutation.isPending} onClick={buscarCep}>Consultar CEP</Button>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
           <Input label="Endereço" value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
           <Input label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
@@ -264,7 +356,7 @@ export function ClienteFormPage() {
           <Input label="Bairro" value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
           <Input label="Complemento" value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
           <Input label="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
           <Select
             label="UF"
@@ -273,8 +365,22 @@ export function ClienteFormPage() {
             value={form.uf}
             onChange={(e) => setForm({ ...form, uf: e.target.value })}
           />
-          <Input label="CEP" value={form.cep} onChange={(e) => setForm({ ...form, cep: e.target.value })} />
         </div>
+
+        <div className={styles.twoColumns}>
+          <Input label="Celular / WhatsApp" value={form.celular} inputMode="tel" maxLength={15} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
+          <Input label="Telefone fixo" value={form.telefone} inputMode="tel" maxLength={15} onChange={(e) => setForm({ ...form, telefone: formatarTelefone(e.target.value) })} />
+        </div>
+
+        <div className={styles.addressHeader}>E-mails e contato</div>
+        <div className={styles.twoColumns}>
+          <Input label="E-mail comercial" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <Input label="E-mail financeiro" type="email" value={form.emailFinanceiro} onChange={(e) => setForm({ ...form, emailFinanceiro: e.target.value })} />
+          <Input label="E-mail NFe/NFSe" type="email" value={form.emailNfe} onChange={(e) => setForm({ ...form, emailNfe: e.target.value })} />
+          <Input label="Site" type="url" value={form.homePage} onChange={(e) => setForm({ ...form, homePage: e.target.value })} />
+        </div>
+
+        {form.representante && <Input label="CORE (representante)" value={form.coreRepresentante} onChange={(e) => setForm({ ...form, coreRepresentante: e.target.value })} />}
 
         {saveMutation.isError && (
           <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>

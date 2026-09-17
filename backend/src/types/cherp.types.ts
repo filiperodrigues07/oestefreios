@@ -26,15 +26,24 @@ export type TipoPessoa = 'PF' | 'PJ';
 
 export interface Cliente {
   codigo: string;
+  ativo?: boolean;
   /** Nome de exibição — fantasia se houver, senão razão social/nome completo. Uso em listas/busca. */
   nome: string;
   documento?: string;
   telefone?: string;
+  celular?: string;
   tipoPessoa?: TipoPessoa;
   /** Razão social (PJ) ou nome completo (PF) — bruto, sem coalescer com fantasia. Uso em formulário de edição. */
   razaoSocial?: string;
   nomeFantasia?: string;
   email?: string;
+  emailFinanceiro?: string;
+  emailNfe?: string;
+  homePage?: string;
+  inscricaoEstadual?: string;
+  inscricaoMunicipal?: string;
+  reducaoMva?: number;
+  coreRepresentante?: string;
   endereco?: string;
   numero?: string;
   bairro?: string;
@@ -54,12 +63,21 @@ export type RegimeTributario = 0 | 1 | 2 | 3;
 
 /** Entrada pra criar/editar cliente — `documento` sempre exigido (CPF ou CNPJ conforme `tipoPessoa`). */
 export interface ClienteInput {
+  ativo?: boolean;
   tipoPessoa: TipoPessoa;
   nome: string;
   nomeFantasia?: string;
   documento: string;
   telefone?: string;
+  celular?: string;
   email?: string;
+  emailFinanceiro?: string;
+  emailNfe?: string;
+  homePage?: string;
+  inscricaoEstadual?: string;
+  inscricaoMunicipal?: string;
+  reducaoMva?: number;
+  coreRepresentante?: string;
   endereco?: string;
   numero?: string;
   bairro?: string;
@@ -185,8 +203,10 @@ export interface SearchQuery {
   /** Só usado por clientes. */
   tipoPessoa?: TipoPessoa;
   uf?: string;
+  /** Busca livre — só clientes: casa contra código, nome/razão social, documento, telefone/celular. */
+  busca?: string;
   page?: number;
   limit?: number;
-  sortBy?: 'codigo' | 'descricao';
+  sortBy?: 'codigo' | 'descricao' | 'nome' | 'documento' | 'telefone' | 'cidade';
   sortOrder?: 'asc' | 'desc';
 }

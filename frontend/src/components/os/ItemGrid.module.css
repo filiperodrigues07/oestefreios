@@ -14,8 +14,12 @@
 .table {
   display: none;
   width: 100%;
+  min-width: 560px;
   border-collapse: collapse;
   font-size: var(--font-size-md);
+  /* fixed: larguras de coluna não dependem mais do conteúdo — sem isso, uma descrição comprida
+     numa linha empurrava só aquela linha e desalinhava tudo (cabeçalho x demais linhas). */
+  table-layout: fixed;
 }
 
 .table th {
@@ -28,6 +32,8 @@
   letter-spacing: 0.03em;
   border-bottom: 1px solid var(--color-border);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .table td {
@@ -35,6 +41,47 @@
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-primary);
   vertical-align: middle;
+}
+
+/* Ordem fixa das colunas (ver ItemGrid.tsx): Código, Descrição, Un., Qtd., [Preço unit., Total], [ação].
+   Descrição tem min-width garantido — se o card ficar apertado (Produtos/Serviços lado a lado), a
+   TABELA rola horizontal (.tableScroll já tem overflow-x) em vez de espremer a coluna até quebrar
+   letra por letra. Larguras enxutas nas outras colunas pra sobrar o máximo de espaço pra descrição. */
+.table th:nth-child(1),
+.table td:nth-child(1) {
+  width: 76px;
+}
+
+.table th:nth-child(2),
+.table td:nth-child(2) {
+  min-width: 160px;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+.table th:nth-child(3),
+.table td:nth-child(3) {
+  width: 44px;
+}
+
+.table th:nth-child(4),
+.table td:nth-child(4) {
+  width: 60px;
+}
+
+.table th:nth-child(5),
+.table td:nth-child(5) {
+  width: 96px;
+}
+
+.table th:nth-child(6),
+.table td:nth-child(6) {
+  width: 96px;
+}
+
+.table th:nth-child(7),
+.table td:nth-child(7) {
+  width: 36px;
 }
 
 .table tbody tr:last-child td {

@@ -68,6 +68,10 @@ export const listarOSQuerySchema = z.object({
   status: z.union([z.enum(OS_STATUS_VALUES), z.literal('AGUARDANDO')]).optional(),
   clienteCodigo: z.string().trim().min(1).optional(),
   tecnicoId: z.string().trim().min(1).optional(),
+  prioridade: z.enum(OS_PRIORIDADE_VALUES).optional(),
+  busca: z.string().trim().min(1).optional(),
+  sortBy: z.enum(['numero', 'clienteNome', 'equipamentoDescricao', 'dataAbertura', 'status', 'prioridade', 'faturamento']).optional(),
+  sortOrder: z.enum(['asc', 'desc']).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
 });

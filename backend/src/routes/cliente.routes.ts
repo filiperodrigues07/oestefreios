@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import {
   atualizarClienteHandler,
+  consultarCepHandler,
   consultarCnpjHandler,
   criarClienteHandler,
   getClienteByCodigoHandler,
@@ -10,7 +11,7 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { clienteInputSchema, cnpjParamSchema } from '../validators/cliente.validator.js';
+import { cepParamSchema, clienteInputSchema, cnpjParamSchema } from '../validators/cliente.validator.js';
 import { codigoParamSchema, searchQuerySchema } from '../validators/search.validator.js';
 
 export const clienteRouter = Router();
@@ -20,6 +21,7 @@ clienteRouter.use(authenticate);
 
 clienteRouter.get('/', validate(searchQuerySchema, 'query'), asyncHandler(searchClientesHandler));
 clienteRouter.get('/cnpj/:cnpj', validate(cnpjParamSchema, 'params'), asyncHandler(consultarCnpjHandler));
+clienteRouter.get('/cep/:cep', validate(cepParamSchema, 'params'), asyncHandler(consultarCepHandler));
 clienteRouter.get('/:codigo', validate(codigoParamSchema, 'params'), asyncHandler(getClienteByCodigoHandler));
 
 // Cadastrar/editar cliente é parte do mesmo fluxo de quem cria/edita OS — reaproveita a permissão existente.

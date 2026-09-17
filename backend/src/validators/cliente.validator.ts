@@ -1,12 +1,21 @@
 import { z } from 'zod';
 
 export const clienteInputSchema = z.object({
+  ativo: z.boolean().default(true),
   tipoPessoa: z.enum(['PF', 'PJ']),
   nome: z.string().trim().min(1, 'Nome é obrigatório.'),
   nomeFantasia: z.string().trim().optional(),
   documento: z.string().trim().min(1, 'CPF/CNPJ é obrigatório.'),
   telefone: z.string().trim().optional(),
+  celular: z.string().trim().optional(),
   email: z.email().optional().or(z.literal('')),
+  emailFinanceiro: z.email().optional().or(z.literal('')),
+  emailNfe: z.email().optional().or(z.literal('')),
+  homePage: z.url().optional().or(z.literal('')),
+  inscricaoEstadual: z.string().trim().optional(),
+  inscricaoMunicipal: z.string().trim().optional(),
+  reducaoMva: z.number().min(0).optional(),
+  coreRepresentante: z.string().trim().optional(),
   endereco: z.string().trim().optional(),
   numero: z.string().trim().optional(),
   bairro: z.string().trim().optional(),
@@ -26,4 +35,8 @@ export const cnpjParamSchema = z.object({
     .trim()
     .transform((s) => s.replace(/\D/g, ''))
     .refine((s) => s.length === 14, 'CNPJ precisa ter 14 dígitos.'),
+});
+
+export const cepParamSchema = z.object({
+  cep: z.string().trim().transform((s) => s.replace(/\D/g, '')).refine((s) => s.length === 8, 'CEP precisa ter 8 dígitos.'),
 });

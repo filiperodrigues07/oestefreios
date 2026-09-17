@@ -11,6 +11,10 @@ export async function listOSHandler(req: Request, res: Response) {
     status?: string;
     clienteCodigo?: string;
     tecnicoId?: string;
+    prioridade?: string;
+    busca?: string;
+    sortBy?: 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';
+    sortOrder?: 'asc' | 'desc';
     page?: number;
     limit?: number;
   };

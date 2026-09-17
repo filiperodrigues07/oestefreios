@@ -8,6 +8,9 @@ export async function searchClientesHandler(req: Request, res: Response) {
     descricao?: string;
     tipoPessoa?: 'PF' | 'PJ';
     uf?: string;
+    busca?: string;
+    sortBy?: 'codigo' | 'descricao' | 'nome' | 'documento' | 'telefone' | 'cidade';
+    sortOrder?: 'asc' | 'desc';
     page: number;
     limit: number;
   };
@@ -35,5 +38,11 @@ export async function atualizarClienteHandler(req: Request, res: Response) {
 export async function consultarCnpjHandler(req: Request, res: Response) {
   const { cnpj } = req.params as unknown as { cnpj: string };
   const dados = await clienteService.consultarCnpj(cnpj);
+  success(res, dados);
+}
+
+export async function consultarCepHandler(req: Request, res: Response) {
+  const { cep } = req.params as unknown as { cep: string };
+  const dados = await clienteService.consultarCep(cep);
   success(res, dados);
 }

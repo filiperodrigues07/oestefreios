@@ -1,16 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { searchClientes } from '../api/clientes.api.js';
+import { searchClientes, type ClienteSortBy } from '../api/clientes.api.js';
 import {
   Button,
   Card,
   EmptyState,
   ErrorState,
   LinkButton,
-  MetricCard,
-  Pagination,
   PageHeader,
+  Pagination,
   SearchInput,
   Select,
   Skeleton,
@@ -33,6 +32,8 @@ const TIPO_PESSOA_OPTIONS = [
   { value: 'PF', label: 'Pessoa Física' },
 ];
 
+const SORTAVEIS: ClienteSortBy[] = ['codigo', 'nome', 'documento', 'telefone', 'cidade'];
+
 export function ClientesPage() {
   const [searchParams] = useSearchParams();
   const initialBusca = searchParams.get('busca') ?? '';
@@ -40,17 +41,21 @@ export function ClientesPage() {
   const [buscaAtiva, setBuscaAtiva] = useState(initialBusca);
   const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa | ''>('');
   const [uf, setUf] = useState('');
+  const [sortBy, setSortBy] = useState<ClienteSortBy | undefined>(undefined);
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
 
   const podeCriar = hasPermission('OS_CREATE');
   const podeEditar = hasPermission('OS_EDIT');
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['clientes', buscaAtiva, page, tipoPessoa, uf],
+    queryKey: ['clientes', buscaAtiva, page, tipoPessoa, uf, sortBy, sortOrder],
     queryFn: () =>
       searchClientes(buscaAtiva, page, 20, {
         tipoPessoa: tipoPessoa || undefined,
         uf: uf || undefined,
+        sortBy,
+        sortOrder,
       }),
   });
 
@@ -64,20 +69,34 @@ export function ClientesPage() {
     setPage(1);
   }
 
+  function handleSortChange(key: string) {
+    if (!SORTAVEIS.includes(key as ClienteSortBy)) return;
+    if (key === sortBy) {
+      setSortOrder((order) => (order === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortBy(key as ClienteSortBy);
+      setSortOrder('asc');
+    }
+    setPage(1);
+  }
+
   const columns: TableColumn<ClienteDTO>[] = [
-    { key: 'codigo', header: 'Código', render: (c) => c.codigo, mono: true },
-    { key: 'nome', header: 'Nome / Razão Social', render: (c) => c.nome, sortable: false },
-    { key: 'documento', header: 'CNPJ/CPF', render: (c) => c.documento ?? '—', mono: true },
-    { key: 'telefone', header: 'Telefone', render: (c) => c.telefone ?? '—', mono: true },
+    { key: 'codigo', header: 'Código', render: (c) => c.codigo, mono: true, width: '92px', sortable: true },
+    { key: 'nome', header: 'Nome / Razão Social', render: (c) => c.nome, sortable: true },
+    { key: 'documento', header: 'CNPJ/CPF', render: (c) => c.documento ?? '—', mono: true, width: '140px', sortable: true },
+    { key: 'telefone', header: 'Telefone', render: (c) => c.telefone ?? '—', mono: true, width: '128px', sortable: true },
     {
       key: 'cidade',
       header: 'Cidade/UF',
+      width: '180px',
+      sortable: true,
       render: (c) => (c.cidade ? `${c.cidade}/${c.uf ?? ''}` : '—'),
     },
     {
       key: 'acoes',
       header: '',
       align: 'right',
+      width: '84px',
       render: (c) =>
         podeEditar ? (
           <LinkButton to={`/clientes/${c.codigo}/editar`} size="sm" variant="secondary">
@@ -96,12 +115,14 @@ export function ClientesPage() {
       />
 
       {data && !isLoading && !isError && (
-        <MetricCard label="Clientes cadastrados" value={data.total.toLocaleString('pt-BR')} />
+        <p className={styles.total}>
+          <strong>{data.total.toLocaleString('pt-BR')}</strong> {data.total === 1 ? 'registro' : 'registros'}
+        </p>
       )}
 
       <form onSubmit={handleBuscar} className={styles.searchForm}>
         <SearchInput
-          placeholder="Buscar por nome, razão social ou código"
+          placeholder="Buscar por nome, razão social, código, CNPJ/CPF ou telefone"
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
@@ -142,7 +163,14 @@ export function ClientesPage() {
 
       {!isLoading && !isError && data && data.items.length > 0 && (
         <>
-          <Table columns={columns} data={data.items} rowKey={(c) => c.codigo} />
+          <Table
+            columns={columns}
+            data={data.items}
+            rowKey={(c) => c.codigo}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            onSortChange={handleSortChange}
+          />
           <div className={styles.pagination}>
             <Pagination page={data.page} limit={data.limit} total={data.total} onPageChange={setPage} />
           </div>

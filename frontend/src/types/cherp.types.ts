@@ -25,13 +25,22 @@ export type RegimeTributario = 0 | 1 | 2 | 3;
 
 export interface ClienteDTO {
   codigo: string;
+  ativo?: boolean;
   nome: string;
   documento?: string;
   telefone?: string;
+  celular?: string;
   tipoPessoa?: TipoPessoa;
   razaoSocial?: string;
   nomeFantasia?: string;
   email?: string;
+  emailFinanceiro?: string;
+  emailNfe?: string;
+  homePage?: string;
+  inscricaoEstadual?: string;
+  inscricaoMunicipal?: string;
+  reducaoMva?: number;
+  coreRepresentante?: string;
   endereco?: string;
   numero?: string;
   bairro?: string;
@@ -46,12 +55,21 @@ export interface ClienteDTO {
 }
 
 export interface ClienteInput {
+  ativo?: boolean;
   tipoPessoa: TipoPessoa;
   nome: string;
   nomeFantasia?: string;
   documento: string;
   telefone?: string;
+  celular?: string;
   email?: string;
+  emailFinanceiro?: string;
+  emailNfe?: string;
+  homePage?: string;
+  inscricaoEstadual?: string;
+  inscricaoMunicipal?: string;
+  reducaoMva?: number;
+  coreRepresentante?: string;
   endereco?: string;
   numero?: string;
   bairro?: string;

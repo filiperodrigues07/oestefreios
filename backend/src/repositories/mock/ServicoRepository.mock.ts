@@ -38,7 +38,8 @@ export class ServicoRepositoryMock implements IServicoRepository {
       filtered = filtered.filter((s) => s.descricao.toLowerCase().includes(termo));
     }
 
-    filtered = sortByField(filtered, query.sortBy ?? 'descricao', query.sortOrder ?? 'asc', (item, field) => item[field]);
+    const sortBy = query.sortBy === 'codigo' ? 'codigo' : 'descricao';
+    filtered = sortByField(filtered, sortBy, query.sortOrder ?? 'asc', (item, field) => item[field]);
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;

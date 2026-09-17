@@ -9,10 +9,12 @@ export const searchQuerySchema = z.object({
   /** Só usado por clientes (Fase A3). */
   tipoPessoa: z.enum(['PF', 'PJ']).optional(),
   uf: z.string().trim().length(2).optional(),
+  /** Só usado por clientes — busca livre em vários campos de uma vez. */
+  busca: z.string().trim().min(1).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),
-  /** Usado pela tela de catálogo (Fase 6) — ordenação estável para paginação previsível. */
-  sortBy: z.enum(['codigo', 'descricao']).default('descricao'),
+  /** Usado pela tela de catálogo (Fase 6) e por clientes — ordenação estável para paginação previsível. */
+  sortBy: z.enum(['codigo', 'descricao', 'nome', 'documento', 'telefone', 'cidade']).default('descricao'),
   sortOrder: z.enum(['asc', 'desc']).default('asc'),
 });
 

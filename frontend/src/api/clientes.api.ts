@@ -8,12 +8,17 @@ interface PaginatedClientes {
   total: number;
 }
 
+export type ClienteSortBy = 'codigo' | 'nome' | 'documento' | 'telefone' | 'cidade';
+
 export interface ClientesFiltro {
   tipoPessoa?: TipoPessoa;
   uf?: string;
+  sortBy?: ClienteSortBy;
+  sortOrder?: 'asc' | 'desc';
 }
 
-/** Sem termo digitado (F8/campo vazio), devolve a primeira página em vez de exigir digitação. */
+/** Busca livre (termo casa contra código, nome/razão social, documento, telefone/celular no backend)
+ *  — sem termo digitado (F8/campo vazio), devolve a primeira página em vez de exigir digitação. */
 export function searchClientes(
   query: string,
   page = 1,
@@ -22,12 +27,11 @@ export function searchClientes(
 ): Promise<PaginatedClientes> {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   const termo = query.trim();
-  if (termo.length > 0) {
-    const isCodigo = /^\d+$/.test(termo);
-    params.set(isCodigo ? 'codigo' : 'descricao', termo);
-  }
+  if (termo.length > 0) params.set('busca', termo);
   if (filtro.tipoPessoa) params.set('tipoPessoa', filtro.tipoPessoa);
   if (filtro.uf) params.set('uf', filtro.uf);
+  if (filtro.sortBy) params.set('sortBy', filtro.sortBy);
+  if (filtro.sortOrder) params.set('sortOrder', filtro.sortOrder);
   return apiFetch<PaginatedClientes>(`/clientes?${params.toString()}`);
 }
 
@@ -60,4 +64,16 @@ export interface CnpjLookupResult {
 
 export function consultarCnpj(cnpj: string): Promise<CnpjLookupResult> {
   return apiFetch<CnpjLookupResult>(`/clientes/cnpj/${cnpj}`);
+}
+
+export interface CepLookupResult {
+  cep: string;
+  endereco?: string;
+  bairro?: string;
+  cidade: string;
+  uf: string;
+}
+
+export function consultarCep(cep: string): Promise<CepLookupResult> {
+  return apiFetch<CepLookupResult>(`/clientes/cep/${cep}`);
 }
