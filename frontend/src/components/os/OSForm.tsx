@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import {
   adicionarProdutoOS,
   adicionarServicoOS,
@@ -24,7 +24,6 @@ import { type OSPrioridade, type OSStatus } from '../../types/os.types.js';
 import {
   ActionIcon,
   Button,
-  Card,
   ConfirmDialog,
   ErrorState,
   LinkButton,
@@ -32,6 +31,7 @@ import {
   PageHeader,
   Select,
   Skeleton,
+  Tabs,
   useToast,
 } from '../ui/index.js';
 import { ClienteVeiculoSection } from './ClienteVeiculoSection.js';
@@ -48,6 +48,9 @@ interface OSFormProps {
   mode: 'create' | 'edit';
   id?: string;
 }
+
+type OSTab = 'dados' | 'itens' | 'diagnostico' | 'historico' | 'fotos';
+const OS_TABS_VALIDAS: OSTab[] = ['dados', 'itens', 'diagnostico', 'historico', 'fotos'];
 
 /** Tela única de Ordem de Serviço — criação e edição compartilham a mesma estrutura visual. */
 export function OSForm({ mode, id }: OSFormProps) {
@@ -86,7 +89,7 @@ function OSFormCreate() {
   const podeSalvar = cliente && equipamento && problema.trim().length > 0 && !mutation.isPending;
 
   return (
-    <div className={`${styles.page} ${styles.createPage}`}>
+    <div className={`${styles.page} ${styles.detailPage}`}>
       <PageHeader
         title="Nova OS"
         description="Associe o cliente e o veículo para abrir uma ordem de serviço."
@@ -98,62 +101,80 @@ function OSFormCreate() {
         }
       />
 
-      <ClienteVeiculoSection
-        mode="create"
-        cliente={cliente}
-        equipamento={equipamento}
-        onClienteChange={setCliente}
-        onEquipamentoChange={setEquipamento}
-      />
+      {/* Mesma casca de abas da tela de edição — as que dependem da OS já existir ficam
+          desabilitadas até "Criar OS", pra não parecer uma tela totalmente separada. */}
+      <nav className={styles.tabs} aria-label="Seções da OS">
+        <a href="#dados">▣ Dados da OS</a>
+        {['▤ Produtos e Serviços', '▱ Diagnóstico', '◷ Histórico', '📷 Fotos'].map((label) => (
+          <span key={label} className={styles.tabDisabled} title="Disponível depois de criar a OS">
+            {label}
+          </span>
+        ))}
+      </nav>
 
-      <Card className={styles.createCard}>
-        <div>
-          <label
-            htmlFor="problema"
-            style={{
-              display: 'block',
-              fontSize: 'var(--font-size-sm)',
-              fontWeight: 500,
-              marginBottom: 'var(--space-1)',
-            }}
-          >
-            Problema relatado
-            <RequiredMark />
-          </label>
-          <textarea
-            id="problema"
-            value={problema}
-            onChange={(e) => setProblema(e.target.value)}
-            rows={3}
-            className={styles.textarea}
-          />
-        </div>
-
-        <Select
-          label={<>Prioridade<RequiredMark /></>}
-          value={prioridade}
-          onChange={(e) => setPrioridade(e.target.value as OSPrioridade)}
-          options={OS_PRIORIDADE_OPTIONS}
+      <section id="dados" className={styles.identity}>
+        <ClienteVeiculoSection
+          mode="create"
+          cliente={cliente}
+          equipamento={equipamento}
+          onClienteChange={setCliente}
+          onEquipamentoChange={setEquipamento}
         />
+      </section>
 
-        {mutation.isError && (
-          <p
-            role="alert"
-            style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}
-          >
-            {mutation.error instanceof Error ? mutation.error.message : 'Erro ao criar OS.'}
-          </p>
-        )}
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Problema relatado</h2>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div>
+            <label
+              htmlFor="problema"
+              style={{
+                display: 'block',
+                fontSize: 'var(--font-size-sm)',
+                fontWeight: 500,
+                marginBottom: 'var(--space-1)',
+              }}
+            >
+              Descrição
+              <RequiredMark />
+            </label>
+            <textarea
+              id="problema"
+              value={problema}
+              onChange={(e) => setProblema(e.target.value)}
+              rows={3}
+              className={styles.textarea}
+            />
+          </div>
 
-        <Button
-          disabled={!podeSalvar}
-          loading={mutation.isPending}
-          onClick={() => mutation.mutate()}
-        >
-          <ActionIcon name="add" />
-          Criar OS
-        </Button>
-      </Card>
+          <Select
+            label={<>Prioridade<RequiredMark /></>}
+            value={prioridade}
+            onChange={(e) => setPrioridade(e.target.value as OSPrioridade)}
+            options={OS_PRIORIDADE_OPTIONS}
+          />
+
+          {mutation.isError && (
+            <p
+              role="alert"
+              style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}
+            >
+              {mutation.error instanceof Error ? mutation.error.message : 'Erro ao criar OS.'}
+            </p>
+          )}
+
+          <div>
+            <Button
+              disabled={!podeSalvar}
+              loading={mutation.isPending}
+              onClick={() => mutation.mutate()}
+            >
+              <ActionIcon name="add" />
+              Criar OS
+            </Button>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
@@ -162,6 +183,23 @@ function OSFormCreate() {
 function OSFormEdit({ id }: { id: string }) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabInicial = searchParams.get('tab');
+  const [tab, setTab] = useState<OSTab>(
+    tabInicial && OS_TABS_VALIDAS.includes(tabInicial as OSTab) ? (tabInicial as OSTab) : 'dados',
+  );
+
+  function mudarTab(key: string) {
+    setTab(key as OSTab);
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', key);
+        return next;
+      },
+      { replace: true },
+    );
+  }
 
   const {
     data: os,
@@ -319,6 +357,9 @@ function OSFormEdit({ id }: { id: string }) {
   const podeMudarStatus = hasPermission('OS_CHANGE_STATUS');
   const mostrarPreco = hasPermission('FINANCIAL_VIEW');
   const podeEditarPreco = hasPermission('FINANCIAL_EDIT');
+  const totalItens = os.produtos.length + os.servicos.length;
+  const nomeCliente = cliente?.nome ?? os.clienteCodigo;
+  const descricaoVeiculo = equipamento?.descricao ?? os.equipamentoCodigo;
 
   return (
     <div className={`${styles.page} ${styles.detailPage}`}>
@@ -339,94 +380,115 @@ function OSFormEdit({ id }: { id: string }) {
         updating={statusMutation.isPending || prioridadeMutation.isPending}
       />
 
-      <nav className={styles.tabs} aria-label="Seções da OS">
-        <a href="#dados">▣ Dados da OS</a>
-        <a href="#itens">▤ Produtos e Serviços</a>
-        <a href="#diagnostico">▱ Diagnóstico</a>
-        <a href="#historico">◷ Histórico</a>
-        <a href="#fotos">📷 Fotos</a>
-      </nav>
+      {/* Resumo fixo — some quem é o cliente/veículo mesmo fora da aba "Dados". */}
+      <p className={styles.contextBar}>
+        Cliente <strong>{nomeCliente}</strong> · Veículo <strong>{descricaoVeiculo}</strong>
+      </p>
 
-      <section id="dados" className={styles.identity}>
-        <ClienteVeiculoSection
-          mode="edit"
-          clienteCodigo={os.clienteCodigo}
-          clienteNome={cliente?.nome ?? os.clienteCodigo}
-          veiculoDescricao={equipamento?.descricao ?? os.equipamentoCodigo}
-        />
-      </section>
+      <Tabs
+        items={[
+          { key: 'dados', label: '▣ Dados da OS' },
+          { key: 'itens', label: totalItens > 0 ? `▤ Produtos e Serviços (${totalItens})` : '▤ Produtos e Serviços' },
+          { key: 'diagnostico', label: '▱ Diagnóstico' },
+          { key: 'historico', label: '◷ Histórico' },
+          { key: 'fotos', label: '📷 Fotos' },
+        ]}
+        active={tab}
+        onChange={mudarTab}
+        fullWidth
+      >
+        {tab === 'dados' && (
+          <>
+            <ClienteVeiculoSection
+              mode="edit"
+              clienteCodigo={os.clienteCodigo}
+              clienteNome={nomeCliente}
+              veiculoDescricao={descricaoVeiculo}
+            />
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Problema relatado</h2>
+              <p style={{ whiteSpace: 'pre-wrap' }}>{os.problema || 'Não informado.'}</p>
+            </section>
+          </>
+        )}
 
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Problema relatado</h2>
-        <p style={{ whiteSpace: 'pre-wrap' }}>{os.problema || 'Não informado.'}</p>
-      </section>
+        {tab === 'diagnostico' && (
+          <section className={styles.section}>
+            <DiagnosticoSection
+              diagnostico={os.diagnostico}
+              observacoes={os.observacoes}
+              solucao={os.solucao}
+              kmAtual={os.kmAtual}
+              kmFinal={os.kmFinal}
+              podeEditar={podeEditar}
+              salvando={salvarMutation.isPending}
+              onSave={(patch) => salvarMutation.mutate(patch)}
+            />
+          </section>
+        )}
 
-      <section id="diagnostico" className={styles.section}>
-        <DiagnosticoSection
-          diagnostico={os.diagnostico}
-          observacoes={os.observacoes}
-          solucao={os.solucao}
-          kmAtual={os.kmAtual}
-          kmFinal={os.kmFinal}
-          podeEditar={podeEditar}
-          salvando={salvarMutation.isPending}
-          onSave={(patch) => salvarMutation.mutate(patch)}
-        />
-      </section>
+        {tab === 'itens' && (
+          <>
+            <section className={`${styles.section} ${styles.itemsSection}`}>
+              <ProdutosServicosSection
+                produtos={os.produtos}
+                servicos={os.servicos}
+                faturamento={os.faturamento}
+                podeAddProduto={podeAddProduto}
+                podeAddServico={podeAddServico}
+                mostrarPreco={mostrarPreco}
+                podeEditarPreco={podeEditarPreco}
+                onAdicionarProduto={adicionarProduto}
+                onAdicionarServico={adicionarServico}
+                onAtualizarProduto={atualizarProduto}
+                onAtualizarServico={atualizarServico}
+                onRemoverProduto={(row: ItemGridRow) =>
+                  setRemovendo({ tipo: 'produto', codigo: row.codigo, descricao: row.descricao })
+                }
+                onRemoverServico={(row: ItemGridRow) =>
+                  setRemovendo({ tipo: 'servico', codigo: row.codigo, descricao: row.descricao })
+                }
+              />
+            </section>
 
-      <section id="itens" className={`${styles.section} ${styles.itemsSection}`}>
-        <ProdutosServicosSection
-          produtos={os.produtos}
-          servicos={os.servicos}
-          faturamento={os.faturamento}
-          podeAddProduto={podeAddProduto}
-          podeAddServico={podeAddServico}
-          mostrarPreco={mostrarPreco}
-          podeEditarPreco={podeEditarPreco}
-          onAdicionarProduto={adicionarProduto}
-          onAdicionarServico={adicionarServico}
-          onAtualizarProduto={atualizarProduto}
-          onAtualizarServico={atualizarServico}
-          onRemoverProduto={(row: ItemGridRow) =>
-            setRemovendo({ tipo: 'produto', codigo: row.codigo, descricao: row.descricao })
-          }
-          onRemoverServico={(row: ItemGridRow) =>
-            setRemovendo({ tipo: 'servico', codigo: row.codigo, descricao: row.descricao })
-          }
-        />
-      </section>
+            {mostrarPreco && (
+              <section className={styles.financialSummary}>
+                <div>
+                  <h2>▦ Resumo financeiro</h2>
+                  <p>Totais calculados no Firebird pelos itens ativos.</p>
+                </div>
+                <div>
+                  <span>Total produtos</span>
+                  <strong>
+                    R$ {os.produtos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
+                  </strong>
+                  <span>Total serviços</span>
+                  <strong>
+                    R$ {os.servicos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
+                  </strong>
+                  <b>
+                    Total geral <em>R$ {(os.faturamento ?? 0).toFixed(2)}</em>
+                  </b>
+                </div>
+              </section>
+            )}
+          </>
+        )}
 
-      {mostrarPreco && (
-        <section className={styles.financialSummary}>
-          <div>
-            <h2>▦ Resumo financeiro</h2>
-            <p>Totais calculados no Firebird pelos itens ativos.</p>
-          </div>
-          <div>
-            <span>Total produtos</span>
-            <strong>
-              R$ {os.produtos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
-            </strong>
-            <span>Total serviços</span>
-            <strong>
-              R$ {os.servicos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
-            </strong>
-            <b>
-              Total geral <em>R$ {(os.faturamento ?? 0).toFixed(2)}</em>
-            </b>
-          </div>
-        </section>
-      )}
+        {tab === 'historico' && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Histórico</h2>
+            <HistoryTimeline entries={os.historico} />
+          </section>
+        )}
 
-      <section id="historico" className={styles.section}>
-        <h2 className={styles.sectionTitle}>Histórico</h2>
-        <HistoryTimeline entries={os.historico} />
-      </section>
-
-      <section id="fotos" className={styles.section}>
-        <h2 className={styles.sectionTitle}>Fotos</h2>
-        <FotosSection id={id} podeEditar={podeEditar} />
-      </section>
+        {tab === 'fotos' && (
+          <section className={styles.section}>
+            <h2 className={styles.sectionTitle}>Fotos</h2>
+            <FotosSection id={id} podeEditar={podeEditar} />
+          </section>
+        )}
+      </Tabs>
 
       <ConfirmDialog
         open={removendo !== null}

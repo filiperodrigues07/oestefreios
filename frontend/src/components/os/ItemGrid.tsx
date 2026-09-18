@@ -296,7 +296,7 @@ export function ItemGrid({
               <span className={`${styles.addQtyPreco} ${styles.mono}`}>Total R$ {totalPrevia.toFixed(2)}</span>
             )}
             {selecionado && (
-              <div style={{ display: 'flex', gap: 'var(--space-1)', justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
                 <button
                   type="button"
                   className={styles.confirmButton}
@@ -309,6 +309,7 @@ export function ItemGrid({
                 <button type="button" className={styles.cancelButton} onClick={cancelarSelecao} aria-label="Cancelar seleção (Esc)">
                   ✕
                 </button>
+                <span className={styles.shortcutHint}>Enter confirma · Esc cancela</span>
               </div>
             )}
           </div>

@@ -4,19 +4,8 @@
   padding: var(--space-6);
 }
 
-.createPage {
-  max-width: 720px;
-}
-
 .detailPage {
   max-width: 1440px;
-}
-
-.createCard {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  margin-top: var(--space-4);
 }
 
 .textarea {
@@ -50,6 +39,15 @@
 .sectionTitle { margin: 0 0 10px; font-size: 14px; }.dataGrid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px 18px; }.dataGrid label { display: flex; min-width: 0; flex-direction: column; gap: 5px; }.dataGrid input { width: 100%; height: 33px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text-primary); padding: 0 10px; font-size: 12px; }.dataGrid input[readonly] { cursor: default; }.spanTwo { grid-column: span 2; }
 
 .tabs { display: flex; gap: 2px; margin-top: 18px; border-bottom: 1px solid var(--color-border); overflow-x: auto; }.tabs a { display: inline-flex; min-height: 35px; align-items: center; border-radius: 7px 7px 0 0; color: var(--color-text-secondary); font-size: 12px; padding: 0 15px; text-decoration: none; white-space: nowrap; }.tabs a:first-child { background: var(--color-primary); color: #fff; }.tabs a:hover { background: var(--color-neutral-surface); color: var(--color-text-primary); }
+
+.tabDisabled { display: inline-flex; min-height: 35px; align-items: center; border-radius: 7px 7px 0 0; color: var(--color-text-secondary); font-size: 12px; padding: 0 15px; white-space: nowrap; opacity: 0.45; cursor: not-allowed; }
+
+.contextBar {
+  margin: 10px 0 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+.contextBar strong { color: var(--color-text-primary); font-weight: 600; }
 
 .statusSection {
   display: flex;

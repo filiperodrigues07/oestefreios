@@ -12,6 +12,7 @@ export default defineConfig({
         name: 'Oeste Freios — Controle de OS',
         short_name: 'Oeste Freios',
         description: 'Controle de Ordens de Serviço integrado ao CHERP.',
+        lang: 'pt-BR',
         theme_color: '#0f172a',
         background_color: '#ffffff',
         display: 'standalone',
@@ -46,7 +47,9 @@ export default defineConfig({
         ],
       },
       devOptions: {
-        enabled: false,
+        // localhost é um contexto seguro: habilita o service worker também no Vite
+        // para testar instalação e funcionamento offline antes da publicação.
+        enabled: true,
       },
     }),
   ],

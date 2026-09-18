@@ -77,8 +77,37 @@ export function ProdutosServicosSection({
     descricaoComplementar: s.descricaoComplementar,
   }));
 
+  const totalProdutos = produtos.reduce((total, item) => total + (item.total ?? 0), 0);
+  const totalServicos = servicos.reduce((total, item) => total + (item.total ?? 0), 0);
+  const totalGeral = faturamento ?? totalProdutos + totalServicos;
+
   return (
     <>
+      {mostrarPreco && (
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 'var(--space-4)',
+            justifyContent: 'flex-end',
+            alignItems: 'baseline',
+            padding: '10px 14px',
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--color-surface-elevated)',
+            fontSize: 'var(--font-size-sm)',
+          }}
+        >
+          <span style={{ color: 'var(--color-text-secondary)' }}>
+            Produtos <strong style={{ color: 'var(--color-text-primary)' }}>R$ {totalProdutos.toFixed(2)}</strong>
+          </span>
+          <span style={{ color: 'var(--color-text-secondary)' }}>
+            Serviços <strong style={{ color: 'var(--color-text-primary)' }}>R$ {totalServicos.toFixed(2)}</strong>
+          </span>
+          <span style={{ fontWeight: 700 }}>Total geral: R$ {totalGeral.toFixed(2)}</span>
+        </div>
+      )}
+
       <div>
         <h2 style={{ fontSize: 'var(--font-size-md)', margin: '0 0 var(--space-2)' }}>Produtos</h2>
         <ItemGrid
@@ -121,9 +150,6 @@ export function ProdutosServicosSection({
           vazio="Nenhum serviço lançado."
           placeholder="Descrição do serviço"
         />
-        {faturamento !== undefined && (
-          <p style={{ textAlign: 'right', fontWeight: 600, marginTop: 'var(--space-2)' }}>Total geral: R$ {faturamento.toFixed(2)}</p>
-        )}
       </div>
     </>
   );

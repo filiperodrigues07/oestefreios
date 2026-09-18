@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { criarEquipamento } from '../../api/equipamentos.api.js';
+import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
 import { ClienteSearch } from '../search/ClienteSearch.js';
 import { Button, Input, Modal } from '../ui/index.js';
 import type { ClienteDTO, EquipamentoDTO, EquipamentoInput } from '../../types/cherp.types.js';
@@ -33,6 +34,7 @@ const VAZIO: Omit<EquipamentoInput, 'clienteCodigo'> = {
 export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, onCreated }: VeiculoFormModalProps) {
   const [form, setForm] = useState({ ...VAZIO, placa: placaInicial ?? '' });
   const [clienteEscolhido, setClienteEscolhido] = useState<ClienteDTO | null>(null);
+  const [novoClienteAberto, setNovoClienteAberto] = useState(false);
 
   // `placaInicial` só existe de verdade no momento em que o modal abre (a busca por placa que
   // não achou nada) — useState só captura o valor do primeiro mount, então precisa resincronizar
@@ -98,10 +100,28 @@ export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, o
                 </button>
               </div>
             ) : (
-              <ClienteSearch onSelect={setClienteEscolhido} />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <ClienteSearch onSelect={setClienteEscolhido} />
+                <button
+                  type="button"
+                  onClick={() => setNovoClienteAberto(true)}
+                  style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: 'var(--font-size-sm)', textAlign: 'left', padding: 0 }}
+                >
+                  + Cadastrar novo cliente
+                </button>
+              </div>
             )}
           </div>
         )}
+
+        <ClienteFormModal
+          open={novoClienteAberto}
+          onClose={() => setNovoClienteAberto(false)}
+          onCreated={(clienteNovo) => {
+            setClienteEscolhido(clienteNovo);
+            setNovoClienteAberto(false);
+          }}
+        />
 
         <Input
           label="Placa"
@@ -111,8 +131,8 @@ export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, o
           placeholder="AAA-9999 ou AAA9A99"
         />
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-          <Input label="Marca" value={form.marca} onChange={(e) => setForm({ ...form, marca: e.target.value })} />
-          <Input label="Modelo" value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })} />
+          <Input label="Marca" uppercase value={form.marca} onChange={(e) => setForm({ ...form, marca: e.target.value })} />
+          <Input label="Modelo" uppercase value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
           <Input
@@ -121,9 +141,9 @@ export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, o
             onChange={(e) => setForm({ ...form, anoFabricacao: e.target.value })}
           />
           <Input label="Ano mod." value={form.anoModelo} onChange={(e) => setForm({ ...form, anoModelo: e.target.value })} />
-          <Input label="Cor" value={form.cor} onChange={(e) => setForm({ ...form, cor: e.target.value })} />
+          <Input label="Cor" uppercase value={form.cor} onChange={(e) => setForm({ ...form, cor: e.target.value })} />
         </div>
-        <Input label="Chassi" value={form.chassi} onChange={(e) => setForm({ ...form, chassi: e.target.value })} />
+        <Input label="Chassi" uppercase value={form.chassi} onChange={(e) => setForm({ ...form, chassi: e.target.value })} />
 
         {mutation.isError && (
           <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>

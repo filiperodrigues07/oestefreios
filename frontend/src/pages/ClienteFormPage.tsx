@@ -4,6 +4,7 @@ import { useNavigate, useParams } from 'react-router';
 import { atualizarCliente, consultarCep, consultarCnpj, criarCliente, getClienteByCodigo } from '../api/clientes.api.js';
 import { Button, Card, Checkbox, ErrorState, Input, LinkButton, PageHeader, Select, Skeleton, useToast } from '../components/ui/index.js';
 import type { ClienteDTO, ClienteInput, RegimeTributario, TipoPessoa } from '../types/cherp.types.js';
+import { formatarCep, formatarDocumento, formatarTelefone } from '../utils/clienteFormatters.js';
 import styles from './ClienteFormPage.module.css';
 
 const REGIME_TRIBUTARIO_OPTIONS = [
@@ -17,37 +18,6 @@ const UF_OPTIONS = [
   'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR',
   'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
 ].map((uf) => ({ value: uf, label: uf }));
-
-function apenasDigitos(valor: string, limite: number): string {
-  return valor.replace(/\D/g, '').slice(0, limite);
-}
-
-function formatarDocumento(valor: string, tipo: TipoPessoa): string {
-  const digitos = apenasDigitos(valor, tipo === 'PJ' ? 14 : 11);
-  if (tipo === 'PJ') {
-    return digitos
-      .replace(/^(\d{2})(\d)/, '$1.$2')
-      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
-      .replace(/\.(\d{3})(\d)/, '.$1/$2')
-      .replace(/(\d{4})(\d)/, '$1-$2');
-  }
-  return digitos
-    .replace(/^(\d{3})(\d)/, '$1.$2')
-    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
-    .replace(/\.(\d{3})(\d)/, '.$1-$2');
-}
-
-function formatarCep(valor: string): string {
-  return apenasDigitos(valor, 8).replace(/^(\d{5})(\d)/, '$1-$2');
-}
-
-function formatarTelefone(valor: string): string {
-  const digitos = apenasDigitos(valor, 11);
-  if (digitos.length <= 10) {
-    return digitos.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{4})(\d)/, '$1-$2');
-  }
-  return digitos.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
-}
 
 const FORM_VAZIO: ClienteInput = {
   ativo: true,
@@ -295,10 +265,11 @@ export function ClienteFormPage() {
           <Input
             label={form.tipoPessoa === 'PJ' ? 'Razão Social' : 'Nome completo'}
             required
+            uppercase
             value={form.nome}
             onChange={(e) => setForm({ ...form, nome: e.target.value })}
           />
-          <Input label="Nome Fantasia" value={form.nomeFantasia} onChange={(e) => setForm({ ...form, nomeFantasia: e.target.value })} />
+          <Input label="Nome Fantasia" uppercase value={form.nomeFantasia} onChange={(e) => setForm({ ...form, nomeFantasia: e.target.value })} />
         </div>
 
         <div>
@@ -349,15 +320,15 @@ export function ClienteFormPage() {
           <Button type="button" variant="secondary" loading={cepMutation.isPending} onClick={buscarCep}>Consultar CEP</Button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
-          <Input label="Endereço" value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
+          <Input label="Endereço" uppercase value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
           <Input label="Número" value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-          <Input label="Bairro" value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
-          <Input label="Complemento" value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
+          <Input label="Bairro" uppercase value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+          <Input label="Complemento" uppercase value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 'var(--space-3)' }}>
-          <Input label="Cidade" value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+          <Input label="Cidade" uppercase value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
           <Select
             label="UF"
             options={UF_OPTIONS}

@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
+import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
+import { EquipamentoSearch } from '../search/EquipamentoSearch.js';
 import { ClienteSearch } from '../search/ClienteSearch.js';
 import { PlacaSearch } from '../search/PlacaSearch.js';
 import { Card } from '../ui/index.js';
@@ -43,8 +45,29 @@ export function ClienteVeiculoSection(props: ClienteVeiculoSectionProps) {
   return <ClienteVeiculoCreatePicker {...props} />;
 }
 
+function LinkButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        background: 'transparent',
+        border: 'none',
+        color: 'var(--color-primary)',
+        cursor: 'pointer',
+        fontSize: 'var(--font-size-sm)',
+        textAlign: 'left',
+        padding: 0,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
 function ClienteVeiculoCreatePicker({ cliente, equipamento, onClienteChange, onEquipamentoChange }: ClienteVeiculoSectionCreateProps) {
   const [novoVeiculoAberto, setNovoVeiculoAberto] = useState(false);
+  const [novoClienteAberto, setNovoClienteAberto] = useState(false);
   const [placaDigitada, setPlacaDigitada] = useState('');
   const [resolvendoCliente, setResolvendoCliente] = useState(false);
 
@@ -84,8 +107,41 @@ function ClienteVeiculoCreatePicker({ cliente, equipamento, onClienteChange, onE
         {resolvendoCliente ? (
           <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Buscando cliente...</p>
         ) : (
-          <ClienteSearch onSelect={onClienteChange} />
+          <>
+            <ClienteSearch onSelect={onClienteChange} />
+            <LinkButton onClick={() => setNovoClienteAberto(true)}>+ Cadastrar novo cliente</LinkButton>
+          </>
         )}
+
+        <ClienteFormModal
+          open={novoClienteAberto}
+          onClose={() => setNovoClienteAberto(false)}
+          onCreated={(clienteNovo) => {
+            onClienteChange(clienteNovo);
+            setNovoClienteAberto(false);
+          }}
+        />
+      </Card>
+    );
+  }
+
+  // Cliente escolhido (cadastrado agora ou já existente) mas ainda sem veículo — busca só entre os dele.
+  if (cliente && !equipamento) {
+    return (
+      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <FieldSummary label="Cliente" value={cliente.nome} onChange={limpar} />
+        <EquipamentoSearch clienteCodigo={cliente.codigo} onSelect={onEquipamentoChange} />
+        <LinkButton onClick={() => setNovoVeiculoAberto(true)}>+ Cadastrar novo veículo</LinkButton>
+
+        <VeiculoFormModal
+          open={novoVeiculoAberto}
+          clienteCodigo={cliente.codigo}
+          onClose={() => setNovoVeiculoAberto(false)}
+          onCreated={(veiculo) => {
+            onEquipamentoChange(veiculo);
+            setNovoVeiculoAberto(false);
+          }}
+        />
       </Card>
     );
   }
@@ -93,21 +149,8 @@ function ClienteVeiculoCreatePicker({ cliente, equipamento, onClienteChange, onE
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
       <PlacaSearch onSelect={handlePlacaSelect} onQueryChange={setPlacaDigitada} />
-      <button
-        type="button"
-        onClick={() => setNovoVeiculoAberto(true)}
-        style={{
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--color-primary)',
-          cursor: 'pointer',
-          fontSize: 'var(--font-size-sm)',
-          textAlign: 'left',
-          padding: 0,
-        }}
-      >
-        + Cadastrar novo veículo
-      </button>
+      <LinkButton onClick={() => setNovoVeiculoAberto(true)}>+ Cadastrar novo veículo</LinkButton>
+      <LinkButton onClick={() => setNovoClienteAberto(true)}>+ Cadastrar novo cliente</LinkButton>
 
       <VeiculoFormModal
         open={novoVeiculoAberto}
@@ -117,6 +160,15 @@ function ClienteVeiculoCreatePicker({ cliente, equipamento, onClienteChange, onE
           onEquipamentoChange(veiculo);
           onClienteChange(clienteDoNovoVeiculo ?? null);
           setNovoVeiculoAberto(false);
+        }}
+      />
+
+      <ClienteFormModal
+        open={novoClienteAberto}
+        onClose={() => setNovoClienteAberto(false)}
+        onCreated={(clienteNovo) => {
+          onClienteChange(clienteNovo);
+          setNovoClienteAberto(false);
         }}
       />
     </Card>
