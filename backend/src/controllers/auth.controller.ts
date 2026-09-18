@@ -102,3 +102,10 @@ export async function authConfigHandler(_req: Request, res: Response) {
   const passwordResetEnabled = await authService.isPasswordResetAvailable();
   success(res, { passwordResetEnabled });
 }
+
+export async function changePasswordHandler(req: Request, res: Response) {
+  const { currentPassword, newPassword } = req.body as { currentPassword: string; newPassword: string };
+  await authService.changePassword(req.user!.id, currentPassword, newPassword, requestContext(req));
+  res.clearCookie(REFRESH_COOKIE, { path: '/api/auth' });
+  success(res, null, 'Senha alterada. Entre novamente.');
+}

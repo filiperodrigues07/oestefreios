@@ -40,6 +40,8 @@ export interface AuthUser {
   roleId: string;
   roleName: string;
   permissions: Permission[];
+  mustChangePassword: boolean;
+  cherpUsuarioChave?: number;
 }
 
 export interface LoginResponse {

@@ -80,6 +80,10 @@ export async function markOperationFailed(id: number): Promise<void> {
   });
 }
 
+export async function clearOfflineQueue(): Promise<void> {
+  await withStore('readwrite', (store) => store.clear());
+}
+
 export async function countPending(): Promise<number> {
   const all = await getAllOperations();
   return all.length;

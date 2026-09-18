@@ -10,6 +10,7 @@ export function toServicoDTO(
     codigo: servico.codigo,
     descricao: servico.descricao,
     unidade: servico.unidade,
+    categoria: servico.categoria,
   };
 
   if (!permissions.includes('FINANCIAL_VIEW')) {

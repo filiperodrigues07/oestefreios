@@ -292,7 +292,7 @@ export class ClienteRepositoryFirebird implements IClienteRepository {
           paraSN(input.transportador),
           paraSN(input.representante),
           input.regimeTributario ?? null,
-          env.FIREBIRD_OS_USUARIO_CHAVE,
+          input.cherpUsuarioChave ?? env.FIREBIRD_OS_USUARIO_CHAVE,
         ],
       );
       return codigoGerado;

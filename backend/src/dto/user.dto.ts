@@ -10,6 +10,8 @@ export interface UserSummaryDTO {
   permissions: Permission[];
   /** true quando `permissions` diverge do preset atual do papel — sinaliza customização na UI. */
   isCustom: boolean;
+  mustChangePassword: boolean;
+  cherpUsuarioChave: number | null;
   createdAt: string;
 }
 

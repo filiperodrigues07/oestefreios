@@ -3,6 +3,7 @@ export interface OperationalServicoDTO {
   codigo: string;
   descricao: string;
   unidade: string;
+  categoria?: string;
 }
 
 /** Servido só a perfis com FINANCIAL_VIEW. */

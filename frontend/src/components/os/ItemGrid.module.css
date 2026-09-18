@@ -44,44 +44,45 @@
 }
 
 /* Ordem fixa das colunas (ver ItemGrid.tsx): Código, Descrição, Un., Qtd., [Preço unit., Total], [ação].
-   Descrição tem min-width garantido — se o card ficar apertado (Produtos/Serviços lado a lado), a
-   TABELA rola horizontal (.tableScroll já tem overflow-x) em vez de espremer a coluna até quebrar
-   letra por letra. Larguras enxutas nas outras colunas pra sobrar o máximo de espaço pra descrição. */
+   Produtos/Serviços agora ocupam a largura toda da tela (OSForm.module.css .itemsSection empilhado),
+   então as colunas fixas podem respirar mais — Descrição continua com min-width garantido e, se
+   ainda faltar espaço numa tela estreita, a TABELA rola horizontal (.tableScroll) em vez de
+   espremer a coluna até quebrar letra por letra. */
 .table th:nth-child(1),
 .table td:nth-child(1) {
-  width: 76px;
+  width: 100px;
 }
 
 .table th:nth-child(2),
 .table td:nth-child(2) {
-  min-width: 160px;
+  min-width: 220px;
   white-space: normal;
   overflow-wrap: break-word;
 }
 
 .table th:nth-child(3),
 .table td:nth-child(3) {
-  width: 44px;
+  width: 56px;
 }
 
 .table th:nth-child(4),
 .table td:nth-child(4) {
-  width: 60px;
+  width: 76px;
 }
 
 .table th:nth-child(5),
 .table td:nth-child(5) {
-  width: 96px;
+  width: 120px;
 }
 
 .table th:nth-child(6),
 .table td:nth-child(6) {
-  width: 96px;
+  width: 120px;
 }
 
 .table th:nth-child(7),
 .table td:nth-child(7) {
-  width: 36px;
+  width: 76px;
 }
 
 .table tbody tr:last-child td {
@@ -138,6 +139,10 @@
   text-align: right;
 }
 
+.center {
+  text-align: center;
+}
+
 .mono {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -158,13 +163,28 @@
   align-items: flex-end;
   gap: var(--space-3);
   padding: var(--space-3);
-  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
   background: var(--color-surface-elevated);
 }
 
+.addCodigo {
+  flex: 0 1 160px;
+  min-width: 140px;
+}
+
+.codigoInput {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
 .addSearch {
-  flex: 1 1 240px;
-  min-width: 200px;
+  flex: 1 1 260px;
+  min-width: 220px;
+}
+
+.optionMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
 }
 
 .addQty {
@@ -181,9 +201,49 @@
 }
 
 .addQtyPreco {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--color-text-primary);
   white-space: nowrap;
+}
+
+.addComplemento {
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.complementoInput {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.complementoTexto {
+  margin-top: 2px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-style: italic;
+}
+
+.priceInput {
+  width: 100px;
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-md);
+}
+
+.priceInput:disabled {
+  opacity: 0.5;
 }
 
 .qtyInput {
@@ -240,6 +300,14 @@
 .cancelButton {
   composes: iconButton;
   color: var(--color-text-secondary);
+}
+
+.editItemButton {
+  composes: iconButton;
+  color: var(--color-text-secondary);
+}
+.editItemButton:hover {
+  color: var(--color-primary);
 }
 
 .errorText {

@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { boolean, jsonb, pgTable, primaryKey, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 export const roles = pgTable('roles', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -38,9 +38,12 @@ export const users = pgTable('users', {
     .notNull()
     .references(() => roles.id),
   isActive: boolean('is_active').notNull().default(true),
+  mustChangePassword: boolean('must_change_password').notNull().default(false),
+  sessionVersion: integer('session_version').notNull().default(0),
+  cherpUsuarioChave: integer('cherp_usuario_chave'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [uniqueIndex('users_cherp_usuario_chave_unique').on(table.cherpUsuarioChave)]);
 
 /**
  * Permissões efetivas por usuário — fonte de verdade a partir da Fase G (redesenho de

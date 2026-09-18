@@ -2,6 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { env } from '../config/env.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../auth/jwt.js';
 import { hashPassword, verifyPassword } from '../auth/password.js';
+import { passwordPolicyErrors } from '../auth/passwordPolicy.js';
 import type { LoginResponseDTO } from '../dto/auth.dto.js';
 import { ValidationError } from '../errors/ValidationError.js';
 import { UnauthorizedError } from '../errors/UnauthorizedError.js';
@@ -27,6 +28,9 @@ function toJwtPayload(user: UserWithRole): JwtPayload {
     roleId: user.roleId,
     roleName: user.roleName,
     permissions: user.permissions,
+    sessionVersion: user.sessionVersion,
+    mustChangePassword: user.mustChangePassword,
+    cherpUsuarioChave: user.cherpUsuarioChave ?? undefined,
   };
 }
 
@@ -41,6 +45,8 @@ function toLoginResponse(user: UserWithRole, accessToken: string): LoginResponse
       roleId: user.roleId,
       roleName: user.roleName,
       permissions: user.permissions,
+      mustChangePassword: user.mustChangePassword,
+      cherpUsuarioChave: user.cherpUsuarioChave ?? undefined,
     },
   };
 }
@@ -170,18 +176,34 @@ export async function forgotPassword(email: string, ctx: RequestContext): Promis
 }
 
 export async function resetPassword(token: string, newPassword: string, ctx: RequestContext): Promise<void> {
-  const stored = await passwordResetTokenRepository.findValidByToken(token);
-  if (!stored) {
+  const preview = await passwordResetTokenRepository.findValidByToken(token);
+  if (!preview) {
     throw new ValidationError('Link de redefinição inválido ou expirado.');
   }
+  const user = await userRepository.findById(preview.userId);
+  const [passwordError] = passwordPolicyErrors(newPassword, { name: user?.name, email: user?.email });
+  if (passwordError) throw new ValidationError(passwordError);
+  const stored = await passwordResetTokenRepository.consumeValidToken(token);
+  if (!stored) throw new ValidationError('Este link já foi utilizado.');
 
   const passwordHash = await hashPassword(newPassword);
   await userRepository.updatePasswordHash(stored.userId, passwordHash);
-  await passwordResetTokenRepository.markUsed(stored.id);
   // Redefinir a senha derruba todas as sessões ativas — quem "roubou" a sessão antiga não continua logado.
   await refreshTokenRepository.revokeAllForUser(stored.userId);
 
   await audit('PASSWORD_RESET_COMPLETED', stored.userId, ctx);
+}
+
+export async function changePassword(userId: string, currentPassword: string, newPassword: string, ctx: RequestContext): Promise<void> {
+  const user = await userRepository.findById(userId);
+  if (!user || !(await verifyPassword(user.passwordHash, currentPassword))) {
+    throw new ValidationError('A senha atual está incorreta.');
+  }
+  const [passwordError] = passwordPolicyErrors(newPassword, { name: user.name, email: user.email });
+  if (passwordError) throw new ValidationError(passwordError);
+  await userRepository.updatePasswordHash(userId, await hashPassword(newPassword));
+  await refreshTokenRepository.revokeAllForUser(userId);
+  await audit('PASSWORD_CHANGED', userId, ctx, user.name);
 }
 
 export async function isPasswordResetAvailable(): Promise<boolean> {

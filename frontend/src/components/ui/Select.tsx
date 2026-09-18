@@ -1,4 +1,4 @@
-import { forwardRef, useId, type SelectHTMLAttributes } from 'react';
+import { forwardRef, useId, type ReactNode, type SelectHTMLAttributes } from 'react';
 import styles from './Input.module.css';
 
 interface SelectOption {
@@ -7,7 +7,7 @@ interface SelectOption {
 }
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string;
+  label?: ReactNode;
   options: SelectOption[];
   placeholder?: string;
 }

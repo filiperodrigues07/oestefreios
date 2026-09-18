@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState, type ReactNode } from 'react';
-import { NavLink } from 'react-router';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { NavLink, useLocation } from 'react-router';
 import { getBranding } from '../../api/settings.api.js';
 import { getDashboardOperacional } from '../../api/dashboard.api.js';
 import { hasPermission, useAuthStore } from '../../store/authStore.js';
@@ -13,15 +13,38 @@ import { Footer } from './Footer.js';
 import { NavIcon } from './NavIcon.js';
 import { NAV_ITEMS } from './navItems.js';
 import { OfflineBanner } from './OfflineBanner.js';
+import { ProfileModal } from './ProfileModal.js';
 import { SidebarProfile } from './SidebarProfile.js';
 import { GlobalSearch } from './GlobalSearch.js';
 import clientLogo from '../../../../img/logo-clean.png';
+import type { DashboardAtencaoDTO } from '../../types/dashboard.types.js';
 
-function brandInitials(name: string): string {
-  const words = name.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return 'OF';
-  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
-  return (words[0]![0]! + words[1]![0]!).toUpperCase();
+function tituloDaPagina(pathname: string): string {
+  if (pathname === '/') return 'Dashboard';
+  if (pathname === '/os') return 'Ordens de Serviço';
+  if (pathname === '/os/nova') return 'Nova Ordem de Serviço';
+  if (pathname.startsWith('/os/')) return 'Ordem de Serviço';
+  if (pathname === '/clientes') return 'Clientes';
+  if (pathname === '/clientes/novo') return 'Novo Cliente';
+  if (pathname.startsWith('/clientes/')) return 'Editar Cliente';
+  if (pathname === '/produtos') return 'Produtos e Serviços';
+  if (pathname === '/relatorios') return 'Relatórios';
+  if (pathname === '/auditoria') return 'Auditoria';
+  if (pathname === '/usuarios') return 'Usuários';
+  if (pathname === '/configuracoes') return 'Configurações';
+  return 'Oeste Freios';
+}
+
+function chaveNotificacao(os: DashboardAtencaoDTO): string {
+  return `${os.id}:${os.status}:${os.prioridade}:${os.dias}`;
+}
+
+function descricaoNotificacao(os: DashboardAtencaoDTO): string {
+  if (os.prioridade === 'URGENTE') return 'Prioridade urgente: precisa de ação imediata.';
+  if (os.prioridade === 'ALTA') return 'Prioridade alta: acompanhe esta OS.';
+  if (os.status === 'AGUARDANDO_PECA') return `Aguardando peça há ${os.dias} ${os.dias === 1 ? 'dia' : 'dias'}.`;
+  if (os.status === 'AGUARDANDO_CLIENTE') return `Aguardando retorno do cliente há ${os.dias} ${os.dias === 1 ? 'dia' : 'dias'}.`;
+  return `OS aberta há ${os.dias} ${os.dias === 1 ? 'dia' : 'dias'}.`;
 }
 
 /**
@@ -32,6 +55,8 @@ function brandInitials(name: string): string {
  * é só pra não oferecer link pra tela que vai dar 403.
  */
 export function AppShell({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const tituloPagina = tituloDaPagina(location.pathname);
   const items = NAV_ITEMS.filter((item) => !item.anyPermission || item.anyPermission.some(hasPermission));
   const collapsed = useSidebarStore((s) => s.collapsed);
   const toggleSidebar = useSidebarStore((s) => s.toggle);
@@ -40,6 +65,9 @@ export function AppShell({ children }: { children: ReactNode }) {
   const toggleTheme = useThemeStore((s) => s.toggleTheme);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [notificacoesLidas, setNotificacoesLidas] = useState<string[]>([]);
+  const notificationWrapperRef = useRef<HTMLDivElement>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const notificationPeriod = useMemo(() => {
     const fim = new Date(); fim.setHours(23, 59, 59, 999);
     const inicio = new Date(fim); inicio.setDate(inicio.getDate() - 29); inicio.setHours(0, 0, 0, 0);
@@ -47,16 +75,63 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, []);
   const canViewDashboard = hasPermission('REPORT_VIEW');
   const { data: notificationData } = useQuery({ queryKey: ['header-notifications'], queryFn: () => getDashboardOperacional(notificationPeriod), enabled: canViewDashboard, staleTime: 30_000 });
+  const notificacoes = useMemo(
+    () => (notificationData?.atencao ?? []).filter((os) => !notificacoesLidas.includes(chaveNotificacao(os))),
+    [notificationData?.atencao, notificacoesLidas],
+  );
 
-  // Nome/logo do cliente (Configurações > Geral) — qualquer usuário autenticado pode ler.
+  // Nome/logo/cor do cliente (Configurações > Geral) — qualquer usuário autenticado pode ler.
   const { data: branding } = useQuery({ queryKey: ['branding'], queryFn: getBranding, staleTime: 5 * 60_000 });
+
+  // Aplica a cor de destaque salva em Configurações > Geral (ou no atalho do modal de perfil) no app inteiro.
+  useEffect(() => {
+    if (branding?.corDestaque) {
+      document.documentElement.style.setProperty('--color-primary', branding.corDestaque);
+    }
+  }, [branding?.corDestaque]);
+
+  useEffect(() => {
+    document.title = `${tituloPagina} | ${branding?.nomeEmpresa || 'Oeste Freios'}`;
+  }, [tituloPagina, branding?.nomeEmpresa]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const value = localStorage.getItem(`notifications-read:${user.id}`);
+      setNotificacoesLidas(value ? JSON.parse(value) : []);
+    } catch {
+      setNotificacoesLidas([]);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    function fecharAoClicarFora(event: PointerEvent) {
+      if (notificationWrapperRef.current && !notificationWrapperRef.current.contains(event.target as Node)) setNotificationsOpen(false);
+    }
+    function fecharComEsc(event: KeyboardEvent) {
+      if (event.key === 'Escape') setNotificationsOpen(false);
+    }
+    document.addEventListener('pointerdown', fecharAoClicarFora);
+    document.addEventListener('keydown', fecharComEsc);
+    return () => {
+      document.removeEventListener('pointerdown', fecharAoClicarFora);
+      document.removeEventListener('keydown', fecharComEsc);
+    };
+  }, []);
+
+  function marcarTodasComoLidas() {
+    if (!user?.id) return;
+    const proximas = [...new Set([...notificacoesLidas, ...notificacoes.map(chaveNotificacao)])];
+    setNotificacoesLidas(proximas);
+    localStorage.setItem(`notifications-read:${user.id}`, JSON.stringify(proximas));
+  }
 
   // "Perfil" já vira o bloco de baixo no desktop (SidebarProfile) — evita duplicar na nav do meio.
   // No mobile (bottom nav) continua aparecendo, é o único jeito de chegar lá por lá.
   const sidebarNavItems = items.filter((item) => item.to !== '/perfil');
   const navSections = [
     { label: 'Visão geral', items: sidebarNavItems.filter((item) => item.to === '/') },
-    { label: 'Operação', items: sidebarNavItems.filter((item) => ['/os', '/clientes', '/produtos'].includes(item.to)) },
+    { label: 'Operação', items: sidebarNavItems.filter((item) => ['/os', '/clientes', '/produtos', '/relatorios'].includes(item.to)) },
     { label: 'Sistema', items: sidebarNavItems.filter((item) => ['/auditoria', '/usuarios', '/configuracoes'].includes(item.to)) },
   ].filter((section) => section.items.length > 0);
 
@@ -76,10 +151,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         </button>
 
         <div className={styles.brand}>
-          {!collapsed && (
-            <img src={branding?.logoUrl || clientLogo} alt={branding?.nomeEmpresa || 'Oeste Freios'} className={styles.brandLogo} />
-          )}
-          {collapsed && <span className={styles.brandText}>{brandInitials(branding?.nomeEmpresa || 'Oeste Freios')}</span>}
+          <img
+            src={branding?.logoUrl || clientLogo}
+            alt={branding?.nomeEmpresa || 'Oeste Freios'}
+            className={`${styles.brandLogo} ${collapsed ? styles.brandLogoCollapsed : ''}`}
+          />
+          {!collapsed && <span className={styles.brandCaption}>Mecânica Oeste Freios</span>}
         </div>
 
         <nav className={styles.sidebarNav} aria-label="Navegação principal">
@@ -103,8 +180,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className={styles.sidebarFooter}>
-          {!collapsed && <div className={styles.promoCard}><strong>Manter sua<br />Oficina em Movimento</strong><span>Gestão simples,<br />resultados reais.</span><b aria-hidden="true">⚙</b></div>}
-          <SidebarProfile collapsed={collapsed} />
+          <SidebarProfile collapsed={collapsed} onOpenProfile={() => setProfileOpen(true)} />
         </div>
 
       </aside>
@@ -113,18 +189,29 @@ export function AppShell({ children }: { children: ReactNode }) {
         <header className={styles.desktopHeader}>
           <div className={styles.desktopSearch}><GlobalSearch /></div>
           <div className={styles.headerActions}>
-            <div className={styles.notificationWrapper}>
-              <button type="button" className={styles.headerIcon} title="Notificações" aria-label="Notificações" onClick={() => setNotificationsOpen((open) => !open)}><span aria-hidden="true">♧</span>{notificationData?.atencao.length ? <i /> : null}</button>
-              {notificationsOpen && <div className={styles.notificationMenu}><strong>Notificações</strong>{notificationData?.atencao.length ? notificationData.atencao.slice(0, 3).map((os) => <button key={os.id} onClick={() => { setNotificationsOpen(false); window.location.assign(`/os/${os.id}`); }}><b>OS #{String(os.numero).padStart(6, '0')}</b><span>{os.prioridade === 'URGENTE' || os.prioridade === 'ALTA' ? 'Prioridade requer atenção' : `Aguardando há ${os.dias} dias`}</span></button>) : <p>Sem pendências operacionais.</p>}</div>}
+            <div className={styles.notificationWrapper} ref={notificationWrapperRef}>
+              <button type="button" className={styles.headerIcon} title="Notificações" aria-label="Notificações" onClick={() => setNotificationsOpen((open) => !open)}>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+                {notificacoes.length ? <i /> : null}
+              </button>
+              {notificationsOpen && (
+                <div className={styles.notificationMenu} role="dialog" aria-label="Notificações">
+                  <div className={styles.notificationMenuHeader}>
+                    <div><strong>Notificações</strong><span>OS que exigem acompanhamento</span></div>
+                    {notificacoes.length > 0 && <button type="button" className={styles.markAllRead} onClick={marcarTodasComoLidas}>Marcar todas como lidas</button>}
+                  </div>
+                  {notificacoes.length ? notificacoes.map((os) => (
+                    <button key={chaveNotificacao(os)} className={styles.notificationItem} onClick={() => { setNotificationsOpen(false); window.location.assign(`/os/${os.id}`); }}>
+                      <b>OS #{String(os.numero).padStart(6, '0')} {os.clienteNome ? `· ${os.clienteNome}` : ''}</b>
+                      <span>{descricaoNotificacao(os)}</span>
+                    </button>
+                  )) : <p className={styles.notificationEmpty}>Nenhuma OS precisa de atenção no momento.</p>}
+                </div>
+              )}
             </div>
             <button type="button" className={styles.headerIcon} onClick={toggleTheme} title={theme === 'dark' ? 'Usar tema claro' : 'Usar tema escuro'} aria-label="Alternar tema">{theme === 'dark' ? '☼' : '☾'}</button>
-            <NavLink to="/perfil" className={styles.desktopProfile} aria-label="Abrir perfil">
-              <Avatar name={user?.name ?? 'Usuário'} photoUrl={user?.photoUrl ?? undefined} size={34} />
-              <span className={styles.desktopProfileCopy}>
-                <strong>{user?.name ?? 'Usuário'}</strong>
-                <small>{user?.roleName ?? 'Conta'}</small>
-              </span>
-            </NavLink>
           </div>
         </header>
         <header className={styles.mobileHeader}>
@@ -139,10 +226,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               <path d="M4 7h16M4 12h16M4 17h16" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
             </svg>
           </button>
-          <span className={styles.mobileSection}>Oeste Freios</span>
-          <NavLink to="/perfil" className={styles.mobileProfile} aria-label="Abrir perfil">
+          <span className={styles.mobileSection}>{tituloPagina}</span>
+          <button type="button" className={styles.mobileProfile} aria-label="Abrir perfil" onClick={() => setProfileOpen(true)}>
             <Avatar name={user?.name ?? 'Usuário'} photoUrl={user?.photoUrl ?? undefined} size={32} />
-          </NavLink>
+          </button>
         </header>
         <OfflineBanner />
         {children}
@@ -152,21 +239,33 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
 
       <nav className={styles.bottomNav} aria-label="Navegação principal">
-        {items.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === '/'}
-            className={({ isActive }) => `${styles.bottomNavItem} ${isActive ? styles.bottomNavItemActive : ''}`}
-          >
-            <NavIcon name={item.icon} />
-            {item.label}
-          </NavLink>
-        ))}
+        {items.map((item) =>
+          item.to === '/perfil' ? (
+            <button
+              key={item.to}
+              type="button"
+              className={styles.bottomNavItem}
+              onClick={() => setProfileOpen(true)}
+            >
+              <NavIcon name={item.icon} />
+              {item.label}
+            </button>
+          ) : (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === '/'}
+              className={({ isActive }) => `${styles.bottomNavItem} ${isActive ? styles.bottomNavItemActive : ''}`}
+            >
+              <NavIcon name={item.icon} />
+              {item.label}
+            </NavLink>
+          ),
+        )}
       </nav>
       <Drawer open={mobileMenuOpen} title="Navegação" onClose={() => setMobileMenuOpen(false)}>
         <nav className={styles.mobileNav} aria-label="Navegação principal">
-          {items.map((item) => (
+          {sidebarNavItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -179,8 +278,9 @@ export function AppShell({ children }: { children: ReactNode }) {
             </NavLink>
           ))}
         </nav>
-        <SidebarProfile collapsed={false} />
+        <SidebarProfile collapsed={false} onOpenProfile={() => { setMobileMenuOpen(false); setProfileOpen(true); }} />
       </Drawer>
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>
   );
 }

@@ -638,6 +638,26 @@
           "notNull": true,
           "default": true
         },
+        "must_change_password": {
+          "name": "must_change_password",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "session_version": {
+          "name": "session_version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "cherp_usuario_chave": {
+          "name": "cherp_usuario_chave",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -653,7 +673,40 @@
           "default": "now()"
         }
       },
-      "indexes": {},
+      "indexes": {
+        "users_cherp_usuario_chave_unique": {
+          "name": "users_cherp_usuario_chave_unique",
+          "columns": [
+            {
+              "expression": "cherp_usuario_chave",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last",
+              "opclass": ""
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "users_email_lower_unique": {
+          "name": "users_email_lower_unique",
+          "columns": [
+            {
+              "expression": "lower(\"email\")",
+              "isExpression": true,
+              "asc": true,
+              "nulls": "last",
+              "opclass": ""
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
       "foreignKeys": {
         "users_role_id_roles_id_fk": {
           "name": "users_role_id_roles_id_fk",

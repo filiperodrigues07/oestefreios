@@ -4,6 +4,7 @@ import {
   deleteUserHandler,
   getUserHandler,
   listRolesHandler,
+  listCherpUsersHandler,
   listUsersHandler,
   reenviarConviteHandler,
   updateUserHandler,
@@ -20,6 +21,7 @@ userRouter.use(authenticate);
 
 userRouter.get('/', requirePermission('USER_VIEW'), asyncHandler(listUsersHandler));
 userRouter.get('/roles', requirePermission('USER_VIEW'), asyncHandler(listRolesHandler));
+userRouter.get('/cherp', requirePermission('USER_VIEW'), asyncHandler(listCherpUsersHandler));
 userRouter.get('/:id', requirePermission('USER_VIEW'), validate(userIdParamSchema, 'params'), asyncHandler(getUserHandler));
 
 userRouter.post('/', requirePermission('USER_CREATE'), validate(createUserSchema), asyncHandler(createUserHandler));

@@ -182,3 +182,8 @@
       var(--login-hero) center / cover no-repeat;
   }
 }
+.capsLock {
+  margin: var(--space-1) 0 0;
+  color: var(--color-warning);
+  font-size: var(--font-size-xs);
+}

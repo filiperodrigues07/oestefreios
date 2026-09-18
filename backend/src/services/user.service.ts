@@ -1,11 +1,14 @@
 import { randomBytes } from 'node:crypto';
 import { env } from '../config/env.js';
 import { hashPassword } from '../auth/password.js';
+import { passwordPolicyErrors } from '../auth/passwordPolicy.js';
 import type { RoleOptionDTO, UserSummaryDTO } from '../dto/user.dto.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { ValidationError } from '../errors/ValidationError.js';
 import { passwordResetTokenRepository } from '../repositories/postgres/PasswordResetTokenRepository.js';
+import { refreshTokenRepository } from '../repositories/postgres/RefreshTokenRepository.js';
 import { userRepository, type RoleRow, type UserRow } from '../repositories/postgres/UserRepository.js';
+import { cherpUsuarioRepository } from '../repositories/firebird/CherpUsuarioRepository.firebird.js';
 import type { AuthenticatedUser, Permission } from '../types/auth.types.js';
 import { logger } from '../utils/logger.js';
 import { recordAudit } from './auditLog.service.js';
@@ -22,6 +25,8 @@ export interface CreateUserInput {
   roleId: string;
   isActive?: boolean;
   permissions?: Permission[];
+  password?: string;
+  cherpUsuarioChave?: number | null;
 }
 
 export interface UpdateUserInput {
@@ -30,6 +35,7 @@ export interface UpdateUserInput {
   roleId?: string;
   isActive?: boolean;
   permissions?: Permission[];
+  cherpUsuarioChave?: number | null;
 }
 
 /** Convite expira em 72h — mais folgado que o reset comum (45min), pois é a primeira senha do usuário. */
@@ -63,6 +69,8 @@ async function toSummaryDTO(row: UserRow): Promise<UserSummaryDTO> {
     roleName: row.roleName,
     permissions,
     isCustom,
+    mustChangePassword: row.mustChangePassword,
+    cherpUsuarioChave: row.cherpUsuarioChave,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -75,17 +83,42 @@ function setsEqual(a: Permission[], b: Permission[]): boolean {
 
 export async function listUsers(): Promise<UserSummaryDTO[]> {
   const rows = await userRepository.list();
-  return Promise.all(rows.map(toSummaryDTO));
+  const [permissionsByUser, permissionsByRole] = await Promise.all([
+    userRepository.getPermissionsForUsers(rows.map((row) => row.id)),
+    userRepository.getPermissionsForRoles([...new Set(rows.map((row) => row.roleId))]),
+  ]);
+  return rows.map((row) => {
+    const permissions = permissionsByUser.get(row.id) ?? [];
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      isActive: row.isActive,
+      roleId: row.roleId,
+      roleName: row.roleName,
+      permissions,
+      isCustom: !setsEqual(permissions, permissionsByRole.get(row.roleId) ?? []),
+      mustChangePassword: row.mustChangePassword,
+      cherpUsuarioChave: row.cherpUsuarioChave,
+      createdAt: row.createdAt.toISOString(),
+    };
+  });
 }
 
 export async function listRoles(): Promise<RoleOptionDTO[]> {
   const roles = await userRepository.listRoles();
-  return Promise.all(roles.map(async (role: RoleRow) => ({
+  const permissionsByRole = await userRepository.getPermissionsForRoles(roles.map((role) => role.id));
+  return roles.map((role: RoleRow) => ({
     id: role.id,
     name: role.name,
     description: role.description,
-    permissions: await userRepository.getRolePermissionsPreset(role.id),
-  })));
+    permissions: permissionsByRole.get(role.id) ?? [],
+  }));
+}
+
+export async function listCherpUsers() {
+  if (env.CHERP_MODE !== 'firebird') return [];
+  return cherpUsuarioRepository.listarAtivos();
 }
 
 export async function getUserById(id: string): Promise<UserSummaryDTO> {
@@ -126,9 +159,19 @@ export async function createUser(
   actor: AuthenticatedUser,
   ctx: RequestContext,
 ): Promise<UserSummaryDTO> {
-  const existing = await userRepository.findByEmail(input.email);
+  const email = input.email.trim().toLocaleLowerCase('pt-BR');
+  const existing = await userRepository.findByEmail(email);
   if (existing) {
     throw new ValidationError('Já existe um usuário cadastrado com este e-mail.');
+  }
+
+  if (input.cherpUsuarioChave) {
+    const linked = await userRepository.findByCherpUsuarioChave(input.cherpUsuarioChave);
+    if (linked) throw new ValidationError('Este usuário do CHERP já está vinculado a outra conta.');
+  }
+  if (input.password) {
+    const [passwordError] = passwordPolicyErrors(input.password, { name: input.name, email });
+    if (passwordError) throw new ValidationError(passwordError);
   }
 
   const role = await userRepository.findRoleById(input.roleId);
@@ -137,22 +180,21 @@ export async function createUser(
   }
 
   // Senha temporária aleatória, nunca exposta — o usuário define a própria senha pelo link de convite.
-  const temporaryPassword = randomBytes(32).toString('hex');
-  const passwordHash = await hashPassword(temporaryPassword);
+  const passwordHash = await hashPassword(input.password ?? randomBytes(32).toString('hex'));
 
-  const userId = await userRepository.create({
+  const preset = await userRepository.getRolePermissionsPreset(input.roleId);
+  const userId = await userRepository.createWithPermissions({
     name: input.name,
-    email: input.email,
+    email,
     passwordHash,
     roleId: input.roleId,
     isActive: input.isActive ?? true,
-  });
+    mustChangePassword: Boolean(input.password),
+    cherpUsuarioChave: input.cherpUsuarioChave,
+  }, input.permissions ?? preset);
 
-  const preset = await userRepository.getRolePermissionsPreset(input.roleId);
-  await userRepository.setPermissions(userId, input.permissions ?? preset);
-
-  await auditUser('USER_CREATED', actor, userId, ctx, { name: input.name, email: input.email, roleName: role.name });
-  await sendInviteEmail(userId, input.name, input.email);
+  await auditUser('USER_CREATED', actor, userId, ctx, { name: input.name, email, roleName: role.name, cherpUsuarioChave: input.cherpUsuarioChave });
+  if (!input.password) await sendInviteEmail(userId, input.name, email);
 
   return getUserById(userId);
 }
@@ -167,10 +209,16 @@ export async function updateUser(
   if (!before) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
 
   if (input.email && input.email !== before.email) {
+    input.email = input.email.trim().toLocaleLowerCase('pt-BR');
     const existing = await userRepository.findByEmail(input.email);
     if (existing && existing.id !== id) {
       throw new ValidationError('Já existe um usuário cadastrado com este e-mail.');
     }
+  }
+
+  if (input.cherpUsuarioChave) {
+    const linked = await userRepository.findByCherpUsuarioChave(input.cherpUsuarioChave);
+    if (linked && linked.id !== id) throw new ValidationError('Este usuário do CHERP já está vinculado a outra conta.');
   }
 
   if (input.roleId) {
@@ -183,10 +231,17 @@ export async function updateUser(
     email: input.email,
     roleId: input.roleId,
     isActive: input.isActive,
+    cherpUsuarioChave: input.cherpUsuarioChave,
   });
 
   if (input.permissions) {
     await userRepository.setPermissions(id, input.permissions);
+  }
+
+  const securityChanged = input.roleId !== undefined || input.isActive !== undefined || input.permissions !== undefined;
+  if (securityChanged) {
+    await userRepository.bumpSessionVersion(id);
+    await refreshTokenRepository.revokeAllForUser(id);
   }
 
   await auditUser('USER_UPDATED', actor, id, ctx, { before, after: input });

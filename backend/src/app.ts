@@ -13,12 +13,14 @@ import { notFoundHandler } from './middlewares/notFoundHandler.js';
 import { generalLimiter } from './middlewares/rateLimiter.js';
 import { apiRouter } from './routes/index.js';
 import { logger } from './utils/logger.js';
+import { env } from './config/env.js';
 
 export const app = express();
 
 app.use(helmet());
 app.use(cors(corsOptions));
 app.use('/api/auth/me/photo', express.json({ limit: '1500kb' }));
+app.use('/api/settings/geral', express.json({ limit: '1500kb' }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(generalLimiter);
@@ -30,10 +32,11 @@ app.use((req, _res, next) => {
 
 app.use(pinoHttp({ logger, genReqId: (req: express.Request) => req.requestId ?? randomUUID() }));
 
-app.use('/uploads', express.static(resolve(process.cwd(), 'uploads'), { fallthrough: false, maxAge: '7d' }));
 app.use('/api/uploads', express.static(resolve(process.cwd(), 'uploads'), { fallthrough: false, maxAge: '7d' }));
 
-app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+if (env.NODE_ENV !== 'production') {
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
+}
 
 app.use('/api', apiRouter);
 

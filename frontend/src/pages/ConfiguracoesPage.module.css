@@ -1,19 +1,396 @@
-.page {
-  width: min(100%, 1600px);
-  margin: 0 auto;
-  padding: var(--space-6);
+﻿.page {
+  --color-text-primary: #f5f7ff;
+  --color-text-secondary: #a5c8ec;
+  --color-border: #163451;
+  --color-surface: #061426;
+  --color-primary: #009bfa;
+  color: #f5f7ff;
+  width: 100%;
+  flex: 1;
+  padding: 30px 28px 64px;
+  background:
+    linear-gradient(
+      157deg,
+      transparent 87%,
+      #00204d55 87.1%,
+      transparent 89%,
+      #00318955 89.1%,
+      transparent 91%
+    ),
+    #020f21;
 }
-
+.pageTitle {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin: 0 0 34px;
+}
+.pageTitle > svg {
+  width: 30px;
+  height: 30px;
+  color: #c0d9fa;
+}
+.page h1 {
+  font-size: 24px;
+  line-height: 1.3;
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+.page p {
+  color: #a5c8ec;
+}
+.pageTitle p {
+  margin: 0;
+  font-size: 13px;
+}
+.tabs {
+  display: flex;
+  width: fit-content;
+  max-width: 100%;
+  margin-bottom: 21px;
+  border: 1px solid #102743;
+  border-radius: 9px;
+  overflow: hidden;
+  background: #081428;
+}
+.tabs button {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-right: 1px solid #102039;
+  padding: 0 28px;
+  height: 50px;
+  color: #c1ddff;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.tabs button:last-child {
+  border-right: 0;
+}
+.tabs .activeTab {
+  color: white;
+  background: linear-gradient(115deg, #0045b7, #003986);
+  box-shadow: inset 0 -3px #00adff;
+  border-radius: 7px;
+  font-weight: 600;
+}
 .content {
-  width: min(100%, 920px);
+  width: 100%;
 }
-
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(340px, 1fr);
+  gap: 21px;
+  align-items: start;
+}
+.connectionCard,
+.statusCard,
+.supportCard {
+  border: 1px solid #163451;
+  border-radius: 15px;
+  background: linear-gradient(120deg, #09162b, #05172a);
+}
+.connectionCard {
+  padding: 25px;
+}
+.cardHeading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 27px;
+}
+.page h2 {
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+  margin: 0;
+}
+.cardHeading p {
+  font-size: 13px;
+  margin: 3px 0 0;
+}
+.iconTile {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 44px;
+  border-radius: 13px;
+  background: linear-gradient(135deg, #103878, #062554);
+  color: #dceaff;
+}
+.cardHeading .helpButton {
+  margin-left: auto;
+  min-height: 44px;
+}
+.page button {
+  gap: 12px;
+}
+.page button:focus-visible,
+.page input:focus-visible,
+.page select:focus-visible {
+  outline: 2px solid #00abff;
+  outline-offset: 3px;
+}
+.fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 22px 24px;
+}
+.fullRow {
+  grid-column: 1 / -1;
+}
+.fields label {
+  color: #f5f7ff;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 3px;
+}
+.fields input,
+.fields select {
+  height: 43px;
+  min-height: 43px;
+  border: 1px solid #163451;
+  border-radius: 7px;
+  background-color: #041224;
+  color: #f5f7ff;
+  padding-left: 15px;
+  font-size: 14px;
+  box-shadow: none;
+  color-scheme: dark;
+}
+.fields input::placeholder {
+  color: #f5f7ff;
+  opacity: 1;
+}
+.fields p {
+  font-size: 13px;
+  margin: 5px 0 0;
+  line-height: 1.5;
+}
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 17px;
+  margin-top: 34px;
+}
+.actions button {
+  min-height: 51px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+.actions button:first-child {
+  background: transparent;
+  border: 1px solid #204262;
+  color: #f5f7ff;
+}
+.actions button:last-child {
+  background: #009bfa;
+  border: 1px solid #00aeff;
+  color: white;
+}
+.notice {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 23px;
+  padding: 16px;
+  min-height: 57px;
+  border: 1px solid #005248;
+  border-radius: 8px;
+  color: #65ffe3;
+  background: #002c2b88;
+  font-size: 14px;
+}
+.notice > span {
+  display: flex;
+  border-radius: 50%;
+  color: #003e39;
+  background: #00cda5;
+  flex-shrink: 0;
+}
+.rightColumn {
+  display: grid;
+  gap: 21px;
+}
+.statusCard {
+  padding: 23px 25px;
+}
+.statusCard h2 {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 16px;
+}
+.statusIcon {
+  color: #00cda5;
+  display: flex;
+}
+.connectionStatus {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: #a5c8ec;
+  font-size: 23px;
+  font-weight: 700;
+  margin-top: 12px;
+}
+.connectionStatus > span {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.connected {
+  color: #00d4a3;
+}
+.failed {
+  color: #ff7482;
+}
+.statusDescription {
+  font-size: 13px;
+  margin: 3px 0 18px 34px;
+}
+.statusList {
+  border-top: 1px solid #16304b;
+  border-bottom: 1px solid #16304b;
+  margin: 0;
+  padding: 6px 0;
+  color: #bedcff;
+}
+.statusList > div {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+  font-size: 14px;
+}
+.statusList dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.lastCheck {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  padding-top: 19px;
+  color: #a5c8ec;
+  font-size: 14px;
+}
+.lastCheck > svg {
+  flex-shrink: 0;
+}
+.lastCheck > div {
+  flex: 1;
+}
+.lastCheck span {
+  display: block;
+  color: #c3ddf9;
+  margin-top: 4px;
+  font-size: 13px;
+}
+.lastCheck button,
+.supportCard button,
+.cardHeading .helpButton {
+  background: #0a2340;
+  border: 1px solid #103251;
+  color: #c5e2ff;
+  min-height: 45px;
+  font-size: 13px;
+  padding: 0 15px;
+  white-space: nowrap;
+}
+.helpButton svg,
+.supportCard .iconTile {
+  color: #00abff;
+}
+.supportCard {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 24px;
+}
+.supportCard .iconTile {
+  width: 36px;
+  height: 36px;
+}
+.supportCard h2 {
+  font-size: 16px;
+  margin-top: 2px;
+}
+.supportCard p {
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 11px 0 21px;
+}
+@media (min-width: 1400px) {
+  .fields {
+    row-gap: 24px;
+  }
+  .fields > div:nth-child(4),
+  .fields > div:nth-child(5) {
+    margin-top: 0;
+  }
+}
+@media (max-width: 1150px) {
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .rightColumn {
+    grid-template-columns: 1.2fr 1fr;
+    align-items: start;
+  }
+}
 @media (max-width: 720px) {
   .page {
-    padding: var(--space-4);
+    padding: 22px 16px;
   }
-
-  .content {
+  .pageTitle {
+    gap: 14px;
+  }
+  .pageTitle p {
+    line-height: 1.5;
+  }
+  .tabs {
     width: 100%;
+  }
+  .tabs button {
+    flex: 1;
+    padding: 0 10px;
+    font-size: 12px;
+    gap: 7px;
+  }
+  .tabs svg {
+    width: 17px;
+    flex-shrink: 0;
+  }
+  .fields,
+  .rightColumn,
+  .actions {
+    grid-template-columns: 1fr;
+  }
+  .connectionCard,
+  .statusCard,
+  .supportCard {
+    padding: 20px;
+  }
+  .cardHeading {
+    flex-wrap: wrap;
+  }
+  .cardHeading h2 {
+    font-size: 16px;
+  }
+  .cardHeading .helpButton {
+    margin-left: 54px;
+  }
+  .lastCheck {
+    flex-wrap: wrap;
   }
 }

@@ -25,7 +25,7 @@ export async function getClienteByCodigoHandler(req: Request, res: Response) {
 }
 
 export async function criarClienteHandler(req: Request, res: Response) {
-  const cliente = await clienteService.criarCliente(req.body);
+  const cliente = await clienteService.criarCliente(req.body, req.user!);
   success(res, cliente, 'Cliente cadastrado com sucesso.', 201);
 }
 

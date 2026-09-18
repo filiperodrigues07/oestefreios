@@ -2,24 +2,23 @@ import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { getDashboardOperacional } from '../../api/dashboard.api.js';
-import { OS_PRIORITY_CONFIG, OS_STATUS_CONFIG } from '../../constants/osStatus.js';
+import { OS_DOCUMENT_STATUS_CONFIG, OS_PRIORITY_CONFIG } from '../../constants/osStatus.js';
 import type { DashboardGranularidade, DashboardSerieDTO } from '../../types/dashboard.types.js';
-import type { OSPrioridade, OSStatus } from '../../types/os.types.js';
+import type { OSPrioridade } from '../../types/os.types.js';
 import { EmptyState, ErrorState, PriorityBadge, Skeleton, StatusBadge } from '../ui/index.js';
 import styles from './AdminDashboard.module.css';
 
 type QuickPeriod = 'hoje' | '7dias' | '30dias' | 'mes' | 'personalizado';
 
-const KPI_CONFIG: Array<{ key: 'total' | 'abertas' | 'andamento' | 'aguardando' | 'concluidas'; label: string; icon: string; className?: string }> = [
+const KPI_CONFIG: Array<{ key: 'total' | 'abertas' | 'geradoPedido' | 'geradoNF' | 'encerradas'; label: string; icon: string; className?: string }> = [
   { key: 'total', label: 'Total de OS', icon: '⌂', className: styles.kpiTotal },
   { key: 'abertas', label: 'Abertas', icon: '▤', className: styles.kpiOpen },
-  { key: 'andamento', label: 'Em andamento', icon: '⚙', className: styles.kpiProgress },
-  { key: 'aguardando', label: 'Aguardando', icon: '◷', className: styles.kpiWaiting },
-  { key: 'concluidas', label: 'Concluídas', icon: '✓', className: styles.kpiDone },
+  { key: 'geradoPedido', label: 'Gerado Ped.', icon: '◷', className: styles.kpiWaiting },
+  { key: 'geradoNF', label: 'Gerado NF', icon: '✓', className: styles.kpiDone },
+  { key: 'encerradas', label: 'Encerradas', icon: '×' },
 ];
 
-const STATUS_ORDER: OSStatus[] = ['CONCLUIDA', 'ABERTA', 'EM_ANDAMENTO', 'AGUARDANDO_PECA', 'AGUARDANDO_CLIENTE', 'EM_ANALISE', 'CANCELADA'];
-const PRIORITY_ORDER: OSPrioridade[] = ['URGENTE', 'ALTA', 'NORMAL', 'BAIXA'];
+const PRIORITY_ORDER: OSPrioridade[] = ['ALTA', 'MEDIA', 'NORMAL', 'BAIXA'];
 
 function dateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -56,16 +55,16 @@ function buildLinePath(values: number[], width: number, height: number, max: num
 
 function EvolutionChart({ series }: { series: DashboardSerieDTO[] }) {
   const [hovered, setHovered] = useState<number | null>(null);
-  const max = Math.max(1, ...series.flatMap((item) => [item.abertas, item.concluidas]));
+  const max = Math.max(1, ...series.flatMap((item) => [item.abertas, item.encerradas]));
   const width = 700;
   const height = 205;
   const opens = series.map((item) => item.abertas);
-  const completed = series.map((item) => item.concluidas);
+  const completed = series.map((item) => item.encerradas);
   const openPath = buildLinePath(opens, width, height, max);
   const completedPath = buildLinePath(completed, width, height, max);
   const active = hovered === null ? null : series[hovered];
 
-  if (series.every((item) => item.abertas === 0 && item.concluidas === 0)) return <EmptyState title="Sem OS no período" description="Escolha outro intervalo para visualizar a evolução." />;
+  if (series.every((item) => item.abertas === 0 && item.encerradas === 0)) return <EmptyState title="Sem OS no período" description="Escolha outro intervalo para visualizar a evolução." />;
 
   return (
     <div className={styles.chartWrap}>
@@ -77,7 +76,7 @@ function EvolutionChart({ series }: { series: DashboardSerieDTO[] }) {
         {series.map((item, index) => {
           const x = series.length === 1 ? width / 2 : (index / (series.length - 1)) * width;
           const yOpen = height - 28 - (item.abertas / max) * (height - 36) + 4;
-          const yDone = height - 28 - (item.concluidas / max) * (height - 36) + 4;
+          const yDone = height - 28 - (item.encerradas / max) * (height - 36) + 4;
           return <g key={item.chave} onMouseEnter={() => setHovered(index)} onMouseLeave={() => setHovered(null)}>
             <rect x={x - 10} y="0" width="20" height={height - 22} className={styles.hitArea} />
             <circle cx={x} cy={yOpen} r="3" className={styles.openDot} />
@@ -86,19 +85,25 @@ function EvolutionChart({ series }: { series: DashboardSerieDTO[] }) {
         })}
       </svg>
       <div className={styles.chartLabels}>{series.filter((_, index) => index % Math.max(1, Math.ceil(series.length / 7)) === 0 || index === series.length - 1).map((item) => <span key={item.chave}>{item.rotulo}</span>)}</div>
-      {active && <div className={styles.chartTooltip}><strong>{active.rotulo}</strong><span>Abertas: {active.abertas}</span><span>Concluídas: {active.concluidas}</span></div>}
+      {active && <div className={styles.chartTooltip}><strong>{active.rotulo}</strong><span>Abertas: {active.abertas}</span><span>Fechadas: {active.encerradas}</span></div>}
     </div>
   );
 }
 
-function Donut({ total, counts }: { total: number; counts: Record<OSStatus, number> }) {
+function Donut({ total, counts }: { total: number; counts: Record<number, number> }) {
   const groups = [
-    { key: 'CONCLUIDA' as const, label: 'Concluídas', color: '#34d399', value: counts.CONCLUIDA },
-    { key: 'ABERTA' as const, label: 'Abertas', color: '#3b82f6', value: counts.ABERTA },
-    { key: 'EM_ANDAMENTO' as const, label: 'Em andamento', color: '#38bdf8', value: counts.EM_ANDAMENTO },
-    { key: 'AGUARDANDO_PECA' as const, label: 'Aguardando', color: '#fbbf24', value: counts.AGUARDANDO_PECA + counts.AGUARDANDO_CLIENTE },
-    { key: 'CANCELADA' as const, label: 'Canceladas', color: '#fb7185', value: counts.CANCELADA },
-  ];
+    { key: 0, color: '#3b82f6' },
+    { key: 1, color: '#fbbf24' },
+    { key: 2, color: '#f59e0b' },
+    { key: 3, color: '#34d399' },
+    { key: 4, color: '#94a3b8' },
+    { key: 5, color: '#8b5cf6' },
+    { key: 6, color: '#fb7185' },
+  ].map((item) => ({
+    ...item,
+    label: OS_DOCUMENT_STATUS_CONFIG[item.key]?.label ?? 'Não informado',
+    value: counts[item.key] ?? 0,
+  }));
   let current = 0;
   const gradient = groups.map((item) => {
     const start = total ? (current / total) * 100 : 0;
@@ -124,15 +129,18 @@ export function AdminDashboard() {
   if (isLoading) return <div className={styles.loadingGrid}>{Array.from({ length: 7 }, (_, index) => <Skeleton key={index} height={index < 5 ? 130 : 300} />)}</div>;
   if (isError || !data) return <ErrorState action={<button className={styles.retry} onClick={() => refetch()}>Tentar novamente</button>} />;
 
-  const awaiting = data.countsByStatus.AGUARDANDO_PECA + data.countsByStatus.AGUARDANDO_CLIENTE;
-  const values = { total: data.total, abertas: data.countsByStatus.ABERTA, andamento: data.countsByStatus.EM_ANDAMENTO, aguardando: awaiting, concluidas: data.countsByStatus.CONCLUIDA };
+  const values = {
+    total: data.total,
+    abertas: data.countsBySituacaoDocumento[0] ?? 0,
+    geradoPedido: data.countsBySituacaoDocumento[1] ?? 0,
+    geradoNF: data.countsBySituacaoDocumento[3] ?? 0,
+    encerradas: data.countsBySituacaoDocumento[4] ?? 0,
+  };
   const selectPeriod = (value: QuickPeriod) => setPeriod(value);
   const navigateStatus = (key: keyof typeof values) => {
     const params = new URLSearchParams();
-    if (key === 'abertas') params.set('status', 'ABERTA');
-    if (key === 'andamento') params.set('status', 'EM_ANDAMENTO');
-    if (key === 'aguardando') params.set('status', 'AGUARDANDO');
-    if (key === 'concluidas') params.set('status', 'CONCLUIDA');
+    const situacaoPorKpi = { abertas: 0, geradoPedido: 1, geradoNF: 3, encerradas: 4 } as const;
+    if (key !== 'total') params.set('situacaoDocumento', String(situacaoPorKpi[key]));
     navigate(`/os${params.size ? `?${params.toString()}` : ''}`);
   };
 
@@ -146,8 +154,8 @@ export function AdminDashboard() {
     </header>
     <section className={styles.kpis}>{KPI_CONFIG.map((item) => <button key={item.key} className={`${styles.kpi} ${item.className}`} onClick={() => navigateStatus(item.key)}><span className={styles.kpiIcon}>{item.icon}</span><span className={styles.kpiLabel}>{item.label}</span><strong>{values[item.key].toLocaleString('pt-BR')}</strong><small>{item.key === 'total' ? 'no período selecionado' : `${data.total ? Math.round((values[item.key] / data.total) * 100) : 0}% do total`}</small><b>›</b></button>)}</section>
     <section className={styles.topGrid}>
-      <article className={styles.panel}><header><div><h2>Evolução das Ordens de Serviço</h2><p>Quantidade de OS por dia no período selecionado</p></div><select value={granularidade} onChange={(e) => setGranularidade(e.target.value as DashboardGranularidade)}><option value="diario">Diário</option><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></header><div className={styles.legendInline}><span className={styles.openMark} />Abertas <span className={styles.doneMark} />Concluídas</div><EvolutionChart series={data.evolucao} /></article>
-      <article className={styles.panel}><header><div><h2>Distribuição por Status</h2><p>Percentual de OS no período</p></div></header><Donut total={data.total} counts={data.countsByStatus} /></article>
+      <article className={styles.panel}><header><div><h2>Evolução das Ordens de Serviço</h2><p>Aberturas e fechamentos reais no CHERP por período</p></div><select value={granularidade} onChange={(e) => setGranularidade(e.target.value as DashboardGranularidade)}><option value="diario">Diário</option><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></header><div className={styles.legendInline}><span className={styles.openMark} />Abertas <span className={styles.doneMark} />Fechadas</div><EvolutionChart series={data.evolucao} /></article>
+      <article className={styles.panel}><header><div><h2>Situação do documento</h2><p>Distribuição de ORDEMSERVICO.SITUACAO no CHERP</p></div></header><Donut total={data.total} counts={data.countsBySituacaoDocumento} /></article>
     </section>
     <section className={styles.bottomGrid}>
       <article className={styles.panel}><header><div><h2>Ordens que exigem atenção</h2><p>Prioridade alta, urgente ou aguardando há mais tempo</p></div><button className={styles.secondaryButton} onClick={() => navigate('/os')}>Ver todas</button></header>{data.atencao.length ? <div className={styles.attentionTable}><div className={styles.attentionHead}><span># OS</span><span>Cliente</span><span>Status</span><span>Prioridade</span><span>Dias</span><span /></div>{data.atencao.map((os) => <button key={os.id} onClick={() => navigate(`/os/${os.id}`)}><span>#{String(os.numero).padStart(6, '0')}</span><span>{os.clienteNome || 'Cliente não identificado'}</span><StatusBadge status={os.status} /><PriorityBadge priority={os.prioridade} /><span className={os.dias > 7 ? styles.overdue : ''}>{os.dias}</span><span>›</span></button>)}</div> : <EmptyState title="Nenhuma OS exige atenção" description="Não há prioridades altas ou OS aguardando neste período." />}</article>

@@ -38,6 +38,9 @@ export interface JwtPayload {
   roleId: string;
   roleName: string;
   permissions: Permission[];
+  sessionVersion?: number;
+  mustChangePassword?: boolean;
+  cherpUsuarioChave?: number;
 }
 
 export interface AuthenticatedUser {
@@ -47,4 +50,6 @@ export interface AuthenticatedUser {
   roleId: string;
   roleName: string;
   permissions: Permission[];
+  mustChangePassword: boolean;
+  cherpUsuarioChave?: number;
 }

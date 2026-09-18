@@ -3,6 +3,7 @@ import { clienteRepository } from '../repositories/index.js';
 import { lookupCnpj, type CnpjLookupResult } from './cnpj.service.js';
 import type { Cliente, ClienteInput, PaginatedResult, SearchQuery } from '../types/cherp.types.js';
 import { lookupCep } from './cep.service.js';
+import type { AuthenticatedUser } from '../types/auth.types.js';
 
 export async function searchClientes(query: SearchQuery): Promise<PaginatedResult<Cliente>> {
   return clienteRepository.buscar(query);
@@ -16,8 +17,8 @@ export async function getClienteByCodigo(codigo: string): Promise<Cliente> {
   return cliente;
 }
 
-export async function criarCliente(input: ClienteInput): Promise<Cliente> {
-  return clienteRepository.criar(input);
+export async function criarCliente(input: ClienteInput, usuario: AuthenticatedUser): Promise<Cliente> {
+  return clienteRepository.criar({ ...input, cherpUsuarioChave: usuario.cherpUsuarioChave });
 }
 
 export async function consultarCep(cep: string) {

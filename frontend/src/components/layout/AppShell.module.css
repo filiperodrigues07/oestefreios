@@ -100,20 +100,21 @@
     position: sticky;
     top: 0;
     display: flex;
-    width: var(--sidebar-width);
+    width: clamp(224px, 18vw, 256px);
     height: 100vh;
     flex-shrink: 0;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: 20px;
     border-right: 1px solid var(--color-border);
     background: var(--color-sidebar);
     box-shadow: 1px 0 0 rgba(148, 163, 184, 0.03);
-    padding: var(--space-6) var(--space-3) var(--space-3);
+    padding: var(--space-6) var(--space-4) var(--space-4);
     transition: width 0.2s ease;
   }
 
   .sidebarCollapsed {
     width: var(--sidebar-width-collapsed);
+    padding-inline: var(--space-3);
   }
 
   .collapseToggle {
@@ -143,7 +144,10 @@
 
   .brand {
     display: flex;
-    min-height: 82px;
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 80px;
     align-items: center;
     justify-content: center;
     color: var(--color-text-primary);
@@ -154,38 +158,34 @@
   }
 
   .brandLogo {
+    width: 100%;
     max-width: 100%;
-    max-height: 88px;
+    height: 80px;
     object-fit: contain;
   }
 
-  .brandText {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  .brandLogoCollapsed {
+    height: 40px;
+  }
+
+  .brandCaption {
+    font-size: 15px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: center;
+    letter-spacing: 0;
   }
 
   .sidebarNav {
     display: flex;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
     flex-direction: column;
     gap: var(--space-4);
   }
 
-  .sidebarFooter { display: flex; flex-direction: column; gap: var(--space-4); margin-top: auto; }
-
-  .promoCard {
-    position: relative;
-    overflow: hidden;
-    min-height: 158px;
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    background: linear-gradient(145deg, rgba(19, 42, 72, .88), rgba(13, 25, 43, .9));
-    padding: 17px;
-  }
-
-  .promoCard strong { display: block; position: relative; z-index: 1; font-size: 13px; line-height: 1.42; }
-  .promoCard span { display: block; position: relative; z-index: 1; margin-top: 12px; color: var(--color-text-secondary); font-size: 11px; line-height: 1.5; }
-  .promoCard b { position: absolute; right: -9px; bottom: -21px; color: rgba(76, 141, 230, .24); font-size: 78px; font-weight: 400; }
+  .sidebarFooter { display: flex; flex-shrink: 0; flex-direction: column; gap: var(--space-2); margin-top: auto; }
 
   .navGroup {
     display: flex;
@@ -204,7 +204,8 @@
 
   .sidebarItem {
     display: flex;
-    min-height: 42px;
+    min-height: 46px;
+    flex-shrink: 0;
     align-items: center;
     gap: var(--space-3);
     border-radius: var(--radius-sm);
@@ -213,6 +214,10 @@
     padding: var(--space-2) var(--space-3);
     text-decoration: none;
     transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .sidebarItem > svg {
+    flex-shrink: 0;
   }
 
   .sidebarItem:hover {
@@ -229,6 +234,10 @@
   .sidebarCollapsed .sidebarItem {
     justify-content: center;
     padding: var(--space-2);
+  }
+
+  .sidebarCollapsed .brand {
+    min-height: 48px;
   }
 
   .mobileHeader {
@@ -254,6 +263,61 @@
   .notificationWrapper { position: relative; }
   .notificationMenu { position: absolute; top: calc(100% + 8px); right: 0; display: flex; width: 260px; flex-direction: column; gap: 4px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface-elevated); box-shadow: var(--shadow-lg); padding: 10px; z-index: calc(var(--z-nav) + 3); }
   .notificationMenu > strong { padding: 4px 6px 8px; font-size: 13px; }.notificationMenu p { margin: 4px 6px; color: var(--color-text-secondary); font-size: 12px; }.notificationMenu button { display: flex; flex-direction: column; gap: 3px; border: 0; border-radius: 7px; background: transparent; color: var(--color-text-primary); padding: 8px 6px; text-align: left; cursor: pointer; }.notificationMenu button:hover { background: var(--color-neutral-surface); }.notificationMenu button b { font-size: 12px; }.notificationMenu button span { color: var(--color-text-secondary); font-size: 11px; }
+
+  .notificationMenu {
+    width: min(360px, calc(100vw - 32px));
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .notificationMenuHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 4px 4px 8px;
+  }
+
+  .notificationMenuHeader > div {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .notificationMenuHeader > div span,
+  .notificationItem span,
+  .notificationEmpty {
+    color: var(--color-text-secondary);
+    font-size: 12px;
+  }
+
+  .markAllRead {
+    flex: 0 0 auto;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--color-primary) !important;
+    font-size: 12px !important;
+    font-weight: 650;
+    padding: 3px 2px !important;
+  }
+
+  .markAllRead:hover { text-decoration: underline; }
+
+  .notificationItem {
+    gap: 4px !important;
+    border: 1px solid transparent !important;
+    padding: 10px !important;
+  }
+
+  .notificationItem:hover {
+    border-color: var(--color-border) !important;
+    background: var(--color-neutral-surface) !important;
+  }
+
+  .notificationEmpty {
+    padding: 18px 6px !important;
+    text-align: center;
+  }
 
   .headerIcon {
     position: relative;

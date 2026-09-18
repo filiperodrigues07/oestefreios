@@ -8,6 +8,8 @@
   border: 1px solid transparent;
   font-size: var(--font-size-md);
   font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
   min-height: 40px;

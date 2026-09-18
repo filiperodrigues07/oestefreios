@@ -4,6 +4,7 @@ export interface ProdutoDTO {
   descricao: string;
   unidade: string;
   categoria?: string;
+  tipo?: string;
   disponivel?: number;
   estoqueMinimo?: number;
   precoUnitario?: number;

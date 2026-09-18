@@ -16,6 +16,10 @@ export async function listRolesHandler(_req: Request, res: Response) {
   success(res, roles);
 }
 
+export async function listCherpUsersHandler(_req: Request, res: Response) {
+  success(res, await userService.listCherpUsers());
+}
+
 export async function getUserHandler(req: Request, res: Response) {
   const { id } = req.params as { id: string };
   const user = await userService.getUserById(id);
@@ -24,7 +28,7 @@ export async function getUserHandler(req: Request, res: Response) {
 
 export async function createUserHandler(req: Request, res: Response) {
   const user = await userService.createUser(req.body, req.user!, requestContext(req));
-  success(res, user, 'Usuário criado com sucesso. Um e-mail de convite foi enviado.', 201);
+  success(res, user, 'Usuário criado com sucesso.', 201);
 }
 
 export async function updateUserHandler(req: Request, res: Response) {

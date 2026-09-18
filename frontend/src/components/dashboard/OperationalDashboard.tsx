@@ -19,6 +19,7 @@ export function OperationalDashboard() {
         <Skeleton height={88} />
         <Skeleton height={88} />
         <Skeleton height={88} />
+        <Skeleton height={88} />
       </div>
     );
   }
@@ -30,17 +31,17 @@ export function OperationalDashboard() {
   return (
     <div>
       <div className={styles.tiles}>
-        <StatTile label="Pendentes" value={String(data.counts.pendentes)} />
-        <StatTile label="Em andamento" value={String(data.counts.emAndamento)} />
+        <StatTile label="Em atendimento" value={String(data.counts.emAtendimento)} />
         <StatTile label="Aguardando" value={String(data.counts.aguardando)} />
-        <StatTile label="Concluídas" value={String(data.counts.concluidas)} />
+        <StatTile label="Prontas" value={String(data.counts.prontas)} />
+        <StatTile label="Encerradas" value={String(data.counts.encerradas)} />
       </div>
 
       <div className={styles.section}>
-        <h2 className={styles.sectionTitle}>Minhas OS</h2>
+        <h2 className={styles.sectionTitle}>OS atribuídas a você na plataforma</h2>
 
         {data.minhasOS.length === 0 && (
-          <EmptyState title="Nenhuma OS atribuída a você ainda" description="Quando uma OS for atribuída, ela aparece aqui." />
+          <EmptyState title="Nenhuma OS atribuída a você" description="As atribuições são gerenciadas pela plataforma." />
         )}
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

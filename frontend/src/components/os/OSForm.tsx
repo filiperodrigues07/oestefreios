@@ -6,6 +6,8 @@ import {
   adicionarServicoOS,
   alterarStatusOS,
   atualizarOS,
+  atualizarProdutoItemOS,
+  atualizarServicoItemOS,
   criarOS,
   getOS,
   removerProdutoOS,
@@ -13,19 +15,31 @@ import {
 } from '../../api/os.api.js';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
 import { getEquipamentoByCodigo } from '../../api/equipamentos.api.js';
-import { listUsers } from '../../api/users.api.js';
 import { OS_PRIORIDADE_OPTIONS } from '../../constants/osStatus.js';
 import { handleMutationError } from '../../pwa/offlineErrorToast.js';
 import { OfflineQueuedError } from '../../pwa/OfflineQueuedError.js';
 import { hasPermission } from '../../store/authStore.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
 import { type OSPrioridade, type OSStatus } from '../../types/os.types.js';
-import { Button, Card, ConfirmDialog, ErrorState, LinkButton, PageHeader, Select, Skeleton, useToast } from '../ui/index.js';
+import {
+  ActionIcon,
+  Button,
+  Card,
+  ConfirmDialog,
+  ErrorState,
+  LinkButton,
+  RequiredMark,
+  PageHeader,
+  Select,
+  Skeleton,
+  useToast,
+} from '../ui/index.js';
 import { ClienteVeiculoSection } from './ClienteVeiculoSection.js';
 import { DiagnosticoSection, type DiagnosticoPatch } from './DiagnosticoSection.js';
-import { HistoryTimeline } from './HistoryTimeline.js';
+import { FinalizarOSButton } from './FinalizarOSButton.js';
+import { FotosSection } from './FotosSection.js';
 import { OSFormHeader } from './OSFormHeader.js';
-import { OSFieldInfo } from './OSFieldInfo.js';
+import { HistoryTimeline } from './HistoryTimeline.js';
 import { ProdutosServicosSection } from './ProdutosServicosSection.js';
 import type { ItemGridRow } from './ItemGrid.js';
 import styles from './OSForm.module.css';
@@ -54,7 +68,12 @@ function OSFormCreate() {
 
   const mutation = useMutation({
     mutationFn: () =>
-      criarOS({ clienteCodigo: cliente!.codigo, equipamentoCodigo: equipamento!.codigo, problema, prioridade }),
+      criarOS({
+        clienteCodigo: cliente!.codigo,
+        equipamentoCodigo: equipamento!.codigo,
+        problema,
+        prioridade,
+      }),
     onSuccess: (os) => navigate(`/os/${os.id}`, { replace: true }),
     onError: (err) => {
       if (err instanceof OfflineQueuedError) {
@@ -71,7 +90,12 @@ function OSFormCreate() {
       <PageHeader
         title="Nova OS"
         description="Associe o cliente e o veículo para abrir uma ordem de serviço."
-        actions={<LinkButton to="/os" variant="secondary">Voltar</LinkButton>}
+        actions={
+          <LinkButton to="/os" variant="secondary">
+            <ActionIcon name="back" />
+            Voltar
+          </LinkButton>
+        }
       />
 
       <ClienteVeiculoSection
@@ -82,42 +106,54 @@ function OSFormCreate() {
         onEquipamentoChange={setEquipamento}
       />
 
-      {cliente && equipamento && (
-        <Card className={styles.createCard}>
-          <div>
-            <label
-              htmlFor="problema"
-              style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}
-            >
-              Problema relatado
-            </label>
-            <textarea
-              id="problema"
-              value={problema}
-              onChange={(e) => setProblema(e.target.value)}
-              rows={3}
-              className={styles.textarea}
-            />
-          </div>
-
-          <Select
-            label="Prioridade"
-            value={prioridade}
-            onChange={(e) => setPrioridade(e.target.value as OSPrioridade)}
-            options={OS_PRIORIDADE_OPTIONS}
+      <Card className={styles.createCard}>
+        <div>
+          <label
+            htmlFor="problema"
+            style={{
+              display: 'block',
+              fontSize: 'var(--font-size-sm)',
+              fontWeight: 500,
+              marginBottom: 'var(--space-1)',
+            }}
+          >
+            Problema relatado
+            <RequiredMark />
+          </label>
+          <textarea
+            id="problema"
+            value={problema}
+            onChange={(e) => setProblema(e.target.value)}
+            rows={3}
+            className={styles.textarea}
           />
+        </div>
 
-          {mutation.isError && (
-            <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
-              {mutation.error instanceof Error ? mutation.error.message : 'Erro ao criar OS.'}
-            </p>
-          )}
+        <Select
+          label={<>Prioridade<RequiredMark /></>}
+          value={prioridade}
+          onChange={(e) => setPrioridade(e.target.value as OSPrioridade)}
+          options={OS_PRIORIDADE_OPTIONS}
+        />
 
-          <Button disabled={!podeSalvar} loading={mutation.isPending} onClick={() => mutation.mutate()}>
-            Criar OS
-          </Button>
-        </Card>
-      )}
+        {mutation.isError && (
+          <p
+            role="alert"
+            style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}
+          >
+            {mutation.error instanceof Error ? mutation.error.message : 'Erro ao criar OS.'}
+          </p>
+        )}
+
+        <Button
+          disabled={!podeSalvar}
+          loading={mutation.isPending}
+          onClick={() => mutation.mutate()}
+        >
+          <ActionIcon name="add" />
+          Criar OS
+        </Button>
+      </Card>
     </div>
   );
 }
@@ -147,14 +183,11 @@ function OSFormEdit({ id }: { id: string }) {
     enabled: !!os,
   });
 
-  const podeVerUsuarios = hasPermission('USER_VIEW');
-  const { data: usuarios } = useQuery({
-    queryKey: ['usuarios-atribuicao'],
-    queryFn: listUsers,
-    enabled: podeVerUsuarios,
-  });
-
-  const [removendo, setRemovendo] = useState<{ tipo: 'produto' | 'servico'; codigo: string; descricao: string } | null>(null);
+  const [removendo, setRemovendo] = useState<{
+    tipo: 'produto' | 'servico';
+    codigo: string;
+    descricao: string;
+  } | null>(null);
 
   function invalidate() {
     return Promise.all([
@@ -170,7 +203,12 @@ function OSFormEdit({ id }: { id: string }) {
       await invalidate();
       showToast('Alterações salvas.', 'success');
     },
-    onError: (err) => handleMutationError(err, showToast, 'Não foi possível salvar as alterações. Tente novamente.'),
+    onError: (err) =>
+      handleMutationError(
+        err,
+        showToast,
+        'Não foi possível salvar as alterações. Tente novamente.',
+      ),
   });
 
   const statusMutation = useMutation({
@@ -188,12 +226,13 @@ function OSFormEdit({ id }: { id: string }) {
       await invalidate();
       showToast('Prioridade atualizada.', 'success');
     },
-    onError: (err) => handleMutationError(err, showToast, 'Não foi possível atualizar a prioridade.'),
+    onError: (err) =>
+      handleMutationError(err, showToast, 'Não foi possível atualizar a prioridade.'),
   });
 
-  async function adicionarProduto(codigo: string, quantidade: number) {
+  async function adicionarProduto(codigo: string, quantidade: number, precoUnitario?: number, descricaoComplementar?: string) {
     try {
-      const atualizado = await adicionarProdutoOS(id, codigo, quantidade);
+      const atualizado = await adicionarProdutoOS(id, codigo, quantidade, precoUnitario, descricaoComplementar);
       queryClient.setQueryData(['os', id], atualizado);
       showToast('Produto adicionado.', 'success');
     } catch (err) {
@@ -202,9 +241,9 @@ function OSFormEdit({ id }: { id: string }) {
     }
   }
 
-  async function adicionarServico(codigo: string, quantidade: number) {
+  async function adicionarServico(codigo: string, quantidade: number, valorUnitario?: number, descricaoComplementar?: string) {
     try {
-      const atualizado = await adicionarServicoOS(id, codigo, quantidade);
+      const atualizado = await adicionarServicoOS(id, codigo, quantidade, valorUnitario, descricaoComplementar);
       queryClient.setQueryData(['os', id], atualizado);
       showToast('Serviço adicionado.', 'success');
     } catch (err) {
@@ -213,15 +252,40 @@ function OSFormEdit({ id }: { id: string }) {
     }
   }
 
+  async function atualizarProduto(codigo: string, patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string }) {
+    try {
+      const atualizado = await atualizarProdutoItemOS(id, codigo, patch);
+      queryClient.setQueryData(['os', id], atualizado);
+      showToast('Produto atualizado.', 'success');
+    } catch (err) {
+      if (err instanceof OfflineQueuedError) showToast(err.message, 'warning');
+      throw err;
+    }
+  }
+
+  async function atualizarServico(codigo: string, patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string }) {
+    try {
+      const atualizado = await atualizarServicoItemOS(id, codigo, patch);
+      queryClient.setQueryData(['os', id], atualizado);
+      showToast('Serviço atualizado.', 'success');
+    } catch (err) {
+      if (err instanceof OfflineQueuedError) showToast(err.message, 'warning');
+      throw err;
+    }
+  }
+
   const removerMutation = useMutation({
     mutationFn: () =>
-      removendo!.tipo === 'produto' ? removerProdutoOS(id, removendo!.codigo) : removerServicoOS(id, removendo!.codigo),
+      removendo!.tipo === 'produto'
+        ? removerProdutoOS(id, removendo!.codigo)
+        : removerServicoOS(id, removendo!.codigo),
     onSuccess: async () => {
       await invalidate();
       setRemovendo(null);
       showToast('Removido.', 'success');
     },
-    onError: (err) => handleMutationError(err, showToast, 'Não foi possível remover. Tente novamente.'),
+    onError: (err) =>
+      handleMutationError(err, showToast, 'Não foi possível remover. Tente novamente.'),
   });
 
   if (isLoading) {
@@ -238,39 +302,52 @@ function OSFormEdit({ id }: { id: string }) {
   if (isError || !os) {
     return (
       <div className={styles.page}>
-        <ErrorState title="OS não encontrada" description="Verifique o link ou volte para a lista." />
+        <ErrorState
+          title="OS não encontrada"
+          description="Verifique o link ou volte para a lista."
+        />
       </div>
     );
   }
 
-  // OS finalizada: backend já rejeita qualquer mutação (assertNaoFinalizada em os.service.ts) —
+  // OS pronta, encerrada ou fechada pelo CHERP: backend já rejeita qualquer mutação (assertNaoFinalizada em os.service.ts) —
   // aqui é só pra não oferecer um controle que vai dar erro ao salvar, a permissão em si continua a mesma.
-  const osFinalizada = os.status === 'CONCLUIDA';
+  const osFinalizada = (os.situacaoDocumento !== undefined && os.situacaoDocumento !== 0) || Boolean(os.dataConclusao) || os.status === 'CONCLUIDA' || os.status === 'CANCELADA';
   const podeEditar = hasPermission('OS_EDIT') && !osFinalizada;
   const podeAddProduto = hasPermission('PRODUCT_ADD_TO_OS') && !osFinalizada;
   const podeAddServico = hasPermission('SERVICE_ADD_TO_OS') && !osFinalizada;
   const podeMudarStatus = hasPermission('OS_CHANGE_STATUS');
   const mostrarPreco = hasPermission('FINANCIAL_VIEW');
+  const podeEditarPreco = hasPermission('FINANCIAL_EDIT');
 
   return (
     <div className={`${styles.page} ${styles.detailPage}`}>
       <OSFormHeader
+        id={id}
         numero={os.numero}
         status={os.status}
         prioridade={os.prioridade}
         dataAbertura={os.dataAbertura}
         onRefresh={() => refetch()}
         refreshing={isFetching}
-        canChangeStatus={podeMudarStatus}
+        canChangeStatus={podeMudarStatus && !osFinalizada}
         canEdit={podeEditar}
         onStatusChange={(status) => statusMutation.mutate(status)}
         onPriorityChange={(prioridade) => prioridadeMutation.mutate(prioridade)}
+        onFinalizar={() => statusMutation.mutate('CONCLUIDA')}
+        finalizando={statusMutation.isPending}
         updating={statusMutation.isPending || prioridadeMutation.isPending}
       />
 
-      <nav className={styles.tabs} aria-label="Seções da OS"><a href="#dados">▣ Dados da OS</a><a href="#itens">▤ Produtos e Serviços</a><a href="#diagnostico">▱ Diagnóstico</a><a href="#historico">◷ Histórico</a></nav>
+      <nav className={styles.tabs} aria-label="Seções da OS">
+        <a href="#dados">▣ Dados da OS</a>
+        <a href="#itens">▤ Produtos e Serviços</a>
+        <a href="#diagnostico">▱ Diagnóstico</a>
+        <a href="#historico">◷ Histórico</a>
+        <a href="#fotos">📷 Fotos</a>
+      </nav>
 
-      <section className={styles.identity}>
+      <section id="dados" className={styles.identity}>
         <ClienteVeiculoSection
           mode="edit"
           clienteCodigo={os.clienteCodigo}
@@ -279,20 +356,9 @@ function OSFormEdit({ id }: { id: string }) {
         />
       </section>
 
-      <section id="dados" className={styles.section}>
-        <h2 className={styles.sectionTitle}>▣ Dados da OS</h2>
-        <div className={styles.dataGrid}>
-          <label><OSFieldInfo field="cliente">Cliente</OSFieldInfo><input value={`${os.clienteCodigo} - ${cliente?.nome ?? os.clienteNome ?? ''}`} readOnly /></label>
-          <label><OSFieldInfo field="veiculo">Veículo</OSFieldInfo><input value={equipamento?.descricao ?? os.equipamentoDescricao ?? os.equipamentoCodigo} readOnly /></label>
-          <label><OSFieldInfo field="dav">Nº DAV</OSFieldInfo><input value={os.nroDav ?? 'Não informado'} readOnly /></label>
-          <label><OSFieldInfo field="kmAtual">KM na abertura</OSFieldInfo><input value={os.kmAtual ?? 0} readOnly /></label>
-          <label><OSFieldInfo field="responsavel">Responsável</OSFieldInfo><input value={os.responsavelId ? 'Atribuído' : 'Selecione...'} readOnly /></label>
-          <label><OSFieldInfo field="tecnico">Técnico</OSFieldInfo><input value={os.tecnicoId ? 'Atribuído' : 'Selecione...'} readOnly /></label>
-          <label><OSFieldInfo field="previsao">Previsão</OSFieldInfo><input value={os.dataPrevista ? new Date(os.dataPrevista).toLocaleDateString('pt-BR') : 'dd/mm/aaaa'} readOnly /></label>
-          <label><OSFieldInfo field="kmFinal">KM na entrega</OSFieldInfo><input value={os.kmFinal ?? 0} readOnly /></label>
-          <label className={styles.spanTwo}><OSFieldInfo field="solucao">Serviço realizado</OSFieldInfo><input value={os.solucao ?? os.problema} readOnly /></label>
-          <label className={styles.spanTwo}><OSFieldInfo field="observacoes">Observações</OSFieldInfo><input value={os.observacoes ?? 'Informações adicionais sobre a OS...'} readOnly /></label>
-        </div>
+      <section className={styles.section}>
+        <h2 className={styles.sectionTitle}>Problema relatado</h2>
+        <p style={{ whiteSpace: 'pre-wrap' }}>{os.problema || 'Não informado.'}</p>
       </section>
 
       <section id="diagnostico" className={styles.section}>
@@ -300,19 +366,9 @@ function OSFormEdit({ id }: { id: string }) {
           diagnostico={os.diagnostico}
           observacoes={os.observacoes}
           solucao={os.solucao}
-          prioridade={os.prioridade}
-          responsavelId={os.responsavelId}
-          tecnicoId={os.tecnicoId}
-          dataPrevista={os.dataPrevista}
-          nroDav={os.nroDav}
           kmAtual={os.kmAtual}
           kmFinal={os.kmFinal}
-          frete={os.frete}
-          totalIpi={os.totalIpi}
-          mostrarFinanceiro={mostrarPreco}
           podeEditar={podeEditar}
-          podeVerUsuarios={podeVerUsuarios}
-          usuarios={usuarios ?? []}
           salvando={salvarMutation.isPending}
           onSave={(patch) => salvarMutation.mutate(patch)}
         />
@@ -326,18 +382,50 @@ function OSFormEdit({ id }: { id: string }) {
           podeAddProduto={podeAddProduto}
           podeAddServico={podeAddServico}
           mostrarPreco={mostrarPreco}
+          podeEditarPreco={podeEditarPreco}
           onAdicionarProduto={adicionarProduto}
           onAdicionarServico={adicionarServico}
-          onRemoverProduto={(row: ItemGridRow) => setRemovendo({ tipo: 'produto', codigo: row.codigo, descricao: row.descricao })}
-          onRemoverServico={(row: ItemGridRow) => setRemovendo({ tipo: 'servico', codigo: row.codigo, descricao: row.descricao })}
+          onAtualizarProduto={atualizarProduto}
+          onAtualizarServico={atualizarServico}
+          onRemoverProduto={(row: ItemGridRow) =>
+            setRemovendo({ tipo: 'produto', codigo: row.codigo, descricao: row.descricao })
+          }
+          onRemoverServico={(row: ItemGridRow) =>
+            setRemovendo({ tipo: 'servico', codigo: row.codigo, descricao: row.descricao })
+          }
         />
       </section>
 
-      {mostrarPreco && <section className={styles.financialSummary}><div><h2>▦ Resumo financeiro</h2><p>Totais calculados no Firebird pelos itens ativos.</p></div><div><span>Total produtos</span><strong>R$ {os.produtos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}</strong><span>Total serviços</span><strong>R$ {os.servicos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}</strong><b>Total geral <em>R$ {(os.faturamento ?? 0).toFixed(2)}</em></b></div></section>}
+      {mostrarPreco && (
+        <section className={styles.financialSummary}>
+          <div>
+            <h2>▦ Resumo financeiro</h2>
+            <p>Totais calculados no Firebird pelos itens ativos.</p>
+          </div>
+          <div>
+            <span>Total produtos</span>
+            <strong>
+              R$ {os.produtos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
+            </strong>
+            <span>Total serviços</span>
+            <strong>
+              R$ {os.servicos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
+            </strong>
+            <b>
+              Total geral <em>R$ {(os.faturamento ?? 0).toFixed(2)}</em>
+            </b>
+          </div>
+        </section>
+      )}
 
       <section id="historico" className={styles.section}>
-        <h2 style={{ fontSize: 'var(--font-size-md)', margin: '0 0 var(--space-2)' }}>Histórico</h2>
+        <h2 className={styles.sectionTitle}>Histórico</h2>
         <HistoryTimeline entries={os.historico} />
+      </section>
+
+      <section id="fotos" className={styles.section}>
+        <h2 className={styles.sectionTitle}>Fotos</h2>
+        <FotosSection id={id} podeEditar={podeEditar} />
       </section>
 
       <ConfirmDialog

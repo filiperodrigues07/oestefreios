@@ -1,4 +1,5 @@
 import * as Firebird from 'node-firebird';
+import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 import nodemailer from 'nodemailer';
 import { eq } from 'drizzle-orm';
 import { env } from '../config/env.js';
@@ -9,6 +10,28 @@ import { settings } from '../database/postgres/schema.js';
 import { logger } from '../utils/logger.js';
 
 const SENHA_MASCARADA = '••••••••';
+const ENCRYPTED_PREFIX = 'enc:v1:';
+
+function settingsKey(): Buffer {
+  return createHash('sha256').update(env.SETTINGS_ENCRYPTION_KEY ?? env.JWT_REFRESH_SECRET).digest();
+}
+
+function encryptSecret(value: string): string {
+  if (!value || value.startsWith(ENCRYPTED_PREFIX)) return value;
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm', settingsKey(), iv);
+  const encrypted = Buffer.concat([cipher.update(value, 'utf8'), cipher.final()]);
+  return `${ENCRYPTED_PREFIX}${iv.toString('base64')}:${cipher.getAuthTag().toString('base64')}:${encrypted.toString('base64')}`;
+}
+
+function decryptSecret(value: string): string {
+  if (!value.startsWith(ENCRYPTED_PREFIX)) return value;
+  const [ivRaw, tagRaw, encryptedRaw] = value.slice(ENCRYPTED_PREFIX.length).split(':');
+  if (!ivRaw || !tagRaw || !encryptedRaw) throw new Error('Credencial criptografada inválida.');
+  const decipher = createDecipheriv('aes-256-gcm', settingsKey(), Buffer.from(ivRaw, 'base64'));
+  decipher.setAuthTag(Buffer.from(tagRaw, 'base64'));
+  return Buffer.concat([decipher.update(Buffer.from(encryptedRaw, 'base64')), decipher.final()]).toString('utf8');
+}
 
 export interface FirebirdSettings {
   host: string;
@@ -78,7 +101,8 @@ async function writeCategory<T extends object>(category: string, data: T): Promi
 }
 
 export async function getFirebirdSettings(): Promise<FirebirdSettings> {
-  return readCategory('firebird', FIREBIRD_PADRAO);
+  const data = await readCategory('firebird', FIREBIRD_PADRAO);
+  return { ...data, password: decryptSecret(data.password) };
 }
 
 /** Versão segura pra devolver ao frontend — senha nunca volta em texto puro. */
@@ -107,7 +131,7 @@ export async function saveFirebirdSettings(input: FirebirdSettings): Promise<voi
   const atual = await getFirebirdSettings();
   const password = !input.password || input.password === SENHA_MASCARADA ? atual.password : input.password;
   const final: FirebirdSettings = { ...input, password };
-  await writeCategory('firebird', final);
+  await writeCategory('firebird', { ...final, password: encryptSecret(final.password) });
   await reloadFirebirdPool(toFirebirdAttachOptions(final));
 }
 
@@ -137,12 +161,25 @@ export async function testFirebirdConnection(input: FirebirdSettings): Promise<{
 }
 
 export async function applyStoredFirebirdSettings(): Promise<void> {
+  await migrateStoredSecrets();
   const stored = await getFirebirdSettings();
   await reloadFirebirdPool(toFirebirdAttachOptions(stored));
 }
 
+/** Migração compatível: converte credenciais legadas em texto puro no primeiro boot atualizado. */
+export async function migrateStoredSecrets(): Promise<void> {
+  for (const category of ['firebird', 'smtp'] as const) {
+    const [row] = await db.select().from(settings).where(eq(settings.category, category));
+    if (!row) continue;
+    const data = row.data as { password?: unknown };
+    if (typeof data.password !== 'string' || !data.password || data.password.startsWith(ENCRYPTED_PREFIX)) continue;
+    await writeCategory(category, { ...data, password: encryptSecret(data.password) });
+  }
+}
+
 export async function getSmtpSettings(): Promise<SmtpSettings> {
-  return readCategory('smtp', SMTP_PADRAO);
+  const data = await readCategory('smtp', SMTP_PADRAO);
+  return { ...data, password: decryptSecret(data.password) };
 }
 
 export async function getSmtpSettingsMasked(): Promise<SmtpSettings> {
@@ -153,7 +190,7 @@ export async function getSmtpSettingsMasked(): Promise<SmtpSettings> {
 export async function saveSmtpSettings(input: SmtpSettings): Promise<void> {
   const atual = await getSmtpSettings();
   const password = !input.password || input.password === SENHA_MASCARADA ? atual.password : input.password;
-  await writeCategory('smtp', { ...input, password });
+  await writeCategory('smtp', { ...input, password: encryptSecret(password) });
 }
 
 export async function isSmtpConfigured(): Promise<boolean> {

@@ -57,7 +57,75 @@ export async function firebirdQuery<T = FirebirdRow>(sql: string, params: unknow
           return reject(new ExternalServiceError());
         }
         resolve(asRows(result).map(decodeLatin1Row) as T[]);
+      }, { timeout: 15_000 });
+    });
+  });
+}
+
+/**
+ * node-firebird devolve coluna BLOB binária como uma função — chamar essa função dá um
+ * `EventEmitter` que precisa ser drenado (`'data'`/`'end'`) pra virar Buffer de verdade.
+ * Só chamado depois de `decodeLatin1Row` (que ignora função, não quebra nada) e antes do
+ * `detach()`, porque o emitter só é válido enquanto a conexão está aberta.
+ */
+function drainBlobColumn(row: Record<string, unknown>, column: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const blobFn = row[column];
+    if (typeof blobFn !== 'function') {
+      resolve();
+      return;
+    }
+    (blobFn as (cb: (err: unknown, name: string, emitter: NodeJS.EventEmitter) => void) => void)((err, _name, emitter) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      const chunks: Buffer[] = [];
+      emitter.on('data', (chunk: Buffer) => chunks.push(chunk));
+      emitter.on('end', () => {
+        row[column] = Buffer.concat(chunks);
+        resolve();
       });
+      emitter.on('error', (emitterErr: unknown) => reject(emitterErr));
+    });
+  });
+}
+
+/**
+ * Igual `firebirdQuery`, mas pra SELECTs que trazem uma coluna BLOB binária (ex.:
+ * `ORDEMSERVICOIMG.IMG`) — drena o blob de cada linha num `Buffer` de verdade antes de
+ * devolver e fechar a conexão. Isolada de `firebirdQuery`/`firebirdTransaction`: nenhum
+ * call site existente seleciona BLOB hoje, então não há risco de regressão nos dois.
+ */
+export async function firebirdQueryWithBlob<T = FirebirdRow>(
+  sql: string,
+  params: unknown[],
+  blobColumn: string,
+): Promise<T[]> {
+  return new Promise((resolve, reject) => {
+    getPool().get((err, db) => {
+      if (err) {
+        logger.error({ err }, 'Falha ao obter conexão Firebird');
+        return reject(new ExternalServiceError());
+      }
+      db.query(sql, params, (queryErr, result) => {
+        if (queryErr) {
+          db.detach();
+          logger.error({ err: queryErr }, 'Falha ao executar query Firebird');
+          return reject(new ExternalServiceError());
+        }
+        const rows = asRows(result).map(decodeLatin1Row);
+        Promise.all(rows.map((row) => drainBlobColumn(row, blobColumn)))
+          .then(() => {
+            db.detach();
+            resolve(rows as T[]);
+          })
+          .catch((blobErr) => {
+            db.detach();
+            logger.error({ err: blobErr }, 'Falha ao ler BLOB do Firebird');
+            reject(new ExternalServiceError());
+          });
+      }, { timeout: 15_000 });
     });
   });
 }
@@ -88,7 +156,7 @@ export async function firebirdTransaction<T>(
             transaction.query(sql, params, (queryErr, result) => {
               if (queryErr) return rej(queryErr);
               res(asRows(result).map(decodeLatin1Row) as R[]);
-            });
+            }, { timeout: 15_000 });
           });
 
         fn(query).then(

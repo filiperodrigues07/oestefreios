@@ -1,30 +1,40 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { listarOS, type OSSortBy } from '../api/os.api.js';
-import { OS_PRIORIDADE_OPTIONS, OS_STATUS_ABERTOS, OS_STATUS_CONFIG } from '../constants/osStatus.js';
+import { baixarOSPdf, listarOS, type OSSortBy } from '../api/os.api.js';
+import { baixarRelatorioOS } from '../api/relatorios.api.js';
+import { OS_DOCUMENT_STATUS_CONFIG, OS_DOCUMENT_STATUS_OPTIONS, OS_PRIORIDADE_OPTIONS } from '../constants/osStatus.js';
 import { hasPermission } from '../store/authStore.js';
 import {
+  ActionIcon,
   Button,
+  EditButton,
   EmptyState,
   ErrorState,
+  ExportButtons,
   LinkButton,
   PageHeader,
   Pagination,
+  PrintButton,
   RefreshButton,
   SearchInput,
   Select,
   Skeleton,
-  StatusBadge,
+  Badge,
   PriorityBadge,
   Table,
   type TableColumn,
 } from '../components/ui/index.js';
-import type { OrdemServicoDTO, OSPrioridade, OSStatus } from '../types/os.types.js';
+import type { OrdemServicoDTO, OSPrioridade } from '../types/os.types.js';
 import styles from './OSListPage.module.css';
 
-const STATUS_OPTIONS = OS_STATUS_ABERTOS.map((value) => ({ value, label: OS_STATUS_CONFIG[value].label }));
-const LIMIT = 20;
+/** Exportar/relatório usa uma janela ampla (366 dias, teto do backend) — a lista em si não tem período. */
+function periodoExportacaoPadrao(): { dataInicial: string; dataFinal: string } {
+  const fim = new Date();
+  const inicio = new Date(fim);
+  inicio.setDate(inicio.getDate() - 365);
+  return { dataInicial: inicio.toISOString().slice(0, 10), dataFinal: fim.toISOString().slice(0, 10) };
+}
 
 function formatMoney(value: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -33,33 +43,45 @@ function formatMoney(value: number): string {
 /** Lista de OS abertas: filtros inteligentes (busca livre + status + prioridade) e colunas ordenáveis. */
 export function OSListPage() {
   const [searchParams] = useSearchParams();
-  const initialStatus = searchParams.get('status');
-  const [status, setStatus] = useState<OSStatus | 'AGUARDANDO' | ''>(() => initialStatus === 'AGUARDANDO' || STATUS_OPTIONS.some((option) => option.value === initialStatus) || initialStatus === 'CONCLUIDA' || initialStatus === 'CANCELADA' ? initialStatus as OSStatus | 'AGUARDANDO' : '');
+  const initialSituacaoDocumento = searchParams.get('situacaoDocumento');
+  const [situacaoDocumento, setSituacaoDocumento] = useState(() =>
+    initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)]
+      ? initialSituacaoDocumento
+      : '',
+  );
   const [prioridade, setPrioridade] = useState<OSPrioridade | ''>('');
   const [busca, setBusca] = useState('');
   const [buscaAtiva, setBuscaAtiva] = useState('');
   const [sortBy, setSortBy] = useState<OSSortBy | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const navigate = useNavigate();
   const canSeeFinancial = hasPermission('FINANCIAL_VIEW');
+  const podeEditar = hasPermission('OS_EDIT');
 
   const { data, isLoading, isFetching, isError, refetch } = useQuery({
-    queryKey: ['os-list', status, prioridade, buscaAtiva, sortBy, sortOrder, page],
+    queryKey: ['os-list', situacaoDocumento, prioridade, buscaAtiva, sortBy, sortOrder, page, limit],
     queryFn: () =>
       listarOS({
-        status: status || undefined,
+        situacaoDocumento: situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
+        incluirFinalizadas: true,
         prioridade: prioridade || undefined,
         busca: buscaAtiva || undefined,
         sortBy,
         sortOrder,
         page,
-        limit: LIMIT,
+        limit,
       }),
   });
 
-  function handleStatusChange(value: string) {
-    setStatus(value as OSStatus | 'AGUARDANDO');
+  function handleLimitChange(novoLimit: number) {
+    setLimit(novoLimit);
+    setPage(1);
+  }
+
+  function handleSituacaoDocumentoChange(value: string) {
+    setSituacaoDocumento(value);
     setPage(1);
   }
 
@@ -75,7 +97,7 @@ export function OSListPage() {
   }
 
   function handleSortChange(key: string) {
-    const sortavel: OSSortBy[] = ['numero', 'clienteNome', 'equipamentoDescricao', 'dataAbertura', 'status', 'prioridade', 'faturamento'];
+    const sortavel: OSSortBy[] = ['numero', 'clienteNome', 'equipamentoDescricao', 'dataAbertura', 'prioridade', 'faturamento'];
     if (!sortavel.includes(key as OSSortBy)) return;
     if (key === sortBy) {
       setSortOrder((order) => (order === 'asc' ? 'desc' : 'asc'));
@@ -100,7 +122,15 @@ export function OSListPage() {
       sortable: true,
       render: (os) => new Date(os.dataAbertura).toLocaleDateString('pt-BR'),
     },
-    { key: 'status', header: 'Status', width: '164px', sortable: true, render: (os) => <StatusBadge status={os.status} /> },
+    {
+      key: 'situacaoDocumento',
+      header: 'Situação',
+      width: '130px',
+      render: (os) => {
+        const config = os.situacaoDocumento === undefined ? undefined : OS_DOCUMENT_STATUS_CONFIG[os.situacaoDocumento];
+        return <Badge tone={config?.tone ?? 'neutral'}>{config?.label ?? 'Não informado'}</Badge>;
+      },
+    },
     { key: 'prioridade', header: 'Prioridade', width: '108px', sortable: true, render: (os) => <PriorityBadge priority={os.prioridade} /> },
     ...(canSeeFinancial
       ? [
@@ -115,21 +145,38 @@ export function OSListPage() {
           },
         ]
       : []),
+    {
+      key: 'acoes',
+      header: '',
+      align: 'right' as const,
+      width: podeEditar ? '92px' : '48px',
+      render: (os: OrdemServicoDTO) => (
+        <div style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
+          <PrintButton label={`Imprimir OS #${os.numero}`} onImprimir={() => baixarOSPdf(os.id, os.numero)} />
+          {podeEditar && <EditButton to={`/os/${os.id}`} label={`Editar OS #${os.numero}`} />}
+        </div>
+      ),
+    },
   ];
 
   return (
     <div className={styles.page}>
       <PageHeader
         title="Ordens de Serviço"
-        description="Acompanhe as ordens em aberto e acesse os detalhes para continuar o atendimento."
+        description="Consulte as ordens e a situação do documento registrada no CHERP."
         actions={
           <>
             <RefreshButton onClick={() => refetch()} loading={isFetching} />
             {hasPermission('OS_CREATE') && (
               <LinkButton to="/os/nova" size="sm">
-                + Nova OS
+                <ActionIcon name="add" />
+                Nova OS
               </LinkButton>
             )}
+            <ExportButtons
+              onExportarExcel={() => baixarRelatorioOS({ ...periodoExportacaoPadrao(), situacaoDocumento: situacaoDocumento === '' ? undefined : Number(situacaoDocumento), prioridade: prioridade || undefined, busca: buscaAtiva || undefined }, 'excel')}
+              onExportarPdf={() => baixarRelatorioOS({ ...periodoExportacaoPadrao(), situacaoDocumento: situacaoDocumento === '' ? undefined : Number(situacaoDocumento), prioridade: prioridade || undefined, busca: buscaAtiva || undefined }, 'pdf')}
+            />
           </>
         }
       />
@@ -147,11 +194,11 @@ export function OSListPage() {
           onChange={(e) => setBusca(e.target.value)}
         />
         <Select
-          label="Status"
-          placeholder="Todos os status em aberto"
-          value={status}
-          onChange={(e) => handleStatusChange(e.target.value)}
-          options={STATUS_OPTIONS}
+          label="Situação"
+          placeholder="Todas as situações"
+          value={situacaoDocumento}
+          onChange={(e) => handleSituacaoDocumentoChange(e.target.value)}
+          options={OS_DOCUMENT_STATUS_OPTIONS}
         />
         <Select
           label="Prioridade"
@@ -161,6 +208,7 @@ export function OSListPage() {
           options={OS_PRIORIDADE_OPTIONS}
         />
         <Button type="submit" variant="secondary">
+          <ActionIcon name="search" />
           Buscar
         </Button>
       </form>
@@ -191,9 +239,10 @@ export function OSListPage() {
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortChange={handleSortChange}
+              columnPrefsKey="os"
             />
             <div className={styles.pagination}>
-              <Pagination page={page} limit={LIMIT} total={data.total} onPageChange={setPage} />
+              <Pagination page={page} limit={limit} total={data.total} onPageChange={setPage} onLimitChange={handleLimitChange} />
             </div>
           </>
         )}

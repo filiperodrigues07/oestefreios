@@ -13,4 +13,5 @@ export const firebirdOptions = {
   password: env.FIREBIRD_PASSWORD,
   lowercase_keys: false,
   pageSize: 4096,
+  connectTimeout: 8_000,
 };

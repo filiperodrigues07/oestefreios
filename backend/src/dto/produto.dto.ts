@@ -3,7 +3,10 @@ export interface OperationalProdutoDTO {
   codigo: string;
   descricao: string;
   unidade: string;
+  categoria?: string;
+  tipo?: string;
   disponivel?: number;
+  estoqueMinimo?: number;
 }
 
 /** Servido só a perfis com FINANCIAL_VIEW. */

@@ -11,5 +11,7 @@ export interface LoginResponseDTO {
     roleId: string;
     roleName: string;
     permissions: Permission[];
+    mustChangePassword: boolean;
+    cherpUsuarioChave?: number;
   };
 }

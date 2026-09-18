@@ -15,19 +15,27 @@ const EVENT_LABELS: Record<string, string> = {
   OS_STATUS_CHANGED: 'Status da OS alterado',
   OS_PRODUCT_ADDED: 'Produto adicionado à OS',
   OS_PRODUCT_REMOVED: 'Produto removido da OS',
+  OS_PRODUCT_UPDATED: 'Produto atualizado na OS',
   OS_SERVICE_ADDED: 'Serviço adicionado à OS',
   OS_SERVICE_REMOVED: 'Serviço removido da OS',
+  OS_SERVICE_UPDATED: 'Serviço atualizado na OS',
 };
 
 /** Trilha de auditoria (seção 24 do briefing) — só acessível com SYSTEM_SETTINGS (rota já protege no backend). */
 export function AuditLogPage() {
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const [selecionado, setSelecionado] = useState<AuditLogDTO | null>(null);
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ['audit-logs', page],
-    queryFn: () => listarAuditLogs(page, 20),
+    queryKey: ['audit-logs', page, limit],
+    queryFn: () => listarAuditLogs(page, limit),
   });
+
+  function handleLimitChange(novoLimit: number) {
+    setLimit(novoLimit);
+    setPage(1);
+  }
 
   return (
     <div className={styles.page}>
@@ -71,7 +79,7 @@ export function AuditLogPage() {
 
       {data && (
         <div className={styles.pagination}>
-          <Pagination page={data.page} limit={data.limit} total={data.total} onPageChange={setPage} />
+          <Pagination page={data.page} limit={data.limit} total={data.total} onPageChange={setPage} onLimitChange={handleLimitChange} />
         </div>
       )}
 

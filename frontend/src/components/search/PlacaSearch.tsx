@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { searchEquipamentosPorPlaca } from '../../api/equipamentos.api.js';
 import type { EquipamentoDTO } from '../../types/cherp.types.js';
+import { RequiredMark } from '../ui/RequiredMark.js';
 import { SearchCombobox, type SearchComboboxItem } from '../ui/SearchCombobox.js';
 
 interface PlacaItem extends SearchComboboxItem {
@@ -37,7 +38,7 @@ export function PlacaSearch({ onSelect, onQueryChange }: PlacaSearchProps) {
 
   return (
     <SearchCombobox<PlacaItem>
-      label="Placa"
+      label={<>Placa<RequiredMark /></>}
       placeholder="Digite a placa do veículo"
       items={items}
       isLoading={isFetching}

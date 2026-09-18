@@ -10,7 +10,7 @@ const OS_STATUS_VALUES = [
   'CANCELADA',
 ] as const;
 
-const OS_PRIORIDADE_VALUES = ['BAIXA', 'NORMAL', 'ALTA', 'URGENTE'] as const;
+const OS_PRIORIDADE_VALUES = ['BAIXA', 'NORMAL', 'MEDIA', 'ALTA', 'URGENTE'] as const;
 
 export const criarOSSchema = z.object({
   clienteCodigo: z.string().trim().min(1, 'Cliente é obrigatório.'),
@@ -54,18 +54,42 @@ export const osItemServicoParamSchema = z.object({
   servicoCodigo: z.string().trim().min(1),
 });
 
+export const osImagemParamSchema = z.object({
+  id: z.string().trim().min(1),
+  identificador: z.string().trim().min(1),
+});
+
 export const adicionarProdutoSchema = z.object({
   produtoCodigo: z.string().trim().min(1),
   quantidade: z.coerce.number().positive().default(1),
+  /** Só aplicado se o usuário tiver FINANCIAL_EDIT (revalidado no service) — ignorado caso contrário. */
+  precoUnitario: z.coerce.number().nonnegative().optional(),
+  /** ITENSORDEMSERVICOPROD.DESCRCOMPLEMENT — texto livre, só o cliente preenche. */
+  descricaoComplementar: z.string().trim().max(1000).optional(),
 });
 
 export const adicionarServicoSchema = z.object({
   servicoCodigo: z.string().trim().min(1),
   quantidade: z.coerce.number().positive().default(1),
+  /** Só aplicado se o usuário tiver FINANCIAL_EDIT (revalidado no service) — ignorado caso contrário. */
+  valorUnitario: z.coerce.number().nonnegative().optional(),
+  descricaoComplementar: z.string().trim().max(1000).optional(),
 });
+
+export const atualizarItemSchema = z
+  .object({
+    quantidade: z.coerce.number().positive().optional(),
+    precoUnitario: z.coerce.number().nonnegative().optional(),
+    descricaoComplementar: z.string().trim().max(1000).optional(),
+  })
+  .refine((data) => data.quantidade !== undefined || data.precoUnitario !== undefined || data.descricaoComplementar !== undefined, {
+    message: 'Informe quantidade, preço unitário e/ou complemento pra atualizar.',
+  });
 
 export const listarOSQuerySchema = z.object({
   status: z.union([z.enum(OS_STATUS_VALUES), z.literal('AGUARDANDO')]).optional(),
+  situacaoDocumento: z.coerce.number().int().min(0).max(6).optional(),
+  incluirFinalizadas: z.coerce.boolean().optional(),
   clienteCodigo: z.string().trim().min(1).optional(),
   tecnicoId: z.string().trim().min(1).optional(),
   prioridade: z.enum(OS_PRIORIDADE_VALUES).optional(),

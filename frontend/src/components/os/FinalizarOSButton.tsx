@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, ConfirmDialog } from '../ui/index.js';
+import { ActionIcon, Button, ConfirmDialog } from '../ui/index.js';
 
 interface FinalizarOSButtonProps {
   onConfirm: () => void;
@@ -16,15 +16,16 @@ export function FinalizarOSButton({ onConfirm, loading }: FinalizarOSButtonProps
 
   return (
     <>
-      <Button variant="primary" onClick={() => setConfirmando(true)}>
-        Finalizar OS
+      <Button variant="primary" size="sm" onClick={() => setConfirmando(true)}>
+        <ActionIcon name="update" />
+        Marcar como pronta
       </Button>
 
       <ConfirmDialog
         open={confirmando}
-        title="Finalizar OS?"
-        description="A OS deixa de poder ser editada por aqui (o mecânico não lança mais produtos, serviços nem altera diagnóstico). Ela continua aberta no CHERP para o faturamento."
-        confirmLabel="Finalizar"
+        title="Marcar OS como pronta?"
+        description="A situação de atendimento do CHERP será atualizada para Pronta. A OS permanece disponível no CHERP para o faturamento."
+        confirmLabel="Marcar como pronta"
         loading={loading}
         onCancel={() => setConfirmando(false)}
         onConfirm={() => {

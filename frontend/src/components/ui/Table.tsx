@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import styles from './Table.module.css';
 
 export interface TableColumn<T> {
@@ -21,29 +21,163 @@ interface TableProps<T> {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   onSortChange?: (key: string) => void;
+  /** Chave única (por tela) — liga redimensionar/reordenar colunas tipo planilha, persistido no navegador. */
+  columnPrefsKey?: string;
 }
+
+interface ColumnPrefs {
+  order: string[];
+  widths: Record<string, number>;
+}
+
+function loadPrefs(key: string): ColumnPrefs | null {
+  try {
+    const raw = localStorage.getItem(`table-prefs:${key}`);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed?.order) || typeof parsed?.widths !== 'object') return null;
+    return parsed as ColumnPrefs;
+  } catch {
+    return null;
+  }
+}
+
+function savePrefs(key: string, prefs: ColumnPrefs) {
+  try {
+    localStorage.setItem(`table-prefs:${key}`, JSON.stringify(prefs));
+  } catch {
+    // Navegador privado/bloqueado — só perde a preferência salva, tabela continua funcionando.
+  }
+}
+
+const MIN_WIDTH = 56;
 
 /**
  * Tabela genérica (cabeçalho fixo, coluna ordenável por clique, linha com hover/clique) —
- * base compartilhada por Produtos, Clientes e Usuários em vez de reconstruir a mesma
- * estrutura em cada tela.
+ * base compartilhada por Produtos, Clientes e OS. Com `columnPrefsKey`, também permite
+ * redimensionar (arrastar borda) e reordenar colunas (arrastar cabeçalho) tipo planilha,
+ * lembrando por navegador via localStorage — nunca sincroniza entre dispositivos/usuários.
  */
-export function Table<T>({ columns, data, rowKey, onRowClick, sortBy, sortOrder, onSortChange }: TableProps<T>) {
+export function Table<T>({
+  columns,
+  data,
+  rowKey,
+  onRowClick,
+  sortBy,
+  sortOrder,
+  onSortChange,
+  columnPrefsKey,
+}: TableProps<T>) {
+  const [order, setOrder] = useState<string[] | null>(null);
+  const [widths, setWidths] = useState<Record<string, number>>({});
+  const dragKey = useRef<string | null>(null);
+  const resizing = useRef<{ key: string; startX: number; startWidth: number } | null>(null);
+
+  // Carrega preferência salva quando a chave muda (troca de tela/aba) — só uma vez por chave.
+  useEffect(() => {
+    if (!columnPrefsKey) {
+      setOrder(null);
+      setWidths({});
+      return;
+    }
+    const prefs = loadPrefs(columnPrefsKey);
+    setOrder(prefs?.order ?? null);
+    setWidths(prefs?.widths ?? {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [columnPrefsKey]);
+
+  // Ordem exibida: aplica a ordem salva, acrescenta colunas novas no fim, descarta chaves que sumiram.
+  const displayColumns = useMemo(() => {
+    if (!order) return columns;
+    const byKey = new Map(columns.map((c) => [c.key, c]));
+    const ordenadas = order.map((k) => byKey.get(k)).filter((c): c is TableColumn<T> => Boolean(c));
+    const faltando = columns.filter((c) => !order.includes(c.key));
+    return [...ordenadas, ...faltando];
+  }, [columns, order]);
+
+  function persist(nextOrder: string[], nextWidths: Record<string, number>) {
+    if (!columnPrefsKey) return;
+    savePrefs(columnPrefsKey, { order: nextOrder, widths: nextWidths });
+  }
+
+  function handleDragStart(key: string) {
+    if (!columnPrefsKey) return;
+    dragKey.current = key;
+  }
+
+  function handleDrop(targetKey: string) {
+    if (!columnPrefsKey || !dragKey.current || dragKey.current === targetKey) return;
+    const atual = displayColumns.map((c) => c.key);
+    const from = atual.indexOf(dragKey.current);
+    const to = atual.indexOf(targetKey);
+    if (from === -1 || to === -1) return;
+    const proxima = [...atual];
+    proxima.splice(from, 1);
+    proxima.splice(to, 0, dragKey.current);
+    dragKey.current = null;
+    setOrder(proxima);
+    persist(proxima, widths);
+  }
+
+  function handleResizeStart(key: string, e: React.MouseEvent, currentWidth: number) {
+    if (!columnPrefsKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+    resizing.current = { key, startX: e.clientX, startWidth: currentWidth };
+
+    function onMove(ev: MouseEvent) {
+      if (!resizing.current) return;
+      const delta = ev.clientX - resizing.current.startX;
+      const novaLargura = Math.max(MIN_WIDTH, Math.round(resizing.current.startWidth + delta));
+      setWidths((w) => ({ ...w, [resizing.current!.key]: novaLargura }));
+    }
+    function onUp() {
+      if (resizing.current) {
+        setWidths((w) => {
+          persist(displayColumns.map((c) => c.key), w);
+          return w;
+        });
+      }
+      resizing.current = null;
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  function colunaWidth(col: TableColumn<T>, thEl?: HTMLElement | null): number {
+    const savedWidth = widths[col.key];
+    if (savedWidth !== undefined) return savedWidth;
+    if (col.width) return parseInt(col.width, 10) || 120;
+    return thEl?.offsetWidth ?? 120;
+  }
+
   return (
     <div className={styles.wrapper}>
       <table className={styles.table}>
         <thead>
           <tr>
-            {columns.map((col) => {
+            {displayColumns.map((col) => {
               const isSorted = sortBy === col.key;
               const clickable = col.sortable && onSortChange;
+              const larguraSalva = widths[col.key];
               return (
                 <th
                   key={col.key}
-                  className={[styles.th, col.align === 'right' ? styles.alignRight : '', clickable ? styles.sortable : '']
+                  draggable={Boolean(columnPrefsKey)}
+                  onDragStart={() => handleDragStart(col.key)}
+                  onDragOver={(e) => columnPrefsKey && e.preventDefault()}
+                  onDrop={() => handleDrop(col.key)}
+                  className={[
+                    styles.th,
+                    col.align === 'right' ? styles.alignRight : '',
+                    clickable ? styles.sortable : '',
+                    columnPrefsKey ? styles.thDraggable : '',
+                  ]
                     .filter(Boolean)
                     .join(' ')}
-                  style={col.width ? { width: col.width } : undefined}
+                  style={larguraSalva ? { width: `${larguraSalva}px` } : col.width ? { width: col.width } : undefined}
                   onClick={clickable ? () => onSortChange(col.key) : undefined}
                   aria-sort={isSorted ? (sortOrder === 'desc' ? 'descending' : 'ascending') : undefined}
                 >
@@ -55,6 +189,17 @@ export function Table<T>({ columns, data, rowKey, onRowClick, sortBy, sortOrder,
                       </span>
                     )}
                   </span>
+                  {columnPrefsKey && (
+                    <span
+                      className={styles.resizeHandle}
+                      onMouseDown={(e) => {
+                        const th = (e.target as HTMLElement).closest('th');
+                        handleResizeStart(col.key, e, colunaWidth(col, th));
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-hidden="true"
+                    />
+                  )}
                 </th>
               );
             })}
@@ -67,7 +212,7 @@ export function Table<T>({ columns, data, rowKey, onRowClick, sortBy, sortOrder,
               className={onRowClick ? styles.rowClickable : ''}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
             >
-              {columns.map((col) => (
+              {displayColumns.map((col) => (
                 <td
                   key={col.key}
                   className={[styles.td, col.align === 'right' ? styles.alignRight : '', col.mono ? styles.mono : '']

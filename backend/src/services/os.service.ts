@@ -12,6 +12,7 @@ import {
 import type { OSListFilter } from '../repositories/interfaces/IOSRepository.js';
 import type { AuthenticatedUser, Permission } from '../types/auth.types.js';
 import type { OrdemServico, OSHistoricoEntry, OSPrioridade, OSStatus } from '../types/cherp.types.js';
+import { detectarTipoImagem } from '../utils/imageSignature.js';
 import { recordAudit } from './auditLog.service.js';
 import { assertValidTransition } from './osWorkflow.js';
 
@@ -63,8 +64,8 @@ async function getOSOrThrow(id: string): Promise<OrdemServico> {
  * nada por aqui depois disso — o backend garante isso em toda mutação, não só a UI.
  */
 function assertNaoFinalizada(os: OrdemServico): void {
-  if (os.status === 'CONCLUIDA') {
-    throw new ValidationError('OS finalizada não pode mais ser editada.');
+  if ((os.situacaoDocumento !== undefined && os.situacaoDocumento !== 0) || os.dataConclusao || os.status === 'CONCLUIDA' || os.status === 'CANCELADA') {
+    throw new ValidationError('OS fechada ou com pedido/NF gerado no CHERP é somente consulta e não pode ser alterada.');
   }
 }
 
@@ -121,6 +122,7 @@ export async function criarOS(
     servicos: [],
     historico: [historicoEntry('OS criada', usuario)],
     dataAbertura: new Date().toISOString(),
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
   });
 
   await auditOS('OS_CREATED', novo.id, usuario, ctx, { after: input });
@@ -155,6 +157,7 @@ export async function atualizarOS(
 
   const atualizado = await osRepository.atualizar(id, {
     ...patch,
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
     historico: [...atual.historico, historicoEntry(`OS atualizada (${camposAlterados.join(', ')})`, usuario)],
   });
 
@@ -178,6 +181,7 @@ export async function alterarStatusOS(
   const patch: Partial<OrdemServico> = {
     status: novoStatus,
     historico: [...atual.historico, historicoEntry(`Status alterado para "${novoStatus}"`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
   };
   if (novoStatus === 'CONCLUIDA') {
     patch.dataConclusao = new Date().toISOString();
@@ -196,6 +200,8 @@ export async function adicionarProdutoOS(
   quantidade: number,
   usuario: AuthenticatedUser,
   ctx: RequestContext = {},
+  precoUnitarioOverride?: number,
+  descricaoComplementar?: string,
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
   assertNaoFinalizada(atual);
@@ -209,7 +215,10 @@ export async function adicionarProdutoOS(
     throw new ValidationError('Produto já adicionado a esta OS. Ajuste a quantidade em vez de adicionar de novo.');
   }
 
-  const precoUnitario = produto.precoUnitario;
+  const precoUnitario =
+    usuario.permissions.includes('FINANCIAL_EDIT') && precoUnitarioOverride !== undefined
+      ? precoUnitarioOverride
+      : produto.precoUnitario;
   const total = precoUnitario !== undefined ? precoUnitario * quantidade : undefined;
   const novoItem = {
     produtoCodigo: produto.codigo,
@@ -219,6 +228,7 @@ export async function adicionarProdutoOS(
     precoUnitario,
     desconto: 0,
     total,
+    descricaoComplementar,
   };
   const produtos = [...atual.produtos, novoItem];
 
@@ -226,6 +236,7 @@ export async function adicionarProdutoOS(
     produtos,
     faturamento: calcularFaturamento(produtos, atual.servicos),
     historico: [...atual.historico, historicoEntry(`Produto adicionado: ${produto.descricao}`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
   });
 
   await auditOS('OS_PRODUCT_ADDED', id, usuario, ctx, { after: novoItem });
@@ -251,6 +262,7 @@ export async function removerProdutoOS(
     produtos,
     faturamento: calcularFaturamento(produtos, atual.servicos),
     historico: [...atual.historico, historicoEntry(`Produto removido: ${item.descricao}`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
   });
 
   await auditOS('OS_PRODUCT_REMOVED', id, usuario, ctx, { before: item });
@@ -264,6 +276,8 @@ export async function adicionarServicoOS(
   quantidade: number,
   usuario: AuthenticatedUser,
   ctx: RequestContext = {},
+  valorUnitarioOverride?: number,
+  descricaoComplementar?: string,
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
   assertNaoFinalizada(atual);
@@ -277,7 +291,10 @@ export async function adicionarServicoOS(
     throw new ValidationError('Serviço já adicionado a esta OS.');
   }
 
-  const valorUnitario = servico.valorUnitario;
+  const valorUnitario =
+    usuario.permissions.includes('FINANCIAL_EDIT') && valorUnitarioOverride !== undefined
+      ? valorUnitarioOverride
+      : servico.valorUnitario;
   const total = valorUnitario !== undefined ? valorUnitario * quantidade : undefined;
   const novoItem = {
     servicoCodigo: servico.codigo,
@@ -287,6 +304,7 @@ export async function adicionarServicoOS(
     valorUnitario,
     desconto: 0,
     total,
+    descricaoComplementar,
   };
   const servicos = [...atual.servicos, novoItem];
 
@@ -294,6 +312,7 @@ export async function adicionarServicoOS(
     servicos,
     faturamento: calcularFaturamento(atual.produtos, servicos),
     historico: [...atual.historico, historicoEntry(`Serviço adicionado: ${servico.descricao}`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
   });
 
   await auditOS('OS_SERVICE_ADDED', id, usuario, ctx, { after: novoItem });
@@ -319,9 +338,142 @@ export async function removerServicoOS(
     servicos,
     faturamento: calcularFaturamento(atual.produtos, servicos),
     historico: [...atual.historico, historicoEntry(`Serviço removido: ${item.descricao}`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
   });
 
   await auditOS('OS_SERVICE_REMOVED', id, usuario, ctx, { before: item });
 
   return toOSDTO(atualizado, usuario.permissions);
+}
+
+export interface OSItemPatchInput {
+  quantidade?: number;
+  precoUnitario?: number;
+  descricaoComplementar?: string;
+}
+
+/** Edita quantidade/preço de um produto já lançado — sem permissão FINANCIAL_EDIT, o preço enviado é ignorado. */
+export async function atualizarProdutoOS(
+  id: string,
+  produtoCodigo: string,
+  patch: OSItemPatchInput,
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<OperationalOSDTO | AdminOSDTO> {
+  const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
+  const item = atual.produtos.find((p) => p.produtoCodigo === produtoCodigo);
+  if (!item) {
+    throw new NotFoundError('Produto não encontrado nesta OS.', 'OS_ITEM_NOT_FOUND');
+  }
+
+  const precoUnitario = usuario.permissions.includes('FINANCIAL_EDIT') ? patch.precoUnitario : undefined;
+  await osRepository.atualizarItemProduto(id, produtoCodigo, {
+    quantidade: patch.quantidade,
+    precoUnitario,
+    descricaoComplementar: patch.descricaoComplementar,
+  });
+
+  const atualizado = await osRepository.atualizar(id, {
+    historico: [...atual.historico, historicoEntry(`Produto atualizado: ${item.descricao}`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
+  });
+
+  await auditOS('OS_PRODUCT_UPDATED', id, usuario, ctx, { before: item, after: patch });
+
+  return toOSDTO(atualizado, usuario.permissions);
+}
+
+/** Edita quantidade/preço de um serviço já lançado — sem permissão FINANCIAL_EDIT, o preço enviado é ignorado. */
+export async function atualizarServicoOS(
+  id: string,
+  servicoCodigo: string,
+  patch: OSItemPatchInput,
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<OperationalOSDTO | AdminOSDTO> {
+  const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
+  const item = atual.servicos.find((s) => s.servicoCodigo === servicoCodigo);
+  if (!item) {
+    throw new NotFoundError('Serviço não encontrado nesta OS.', 'OS_ITEM_NOT_FOUND');
+  }
+
+  const precoUnitario = usuario.permissions.includes('FINANCIAL_EDIT') ? patch.precoUnitario : undefined;
+  await osRepository.atualizarItemServico(id, servicoCodigo, {
+    quantidade: patch.quantidade,
+    precoUnitario,
+    descricaoComplementar: patch.descricaoComplementar,
+  });
+
+  const atualizado = await osRepository.atualizar(id, {
+    historico: [...atual.historico, historicoEntry(`Serviço atualizado: ${item.descricao}`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
+  });
+
+  await auditOS('OS_SERVICE_UPDATED', id, usuario, ctx, { before: item, after: patch });
+
+  return toOSDTO(atualizado, usuario.permissions);
+}
+
+export interface OSImagemDTO {
+  identificador: string;
+  descricao: string;
+  nomeArquivo: string;
+  data: string;
+}
+
+const MAX_IMAGEM_BYTES = 8 * 1024 * 1024;
+
+/** Fotos da OS — gravadas em ORDEMSERVICOIMG (BLOB nativo do CHERP), nunca num armazenamento paralelo. */
+export async function listarImagensOS(id: string): Promise<OSImagemDTO[]> {
+  await getOSOrThrow(id);
+  return osRepository.listarImagens(id);
+}
+
+export async function adicionarImagemOS(
+  id: string,
+  arquivo: { buffer: Buffer; nomeArquivo: string; descricao?: string },
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<OSImagemDTO[]> {
+  const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
+
+  if (arquivo.buffer.length === 0 || arquivo.buffer.length > MAX_IMAGEM_BYTES) {
+    throw new ValidationError('A imagem deve ter no máximo 8 MB.');
+  }
+  const tipo = detectarTipoImagem(arquivo.buffer);
+  if (!tipo) {
+    throw new ValidationError('Formato de imagem não permitido. Envie PNG, JPEG ou WebP.');
+  }
+
+  await osRepository.adicionarImagem(id, arquivo);
+  await auditOS('OS_IMAGE_ADDED', id, usuario, ctx, { nomeArquivo: arquivo.nomeArquivo });
+
+  return osRepository.listarImagens(id);
+}
+
+export async function removerImagemOS(
+  id: string,
+  identificador: string,
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<OSImagemDTO[]> {
+  const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
+
+  await osRepository.removerImagem(id, identificador);
+  await auditOS('OS_IMAGE_REMOVED', id, usuario, ctx, { identificador });
+
+  return osRepository.listarImagens(id);
+}
+
+export async function buscarImagemOS(id: string, identificador: string): Promise<{ buffer: Buffer; nomeArquivo: string }> {
+  await getOSOrThrow(id);
+  const imagem = await osRepository.buscarImagem(id, identificador);
+  if (!imagem) {
+    throw new NotFoundError('Imagem não encontrada nesta OS.', 'OS_IMAGE_NOT_FOUND');
+  }
+  return imagem;
 }

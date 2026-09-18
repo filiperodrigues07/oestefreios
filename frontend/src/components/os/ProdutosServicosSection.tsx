@@ -1,6 +1,7 @@
-import { searchProdutos } from '../../api/produtos.api.js';
-import { searchServicos } from '../../api/servicos.api.js';
-import { ItemGrid, type ItemGridRow } from './ItemGrid.js';
+import { getProdutoByCodigo, searchProdutos } from '../../api/produtos.api.js';
+import { getServicoByCodigo, searchServicos } from '../../api/servicos.api.js';
+import { ApiError } from '../../api/httpClient.js';
+import { ItemGrid, type ItemGridCandidate, type ItemGridRow } from './ItemGrid.js';
 import type { OSItemProduto, OSItemServico } from '../../types/os.types.js';
 
 interface ProdutosServicosSectionProps {
@@ -10,10 +11,34 @@ interface ProdutosServicosSectionProps {
   podeAddProduto: boolean;
   podeAddServico: boolean;
   mostrarPreco: boolean;
-  onAdicionarProduto: (codigo: string, quantidade: number) => Promise<unknown>;
-  onAdicionarServico: (codigo: string, quantidade: number) => Promise<unknown>;
+  podeEditarPreco: boolean;
+  onAdicionarProduto: (codigo: string, quantidade: number, precoUnitario?: number, descricaoComplementar?: string) => Promise<unknown>;
+  onAdicionarServico: (codigo: string, quantidade: number, valorUnitario?: number, descricaoComplementar?: string) => Promise<unknown>;
+  onAtualizarProduto: (codigo: string, patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string }) => Promise<unknown>;
+  onAtualizarServico: (codigo: string, patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string }) => Promise<unknown>;
   onRemoverProduto: (row: ItemGridRow) => void;
   onRemoverServico: (row: ItemGridRow) => void;
+}
+
+/** 404 do lookup por código exato vira "não encontrado" (null) pro ItemGrid; outros erros propagam. */
+async function buscarProdutoPorCodigo(codigo: string): Promise<ItemGridCandidate | null> {
+  try {
+    const p = await getProdutoByCodigo(codigo);
+    return { codigo: p.codigo, descricao: p.descricao, unidade: p.unidade, precoUnitario: p.precoUnitario };
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'PRODUCT_NOT_FOUND') return null;
+    throw err;
+  }
+}
+
+async function buscarServicoPorCodigo(codigo: string): Promise<ItemGridCandidate | null> {
+  try {
+    const s = await getServicoByCodigo(codigo);
+    return { codigo: s.codigo, descricao: s.descricao, unidade: s.unidade, precoUnitario: s.valorUnitario };
+  } catch (err) {
+    if (err instanceof ApiError && err.code === 'SERVICE_NOT_FOUND') return null;
+    throw err;
+  }
 }
 
 /** Produtos + Serviços lançados na OS — reaproveita o ItemGrid (Fase H) sem tocar sua lógica de persistência. */
@@ -24,8 +49,11 @@ export function ProdutosServicosSection({
   podeAddProduto,
   podeAddServico,
   mostrarPreco,
+  podeEditarPreco,
   onAdicionarProduto,
   onAdicionarServico,
+  onAtualizarProduto,
+  onAtualizarServico,
   onRemoverProduto,
   onRemoverServico,
 }: ProdutosServicosSectionProps) {
@@ -36,6 +64,7 @@ export function ProdutosServicosSection({
     quantidade: p.quantidade,
     precoUnitario: p.precoUnitario,
     total: p.total,
+    descricaoComplementar: p.descricaoComplementar,
   }));
 
   const servicosGrid: ItemGridRow[] = servicos.map((s) => ({
@@ -45,6 +74,7 @@ export function ProdutosServicosSection({
     quantidade: s.quantidade,
     precoUnitario: s.valorUnitario,
     total: s.total,
+    descricaoComplementar: s.descricaoComplementar,
   }));
 
   return (
@@ -59,12 +89,15 @@ export function ProdutosServicosSection({
               r.items.map((p) => ({ codigo: p.codigo, descricao: p.descricao, unidade: p.unidade, precoUnitario: p.precoUnitario })),
             )
           }
+          buscarPorCodigo={buscarProdutoPorCodigo}
           onAdicionar={onAdicionarProduto}
+          onAtualizar={onAtualizarProduto}
           onRemover={onRemoverProduto}
           podeEditar={podeAddProduto}
           mostrarPreco={mostrarPreco}
+          podeEditarPreco={podeEditarPreco}
           vazio="Nenhum produto lançado."
-          placeholder="Código ou descrição do produto"
+          placeholder="Descrição do produto"
         />
       </div>
 
@@ -78,12 +111,15 @@ export function ProdutosServicosSection({
               r.items.map((s) => ({ codigo: s.codigo, descricao: s.descricao, unidade: s.unidade, precoUnitario: s.valorUnitario })),
             )
           }
+          buscarPorCodigo={buscarServicoPorCodigo}
           onAdicionar={onAdicionarServico}
+          onAtualizar={onAtualizarServico}
           onRemover={onRemoverServico}
           podeEditar={podeAddServico}
           mostrarPreco={mostrarPreco}
+          podeEditarPreco={podeEditarPreco}
           vazio="Nenhum serviço lançado."
-          placeholder="Código ou descrição do serviço"
+          placeholder="Descrição do serviço"
         />
         {faturamento !== undefined && (
           <p style={{ textAlign: 'right', fontWeight: 600, marginTop: 'var(--space-2)' }}>Total geral: R$ {faturamento.toFixed(2)}</p>

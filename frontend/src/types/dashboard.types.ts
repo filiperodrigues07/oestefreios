@@ -40,10 +40,10 @@ export interface OSSummaryDTO {
 
 export interface OperationalDashboardDTO {
   counts: {
-    pendentes: number;
-    emAndamento: number;
+    emAtendimento: number;
     aguardando: number;
-    concluidas: number;
+    prontas: number;
+    encerradas: number;
   };
   minhasOS: OSSummaryDTO[];
 }
@@ -54,7 +54,7 @@ export interface DashboardSerieDTO {
   chave: string;
   rotulo: string;
   abertas: number;
-  concluidas: number;
+  encerradas: number;
 }
 
 export interface DashboardAtencaoDTO {
@@ -70,6 +70,7 @@ export interface DashboardOperacionalDTO {
   periodo: { inicio: string; fim: string; granularidade: DashboardGranularidade };
   total: number;
   countsByStatus: Record<OSStatus, number>;
+  countsBySituacaoDocumento: Record<number, number>;
   countsByPrioridade: Record<OSPrioridade, number>;
   evolucao: DashboardSerieDTO[];
   atencao: DashboardAtencaoDTO[];

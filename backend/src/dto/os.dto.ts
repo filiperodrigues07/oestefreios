@@ -5,6 +5,7 @@ interface OSItemProdutoBase {
   descricao: string;
   unidade: string;
   quantidade: number;
+  descricaoComplementar?: string;
 }
 
 interface OSItemServicoBase {
@@ -12,6 +13,7 @@ interface OSItemServicoBase {
   descricao: string;
   unidade: string;
   quantidade: number;
+  descricaoComplementar?: string;
 }
 
 /** Nunca inclui preco/desconto/total/custo/faturamento. Servido a perfis sem FINANCIAL_VIEW. */
@@ -36,6 +38,7 @@ export interface OperationalOSDTO {
   dataAbertura: string;
   dataPrevista?: string;
   dataConclusao?: string;
+  situacaoDocumento?: number;
   nroDav?: string;
   kmAtual?: number;
   kmFinal?: number;

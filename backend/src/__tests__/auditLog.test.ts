@@ -12,6 +12,7 @@ import { pool } from '../database/postgres/client.js';
  */
 
 let adminToken: string;
+let adminName: string;
 
 beforeAll(async () => {
   const res = await request(app)
@@ -21,6 +22,7 @@ beforeAll(async () => {
     throw new Error(`login do seed de dev falhou (rode "npm run db:seed -w backend" antes dos testes): ${res.status}`);
   }
   adminToken = res.body.data.accessToken;
+  adminName = res.body.data.user.name;
 });
 
 afterAll(async () => {
@@ -44,7 +46,7 @@ describe('auditoria de negócio', () => {
     const entry = auditRes.body.data.items.find((item: { entityId: string }) => item.entityId === osId);
     expect(entry).toBeDefined();
     expect(entry.entityType).toBe('OS');
-    expect(entry.userName).toBe('Admin (dev)');
+    expect(entry.userName).toBe(adminName);
     expect(entry.changes.after.problema).toBe('Teste de auditoria');
   });
 

@@ -8,6 +8,8 @@ export interface Produto {
   descricao: string;
   unidade: string;
   categoria?: string;
+  /** PRODUTO.TIPO resolvido via PRODUTOTIPO (Mercadoria pra Revenda, Matéria-Prima, Material de Uso e Consumo, etc). */
+  tipo?: string;
   disponivel?: number;
   estoqueMinimo?: number;
   precoUnitario?: number;
@@ -89,6 +91,8 @@ export interface ClienteInput {
   transportador?: boolean;
   representante?: boolean;
   regimeTributario?: RegimeTributario;
+  /** Metadado transitório usado apenas para atribuir a criação no CHERP. */
+  cherpUsuarioChave?: number;
 }
 
 export interface Equipamento {
@@ -128,7 +132,7 @@ export type OSStatus =
   | 'CONCLUIDA'
   | 'CANCELADA';
 
-export type OSPrioridade = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
+export type OSPrioridade = 'BAIXA' | 'NORMAL' | 'MEDIA' | 'ALTA' | 'URGENTE';
 
 export interface OSItemProduto {
   produtoCodigo: string;
@@ -138,6 +142,8 @@ export interface OSItemProduto {
   precoUnitario?: number;
   desconto?: number;
   total?: number;
+  /** ITENSORDEMSERVICOPROD.DESCRCOMPLEMENT — texto livre que só o cliente preenche no lançamento. */
+  descricaoComplementar?: string;
 }
 
 export interface OSItemServico {
@@ -148,6 +154,8 @@ export interface OSItemServico {
   valorUnitario?: number;
   desconto?: number;
   total?: number;
+  /** ITENSORDEMSERVICOSERV.DESCRCOMPLEMENT — texto livre que só o cliente preenche no lançamento. */
+  descricaoComplementar?: string;
 }
 
 export interface OSHistoricoEntry {
@@ -177,6 +185,8 @@ export interface OrdemServico {
   dataAbertura: string;
   dataPrevista?: string;
   dataConclusao?: string;
+  /** Situação principal do documento no CHERP (ORDEMSERVICO.SITUACAO). Somente 0 (Aberta) permite edição. */
+  situacaoDocumento?: number;
   faturamento?: number;
   /** Nº do DAV impresso no CHERP (ORDEMSERVICO.NRODAV) — só leitura, o CHERP quem gera. */
   nroDav?: string;
@@ -186,6 +196,8 @@ export interface OrdemServico {
   /** Frete e IPI da OS (ORDEMSERVICO.FRETE/TOTALIPI) — só leitura, financeiro. */
   frete?: number;
   totalIpi?: number;
+  /** Metadado transitório de escrita: usuário do CHERP vinculado ao autor da ação. */
+  cherpUsuarioChave?: number;
 }
 
 export interface PaginatedResult<T> {
@@ -203,10 +215,10 @@ export interface SearchQuery {
   /** Só usado por clientes. */
   tipoPessoa?: TipoPessoa;
   uf?: string;
-  /** Busca livre — só clientes: casa contra código, nome/razão social, documento, telefone/celular. */
+  /** Busca livre — clientes: código/nome/documento/telefone. Produtos/serviços: código/descrição/categoria. */
   busca?: string;
   page?: number;
   limit?: number;
-  sortBy?: 'codigo' | 'descricao' | 'nome' | 'documento' | 'telefone' | 'cidade';
+  sortBy?: 'codigo' | 'descricao' | 'nome' | 'documento' | 'telefone' | 'cidade' | 'categoria' | 'tipo';
   sortOrder?: 'asc' | 'desc';
 }

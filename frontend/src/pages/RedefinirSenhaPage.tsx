@@ -6,6 +6,7 @@ import { Footer } from '../components/layout/Footer.js';
 import { Button, Card, PasswordInput, useToast } from '../components/ui/index.js';
 import truckHero from '../assets/login-truck-hero.png';
 import styles from './PublicAuthPage.module.css';
+import { isSecurePassword, PASSWORD_RULES } from '../utils/passwordPolicy.js';
 
 /** Tela pública /redefinir-senha?token=... — fora do ProtectedRoute (item 10). */
 export function RedefinirSenhaPage() {
@@ -28,8 +29,8 @@ export function RedefinirSenhaPage() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (password.length < 8) {
-      setErroValidacao('A senha precisa ter ao menos 8 caracteres.');
+    if (!isSecurePassword(password)) {
+      setErroValidacao('A senha ainda não atende a todos os critérios de segurança.');
       return;
     }
     if (password !== confirmacao) {
@@ -69,6 +70,7 @@ export function RedefinirSenhaPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
+              maxLength={128}
             />
             <PasswordInput
               label="Confirmar nova senha"
@@ -76,7 +78,13 @@ export function RedefinirSenhaPage() {
               value={confirmacao}
               onChange={(e) => setConfirmacao(e.target.value)}
               autoComplete="new-password"
+              maxLength={128}
             />
+
+            <div aria-live="polite" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, color: '#adc7e9', fontSize: 12 }}>
+              {PASSWORD_RULES.map((rule) => <span key={rule.label}>{rule.test(password) ? '✓' : '○'} {rule.label}</span>)}
+              <span>{password && password === confirmacao ? '✓' : '○'} Senhas iguais</span>
+            </div>
 
             {(erroValidacao || mutation.isError) && (
               <p role="alert" className={styles.error}>

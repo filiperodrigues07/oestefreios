@@ -50,6 +50,7 @@ export const saveGeralSettings = (data: GeralSettings) => apiFetch<GeralSettings
 export interface Branding {
   nomeEmpresa: string;
   logoUrl: string;
+  corDestaque: string;
 }
 
 /** Nome/logo do cliente pra sidebar — qualquer usuário autenticado pode ler (rota sem SYSTEM_SETTINGS). */

@@ -9,6 +9,8 @@ export interface UserSummaryDTO {
   roleName: string;
   permissions: Permission[];
   isCustom: boolean;
+  mustChangePassword: boolean;
+  cherpUsuarioChave: number | null;
   createdAt: string;
 }
 
@@ -19,12 +21,20 @@ export interface RoleOptionDTO {
   permissions: Permission[];
 }
 
+export interface CherpUserOptionDTO {
+  chave: number;
+  nome: string;
+  login?: string;
+}
+
 export interface CreateUserInput {
   name: string;
   email: string;
   roleId: string;
   isActive?: boolean;
   permissions?: Permission[];
+  password?: string;
+  cherpUsuarioChave?: number | null;
 }
 
 export interface UpdateUserInput {
@@ -33,4 +43,5 @@ export interface UpdateUserInput {
   roleId?: string;
   isActive?: boolean;
   permissions?: Permission[];
+  cherpUsuarioChave?: number | null;
 }

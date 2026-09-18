@@ -24,7 +24,7 @@ export interface SearchComboboxHandle {
 }
 
 interface SearchComboboxProps<T extends SearchComboboxItem> {
-  label?: string;
+  label?: ReactNode;
   placeholder?: string;
   items: T[];
   isLoading?: boolean;

@@ -21,7 +21,7 @@ export const smtpSettingsSchema = z.object({
 
 export const geralSettingsSchema = z.object({
   nomeEmpresa: z.string().trim().min(1),
-  logoUrl: z.string().trim(),
+  logoUrl: z.string().trim().max(2_000_000),
   corDestaque: z.string().trim(),
   fusoHorario: z.string().trim().min(1),
 });

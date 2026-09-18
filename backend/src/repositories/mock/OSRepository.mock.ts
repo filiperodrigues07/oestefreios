@@ -1,6 +1,26 @@
 import { randomUUID } from 'node:crypto';
 import type { OrdemServico, OSItemProduto, OSItemServico, OSPrioridade, OSStatus } from '../../types/cherp.types.js';
-import type { IOSRepository, OSDashboardFilter, OSListFilter } from '../interfaces/IOSRepository.js';
+import type {
+  IOSRepository,
+  OSDashboardFilter,
+  OSImagemArquivo,
+  OSImagemMeta,
+  OSImagemNova,
+  OSItemPatch,
+  OSListFilter,
+  OSReportFilter,
+} from '../interfaces/IOSRepository.js';
+
+interface MockImagem {
+  identificador: string;
+  osId: string;
+  descricao: string;
+  nomeArquivo: string;
+  buffer: Buffer;
+  data: string;
+}
+
+const IMAGENS_MOCK: MockImagem[] = [];
 
 /**
  * MOCK — dados em memória, não vem do Firebird/CHERP.
@@ -32,6 +52,7 @@ interface SeedOSInput {
   concluidaHaHoras?: number;
   produtos?: OSItemProduto[];
   servicos?: OSItemServico[];
+  situacaoDocumento?: number;
 }
 
 function seedOS(input: SeedOSInput): OrdemServico {
@@ -56,6 +77,7 @@ function seedOS(input: SeedOSInput): OrdemServico {
     historico: [{ timestamp: dataAbertura, evento: 'OS criada', usuarioNome: 'Atendente (dev)' }],
     dataAbertura,
     dataConclusao: input.concluidaHaHoras !== undefined ? horasAtras(input.concluidaHaHoras) : undefined,
+    situacaoDocumento: input.situacaoDocumento ?? (input.status === 'CONCLUIDA' ? 1 : input.status === 'CANCELADA' ? 6 : 0),
     faturamento,
   };
 }
@@ -65,7 +87,7 @@ const OS_LIST: OrdemServico[] = [
     numero: 1234,
     clienteCodigo: '000001',
     equipamentoCodigo: 'EQ01',
-    status: 'EM_ANDAMENTO',
+    status: 'ABERTA',
     prioridade: 'NORMAL',
     problema: 'Barulho estranho no motor ao acelerar',
     abertaHaHoras: 6,
@@ -128,7 +150,7 @@ const OS_LIST: OrdemServico[] = [
     numero: 1235,
     clienteCodigo: '000001',
     equipamentoCodigo: 'EQ01',
-    status: 'EM_ANALISE',
+    status: 'ABERTA',
     prioridade: 'NORMAL',
     problema: 'Consumo de combustível acima do normal',
     abertaHaHoras: 3,
@@ -144,13 +166,16 @@ export class OSRepositoryMock implements IOSRepository {
 
   /** Espelha a regra da implementação real: só OS em aberto (nunca concluída/cancelada) — ver OSRepository.firebird.ts. */
   async listar(filter: OSListFilter): Promise<{ items: OrdemServico[]; total: number }> {
-    let filtered = filter.status === 'CONCLUIDA' || filter.status === 'CANCELADA'
-      ? OS_LIST.filter((os) => os.status === filter.status)
+    let filtered = filter.incluirFinalizadas
+      ? [...OS_LIST]
       : OS_LIST.filter((os) => os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA');
     if (filter.status === 'AGUARDANDO') {
       filtered = filtered.filter((os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE');
-    } else if (filter.status && filter.status !== 'CONCLUIDA' && filter.status !== 'CANCELADA') {
+    } else if (filter.status) {
       filtered = filtered.filter((os) => os.status === filter.status);
+    }
+    if (filter.situacaoDocumento !== undefined) {
+      filtered = filtered.filter((os) => os.situacaoDocumento === filter.situacaoDocumento);
     }
     if (filter.clienteCodigo) {
       filtered = filtered.filter((os) => os.clienteCodigo === filter.clienteCodigo);
@@ -174,6 +199,17 @@ export class OSRepositoryMock implements IOSRepository {
     });
   }
 
+  async listarParaRelatorio(filter: OSReportFilter): Promise<OrdemServico[]> {
+    const inicio = filter.dataInicial.getTime();
+    const fim = filter.dataFinal.getTime();
+    return OS_LIST.filter((os) => {
+      const data = filter.dataReferencia === 'conclusao' ? os.dataConclusao : os.dataAbertura;
+      if (!data) return false;
+      const timestamp = new Date(data).getTime();
+      return timestamp >= inicio && timestamp <= fim && (filter.situacaoDocumento === undefined || os.situacaoDocumento === filter.situacaoDocumento);
+    });
+  }
+
   async buscarParaDashboard(termo: string): Promise<OrdemServico[]> {
     const needle = termo.toLocaleLowerCase('pt-BR');
     return OS_LIST.filter((os) => [String(os.numero), os.clienteNome, os.clienteCodigo, os.equipamentoDescricao, os.equipamentoCodigo].some((value) => value?.toLocaleLowerCase('pt-BR').includes(needle))).slice(0, 8);
@@ -194,5 +230,59 @@ export class OSRepositoryMock implements IOSRepository {
     const atualizado: OrdemServico = { ...atual, ...patch };
     OS_LIST[idx] = atualizado;
     return atualizado;
+  }
+
+  async atualizarItemProduto(id: string, produtoCodigo: string, patch: OSItemPatch): Promise<OrdemServico> {
+    const os = OS_LIST.find((o) => o.id === id);
+    if (!os) throw new Error('OS não encontrada.');
+    const item = os.produtos.find((p) => p.produtoCodigo === produtoCodigo);
+    if (!item) throw new Error('Item não encontrado.');
+    if (patch.quantidade !== undefined) item.quantidade = patch.quantidade;
+    if (patch.precoUnitario !== undefined) item.precoUnitario = patch.precoUnitario;
+    if (patch.descricaoComplementar !== undefined) item.descricaoComplementar = patch.descricaoComplementar;
+    item.total = item.quantidade * (item.precoUnitario ?? 0);
+    return os;
+  }
+
+  async atualizarItemServico(id: string, servicoCodigo: string, patch: OSItemPatch): Promise<OrdemServico> {
+    const os = OS_LIST.find((o) => o.id === id);
+    if (!os) throw new Error('OS não encontrada.');
+    const item = os.servicos.find((s) => s.servicoCodigo === servicoCodigo);
+    if (!item) throw new Error('Item não encontrado.');
+    if (patch.quantidade !== undefined) item.quantidade = patch.quantidade;
+    if (patch.precoUnitario !== undefined) item.valorUnitario = patch.precoUnitario;
+    if (patch.descricaoComplementar !== undefined) item.descricaoComplementar = patch.descricaoComplementar;
+    item.total = item.quantidade * (item.valorUnitario ?? 0);
+    return os;
+  }
+
+  async listarImagens(id: string): Promise<OSImagemMeta[]> {
+    return IMAGENS_MOCK.filter((img) => img.osId === id).map((img) => ({
+      identificador: img.identificador,
+      descricao: img.descricao,
+      nomeArquivo: img.nomeArquivo,
+      data: img.data,
+    }));
+  }
+
+  async adicionarImagem(id: string, imagem: OSImagemNova): Promise<void> {
+    IMAGENS_MOCK.push({
+      identificador: randomUUID(),
+      osId: id,
+      descricao: imagem.descricao ?? imagem.nomeArquivo,
+      nomeArquivo: imagem.nomeArquivo,
+      buffer: imagem.buffer,
+      data: new Date().toISOString(),
+    });
+  }
+
+  async buscarImagem(id: string, identificador: string): Promise<OSImagemArquivo | null> {
+    const img = IMAGENS_MOCK.find((i) => i.osId === id && i.identificador === identificador);
+    return img ? { buffer: img.buffer, nomeArquivo: img.nomeArquivo } : null;
+  }
+
+  async removerImagem(id: string, identificador: string): Promise<void> {
+    const idx = IMAGENS_MOCK.findIndex((i) => i.osId === id && i.identificador === identificador);
+    if (idx !== -1) IMAGENS_MOCK.splice(idx, 1);
   }
 }

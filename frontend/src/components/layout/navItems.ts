@@ -3,7 +3,7 @@ import type { Permission } from '../../types/auth.types.js';
 export interface NavItem {
   to: string;
   label: string;
-  icon: 'home' | 'clipboard' | 'box' | 'user' | 'users' | 'shield' | 'gear' | 'building';
+  icon: 'home' | 'clipboard' | 'box' | 'user' | 'users' | 'shield' | 'gear' | 'building' | 'chart';
   /** Item só aparece se o usuário tiver ao menos uma dessas permissões. Omitido = sempre visível a quem está logado. */
   anyPermission?: Permission[];
 }
@@ -14,6 +14,7 @@ export const NAV_ITEMS: NavItem[] = [
   { to: '/os', label: 'Ordem de Serviço', icon: 'clipboard', anyPermission: ['OS_VIEW'] },
   { to: '/clientes', label: 'Clientes', icon: 'building', anyPermission: ['OS_VIEW'] },
   { to: '/produtos', label: 'Produtos', icon: 'box', anyPermission: ['PRODUCT_VIEW', 'SERVICE_VIEW'] },
+  { to: '/relatorios', label: 'Relatórios', icon: 'chart', anyPermission: ['REPORT_VIEW'] },
   { to: '/auditoria', label: 'Auditoria', icon: 'shield', anyPermission: ['SYSTEM_SETTINGS'] },
   { to: '/usuarios', label: 'Usuários', icon: 'users', anyPermission: ['USER_VIEW'] },
   { to: '/perfil', label: 'Perfil', icon: 'user' },

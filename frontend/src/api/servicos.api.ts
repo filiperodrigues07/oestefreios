@@ -24,3 +24,8 @@ export function searchServicos(query: string): Promise<PaginatedServicos> {
 export function listarServicosCatalogo(params: CatalogParams): Promise<PaginatedServicos> {
   return apiFetch<PaginatedServicos>(`/servicos?${buildCatalogParams(params).toString()}`);
 }
+
+/** Busca exata por código (Enter no campo Código do lançamento de itens da OS) — 404 se não existir. */
+export function getServicoByCodigo(codigo: string): Promise<ServicoDTO> {
+  return apiFetch<ServicoDTO>(`/servicos/${encodeURIComponent(codigo)}`);
+}

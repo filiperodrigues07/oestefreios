@@ -23,7 +23,8 @@ const STATUS_VALUES: OSStatus[] = [
   'CANCELADA',
 ];
 
-const PRIORIDADE_VALUES: OSPrioridade[] = ['BAIXA', 'NORMAL', 'ALTA', 'URGENTE'];
+const PRIORIDADE_VALUES: OSPrioridade[] = ['BAIXA', 'NORMAL', 'MEDIA', 'ALTA', 'URGENTE'];
+const SITUACAO_DOCUMENTO_VALUES = [0, 1, 2, 3, 4, 5, 6] as const;
 
 function zeroedStatusCounts(): Record<OSStatus, number> {
   return Object.fromEntries(STATUS_VALUES.map((s) => [s, 0])) as Record<OSStatus, number>;
@@ -31,6 +32,15 @@ function zeroedStatusCounts(): Record<OSStatus, number> {
 
 function zeroedPrioridadeCounts(): Record<OSPrioridade, number> {
   return Object.fromEntries(PRIORIDADE_VALUES.map((p) => [p, 0])) as Record<OSPrioridade, number>;
+}
+
+function zeroedSituacaoDocumentoCounts(): Record<number, number> {
+  return Object.fromEntries(SITUACAO_DOCUMENTO_VALUES.map((situacao) => [situacao, 0]));
+}
+
+/** Compatibilidade para OS antigas registradas antes da situação de atendimento passar a ser nativa. */
+function nativeStatus(status: OSStatus): OSStatus {
+  return status === 'EM_ANALISE' || status === 'EM_ANDAMENTO' ? 'ABERTA' : status;
 }
 
 function rankTop(items: Map<string, RankingItem>, limit: number): RankingItem[] {
@@ -55,7 +65,7 @@ export async function getAdminDashboard(permissions: Permission[]): Promise<Admi
   let qtdConcluidasComData = 0;
 
   for (const os of todasOS) {
-    countsByStatus[os.status]++;
+    countsByStatus[nativeStatus(os.status)]++;
     countsByPrioridade[os.prioridade]++;
 
     if (os.tecnicoId) {
@@ -138,12 +148,12 @@ export async function getOperationalDashboard(usuario: AuthenticatedUser): Promi
   const todasOS = await getAllOS();
   const minhas = todasOS.filter((os) => os.tecnicoId === usuario.id || os.responsavelId === usuario.id);
 
-  const counts = { pendentes: 0, emAndamento: 0, aguardando: 0, concluidas: 0 };
+  const counts = { emAtendimento: 0, aguardando: 0, prontas: 0, encerradas: 0 };
   for (const os of minhas) {
-    if (os.status === 'ABERTA' || os.status === 'EM_ANALISE') counts.pendentes++;
-    else if (os.status === 'EM_ANDAMENTO') counts.emAndamento++;
+    if (os.status === 'ABERTA' || os.status === 'EM_ANALISE' || os.status === 'EM_ANDAMENTO') counts.emAtendimento++;
     else if (os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE') counts.aguardando++;
-    else if (os.status === 'CONCLUIDA') counts.concluidas++;
+    else if (os.status === 'CONCLUIDA') counts.prontas++;
+    else if (os.status === 'CANCELADA') counts.encerradas++;
   }
 
   const minhasOS = minhas
@@ -154,13 +164,13 @@ export async function getOperationalDashboard(usuario: AuthenticatedUser): Promi
   return { counts, minhasOS };
 }
 
-function startOfDay(value: Date): Date {
+export function startOfDay(value: Date): Date {
   const result = new Date(value);
   result.setHours(0, 0, 0, 0);
   return result;
 }
 
-function endOfDay(value: Date): Date {
+export function endOfDay(value: Date): Date {
   const result = new Date(value);
   result.setHours(23, 59, 59, 999);
   return result;
@@ -193,7 +203,7 @@ function buildSeries(inicio: Date, fim: Date, granularidade: DashboardGranularid
   const final = bucketStart(fim, granularidade);
   while (cursor <= final) {
     const start = new Date(cursor);
-    series.push({ chave: bucketKey(start, granularidade), rotulo: bucketLabel(start, granularidade), abertas: 0, concluidas: 0 });
+    series.push({ chave: bucketKey(start, granularidade), rotulo: bucketLabel(start, granularidade), abertas: 0, encerradas: 0 });
     if (granularidade === 'mensal') cursor.setMonth(cursor.getMonth() + 1);
     else cursor.setDate(cursor.getDate() + (granularidade === 'semanal' ? 7 : 1));
   }
@@ -214,12 +224,14 @@ export async function getOperationalDashboardV2(input: {
     return data >= inicio.getTime() && data <= fim.getTime();
   });
   const countsByStatus = zeroedStatusCounts();
+  const countsBySituacaoDocumento = zeroedSituacaoDocumentoCounts();
   const countsByPrioridade = zeroedPrioridadeCounts();
   const evolucao = buildSeries(inicio, fim, input.granularidade);
   const bucketMap = new Map(evolucao.map((item) => [item.chave, item]));
 
   for (const os of abertasNoPeriodo) {
-    countsByStatus[os.status]++;
+    countsByStatus[nativeStatus(os.status)]++;
+    if (os.situacaoDocumento !== undefined) countsBySituacaoDocumento[os.situacaoDocumento] = (countsBySituacaoDocumento[os.situacaoDocumento] ?? 0) + 1;
     countsByPrioridade[os.prioridade]++;
     const bucket = bucketMap.get(bucketKey(new Date(os.dataAbertura), input.granularidade));
     if (bucket) bucket.abertas++;
@@ -229,7 +241,7 @@ export async function getOperationalDashboardV2(input: {
     const dataConclusao = new Date(os.dataConclusao);
     if (dataConclusao < inicio || dataConclusao > fim) continue;
     const bucket = bucketMap.get(bucketKey(dataConclusao, input.granularidade));
-    if (bucket) bucket.concluidas++;
+    if (bucket) bucket.encerradas++;
   }
 
   const agora = Date.now();
@@ -252,6 +264,7 @@ export async function getOperationalDashboardV2(input: {
     periodo: { inicio: inicio.toISOString(), fim: fim.toISOString(), granularidade: input.granularidade },
     total: abertasNoPeriodo.length,
     countsByStatus,
+    countsBySituacaoDocumento,
     countsByPrioridade,
     evolucao,
     atencao,

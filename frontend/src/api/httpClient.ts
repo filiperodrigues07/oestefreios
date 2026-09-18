@@ -1,4 +1,4 @@
-import { enqueueOperation } from '../pwa/offlineQueue.js';
+import { clearOfflineQueue, enqueueOperation } from '../pwa/offlineQueue.js';
 import { OfflineQueuedError } from '../pwa/OfflineQueuedError.js';
 import { useAuthStore } from '../store/authStore.js';
 import type { ApiResponse } from '../types/cherp.types.js';
@@ -7,7 +7,7 @@ import type { LoginResponse } from '../types/auth.types.js';
 const API_BASE = '/api';
 const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
-class ApiError extends Error {
+export class ApiError extends Error {
   code: string;
   constructor(code: string, message: string) {
     super(message);
@@ -16,6 +16,24 @@ class ApiError extends Error {
 }
 
 let refreshInFlight: Promise<boolean> | null = null;
+
+function redirectTo(path: string): void {
+  if (typeof window !== 'undefined' && window.location.pathname !== path) {
+    window.location.assign(path);
+  }
+}
+
+function handleRejectedSession(code: string): void {
+  if (code === 'PASSWORD_CHANGE_REQUIRED') {
+    redirectTo('/alterar-senha');
+    return;
+  }
+
+  if (code === 'SESSION_REVOKED') {
+    useAuthStore.getState().clearSession();
+    void clearOfflineQueue().finally(() => redirectTo('/login'));
+  }
+}
 
 async function doRefresh(): Promise<boolean> {
   try {
@@ -93,6 +111,10 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
 
   const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
 
+  if (res.status === 401 && body && !body.success) {
+    handleRejectedSession(body.error.code);
+  }
+
   if (res.status === 401 && !isRetry && body && !body.success && body.error.code === 'TOKEN_EXPIRED') {
     const refreshed = await refreshOnce();
     if (refreshed) {
@@ -108,4 +130,82 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
   }
 
   return body.data;
+}
+
+/**
+ * Baixa um arquivo binário (Excel/PDF de relatórios) — `apiFetch` sempre faz `res.json()`, então
+ * não serve pra isso. Mesma renovação de token de `apiFetch`, sem fila offline (download não faz sentido offline).
+ */
+export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob> {
+  const { accessToken } = useAuthStore.getState();
+  const res = await fetch(`${API_BASE}${path}`, {
+    credentials: 'include',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+  });
+
+  if (res.status === 401 && !isRetry) {
+    const body = (await res.clone().json().catch(() => null)) as ApiResponse<unknown> | null;
+    const code = body && !body.success ? body.error.code : '';
+    handleRejectedSession(code);
+
+    if (code === 'TOKEN_EXPIRED' || !code) {
+      const refreshed = await refreshOnce();
+      if (refreshed) return apiFetchBlob(path, true);
+      useAuthStore.getState().clearSession();
+    }
+  }
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as ApiResponse<unknown> | null;
+    const message = body && !body.success ? body.error.message : 'Não foi possível gerar o arquivo.';
+    const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
+    throw new ApiError(code, message);
+  }
+
+  return res.blob();
+}
+
+/**
+ * Envia `multipart/form-data` (upload de imagem) — `apiFetch` sempre serializa o body como JSON,
+ * então não serve pra isso. Sem `Content-Type` manual: o browser define o boundary certo sozinho.
+ */
+export async function apiFetchMultipart<T>(path: string, formData: FormData, isRetry = false): Promise<T> {
+  const { accessToken } = useAuthStore.getState();
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    body: formData,
+  });
+
+  const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
+
+  if (res.status === 401 && body && !body.success) {
+    handleRejectedSession(body.error.code);
+    if (!isRetry && body.error.code === 'TOKEN_EXPIRED') {
+      const refreshed = await refreshOnce();
+      if (refreshed) return apiFetchMultipart<T>(path, formData, true);
+      useAuthStore.getState().clearSession();
+    }
+  }
+
+  if (!body || !body.success) {
+    const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
+    const message = body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
+    throw new ApiError(code, message);
+  }
+
+  return body.data;
+}
+
+/** Dispara o download do blob no navegador via link temporário — usado pelos exports de relatório. */
+export function salvarBlobComoArquivo(blob: Blob, nomeArquivo: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nomeArquivo;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
 }

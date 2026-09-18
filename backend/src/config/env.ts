@@ -22,13 +22,18 @@ const envSchema = z.object({
 
   DATABASE_URL: z.string().min(1, 'DATABASE_URL é obrigatório'),
 
-  JWT_SECRET: z.string().min(16, 'JWT_SECRET deve ter ao menos 16 caracteres'),
-  JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET deve ter ao menos 16 caracteres'),
+  JWT_SECRET: z.string().min(32, 'JWT_SECRET deve ter ao menos 32 caracteres'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET deve ter ao menos 32 caracteres'),
+  SETTINGS_ENCRYPTION_KEY: z.string().min(32, 'SETTINGS_ENCRYPTION_KEY deve ter ao menos 32 caracteres').optional(),
   JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
   JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
 
   DEV_ADMIN_EMAIL: z.email().default('admin@dev.local'),
   DEV_ADMIN_PASSWORD: z.string().min(8).default('Admin@123456'),
+}).superRefine((value, ctx) => {
+  if (value.NODE_ENV === 'production' && !value.SETTINGS_ENCRYPTION_KEY) {
+    ctx.addIssue({ code: 'custom', path: ['SETTINGS_ENCRYPTION_KEY'], message: 'Obrigatória em produção.' });
+  }
 });
 
 const parsed = envSchema.safeParse(process.env);

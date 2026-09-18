@@ -1,16 +1,19 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { createUser, deleteUser, listRoles, listUsers, reenviarConvite, updateUser } from '../api/users.api.js';
+import { createUser, deleteUser, listCherpUsers, listRoles, listUsers, reenviarConvite, updateUser } from '../api/users.api.js';
 import {
+  ActionIcon,
   Badge,
   Button,
+  Card,
   Checkbox,
   ConfirmDialog,
-  Drawer,
   EmptyState,
   ErrorState,
   Input,
+  Modal,
   PageHeader,
+  PasswordInput,
   Select,
   Skeleton,
   Table,
@@ -21,6 +24,7 @@ import {
 import { hasPermission } from '../store/authStore.js';
 import { PERMISSION_GROUPS, PERMISSION_LABELS, type Permission } from '../types/auth.types.js';
 import type { RoleOptionDTO, UserSummaryDTO } from '../types/user.types.js';
+import { isSecurePassword, PASSWORD_RULES } from '../utils/passwordPolicy.js';
 import styles from './UsuariosPage.module.css';
 
 const ROLE_TONES: Record<string, BadgeTone> = {
@@ -50,7 +54,7 @@ function setsEqual(a: Permission[], b: Permission[]): boolean {
 export function UsuariosPage() {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
-  const [drawerAberto, setDrawerAberto] = useState(false);
+  const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<UserSummaryDTO | null>(null);
   const [excluindo, setExcluindo] = useState<UserSummaryDTO | null>(null);
 
@@ -88,12 +92,12 @@ export function UsuariosPage() {
 
   function abrirNovo() {
     setEditando(null);
-    setDrawerAberto(true);
+    setModalAberto(true);
   }
 
   function abrirEdicao(usuario: UserSummaryDTO) {
     setEditando(usuario);
-    setDrawerAberto(true);
+    setModalAberto(true);
   }
 
   const columns: TableColumn<UserSummaryDTO>[] = [
@@ -113,6 +117,11 @@ export function UsuariosPage() {
       key: 'isActive',
       header: 'Status',
       render: (u) => <Badge tone={u.isActive ? 'success' : 'neutral'}>{u.isActive ? 'Ativo' : 'Inativo'}</Badge>,
+    },
+    {
+      key: 'cherpUsuarioChave',
+      header: 'CHERP',
+      render: (u) => u.cherpUsuarioChave ? `#${u.cherpUsuarioChave}` : 'Não vinculado',
     },
     {
       key: 'acoes',
@@ -150,7 +159,7 @@ export function UsuariosPage() {
       <PageHeader
         title="Usuários"
         description="Gerencie os acessos e permissões da equipe."
-        actions={podeCriar ? <Button onClick={abrirNovo}>+ Novo usuário</Button> : undefined}
+        actions={podeCriar ? <Button onClick={abrirNovo}><ActionIcon name="add" />Novo usuário</Button> : undefined}
       />
 
       {isLoading && (
@@ -169,13 +178,13 @@ export function UsuariosPage() {
         <Table columns={columns} data={usuarios} rowKey={(u) => u.id} />
       )}
 
-      <UsuarioFormDrawer
-        open={drawerAberto}
+      <UsuarioFormModal
+        open={modalAberto}
         usuario={editando}
         roles={roles ?? []}
-        onClose={() => setDrawerAberto(false)}
+        onClose={() => setModalAberto(false)}
         onSaved={() => {
-          setDrawerAberto(false);
+          setModalAberto(false);
           refetch();
         }}
       />
@@ -200,11 +209,15 @@ interface FormState {
   roleId: string;
   isActive: boolean;
   permissions: Permission[];
+  cherpUsuarioChave: string;
+  definirSenha: boolean;
+  password: string;
+  passwordConfirmation: string;
 }
 
 function formVazio(roles: RoleOptionDTO[]): FormState {
   const primeiro = roles[0];
-  return { name: '', email: '', roleId: primeiro?.id ?? '', isActive: true, permissions: primeiro?.permissions ?? [] };
+  return { name: '', email: '', roleId: primeiro?.id ?? '', isActive: true, permissions: primeiro?.permissions ?? [], cherpUsuarioChave: '', definirSenha: false, password: '', passwordConfirmation: '' };
 }
 
 function formDeUsuario(usuario: UserSummaryDTO): FormState {
@@ -214,10 +227,14 @@ function formDeUsuario(usuario: UserSummaryDTO): FormState {
     roleId: usuario.roleId,
     isActive: usuario.isActive,
     permissions: usuario.permissions,
+    cherpUsuarioChave: usuario.cherpUsuarioChave ? String(usuario.cherpUsuarioChave) : '',
+    definirSenha: false,
+    password: '',
+    passwordConfirmation: '',
   };
 }
 
-interface UsuarioFormDrawerProps {
+interface UsuarioFormModalProps {
   open: boolean;
   usuario: UserSummaryDTO | null;
   roles: RoleOptionDTO[];
@@ -225,10 +242,11 @@ interface UsuarioFormDrawerProps {
   onSaved: () => void;
 }
 
-function UsuarioFormDrawer({ open, usuario, roles, onClose, onSaved }: UsuarioFormDrawerProps) {
+function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFormModalProps) {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
   const [form, setForm] = useState<FormState>(usuario ? formDeUsuario(usuario) : formVazio(roles));
+  const { data: cherpUsers = [] } = useQuery({ queryKey: ['usuarios-cherp'], queryFn: listCherpUsers, enabled: open });
 
   // Ressincroniza o form quando o usuário sendo editado muda (ou ao abrir "novo"), igual ClientesPage.
   const [ultimoId, setUltimoId] = useState<string | null>(null);
@@ -240,6 +258,7 @@ function UsuarioFormDrawer({ open, usuario, roles, onClose, onSaved }: UsuarioFo
   const roleSelecionado = roles.find((r) => r.id === form.roleId);
   const preset = roleSelecionado?.permissions ?? [];
   const isCustom = form.roleId !== '' && !setsEqual(form.permissions, preset);
+  const isAdminRole = roleSelecionado?.name === 'Administrador';
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -249,13 +268,15 @@ function UsuarioFormDrawer({ open, usuario, roles, onClose, onSaved }: UsuarioFo
         roleId: form.roleId,
         isActive: form.isActive,
         permissions: form.permissions,
+        cherpUsuarioChave: form.cherpUsuarioChave ? Number(form.cherpUsuarioChave) : null,
+        ...(!usuario && form.definirSenha ? { password: form.password } : {}),
       };
       return usuario ? updateUser(usuario.id, payload) : createUser(payload);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['usuarios'] });
       showToast(
-        usuario ? 'Usuário atualizado com sucesso.' : 'Usuário criado com sucesso. Um e-mail de convite foi enviado.',
+        usuario ? 'Usuário atualizado com sucesso.' : form.definirSenha ? 'Usuário criado com senha inicial.' : 'Usuário criado com sucesso. Um e-mail de convite foi enviado.',
         'success',
       );
       onSaved();
@@ -264,10 +285,15 @@ function UsuarioFormDrawer({ open, usuario, roles, onClose, onSaved }: UsuarioFo
 
   function handleRoleChange(roleId: string) {
     const role = roles.find((r) => r.id === roleId);
-    setForm((f) => ({ ...f, roleId, permissions: role?.permissions ?? [] }));
+    setForm((f) => ({
+      ...f,
+      roleId,
+      permissions: role?.name === 'Administrador' ? role.permissions : (role?.permissions ?? []).filter((p) => p !== 'SYSTEM_SETTINGS'),
+    }));
   }
 
   function togglePermission(permission: Permission) {
+    if (permission === 'SYSTEM_SETTINGS' && !isAdminRole) return;
     setForm((f) => ({
       ...f,
       permissions: f.permissions.includes(permission)
@@ -277,47 +303,110 @@ function UsuarioFormDrawer({ open, usuario, roles, onClose, onSaved }: UsuarioFo
   }
 
   function toggleGroup(groupPermissions: Permission[], marcar: boolean) {
+    const permissoesAplicaveis = isAdminRole ? groupPermissions : groupPermissions.filter((p) => p !== 'SYSTEM_SETTINGS');
     setForm((f) => ({
       ...f,
       permissions: marcar
-        ? Array.from(new Set([...f.permissions, ...groupPermissions]))
-        : f.permissions.filter((p) => !groupPermissions.includes(p)),
+        ? Array.from(new Set([...f.permissions, ...permissoesAplicaveis]))
+        : f.permissions.filter((p) => !permissoesAplicaveis.includes(p)),
     }));
   }
 
   return (
-    <Drawer open={open} title={usuario ? 'Editar usuário' : 'Novo usuário'} onClose={onClose}>
+    <Modal
+      open={open}
+      title={usuario ? 'Editar usuário' : 'Novo usuário'}
+      onClose={onClose}
+      footer={
+        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end', width: '100%' }}>
+          <Button variant="secondary" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => saveMutation.mutate()}
+            loading={saveMutation.isPending}
+            disabled={!form.name.trim() || !form.email.trim() || !form.roleId || (!usuario && form.definirSenha && (!isSecurePassword(form.password) || form.password !== form.passwordConfirmation))}
+          >
+            Salvar
+          </Button>
+        </div>
+      }
+    >
       <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', padding: 'var(--space-4)' }}>
-        <Input label="Nome" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <Input
-          label="E-mail"
-          type="email"
-          required
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
+        <Card>
+          <h3 style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--font-size-sm)' }}>Dados</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+            <Input label="Nome" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+            <Input
+              label="E-mail"
+              type="email"
+              required
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+            <Select
+              label="Usuário vinculado no CHERP"
+              placeholder="Nenhum vínculo"
+              options={cherpUsers.map((item) => ({ value: String(item.chave), label: `${item.nome}${item.login && item.login !== item.nome ? ` (${item.login})` : ''}` }))}
+              value={form.cherpUsuarioChave}
+              onChange={(e) => setForm({ ...form, cherpUsuarioChave: e.target.value })}
+            />
+            <Select
+              label="Perfil"
+              placeholder="Selecione um perfil"
+              options={roles.map((r) => ({ value: r.id, label: r.name }))}
+              value={form.roleId}
+              onChange={(e) => handleRoleChange(e.target.value)}
+            />
+            <Checkbox
+              label="Usuário ativo"
+              checked={form.isActive}
+              onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+            />
+          </div>
+        </Card>
 
-        <Select
-          label="Perfil"
-          placeholder="Selecione um perfil"
-          options={roles.map((r) => ({ value: r.id, label: r.name }))}
-          value={form.roleId}
-          onChange={(e) => handleRoleChange(e.target.value)}
-        />
+        {!usuario && (
+          <Card>
+            <h3 style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--font-size-sm)' }}>Acesso ao sistema</h3>
+            <Checkbox
+              label="Definir senha inicial agora (em vez de enviar convite por e-mail)"
+              checked={form.definirSenha}
+              onChange={(e) => setForm({ ...form, definirSenha: e.target.checked, password: '', passwordConfirmation: '' })}
+            />
+            {form.definirSenha ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+                <PasswordInput label="Senha inicial" value={form.password} maxLength={128} autoComplete="new-password" onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <PasswordInput label="Confirmar senha" value={form.passwordConfirmation} maxLength={128} autoComplete="new-password" onChange={(e) => setForm({ ...form, passwordConfirmation: e.target.value })} />
+                <div aria-live="polite" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: 'var(--font-size-xs)' }}>
+                  {PASSWORD_RULES.map((rule) => <span key={rule.label} style={{ color: rule.test(form.password) ? 'var(--color-success)' : 'var(--color-text-secondary)' }}>{rule.test(form.password) ? '✓' : '○'} {rule.label}</span>)}
+                  {(() => {
+                    const primeiroNome = form.name.trim().split(' ')[0]?.toLowerCase() ?? '';
+                    const semNome = form.password.length > 0 && primeiroNome.length > 0 && !form.password.toLowerCase().includes(primeiroNome);
+                    return (
+                      <span style={{ color: semNome ? 'var(--color-success)' : 'var(--color-text-secondary)' }}>
+                        {semNome ? '✓' : '○'} Não contém o nome do usuário
+                      </span>
+                    );
+                  })()}
+                  <span style={{ color: form.password && form.password === form.passwordConfirmation ? 'var(--color-success)' : 'var(--color-text-secondary)' }}>{form.password && form.password === form.passwordConfirmation ? '✓' : '○'} Senhas iguais</span>
+                </div>
+              </div>
+            ) : (
+              <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                Um e-mail de convite será enviado para que o usuário defina a própria senha.
+              </p>
+            )}
+          </Card>
+        )}
 
-        <Checkbox
-          label="Usuário ativo"
-          checked={form.isActive}
-          onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
-        />
-
-        <div>
+        <Card>
           <div
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: 'var(--space-2)',
+              marginBottom: 'var(--space-3)',
             }}
           >
             <h3 style={{ margin: 0, fontSize: 'var(--font-size-sm)' }}>Permissões</h3>
@@ -331,33 +420,21 @@ function UsuarioFormDrawer({ open, usuario, roles, onClose, onSaved }: UsuarioFo
                 group={group}
                 selected={form.permissions}
                 preset={preset}
+                isAdminRole={isAdminRole}
                 onTogglePermission={togglePermission}
                 onToggleGroup={toggleGroup}
               />
             ))}
           </div>
-        </div>
+        </Card>
 
         {saveMutation.isError && (
           <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
             {saveMutation.error instanceof Error ? saveMutation.error.message : 'Erro ao salvar usuário.'}
           </p>
         )}
-
-        <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-          <Button variant="secondary" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button
-            onClick={() => saveMutation.mutate()}
-            loading={saveMutation.isPending}
-            disabled={!form.name.trim() || !form.email.trim() || !form.roleId}
-          >
-            Salvar
-          </Button>
-        </div>
       </div>
-    </Drawer>
+    </Modal>
   );
 }
 
@@ -365,11 +442,12 @@ interface PermissionGroupSectionProps {
   group: { label: string; permissions: Permission[] };
   selected: Permission[];
   preset: Permission[];
+  isAdminRole: boolean;
   onTogglePermission: (permission: Permission) => void;
   onToggleGroup: (permissions: Permission[], marcar: boolean) => void;
 }
 
-function PermissionGroupSection({ group, selected, preset, onTogglePermission, onToggleGroup }: PermissionGroupSectionProps) {
+function PermissionGroupSection({ group, selected, preset, isAdminRole, onTogglePermission, onToggleGroup }: PermissionGroupSectionProps) {
   const marcados = group.permissions.filter((p) => selected.includes(p));
   const todasMarcadas = marcados.length === group.permissions.length;
   const algumasMarcadas = marcados.length > 0 && !todasMarcadas;
@@ -396,9 +474,18 @@ function PermissionGroupSection({ group, selected, preset, onTogglePermission, o
           paddingLeft: 'var(--space-6)',
         }}
       >
-        {group.permissions.map((p) => (
-          <Checkbox key={p} label={PERMISSION_LABELS[p]} checked={selected.includes(p)} onChange={() => onTogglePermission(p)} />
-        ))}
+        {group.permissions.map((p) => {
+          const bloqueadoParaNaoAdmin = p === 'SYSTEM_SETTINGS' && !isAdminRole;
+          return (
+            <Checkbox
+              key={p}
+              label={bloqueadoParaNaoAdmin ? `${PERMISSION_LABELS[p]} (somente Administrador)` : PERMISSION_LABELS[p]}
+              checked={selected.includes(p)}
+              disabled={bloqueadoParaNaoAdmin}
+              onChange={() => onTogglePermission(p)}
+            />
+          );
+        })}
       </div>
     </div>
   );

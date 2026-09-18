@@ -1,5 +1,5 @@
 import { apiFetch } from './httpClient.js';
-import type { CreateUserInput, RoleOptionDTO, UpdateUserInput, UserSummaryDTO } from '../types/user.types.js';
+import type { CherpUserOptionDTO, CreateUserInput, RoleOptionDTO, UpdateUserInput, UserSummaryDTO } from '../types/user.types.js';
 
 export function listUsers(): Promise<UserSummaryDTO[]> {
   return apiFetch<UserSummaryDTO[]>('/usuarios');
@@ -7,6 +7,10 @@ export function listUsers(): Promise<UserSummaryDTO[]> {
 
 export function listRoles(): Promise<RoleOptionDTO[]> {
   return apiFetch<RoleOptionDTO[]>('/usuarios/roles');
+}
+
+export function listCherpUsers(): Promise<CherpUserOptionDTO[]> {
+  return apiFetch<CherpUserOptionDTO[]>('/usuarios/cherp');
 }
 
 export function getUser(id: string): Promise<UserSummaryDTO> {

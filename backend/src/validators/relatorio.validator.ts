@@ -1,0 +1,47 @@
+import { z } from 'zod';
+
+const formatoSchema = z.enum(['json', 'excel', 'pdf']).default('json');
+
+export const relatorioOSQuerySchema = z
+  .object({
+    dataInicial: z.coerce.date(),
+    dataFinal: z.coerce.date(),
+    dataReferencia: z.enum(['abertura', 'conclusao']).default('abertura'),
+    status: z.string().trim().min(1).optional(),
+    situacaoDocumento: z.coerce.number().int().min(0).max(6).optional(),
+    prioridade: z.string().trim().min(1).optional(),
+    busca: z.string().trim().min(1).optional(),
+    formato: formatoSchema,
+  })
+  .refine(({ dataInicial, dataFinal }) => dataInicial <= dataFinal, {
+    message: 'A data inicial deve ser anterior à data final.',
+  })
+  .refine(({ dataInicial, dataFinal }) => (dataFinal.getTime() - dataInicial.getTime()) / 86_400_000 <= 366, {
+    message: 'O período máximo é de 366 dias.',
+  });
+
+export const relatorioClientesQuerySchema = z.object({
+  tipoPessoa: z.enum(['PF', 'PJ']).optional(),
+  uf: z.string().trim().length(2).optional(),
+  busca: z.string().trim().min(1).optional(),
+  formato: formatoSchema,
+});
+
+export const relatorioCatalogoQuerySchema = z.object({
+  busca: z.string().trim().min(1).optional(),
+  formato: formatoSchema,
+});
+
+export const relatorioProdutosServicosQuerySchema = z
+  .object({
+    dataInicial: z.coerce.date(),
+    dataFinal: z.coerce.date(),
+    dataReferencia: z.enum(['abertura', 'conclusao']).default('abertura'),
+    formato: formatoSchema,
+  })
+  .refine(({ dataInicial, dataFinal }) => dataInicial <= dataFinal, {
+    message: 'A data inicial deve ser anterior à data final.',
+  })
+  .refine(({ dataInicial, dataFinal }) => (dataFinal.getTime() - dataInicial.getTime()) / 86_400_000 <= 366, {
+    message: 'O período máximo é de 366 dias.',
+  });

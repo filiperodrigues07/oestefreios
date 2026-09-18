@@ -25,6 +25,10 @@ export function resetPassword(token: string, password: string): Promise<null> {
   return apiFetch<null>('/auth/reset-password', { method: 'POST', body: { token, password } });
 }
 
+export function changePassword(currentPassword: string, newPassword: string): Promise<null> {
+  return apiFetch<null>('/auth/change-password', { method: 'POST', body: { currentPassword, newPassword } });
+}
+
 export function updateMyProfile(name: string, email: string): Promise<LoginResponse> {
   return apiFetch<LoginResponse>('/auth/me', { method: 'PUT', body: { name, email } });
 }

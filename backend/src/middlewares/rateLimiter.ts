@@ -3,7 +3,7 @@ import { failure } from '../utils/apiResponse.js';
 
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 300,
+  limit: 1200,
   standardHeaders: true,
   legacyHeaders: false,
   handler: (_req, res) => failure(res, 'RATE_LIMITED', 'Muitas requisições. Tente novamente em instantes.', 429),

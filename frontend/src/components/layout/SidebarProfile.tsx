@@ -2,6 +2,7 @@ import { useMutation } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { logout } from '../../api/auth.api.js';
+import { clearOfflineQueue } from '../../pwa/offlineQueue.js';
 import { Avatar } from '../ui/Avatar.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useThemeStore } from '../../store/themeStore.js';
@@ -9,13 +10,14 @@ import styles from './SidebarProfile.module.css';
 
 interface SidebarProfileProps {
   collapsed: boolean;
+  onOpenProfile: () => void;
 }
 
 /**
- * Bloco de perfil no fim da sidebar (item pedido pelo usuário): avatar + e-mail logado,
- * clique abre um menu com tema e acesso à edição de perfil (`/perfil`, já editável).
+ * Bloco de perfil no fim da sidebar: avatar + e-mail logado, clique abre um menu
+ * com tema e acesso ao modal "Meu perfil" (nunca navega pra uma tela cheia).
  */
-export function SidebarProfile({ collapsed }: SidebarProfileProps) {
+export function SidebarProfile({ collapsed, onOpenProfile }: SidebarProfileProps) {
   const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
   const theme = useThemeStore((s) => s.theme);
@@ -26,7 +28,8 @@ export function SidebarProfile({ collapsed }: SidebarProfileProps) {
 
   const logoutMutation = useMutation({
     mutationFn: logout,
-    onSettled: () => {
+    onSettled: async () => {
+      await clearOfflineQueue();
       clearSession();
       navigate('/login', { replace: true });
     },
@@ -82,7 +85,7 @@ export function SidebarProfile({ collapsed }: SidebarProfileProps) {
             role="menuitem"
             onClick={() => {
               setOpen(false);
-              navigate('/perfil');
+              onOpenProfile();
             }}
           >
             Meu perfil

@@ -50,6 +50,20 @@
       "when": 1789578431553,
       "tag": "0006_married_sharon_carter",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789650000000,
+      "tag": "0007_secure_user_identity",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789651000000,
+      "tag": "0008_case_insensitive_user_email",
+      "breakpoints": true
     }
   ]
 }

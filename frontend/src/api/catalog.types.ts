@@ -1,18 +1,17 @@
+export type CatalogSortBy = 'codigo' | 'descricao' | 'categoria' | 'tipo';
+
 export interface CatalogParams {
-  /** Busca livre — vira `codigo` se for só dígitos, senão `descricao` (mesma regra do combobox). */
+  /** Busca livre — casa contra código, descrição ou categoria de uma vez (backend faz o OR). */
   filtro?: string;
   page?: number;
   limit?: number;
-  sortBy?: 'codigo' | 'descricao';
+  sortBy?: CatalogSortBy;
   sortOrder?: 'asc' | 'desc';
 }
 
 export function buildCatalogParams(params: CatalogParams): URLSearchParams {
   const usp = new URLSearchParams();
-  if (params.filtro) {
-    const isCodigo = /^\d+$/.test(params.filtro);
-    usp.set(isCodigo ? 'codigo' : 'descricao', params.filtro);
-  }
+  if (params.filtro) usp.set('busca', params.filtro);
   usp.set('page', String(params.page ?? 1));
   usp.set('limit', String(params.limit ?? 10));
   usp.set('sortBy', params.sortBy ?? 'descricao');

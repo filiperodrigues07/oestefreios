@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { listarProdutosCatalogo } from '../api/produtos.api.js';
+import { baixarRelatorioCatalogoProdutos, baixarRelatorioCatalogoServicos } from '../api/relatorios.api.js';
 import { listarServicosCatalogo } from '../api/servicos.api.js';
 import { CatalogTable } from '../components/catalog/CatalogTable.js';
 import { Modal, PageHeader, Tabs, type TableColumn } from '../components/ui/index.js';
@@ -21,18 +22,20 @@ export function ProdutosPage() {
   const podeVerFinanceiro = hasPermission('FINANCIAL_VIEW');
 
   const colunasProdutos: TableColumn<ProdutoDTO>[] = [
-    { key: 'codigo', header: 'Código interno', render: (p) => p.codigo, mono: true, sortable: true },
+    { key: 'codigo', header: 'Código interno', render: (p) => p.codigo, mono: true, sortable: true, width: '128px' },
     { key: 'descricao', header: 'Descrição', render: (p) => p.descricao, sortable: true },
-    { key: 'unidade', header: 'Unidade', render: (p) => p.unidade },
-    { key: 'categoria', header: 'Categoria', render: (p) => p.categoria ?? '—' },
+    { key: 'unidade', header: 'Unidade', render: (p) => p.unidade, width: '96px' },
+    { key: 'tipo', header: 'Tipo', render: (p) => p.tipo ?? '—', sortable: true, width: '190px' },
+    { key: 'categoria', header: 'Grupo Produto', render: (p) => p.categoria ?? '—', sortable: true, width: '180px' },
     ...(podeVerFinanceiro
-      ? [{ key: 'preco', header: 'Preço', render: (p: ProdutoDTO) => formatMoney(p.precoUnitario) ?? '—', align: 'right' as const, mono: true }]
+      ? [{ key: 'preco', header: 'Preço', render: (p: ProdutoDTO) => formatMoney(p.precoUnitario) ?? '—', align: 'right' as const, mono: true, width: '110px' }]
       : []),
     {
       key: 'saldo',
       header: 'Saldo em estoque',
       align: 'right',
       mono: true,
+      width: '140px',
       render: (p) => {
         const abaixoDoMinimo =
           p.disponivel !== undefined && p.estoqueMinimo !== undefined && p.disponivel < p.estoqueMinimo;
@@ -42,11 +45,11 @@ export function ProdutosPage() {
   ];
 
   const colunasServicos: TableColumn<ServicoDTO>[] = [
-    { key: 'codigo', header: 'Código', render: (s) => s.codigo, mono: true, sortable: true },
+    { key: 'codigo', header: 'Código', render: (s) => s.codigo, mono: true, sortable: true, width: '128px' },
     { key: 'descricao', header: 'Descrição', render: (s) => s.descricao, sortable: true },
-    { key: 'categoria', header: 'Categoria', render: (s) => s.categoria ?? '—' },
+    { key: 'categoria', header: 'Grupo Produto', render: (s) => s.categoria ?? '—', sortable: true, width: '180px' },
     ...(podeVerFinanceiro
-      ? [{ key: 'valor', header: 'Preço', render: (s: ServicoDTO) => formatMoney(s.valorUnitario) ?? '—', align: 'right' as const, mono: true }]
+      ? [{ key: 'valor', header: 'Preço', render: (s: ServicoDTO) => formatMoney(s.valorUnitario) ?? '—', align: 'right' as const, mono: true, width: '110px' }]
       : []),
   ];
 
@@ -75,6 +78,10 @@ export function ProdutosPage() {
             columns={colunasProdutos}
             onSelect={setProdutoSelecionado}
             emptyLabel="Nenhum produto encontrado."
+            searchPlaceholder="Buscar por código, descrição, tipo ou grupo"
+            columnPrefsKey="produtos"
+            onExportarExcel={(busca) => baixarRelatorioCatalogoProdutos({ busca: busca || undefined }, 'excel')}
+            onExportarPdf={(busca) => baixarRelatorioCatalogoProdutos({ busca: busca || undefined }, 'pdf')}
           />
         ) : (
           <CatalogTable<ServicoDTO>
@@ -84,6 +91,10 @@ export function ProdutosPage() {
             columns={colunasServicos}
             onSelect={setServicoSelecionado}
             emptyLabel="Nenhum serviço encontrado."
+            searchPlaceholder="Buscar por código, descrição, tipo ou grupo"
+            columnPrefsKey="servicos"
+            onExportarExcel={(busca) => baixarRelatorioCatalogoServicos({ busca: busca || undefined }, 'excel')}
+            onExportarPdf={(busca) => baixarRelatorioCatalogoServicos({ busca: busca || undefined }, 'pdf')}
           />
         )}
       </Tabs>
@@ -94,7 +105,8 @@ export function ProdutosPage() {
             <DetailRow label="Código" value={produtoSelecionado.codigo} />
             <DetailRow label="Descrição" value={produtoSelecionado.descricao} />
             <DetailRow label="Unidade" value={produtoSelecionado.unidade} />
-            {produtoSelecionado.categoria && <DetailRow label="Categoria" value={produtoSelecionado.categoria} />}
+            {produtoSelecionado.tipo && <DetailRow label="Tipo" value={produtoSelecionado.tipo} />}
+            {produtoSelecionado.categoria && <DetailRow label="Grupo Produto" value={produtoSelecionado.categoria} />}
             {produtoSelecionado.disponivel !== undefined && <DetailRow label="Disponível" value={String(produtoSelecionado.disponivel)} />}
             {podeVerFinanceiro && produtoSelecionado.precoUnitario !== undefined && (
               <DetailRow label="Preço unitário" value={formatMoney(produtoSelecionado.precoUnitario)!} />
@@ -111,7 +123,7 @@ export function ProdutosPage() {
           <dl className={styles.details}>
             <DetailRow label="Código" value={servicoSelecionado.codigo} />
             <DetailRow label="Descrição" value={servicoSelecionado.descricao} />
-            {servicoSelecionado.categoria && <DetailRow label="Categoria" value={servicoSelecionado.categoria} />}
+            {servicoSelecionado.categoria && <DetailRow label="Grupo Produto" value={servicoSelecionado.categoria} />}
             {podeVerFinanceiro && servicoSelecionado.valorUnitario !== undefined && (
               <DetailRow label="Valor" value={formatMoney(servicoSelecionado.valorUnitario)!} />
             )}

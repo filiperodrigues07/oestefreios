@@ -2,11 +2,15 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { searchClientes, type ClienteSortBy } from '../api/clientes.api.js';
+import { baixarRelatorioClientes } from '../api/relatorios.api.js';
 import {
+  ActionIcon,
   Button,
   Card,
+  EditButton,
   EmptyState,
   ErrorState,
+  ExportButtons,
   LinkButton,
   PageHeader,
   Pagination,
@@ -44,14 +48,15 @@ export function ClientesPage() {
   const [sortBy, setSortBy] = useState<ClienteSortBy | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
 
   const podeCriar = hasPermission('OS_CREATE');
   const podeEditar = hasPermission('OS_EDIT');
 
   const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ['clientes', buscaAtiva, page, tipoPessoa, uf, sortBy, sortOrder],
+    queryKey: ['clientes', buscaAtiva, page, limit, tipoPessoa, uf, sortBy, sortOrder],
     queryFn: () =>
-      searchClientes(buscaAtiva, page, 20, {
+      searchClientes(buscaAtiva, page, limit, {
         tipoPessoa: tipoPessoa || undefined,
         uf: uf || undefined,
         sortBy,
@@ -66,6 +71,11 @@ export function ClientesPage() {
   }
 
   function handleFiltroChange() {
+    setPage(1);
+  }
+
+  function handleLimitChange(novoLimit: number) {
+    setLimit(novoLimit);
     setPage(1);
   }
 
@@ -96,13 +106,8 @@ export function ClientesPage() {
       key: 'acoes',
       header: '',
       align: 'right',
-      width: '84px',
-      render: (c) =>
-        podeEditar ? (
-          <LinkButton to={`/clientes/${c.codigo}/editar`} size="sm" variant="secondary">
-            Editar
-          </LinkButton>
-        ) : null,
+      width: '56px',
+      render: (c) => (podeEditar ? <EditButton to={`/clientes/${c.codigo}/editar`} label={`Editar ${c.nome}`} /> : null),
     },
   ];
 
@@ -111,7 +116,15 @@ export function ClientesPage() {
       <PageHeader
         title="Clientes"
         description="Gerencie os cadastros e consulte os dados vinculados à oficina."
-        actions={podeCriar ? <LinkButton to="/clientes/novo">+ Novo cliente</LinkButton> : undefined}
+        actions={
+          <>
+            {podeCriar && <LinkButton to="/clientes/novo"><ActionIcon name="add" />Novo cliente</LinkButton>}
+            <ExportButtons
+              onExportarExcel={() => baixarRelatorioClientes({ tipoPessoa: tipoPessoa || undefined, uf: uf || undefined, busca: buscaAtiva || undefined }, 'excel')}
+              onExportarPdf={() => baixarRelatorioClientes({ tipoPessoa: tipoPessoa || undefined, uf: uf || undefined, busca: buscaAtiva || undefined }, 'pdf')}
+            />
+          </>
+        }
       />
 
       {data && !isLoading && !isError && (
@@ -143,6 +156,7 @@ export function ClientesPage() {
           }}
         />
         <Button type="submit" variant="secondary">
+          <ActionIcon name="search" />
           Buscar
         </Button>
       </form>
@@ -170,9 +184,10 @@ export function ClientesPage() {
             sortBy={sortBy}
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
+            columnPrefsKey="clientes"
           />
           <div className={styles.pagination}>
-            <Pagination page={data.page} limit={data.limit} total={data.total} onPageChange={setPage} />
+            <Pagination page={data.page} limit={data.limit} total={data.total} onPageChange={setPage} onLimitChange={handleLimitChange} />
           </div>
         </>
       )}

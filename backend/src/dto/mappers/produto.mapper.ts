@@ -10,7 +10,10 @@ export function toProdutoDTO(
     codigo: produto.codigo,
     descricao: produto.descricao,
     unidade: produto.unidade,
+    categoria: produto.categoria,
+    tipo: produto.tipo,
     disponivel: produto.disponivel,
+    estoqueMinimo: produto.estoqueMinimo,
   };
 
   if (!permissions.includes('FINANCIAL_VIEW')) {

@@ -7,7 +7,7 @@ export type OSStatus =
   | 'CONCLUIDA'
   | 'CANCELADA';
 
-export type OSPrioridade = 'BAIXA' | 'NORMAL' | 'ALTA' | 'URGENTE';
+export type OSPrioridade = 'BAIXA' | 'NORMAL' | 'MEDIA' | 'ALTA' | 'URGENTE';
 
 export interface OSItemProduto {
   produtoCodigo: string;
@@ -17,6 +17,7 @@ export interface OSItemProduto {
   precoUnitario?: number;
   desconto?: number;
   total?: number;
+  descricaoComplementar?: string;
 }
 
 export interface OSItemServico {
@@ -27,6 +28,7 @@ export interface OSItemServico {
   valorUnitario?: number;
   desconto?: number;
   total?: number;
+  descricaoComplementar?: string;
 }
 
 export interface OSHistoricoEntry {
@@ -58,6 +60,7 @@ export interface OrdemServicoDTO {
   dataAbertura: string;
   dataPrevista?: string;
   dataConclusao?: string;
+  situacaoDocumento?: number;
   faturamento?: number;
   nroDav?: string;
   kmAtual?: number;
@@ -70,12 +73,15 @@ export interface OrdemServicoDTO {
  * Espelha backend/src/services/osWorkflow.ts. Só para filtrar opções na UI —
  * o backend sempre revalida a transição, esta cópia nunca é a fonte de verdade.
  */
+// CONCLUIDA nunca aparece nestas listas de propósito — só é alcançável pelo botão
+// "Finalizar OS" dedicado (FinalizarOSButton), que avisa que trava edição antes de confirmar,
+// nunca pelo select genérico de status.
 export const ALLOWED_TRANSITIONS: Record<OSStatus, OSStatus[]> = {
-  ABERTA: ['EM_ANALISE', 'CANCELADA'],
-  EM_ANALISE: ['EM_ANDAMENTO', 'ABERTA', 'CANCELADA'],
-  EM_ANDAMENTO: ['AGUARDANDO_PECA', 'AGUARDANDO_CLIENTE', 'CONCLUIDA', 'CANCELADA'],
-  AGUARDANDO_PECA: ['EM_ANDAMENTO', 'CANCELADA'],
-  AGUARDANDO_CLIENTE: ['EM_ANDAMENTO', 'CANCELADA'],
+  ABERTA: ['AGUARDANDO_PECA', 'AGUARDANDO_CLIENTE', 'CANCELADA'],
+  EM_ANALISE: ['ABERTA', 'AGUARDANDO_PECA', 'AGUARDANDO_CLIENTE', 'CANCELADA'],
+  EM_ANDAMENTO: ['ABERTA', 'AGUARDANDO_PECA', 'AGUARDANDO_CLIENTE', 'CANCELADA'],
+  AGUARDANDO_PECA: ['ABERTA', 'CANCELADA'],
+  AGUARDANDO_CLIENTE: ['ABERTA', 'CANCELADA'],
   CONCLUIDA: [],
   CANCELADA: [],
 };

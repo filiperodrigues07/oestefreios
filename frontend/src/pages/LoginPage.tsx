@@ -3,7 +3,7 @@ import { useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { login } from '../api/auth.api.js';
 import { Footer } from '../components/layout/Footer.js';
-import { Button, Card, Input } from '../components/ui/index.js';
+import { Button, Card, Input, PasswordInput } from '../components/ui/index.js';
 import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { useAuthStore } from '../store/authStore.js';
 import styles from './LoginPage.module.css';
@@ -13,6 +13,7 @@ import truckHero from '../assets/login-truck-hero.png';
 export function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [capsLock, setCapsLock] = useState(false);
   const setSession = useAuthStore((s) => s.setSession);
   const navigate = useNavigate();
   const online = useOnlineStatus();
@@ -21,7 +22,7 @@ export function LoginPage() {
     mutationFn: () => login(email, password),
     onSuccess: (data) => {
       setSession(data.accessToken, data.user);
-      navigate('/', { replace: true });
+      navigate(data.user.mustChangePassword ? '/alterar-senha' : '/', { replace: true });
     },
   });
 
@@ -64,14 +65,19 @@ export function LoginPage() {
               autoComplete="email"
             />
 
-            <Input
+            <div>
+            <PasswordInput
               label="Senha"
-              type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onKeyDown={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+              onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+              onBlur={() => setCapsLock(false)}
               autoComplete="current-password"
             />
+            {capsLock && <p role="status" aria-live="polite" className={styles.capsLock}>Caps Lock ativado</p>}
+            </div>
 
             {!online && (
               <p role="alert" className={styles.warning}>

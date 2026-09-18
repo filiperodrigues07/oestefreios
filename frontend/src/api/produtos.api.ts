@@ -27,3 +27,8 @@ export function searchProdutos(query: string): Promise<PaginatedProdutos> {
 export function listarProdutosCatalogo(params: CatalogParams): Promise<PaginatedProdutos> {
   return apiFetch<PaginatedProdutos>(`/produtos?${buildCatalogParams(params).toString()}`);
 }
+
+/** Busca exata por código (Enter no campo Código do lançamento de itens da OS) — 404 se não existir. */
+export function getProdutoByCodigo(codigo: string): Promise<ProdutoDTO> {
+  return apiFetch<ProdutoDTO>(`/produtos/${encodeURIComponent(codigo)}`);
+}
