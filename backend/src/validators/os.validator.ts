@@ -89,7 +89,9 @@ export const atualizarItemSchema = z
 export const listarOSQuerySchema = z.object({
   status: z.union([z.enum(OS_STATUS_VALUES), z.literal('AGUARDANDO')]).optional(),
   situacaoDocumento: z.coerce.number().int().min(0).max(6).optional(),
-  incluirFinalizadas: z.coerce.boolean().optional(),
+  // z.coerce.boolean() usaria JS Boolean(str), que dá `true` até pra "false" (string não-vazia) —
+  // query string sempre chega como texto, então precisa comparar o valor, não só a presença.
+  incluirFinalizadas: z.enum(['true', 'false']).optional().transform((v) => v === 'true'),
   clienteCodigo: z.string().trim().min(1).optional(),
   tecnicoId: z.string().trim().min(1).optional(),
   prioridade: z.enum(OS_PRIORIDADE_VALUES).optional(),

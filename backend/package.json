@@ -19,6 +19,7 @@
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",
     "@react-pdf/renderer": "^4.9.0",
+    "connect-timeout": "^1.9.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -41,6 +42,7 @@
   },
   "devDependencies": {
     "@asteasolutions/zod-to-openapi": "^9.1.0",
+    "@types/connect-timeout": "^1.9.0",
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",

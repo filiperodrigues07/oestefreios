@@ -1,6 +1,17 @@
-import { QueryClient } from '@tanstack/react-query';
+import { QueryCache, QueryClient } from '@tanstack/react-query';
+import { ApiError } from './httpClient.js';
+import { notifyToast } from '../components/ui/toastBus.js';
 
 export const queryClient = new QueryClient({
+  // Rede de segurança pra falha de leitura (GET) que a página não trata explicitamente com
+  // seu próprio `isError` — mutações já mostram toast próprio por página (ver `handleMutationError`),
+  // então não repetimos aqui pra não duplicar aviso.
+  queryCache: new QueryCache({
+    onError: (error) => {
+      const message = error instanceof ApiError ? error.message : 'Não foi possível carregar os dados. Tente novamente.';
+      notifyToast(message, 'danger');
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 30_000,

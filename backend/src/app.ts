@@ -4,6 +4,7 @@ import cors from 'cors';
 import express from 'express';
 import { resolve } from 'node:path';
 import helmet from 'helmet';
+import timeout from 'connect-timeout';
 import { pinoHttp } from 'pino-http';
 import swaggerUi from 'swagger-ui-express';
 import { corsOptions } from './config/cors.config.js';
@@ -19,11 +20,22 @@ export const app = express();
 
 app.use(helmet());
 app.use(cors(corsOptions));
+
+// Rede de segurança contra request pendurada (ex.: várias queries Firebird em sequência
+// somando mais que o timeout individual de cada uma) — não é o timeout do dia a dia, é o teto.
+app.use(timeout('30s'));
+
 app.use('/api/auth/me/photo', express.json({ limit: '1500kb' }));
 app.use('/api/settings/geral', express.json({ limit: '1500kb' }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(generalLimiter);
+
+// Middleware de connect-timeout só marca req.timedout — cada handler downstream que ainda não
+// tenha respondido precisa checar isso antes de continuar processando (ex.: antes de tocar no banco).
+app.use((req, _res, next) => {
+  if (!req.timedout) next();
+});
 
 app.use((req, _res, next) => {
   req.requestId = randomUUID();

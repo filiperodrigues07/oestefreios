@@ -1,6 +1,7 @@
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Toast.module.css';
+import { registerToast } from './toastBus.js';
 
 type ToastTone = 'info' | 'success' | 'warning' | 'danger';
 
@@ -29,6 +30,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, AUTO_DISMISS_MS);
   }, []);
+
+  // Permite disparar toast fora da árvore React (ex.: erro global do react-query em `queryClient.ts`).
+  useEffect(() => {
+    registerToast(showToast);
+    return () => registerToast(null);
+  }, [showToast]);
 
   return (
     <ToastContext.Provider value={{ showToast }}>

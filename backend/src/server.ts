@@ -25,3 +25,15 @@ async function shutdown(signal: string) {
 
 process.on('SIGINT', () => shutdown('SIGINT'));
 process.on('SIGTERM', () => shutdown('SIGTERM'));
+
+// Promise rejeitada fora do ciclo de request (timer, listener, job em background) — loga e
+// mantém o processo vivo, já que derrubar a API inteira por uma promise perdida é pior que o problema original.
+process.on('unhandledRejection', (reason) => {
+  logger.error({ err: reason }, 'unhandledRejection');
+});
+
+// Estado do processo pode estar corrompido — reinicia graciosamente em vez de deixar o Node morrer sem log.
+process.on('uncaughtException', (err) => {
+  logger.fatal({ err }, 'uncaughtException');
+  shutdown('uncaughtException');
+});

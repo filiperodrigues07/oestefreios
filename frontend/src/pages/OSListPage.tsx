@@ -47,7 +47,7 @@ export function OSListPage() {
   const [situacaoDocumento, setSituacaoDocumento] = useState(() =>
     initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)]
       ? initialSituacaoDocumento
-      : '',
+      : '0',
   );
   const [prioridade, setPrioridade] = useState<OSPrioridade | ''>('');
   const [busca, setBusca] = useState('');

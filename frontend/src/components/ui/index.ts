@@ -13,6 +13,7 @@ export { ConfirmDialog } from './ConfirmDialog.js';
 export { ToastProvider, useToast } from './ToastProvider.js';
 export { Skeleton } from './Skeleton.js';
 export { EmptyState } from './EmptyState.js';
+export { ErrorBoundary } from './ErrorBoundary.js';
 export { ErrorState } from './ErrorState.js';
 export { Pagination } from './Pagination.js';
 export { Table, type TableColumn } from './Table.js';

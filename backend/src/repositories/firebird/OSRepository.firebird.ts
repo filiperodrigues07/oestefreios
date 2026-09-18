@@ -204,6 +204,7 @@ const HEADER_SELECT = `
   LEFT JOIN CLIFOR CLI ON CLI.CHAVE = OS.CHAVECLIFOR
   LEFT JOIN EQUIPAMENTOS EQ ON EQ.CHAVE = OS.CHAVEEQUIPAMENTO
   LEFT JOIN TABELAS SIT ON SIT.CHAVE = OS.CHAVESITUACAOOS AND SIT.CHAVETABELA = 15
+  WHERE OS.ATIVO = 1
 `;
 
 interface ItemProdutoRow {
@@ -462,7 +463,7 @@ async function resolveProduto(codigo: string): Promise<ProdutoParaOS> {
 
 export class OSRepositoryFirebird implements IOSRepository {
   async buscarPorId(id: string): Promise<OrdemServico | null> {
-    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} WHERE OS.IDENTIFICADOR = ?`, [id]);
+    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [id]);
     const header = headers[0];
     if (!header) return null;
 
@@ -486,19 +487,21 @@ export class OSRepositoryFirebird implements IOSRepository {
   async listar(filter: OSListFilter): Promise<{ items: OrdemServico[]; total: number }> {
     const conditions: string[] = [];
     const params: unknown[] = [];
-    if (!filter.incluirFinalizadas) {
-      conditions.push('OS.SITUACAO = ?');
-      params.push(SITUACAO_ABERTO);
-    }
     if (filter.situacaoDocumento !== undefined) {
+      // Filtro explícito de situação do documento tem prioridade — nunca combina com a
+      // restrição automática de "incluirFinalizadas", senão as duas condições em OS.SITUACAO
+      // se anulam (nenhuma linha satisfaz duas igualdades diferentes ao mesmo tempo).
       conditions.push('OS.SITUACAO = ?');
       params.push(filter.situacaoDocumento);
+    } else if (!filter.incluirFinalizadas) {
+      conditions.push('OS.SITUACAO = ?');
+      params.push(SITUACAO_ABERTO);
     }
     if (filter.clienteCodigo) {
       conditions.push('CLI.CODIGO = ?');
       params.push(filter.clienteCodigo);
     }
-    const candidateSql = `${HEADER_SELECT}${conditions.length ? ` WHERE ${conditions.join(' AND ')}` : ''} ORDER BY OS.CHAVE DESC`;
+    const candidateSql = `${HEADER_SELECT}${conditions.length ? ` AND ${conditions.join(' AND ')}` : ''} ORDER BY OS.CHAVE DESC`;
     const headers = await firebirdQuery<OSHeaderRow>(candidateSql, params);
 
     const workflows = await fetchWorkflows(headers.map((h) => h.IDENTIFICADOR));
@@ -580,8 +583,8 @@ export class OSRepositoryFirebird implements IOSRepository {
     const inicio = filter.dataInicial;
     const fim = filter.dataFinal;
     const [abertas, fechadas] = await Promise.all([
-      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} WHERE OS.DATA >= ? AND OS.DATA <= ?`, [inicio, fim]),
-      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} WHERE OS.DATAFECHA >= ? AND OS.DATAFECHA <= ?`, [inicio, fim]),
+      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.DATA >= ? AND OS.DATA <= ?`, [inicio, fim]),
+      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.DATAFECHA >= ? AND OS.DATAFECHA <= ?`, [inicio, fim]),
     ]);
     const headers = [...new Map([...abertas, ...fechadas].map((header) => [header.IDENTIFICADOR.toLowerCase(), header])).values()];
     const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
@@ -599,7 +602,7 @@ export class OSRepositoryFirebird implements IOSRepository {
       conditions.push('OS.SITUACAO = ?');
       params.push(filter.situacaoDocumento);
     }
-    const headers = await firebirdQuery<OSHeaderRow>(`${select} WHERE ${conditions.join(' AND ')} ORDER BY OS.CHAVE DESC`, params);
+    const headers = await firebirdQuery<OSHeaderRow>(`${select} AND ${conditions.join(' AND ')} ORDER BY OS.CHAVE DESC`, params);
     if (headers.length > 10_000) {
       throw new ValidationError('O período escolhido contém mais de 10.000 OS. Reduza o intervalo para gerar o relatório completo.');
     }
@@ -636,7 +639,7 @@ export class OSRepositoryFirebird implements IOSRepository {
     const term = toLatin1Param(termo);
     const select = HEADER_SELECT.replace('SELECT', 'SELECT FIRST 8');
     const headers = await firebirdQuery<OSHeaderRow>(
-      `${select} WHERE OS.ORDEM CONTAINING ? OR CLI.FANTASIA CONTAINING ? OR CLI.RAZAOSOCIAL CONTAINING ? OR EQ.IDENTIFICACAO CONTAINING ? OR EQ.DESCRICAO CONTAINING ? ORDER BY OS.CHAVE DESC`,
+      `${select} AND (OS.ORDEM CONTAINING ? OR CLI.FANTASIA CONTAINING ? OR CLI.RAZAOSOCIAL CONTAINING ? OR EQ.IDENTIFICACAO CONTAINING ? OR EQ.DESCRICAO CONTAINING ?) ORDER BY OS.CHAVE DESC`,
       [term, term, term, term, term],
     );
     const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
@@ -713,7 +716,7 @@ export class OSRepositoryFirebird implements IOSRepository {
   }
 
   async atualizar(id: string, patch: Partial<OrdemServico>): Promise<OrdemServico> {
-    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} WHERE OS.IDENTIFICADOR = ?`, [id]);
+    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [id]);
     const header = headers[0];
     if (!header) {
       throw new NotFoundError('Ordem de serviço não encontrada.', 'OS_NOT_FOUND');
@@ -871,7 +874,7 @@ export class OSRepositoryFirebird implements IOSRepository {
     patch: OSItemPatch,
   ): Promise<OrdemServico> {
     const tabela = tipo === 'produto' ? 'ITENSORDEMSERVICOPROD' : 'ITENSORDEMSERVICOSERV';
-    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} WHERE OS.IDENTIFICADOR = ?`, [id]);
+    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [id]);
     const header = headers[0];
     if (!header) {
       throw new NotFoundError('Ordem de serviço não encontrada.', 'OS_NOT_FOUND');

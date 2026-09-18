@@ -21,6 +21,28 @@ function getPool(): Firebird.ConnectionPool {
 }
 
 /**
+ * Pega uma conexão do pool com retry (2 tentativas extras, backoff 300ms/600ms) só pra falha
+ * de conexão (rede instável, Firebird reiniciando) — nunca pra erro de query/negócio, que deve
+ * falhar rápido. Falha definitiva depois das tentativas continua virando `ExternalServiceError`.
+ */
+function acquireConnection(): Promise<Firebird.Database> {
+  return new Promise((resolve, reject) => {
+    const attempt = (retriesLeft: number, delayMs: number) => {
+      getPool().get((err, db) => {
+        if (!err) return resolve(db);
+        if (retriesLeft <= 0) {
+          logger.error({ err }, 'Falha ao obter conexão Firebird (sem mais tentativas)');
+          return reject(new ExternalServiceError());
+        }
+        logger.warn({ err }, `Falha ao obter conexão Firebird — nova tentativa em ${delayMs}ms`);
+        setTimeout(() => attempt(retriesLeft - 1, delayMs * 2), delayMs);
+      });
+    };
+    attempt(2, 300);
+  });
+}
+
+/**
  * Troca as credenciais/host/charset do Firebird em tempo real (tela de Configurações, aba
  * Firebird) — sem reiniciar o processo. Descarta o pool atual (conexões idle são fechadas;
  * a próxima `firebirdQuery`/`firebirdTransaction` recria o pool já com as opções novas).
@@ -44,21 +66,16 @@ function asRows(result: unknown): Record<string, unknown>[] {
 }
 
 export async function firebirdQuery<T = FirebirdRow>(sql: string, params: unknown[] = []): Promise<T[]> {
+  const db = await acquireConnection();
   return new Promise((resolve, reject) => {
-    getPool().get((err, db) => {
-      if (err) {
-        logger.error({ err }, 'Falha ao obter conexão Firebird');
+    db.query(sql, params, (queryErr, result) => {
+      db.detach();
+      if (queryErr) {
+        logger.error({ err: queryErr }, 'Falha ao executar query Firebird');
         return reject(new ExternalServiceError());
       }
-      db.query(sql, params, (queryErr, result) => {
-        db.detach();
-        if (queryErr) {
-          logger.error({ err: queryErr }, 'Falha ao executar query Firebird');
-          return reject(new ExternalServiceError());
-        }
-        resolve(asRows(result).map(decodeLatin1Row) as T[]);
-      }, { timeout: 15_000 });
-    });
+      resolve(asRows(result).map(decodeLatin1Row) as T[]);
+    }, { timeout: 15_000 });
   });
 }
 
@@ -102,31 +119,26 @@ export async function firebirdQueryWithBlob<T = FirebirdRow>(
   params: unknown[],
   blobColumn: string,
 ): Promise<T[]> {
+  const db = await acquireConnection();
   return new Promise((resolve, reject) => {
-    getPool().get((err, db) => {
-      if (err) {
-        logger.error({ err }, 'Falha ao obter conexão Firebird');
+    db.query(sql, params, (queryErr, result) => {
+      if (queryErr) {
+        db.detach();
+        logger.error({ err: queryErr }, 'Falha ao executar query Firebird');
         return reject(new ExternalServiceError());
       }
-      db.query(sql, params, (queryErr, result) => {
-        if (queryErr) {
+      const rows = asRows(result).map(decodeLatin1Row);
+      Promise.all(rows.map((row) => drainBlobColumn(row, blobColumn)))
+        .then(() => {
           db.detach();
-          logger.error({ err: queryErr }, 'Falha ao executar query Firebird');
-          return reject(new ExternalServiceError());
-        }
-        const rows = asRows(result).map(decodeLatin1Row);
-        Promise.all(rows.map((row) => drainBlobColumn(row, blobColumn)))
-          .then(() => {
-            db.detach();
-            resolve(rows as T[]);
-          })
-          .catch((blobErr) => {
-            db.detach();
-            logger.error({ err: blobErr }, 'Falha ao ler BLOB do Firebird');
-            reject(new ExternalServiceError());
-          });
-      }, { timeout: 15_000 });
-    });
+          resolve(rows as T[]);
+        })
+        .catch((blobErr) => {
+          db.detach();
+          logger.error({ err: blobErr }, 'Falha ao ler BLOB do Firebird');
+          reject(new ExternalServiceError());
+        });
+    }, { timeout: 15_000 });
   });
 }
 
@@ -138,47 +150,42 @@ export async function firebirdQueryWithBlob<T = FirebirdRow>(
 export async function firebirdTransaction<T>(
   fn: (query: <R = FirebirdRow>(sql: string, params?: unknown[]) => Promise<R[]>) => Promise<T>,
 ): Promise<T> {
+  const db = await acquireConnection();
   return new Promise((resolve, reject) => {
-    getPool().get((connErr, db) => {
-      if (connErr) {
-        logger.error({ err: connErr }, 'Falha ao obter conexão Firebird');
+    db.transaction(Firebird.ISOLATION_READ_COMMITTED, (trErr, transaction) => {
+      if (trErr) {
+        db.detach();
+        logger.error({ err: trErr }, 'Falha ao abrir transação Firebird');
         return reject(new ExternalServiceError());
       }
-      db.transaction(Firebird.ISOLATION_READ_COMMITTED, (trErr, transaction) => {
-        if (trErr) {
-          db.detach();
-          logger.error({ err: trErr }, 'Falha ao abrir transação Firebird');
-          return reject(new ExternalServiceError());
-        }
 
-        const query = <R = FirebirdRow>(sql: string, params: unknown[] = []): Promise<R[]> =>
-          new Promise((res, rej) => {
-            transaction.query(sql, params, (queryErr, result) => {
-              if (queryErr) return rej(queryErr);
-              res(asRows(result).map(decodeLatin1Row) as R[]);
-            }, { timeout: 15_000 });
+      const query = <R = FirebirdRow>(sql: string, params: unknown[] = []): Promise<R[]> =>
+        new Promise((res, rej) => {
+          transaction.query(sql, params, (queryErr, result) => {
+            if (queryErr) return rej(queryErr);
+            res(asRows(result).map(decodeLatin1Row) as R[]);
+          }, { timeout: 15_000 });
+        });
+
+      fn(query).then(
+        (value) => {
+          transaction.commit((commitErr) => {
+            db.detach();
+            if (commitErr) {
+              logger.error({ err: commitErr }, 'Falha ao confirmar transação Firebird');
+              return reject(new ExternalServiceError());
+            }
+            resolve(value);
           });
-
-        fn(query).then(
-          (value) => {
-            transaction.commit((commitErr) => {
-              db.detach();
-              if (commitErr) {
-                logger.error({ err: commitErr }, 'Falha ao confirmar transação Firebird');
-                return reject(new ExternalServiceError());
-              }
-              resolve(value);
-            });
-          },
-          (fnErr) => {
-            transaction.rollback(() => {
-              db.detach();
-              logger.error({ err: fnErr }, 'Transação Firebird revertida por erro');
-              reject(fnErr instanceof Error ? fnErr : new ExternalServiceError());
-            });
-          },
-        );
-      });
+        },
+        (fnErr) => {
+          transaction.rollback(() => {
+            db.detach();
+            logger.error({ err: fnErr }, 'Transação Firebird revertida por erro');
+            reject(fnErr instanceof Error ? fnErr : new ExternalServiceError());
+          });
+        },
+      );
     });
   });
 }
