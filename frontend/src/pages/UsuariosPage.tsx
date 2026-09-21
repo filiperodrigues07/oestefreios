@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
-import { createUser, deleteUser, listCherpUsers, listRoles, listUsers, reenviarConvite, updateUser } from '../api/users.api.js';
+import { useMemo, useState } from 'react';
+import { createUser, deleteUser, exportUsersExcel, listCherpUsers, listRoles, listUsers, reenviarConvite, updateUser } from '../api/users.api.js';
 import {
   ActionIcon,
   Badge,
@@ -14,6 +14,8 @@ import {
   Modal,
   PageHeader,
   PasswordInput,
+  ResponsiveFilters,
+  SearchInput,
   Select,
   Skeleton,
   Table,
@@ -57,6 +59,13 @@ export function UsuariosPage() {
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState<UserSummaryDTO | null>(null);
   const [excluindo, setExcluindo] = useState<UserSummaryDTO | null>(null);
+  const [busca, setBusca] = useState('');
+  const [roleId, setRoleId] = useState('');
+  const [status, setStatus] = useState('');
+  const [vinculo, setVinculo] = useState('');
+  const [sortBy, setSortBy] = useState('name');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [exportando, setExportando] = useState(false);
 
   const podeCriar = hasPermission('USER_CREATE');
   const podeEditar = hasPermission('USER_EDIT');
@@ -71,6 +80,44 @@ export function UsuariosPage() {
   } = useQuery({ queryKey: ['usuarios'], queryFn: listUsers });
 
   const { data: roles } = useQuery({ queryKey: ['usuarios-roles'], queryFn: listRoles });
+
+  const usuariosFiltrados = useMemo(() => {
+    const termo = busca.trim().toLocaleLowerCase('pt-BR');
+    const collator = new Intl.Collator('pt-BR', { numeric: true, sensitivity: 'base' });
+    return (usuarios ?? []).filter((u) => {
+      if (termo && ![u.name, u.email, u.roleName, String(u.cherpUsuarioChave ?? '')].some((value) => value.toLocaleLowerCase('pt-BR').includes(termo))) return false;
+      if (roleId && u.roleId !== roleId) return false;
+      if (status === 'ativo' && !u.isActive) return false;
+      if (status === 'inativo' && u.isActive) return false;
+      if (vinculo === 'vinculado' && !u.cherpUsuarioChave) return false;
+      if (vinculo === 'nao-vinculado' && u.cherpUsuarioChave) return false;
+      return true;
+    }).sort((a, b) => {
+      const value = (u: UserSummaryDTO) => {
+        if (sortBy === 'isActive') return u.isActive ? 'Ativo' : 'Inativo';
+        if (sortBy === 'cherpUsuarioChave') return u.cherpUsuarioChave ?? -1;
+        if (sortBy === 'email' || sortBy === 'roleName') return u[sortBy];
+        return u.name;
+      };
+      return (sortOrder === 'asc' ? 1 : -1) * collator.compare(String(value(a)), String(value(b)));
+    });
+  }, [usuarios, busca, roleId, status, vinculo, sortBy, sortOrder]);
+
+  function handleSortChange(key: string) {
+    setSortOrder((order) => key === sortBy ? (order === 'asc' ? 'desc' : 'asc') : 'asc');
+    setSortBy(key);
+  }
+
+  async function handleExport() {
+    setExportando(true);
+    try {
+      await exportUsersExcel({ busca: busca.trim(), roleId, status, vinculo, sortBy, sortOrder });
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Não foi possível exportar os usuários.', 'danger');
+    } finally {
+      setExportando(false);
+    }
+  }
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => deleteUser(id),
@@ -102,11 +149,12 @@ export function UsuariosPage() {
   }
 
   const columns: TableColumn<UserSummaryDTO>[] = [
-    { key: 'name', header: 'Nome', render: (u) => u.name },
-    { key: 'email', header: 'E-mail', render: (u) => u.email, mono: true },
+    { key: 'name', header: 'Nome', render: (u) => u.name, sortable: true },
+    { key: 'email', header: 'E-mail', render: (u) => u.email, mono: true, sortable: true },
     {
       key: 'roleName',
       header: 'Perfil',
+      sortable: true,
       render: (u) => (
         <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
           <Badge tone={roleTone(u.roleName)}>{u.roleName}</Badge>
@@ -117,37 +165,43 @@ export function UsuariosPage() {
     {
       key: 'isActive',
       header: 'Status',
+      sortable: true,
       render: (u) => <Badge tone={u.isActive ? 'success' : 'neutral'}>{u.isActive ? 'Ativo' : 'Inativo'}</Badge>,
     },
     {
       key: 'cherpUsuarioChave',
       header: 'CHERP',
+      sortable: true,
       render: (u) => u.cherpUsuarioChave ? `#${u.cherpUsuarioChave}` : 'Não vinculado',
     },
     {
       key: 'acoes',
       header: '',
       align: 'right',
+      width: '160px',
       render: (u) => (
-        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end' }}>
+        <div className={styles.rowActions}>
           {podeEditar && (
             <Button
               size="sm"
               variant="secondary"
+              className={styles.iconButton}
               onClick={() => inviteMutation.mutate(u.id)}
               loading={inviteMutation.isPending && inviteMutation.variables === u.id}
+              aria-label={`Reenviar convite para ${u.name}`}
+              title="Reenviar convite"
             >
-              Reenviar convite
+              <ActionIcon name="mail" />
             </Button>
           )}
           {podeEditar && (
-            <Button size="sm" variant="secondary" onClick={() => abrirEdicao(u)}>
-              Editar
+            <Button size="sm" variant="secondary" className={styles.iconButton} onClick={() => abrirEdicao(u)} aria-label={`Editar ${u.name}`} title="Editar usuário">
+              <ActionIcon name="edit" />
             </Button>
           )}
           {podeExcluir && (
-            <Button size="sm" variant="destructive" onClick={() => setExcluindo(u)}>
-              Excluir
+            <Button size="sm" variant="destructive" className={styles.iconButton} onClick={() => setExcluindo(u)} aria-label={`Excluir ${u.name}`} title="Excluir usuário">
+              <ActionIcon name="delete" />
             </Button>
           )}
         </div>
@@ -160,8 +214,22 @@ export function UsuariosPage() {
       <PageHeader
         title="Usuários"
         description="Gerencie os acessos e permissões da equipe."
-        actions={podeCriar ? <Button onClick={abrirNovo}><ActionIcon name="add" />Novo usuário</Button> : undefined}
+        actions={<>
+          {podeCriar && <Button onClick={abrirNovo}><ActionIcon name="add" />Novo usuário</Button>}
+          <Button variant="secondary" size="sm" onClick={handleExport} loading={exportando} disabled={!usuarios?.length}><ActionIcon name="excel" />Exportar Excel</Button>
+        </>}
       />
+
+      {!isLoading && !isError && <p className={styles.total}><strong>{usuariosFiltrados.length.toLocaleString('pt-BR')}</strong> {usuariosFiltrados.length === 1 ? 'registro' : 'registros'}</p>}
+
+      <div className={styles.filters} aria-label="Filtros de usuários">
+        <SearchInput placeholder="Buscar por nome, e-mail, perfil ou CHERP" value={busca} onChange={(event) => setBusca(event.target.value)} aria-label="Buscar usuários" />
+        <ResponsiveFilters activeCount={Number(Boolean(roleId)) + Number(Boolean(status)) + Number(Boolean(vinculo))} onClear={() => { setRoleId(''); setStatus(''); setVinculo(''); }}>
+          <Select label="Perfil" value={roleId} onChange={(event) => setRoleId(event.target.value)} options={[{ value: '', label: 'Todos' }, ...(roles ?? []).map((role) => ({ value: role.id, label: role.name }))]} />
+          <Select label="Status" value={status} onChange={(event) => setStatus(event.target.value)} options={[{ value: '', label: 'Todos' }, { value: 'ativo', label: 'Ativos' }, { value: 'inativo', label: 'Inativos' }]} />
+          <Select label="Vínculo CHERP" value={vinculo} onChange={(event) => setVinculo(event.target.value)} options={[{ value: '', label: 'Todos' }, { value: 'vinculado', label: 'Vinculados' }, { value: 'nao-vinculado', label: 'Não vinculados' }]} />
+        </ResponsiveFilters>
+      </div>
 
       {isLoading && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
@@ -175,8 +243,10 @@ export function UsuariosPage() {
 
       {!isLoading && !isError && usuarios && usuarios.length === 0 && <EmptyState title="Nenhum usuário cadastrado ainda" />}
 
-      {!isLoading && !isError && usuarios && usuarios.length > 0 && (
-        <Table columns={columns} data={usuarios} rowKey={(u) => u.id} />
+      {!isLoading && !isError && usuarios && usuarios.length > 0 && usuariosFiltrados.length === 0 && <EmptyState title="Nenhum usuário encontrado" description="Ajuste os filtros para encontrar usuários." />}
+
+      {!isLoading && !isError && usuariosFiltrados.length > 0 && (
+        <Table columns={columns} data={usuariosFiltrados} rowKey={(u) => u.id} sortBy={sortBy} sortOrder={sortOrder} onSortChange={handleSortChange} columnPrefsKey="usuarios" />
       )}
 
       <UsuarioFormModal

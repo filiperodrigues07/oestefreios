@@ -6,10 +6,7 @@ import { getGeralSettings } from '../services/settings.service.js';
 import { success } from '../utils/apiResponse.js';
 import { resolverLogoParaPdf } from '../utils/brandingAssets.js';
 import { detectarTipoImagem } from '../utils/imageSignature.js';
-
-function requestContext(req: Request) {
-  return { ip: req.ip, userAgent: req.headers['user-agent'] };
-}
+import { requestContext } from '../utils/requestContext.js';
 
 export async function listOSHandler(req: Request, res: Response) {
   const filter = req.query as unknown as {

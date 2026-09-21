@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { baixarOSPdf, listarOS, type OSSortBy } from '../api/os.api.js';
 import { baixarRelatorioOS } from '../api/relatorios.api.js';
+import { CurrencyCell } from '../components/ui/CurrencyCell.js';
 import {
   OS_DOCUMENT_STATUS_CONFIG,
   OS_DOCUMENT_STATUS_OPTIONS,
@@ -208,7 +209,14 @@ export function OSListPage() {
             width: '128px',
             sortable: true,
             render: (os: OrdemServicoDTO) =>
-              typeof os.faturamento === 'number' ? formatMoney(os.faturamento) : '—',
+              typeof os.faturamento === 'number' ? (
+                <CurrencyCell
+                  amount={new Intl.NumberFormat('pt-BR', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }).format(os.faturamento)}
+                />
+              ) : '—',
           },
         ]
       : []),

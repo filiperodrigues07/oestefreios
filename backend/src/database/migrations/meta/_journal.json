@@ -71,6 +71,13 @@
       "when": 1789960227182,
       "tag": "0009_cute_warbird",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790000000000,
+      "tag": "0010_audit_indexes",
+      "breakpoints": true
     }
   ]
 }

@@ -114,6 +114,11 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
 
   const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
 
+  if (res.status === 401 && !isRetry && body && !body.success && body.error.code === 'SESSION_REVOKED') {
+    const refreshed = await refreshOnce();
+    if (refreshed) return apiFetch<T>(path, options, true);
+  }
+
   if (res.status === 401 && body && !body.success) {
     handleRejectedSession(body.error.code);
   }
@@ -149,6 +154,10 @@ export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob>
   if (res.status === 401 && !isRetry) {
     const body = (await res.clone().json().catch(() => null)) as ApiResponse<unknown> | null;
     const code = body && !body.success ? body.error.code : '';
+    if (code === 'SESSION_REVOKED') {
+      const refreshed = await refreshOnce();
+      if (refreshed) return apiFetchBlob(path, true);
+    }
     handleRejectedSession(code);
 
     if (code === 'TOKEN_EXPIRED' || !code) {

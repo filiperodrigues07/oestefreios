@@ -8,5 +8,6 @@ export interface AuditLogDTO {
   /** Campos financeiros já removidos pelo service quando o perfil não tem FINANCIAL_VIEW. */
   changes: unknown;
   ip: string | null;
+  userAgent: string | null;
   createdAt: string;
 }

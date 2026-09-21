@@ -21,3 +21,6 @@ backend/uploads/
 .claude/
 .agents/
 skills-lock.json
+
+# Backup/rollback de lotes de dados em produção — ficam só na máquina, não no repositório.
+backend/scripts/*-produto-nao-lancar-*

@@ -8,6 +8,13 @@ import { reloadFirebirdPool } from '../database/firebird/pool.js';
 import { db } from '../database/postgres/client.js';
 import { settings } from '../database/postgres/schema.js';
 import { logger } from '../utils/logger.js';
+import type { AuthenticatedUser } from '../types/auth.types.js';
+import type { RequestContext } from '../utils/requestContext.js';
+import { recordAudit } from './auditLog.service.js';
+
+function auditSettings(event: string, usuario: AuthenticatedUser, ctx: RequestContext, changes: unknown) {
+  return recordAudit({ userId: usuario.id, userName: usuario.name, event, entityType: 'SETTINGS', entityId: event, changes, ...ctx });
+}
 
 const SENHA_MASCARADA = '••••••••';
 const ENCRYPTED_PREFIX = 'enc:v1:';
@@ -132,11 +139,14 @@ function toFirebirdAttachOptions(s: FirebirdSettings): Firebird.Options {
   };
 }
 
-export async function saveFirebirdSettings(input: FirebirdSettings): Promise<void> {
+export async function saveFirebirdSettings(input: FirebirdSettings, usuario?: AuthenticatedUser, ctx: RequestContext = {}): Promise<void> {
   const atual = await getFirebirdSettings();
   const password = !input.password || input.password === SENHA_MASCARADA ? atual.password : input.password;
   const final: FirebirdSettings = { ...input, password };
   await writeCategory('firebird', { ...final, password: encryptSecret(final.password) });
+  if (usuario) await auditSettings('SETTINGS_FIREBIRD_UPDATED', usuario, ctx, {
+    before: { ...atual, password: undefined }, after: { ...final, password: undefined }, passwordChanged: password !== atual.password,
+  });
   await reloadFirebirdPool(toFirebirdAttachOptions(final));
 }
 
@@ -192,10 +202,13 @@ export async function getSmtpSettingsMasked(): Promise<SmtpSettings> {
   return { ...data, password: data.password ? SENHA_MASCARADA : '' };
 }
 
-export async function saveSmtpSettings(input: SmtpSettings): Promise<void> {
+export async function saveSmtpSettings(input: SmtpSettings, usuario?: AuthenticatedUser, ctx: RequestContext = {}): Promise<void> {
   const atual = await getSmtpSettings();
   const password = !input.password || input.password === SENHA_MASCARADA ? atual.password : input.password;
   await writeCategory('smtp', { ...input, password: encryptSecret(password) });
+  if (usuario) await auditSettings('SETTINGS_SMTP_UPDATED', usuario, ctx, {
+    before: { ...atual, password: undefined }, after: { ...input, password: undefined }, passwordChanged: password !== atual.password,
+  });
 }
 
 export async function isSmtpConfigured(): Promise<boolean> {
@@ -245,6 +258,12 @@ export async function getGeralSettings(): Promise<GeralSettings> {
   return readCategory('geral', GERAL_PADRAO);
 }
 
-export async function saveGeralSettings(input: GeralSettings): Promise<void> {
+export async function saveGeralSettings(input: GeralSettings, usuario?: AuthenticatedUser, ctx: RequestContext = {}): Promise<void> {
+  const atual = await getGeralSettings();
   await writeCategory('geral', input);
+  if (usuario) await auditSettings('SETTINGS_GERAL_UPDATED', usuario, ctx, {
+    before: { nomeEmpresa: atual.nomeEmpresa, corDestaque: atual.corDestaque, fusoHorario: atual.fusoHorario },
+    after: { nomeEmpresa: input.nomeEmpresa, corDestaque: input.corDestaque, fusoHorario: input.fusoHorario },
+    logoChanged: input.logoUrl !== atual.logoUrl,
+  });
 }

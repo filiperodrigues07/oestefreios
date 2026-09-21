@@ -12,13 +12,9 @@ import { userRepository, type UserWithRole } from '../repositories/postgres/User
 import type { JwtPayload } from '../types/auth.types.js';
 import { logger } from '../utils/logger.js';
 import { parseDurationMs } from '../utils/parseDuration.js';
+import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
 import { isSmtpConfigured, sendEmail } from './settings.service.js';
-
-interface RequestContext {
-  ip?: string;
-  userAgent?: string;
-}
 
 function toJwtPayload(user: UserWithRole): JwtPayload {
   return {
@@ -108,10 +104,13 @@ export async function refresh(currentRefreshToken: string, ctx: RequestContext) 
   }
 
   if (stored.revokedAt) {
-    // Token já rotacionado sendo reapresentado: indício de roubo. Revoga a família inteira.
-    await refreshTokenRepository.revokeFamily(stored.familyId);
-    await audit('TOKEN_REUSE_DETECTED', payload.sub, ctx);
-    throw new UnauthorizedError('Sessão inválida. Faça login novamente.', 'REFRESH_TOKEN_REUSED');
+    if (stored.replacedByTokenId) {
+      // Token já rotacionado sendo reapresentado: indício de roubo.
+      await refreshTokenRepository.revokeFamily(stored.familyId);
+      await audit('TOKEN_REUSE_DETECTED', payload.sub, ctx);
+      throw new UnauthorizedError('Sessão inválida. Faça login novamente.', 'REFRESH_TOKEN_REUSED');
+    }
+    throw new UnauthorizedError('Sessão encerrada. Faça login novamente.', 'REFRESH_TOKEN_INVALID');
   }
 
   if (stored.expiresAt < new Date()) {

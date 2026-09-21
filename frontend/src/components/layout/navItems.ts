@@ -39,7 +39,6 @@ export const NAV_ITEMS: NavItem[] = [
     anyPermission: ['PRODUCT_VIEW', 'SERVICE_VIEW'],
   },
   { to: '/relatorios', label: 'Relatórios', icon: 'chart', anyPermission: ['REPORT_VIEW'] },
-  { to: '/auditoria', label: 'Auditoria', icon: 'shield', anyPermission: ['SYSTEM_SETTINGS'] },
   { to: '/usuarios', label: 'Usuários', icon: 'users', anyPermission: ['USER_VIEW'] },
   { to: '/perfil', label: 'Perfil', icon: 'user' },
   {

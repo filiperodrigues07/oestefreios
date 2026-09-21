@@ -5,6 +5,7 @@ import type { Request, Response } from 'express';
 import * as settingsService from '../services/settings.service.js';
 import { success } from '../utils/apiResponse.js';
 import { detectarTipoImagem } from '../utils/imageSignature.js';
+import { requestContext } from '../utils/requestContext.js';
 
 const MAX_LOGO_BYTES = 1024 * 1024;
 
@@ -38,7 +39,7 @@ export async function getFirebirdPasswordHandler(_req: Request, res: Response) {
 }
 
 export async function saveFirebirdSettingsHandler(req: Request, res: Response) {
-  await settingsService.saveFirebirdSettings(req.body);
+  await settingsService.saveFirebirdSettings(req.body, req.user!, requestContext(req));
   const data = await settingsService.getFirebirdSettingsMasked();
   success(res, data, 'Configurações do Firebird salvas.');
 }
@@ -54,7 +55,7 @@ export async function getSmtpSettingsHandler(_req: Request, res: Response) {
 }
 
 export async function saveSmtpSettingsHandler(req: Request, res: Response) {
-  await settingsService.saveSmtpSettings(req.body);
+  await settingsService.saveSmtpSettings(req.body, req.user!, requestContext(req));
   const data = await settingsService.getSmtpSettingsMasked();
   success(res, data, 'Configurações de e-mail salvas.');
 }
@@ -79,7 +80,7 @@ export async function getGeralSettingsHandler(_req: Request, res: Response) {
 export async function saveGeralSettingsHandler(req: Request, res: Response) {
   const body = req.body as Awaited<ReturnType<typeof settingsService.getGeralSettings>>;
   const logoUrl = await resolverLogoUrl(body.logoUrl);
-  await settingsService.saveGeralSettings({ ...body, logoUrl });
+  await settingsService.saveGeralSettings({ ...body, logoUrl }, req.user!, requestContext(req));
   const data = await settingsService.getGeralSettings();
   success(res, data, 'Configurações gerais salvas.');
 }

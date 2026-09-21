@@ -10,6 +10,7 @@ import { produtoRouter } from './produto.routes.js';
 import { relatorioRouter } from './relatorio.routes.js';
 import { servicoRouter } from './servico.routes.js';
 import { settingsRouter } from './settings.routes.js';
+import { sessionRouter, sessionUserRouter } from './session.routes.js';
 import { userRouter } from './user.routes.js';
 
 export const apiRouter = Router();
@@ -25,4 +26,6 @@ apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/relatorios', relatorioRouter);
 apiRouter.use('/audit-logs', auditLogRouter);
 apiRouter.use('/settings', settingsRouter);
+apiRouter.use('/sessions', sessionRouter);
+apiRouter.use('/users', sessionUserRouter);
 apiRouter.use('/usuarios', userRouter);

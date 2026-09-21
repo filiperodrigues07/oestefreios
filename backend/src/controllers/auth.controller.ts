@@ -6,6 +6,7 @@ import { env } from '../config/env.js';
 import * as authService from '../services/auth.service.js';
 import { success } from '../utils/apiResponse.js';
 import { UnauthorizedError } from '../errors/UnauthorizedError.js';
+import { requestContext } from '../utils/requestContext.js';
 
 const REFRESH_COOKIE = 'refreshToken';
 
@@ -15,10 +16,6 @@ const cookieOptions = {
   sameSite: 'strict' as const,
   path: '/api/auth',
 };
-
-function requestContext(req: Request) {
-  return { ip: req.ip, userAgent: req.headers['user-agent'] };
-}
 
 export async function loginHandler(req: Request, res: Response) {
   const { email, password } = req.body as { email: string; password: string };

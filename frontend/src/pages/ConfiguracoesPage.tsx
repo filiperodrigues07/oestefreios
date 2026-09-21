@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router';
 import {
   getFirebirdSettings,
   getFirebirdPassword,
@@ -26,6 +27,8 @@ import {
   useToast,
 } from '../components/ui/index.js';
 import { NavIcon } from '../components/layout/NavIcon.js';
+import { AuditoriaTab } from './configuracoes/AuditoriaTab.js';
+import { SobreTab } from './configuracoes/SobreTab.js';
 import styles from './ConfiguracoesPage.module.css';
 
 const CHARSET_OPTIONS = [
@@ -76,7 +79,12 @@ function SettingsIcon({
 }
 
 export function ConfiguracoesPage() {
-  const [tab, setTab] = useState('firebird');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedTab = searchParams.get('tab');
+  const tab = ['firebird', 'smtp', 'geral', 'auditoria', 'sobre'].includes(selectedTab ?? '')
+    ? selectedTab!
+    : 'firebird';
+  const setTab = (value: string) => setSearchParams({ tab: value });
   return (
     <div className={styles.page}>
       <div className={styles.pageTitle}>
@@ -95,6 +103,8 @@ export function ConfiguracoesPage() {
           },
           { key: 'smtp', label: 'E-mail (SMTP)', icon: <SettingsIcon name="mail" /> },
           { key: 'geral', label: 'Geral', icon: <NavIcon name="gear" /> },
+          { key: 'auditoria', label: 'Auditoria', icon: <NavIcon name="shield" /> },
+          { key: 'sobre', label: 'Sobre', icon: <NavIcon name="users" /> },
         ].map((item) => (
           <button
             type="button"
@@ -120,6 +130,8 @@ export function ConfiguracoesPage() {
         {tab === 'firebird' && <FirebirdTab />}
         {tab === 'smtp' && <SmtpTab />}
         {tab === 'geral' && <GeralTab />}
+        {tab === 'auditoria' && <AuditoriaTab />}
+        {tab === 'sobre' && <SobreTab />}
       </div>
     </div>
   );

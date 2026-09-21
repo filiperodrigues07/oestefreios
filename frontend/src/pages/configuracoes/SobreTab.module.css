@@ -1,0 +1,34 @@
+.page {
+  display: grid;
+  gap: 21px;
+  max-width: 1200px;
+}
+
+.heading,
+.sessionCard {
+  border: 1px solid #163451;
+  border-radius: 15px;
+  background: linear-gradient(120deg, #09162b, #05172a);
+  padding: 25px;
+}
+
+.heading p {
+  font-size: 13px;
+  margin: 3px 0 0;
+}
+
+.sessionCard {
+  display: grid;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .page {
+    gap: 16px;
+  }
+
+  .heading,
+  .sessionCard {
+    padding: 20px;
+  }
+}

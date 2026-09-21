@@ -1,8 +1,14 @@
-import { apiFetch } from './httpClient.js';
+import { apiFetch, apiFetchBlob, salvarBlobComoArquivo } from './httpClient.js';
 import type { CherpUserOptionDTO, CreateUserInput, RoleOptionDTO, UpdateUserInput, UserSummaryDTO } from '../types/user.types.js';
 
 export function listUsers(): Promise<UserSummaryDTO[]> {
   return apiFetch<UserSummaryDTO[]>('/usuarios');
+}
+
+export async function exportUsersExcel(filters: { busca: string; roleId: string; status: string; vinculo: string; sortBy: string; sortOrder: 'asc' | 'desc' }): Promise<void> {
+  const params = new URLSearchParams(filters);
+  const blob = await apiFetchBlob(`/usuarios/exportar-excel?${params}`);
+  salvarBlobComoArquivo(blob, 'usuarios.xlsx');
 }
 
 export function listRoles(): Promise<RoleOptionDTO[]> {

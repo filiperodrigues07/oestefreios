@@ -360,9 +360,10 @@
   }
   .tabs {
     width: 100%;
+    overflow-x: auto;
   }
   .tabs button {
-    flex: 1;
+    flex: 0 0 auto;
     padding: 0 10px;
     font-size: 12px;
     gap: 7px;

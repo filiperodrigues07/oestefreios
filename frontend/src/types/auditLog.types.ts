@@ -7,5 +7,6 @@ export interface AuditLogDTO {
   entityId: string | null;
   changes: unknown;
   ip: string | null;
+  userAgent: string | null;
   createdAt: string;
 }

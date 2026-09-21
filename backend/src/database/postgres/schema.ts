@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm';
-import { boolean, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 export const roles = pgTable('roles', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -108,7 +108,12 @@ export const auditLogs = pgTable('audit_logs', {
   ip: text('ip'),
   userAgent: text('user_agent'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-});
+}, (table) => [
+  index('audit_logs_created_at_idx').on(table.createdAt.desc()),
+  index('audit_logs_entity_type_idx').on(table.entityType),
+  index('audit_logs_event_idx').on(table.event),
+  index('audit_logs_user_id_idx').on(table.userId),
+]);
 
 /**
  * Metadados de workflow da OS que o CHERP não tem campo próprio para guardar

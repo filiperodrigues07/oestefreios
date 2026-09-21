@@ -11,13 +11,9 @@ import { userRepository, type RoleRow, type UserRow } from '../repositories/post
 import { cherpUsuarioRepository } from '../repositories/firebird/CherpUsuarioRepository.firebird.js';
 import type { AuthenticatedUser, Permission } from '../types/auth.types.js';
 import { logger } from '../utils/logger.js';
+import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
 import { isSmtpConfigured, sendEmail } from './settings.service.js';
-
-export interface RequestContext {
-  ip?: string;
-  userAgent?: string;
-}
 
 export interface CreateUserInput {
   name: string;

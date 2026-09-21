@@ -10,10 +10,11 @@ interface DrawerProps {
   onClose: () => void;
   children: ReactNode;
   side?: 'left' | 'right';
+  className?: string;
 }
 
 /** Painel lateral — usado para busca/edição rápida sem sair do contexto da tela (ex.: adicionar produto à OS). */
-export function Drawer({ open, title, onClose, children, side = 'right' }: DrawerProps) {
+export function Drawer({ open, title, onClose, children, side = 'right', className }: DrawerProps) {
   const titleId = useId();
   const containerRef = useFocusTrap<HTMLDivElement>(open, onClose);
 
@@ -33,7 +34,7 @@ export function Drawer({ open, title, onClose, children, side = 'right' }: Drawe
     >
       <div
         ref={containerRef}
-        className={`${styles.drawer} ${side === 'left' ? styles.drawerLeft : ''}`}
+        className={`${styles.drawer} ${side === 'left' ? styles.drawerLeft : ''} ${className ?? ''}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}

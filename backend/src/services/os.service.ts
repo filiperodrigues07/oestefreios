@@ -13,13 +13,9 @@ import type { OSListFilter } from '../repositories/interfaces/IOSRepository.js';
 import type { AuthenticatedUser, Permission } from '../types/auth.types.js';
 import type { OrdemServico, OSHistoricoEntry, OSPrioridade, OSStatus } from '../types/cherp.types.js';
 import { detectarTipoImagem } from '../utils/imageSignature.js';
+import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
 import { assertValidTransition } from './osWorkflow.js';
-
-export interface RequestContext {
-  ip?: string;
-  userAgent?: string;
-}
 
 function historicoEntry(evento: string, usuario: AuthenticatedUser): OSHistoricoEntry {
   return { timestamp: new Date().toISOString(), evento, usuarioNome: usuario.name };

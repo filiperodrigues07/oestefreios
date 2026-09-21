@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ReactNode } from 'react';
-import { createBrowserRouter } from 'react-router';
+import { createBrowserRouter, Navigate } from 'react-router';
 import { AppShell } from '../components/layout/AppShell.js';
 import { Skeleton } from '../components/ui/Skeleton.js';
 import { HomePage } from '../pages/HomePage.js';
@@ -10,9 +10,6 @@ import { ErrorScreen } from '../components/ui/ErrorScreen.js';
 
 // Lazy: cada página só entra no bundle quando a rota é visitada, em vez de tudo no carregamento inicial.
 // Login/Home ficam eager porque são a primeira tela — lazy não ajudaria ali.
-const AuditLogPage = lazy(() =>
-  import('../pages/AuditLogPage.js').then((m) => ({ default: m.AuditLogPage })),
-);
 const AlterarSenhaPage = lazy(() =>
   import('../pages/AlterarSenhaPage.js').then((m) => ({ default: m.AlterarSenhaPage })),
 );
@@ -106,8 +103,8 @@ export const router = createBrowserRouter([
           </ProtectedRoute>
         ),
       },
-      { path: '/auditoria', element: withShell(<AuditLogPage />) },
-      { path: '/configuracoes', element: withShell(<ConfiguracoesPage />) },
+      { path: '/auditoria', element: <Navigate to="/configuracoes?tab=auditoria" replace /> },
+      { path: '/configuracoes', element: <ProtectedRoute requiredPermission="SYSTEM_SETTINGS"><AppShell>{lazyPage(<ConfiguracoesPage />)}</AppShell></ProtectedRoute> },
       { path: '/usuarios', element: withShell(<UsuariosPage />) },
       { path: '*', element: <ErrorScreen error={{ status: 404 }} title="Página não encontrada" /> },
     ],

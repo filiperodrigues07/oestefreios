@@ -1,6 +1,7 @@
 import type { Request, Response } from 'express';
 import * as clienteService from '../services/cliente.service.js';
 import { success } from '../utils/apiResponse.js';
+import { requestContext } from '../utils/requestContext.js';
 
 export async function searchClientesHandler(req: Request, res: Response) {
   const query = req.query as unknown as {
@@ -25,13 +26,13 @@ export async function getClienteByCodigoHandler(req: Request, res: Response) {
 }
 
 export async function criarClienteHandler(req: Request, res: Response) {
-  const cliente = await clienteService.criarCliente(req.body, req.user!);
+  const cliente = await clienteService.criarCliente(req.body, req.user!, requestContext(req));
   success(res, cliente, 'Cliente cadastrado com sucesso.', 201);
 }
 
 export async function atualizarClienteHandler(req: Request, res: Response) {
   const { codigo } = req.params as { codigo: string };
-  const cliente = await clienteService.atualizarCliente(codigo, req.body);
+  const cliente = await clienteService.atualizarCliente(codigo, req.body, req.user!, requestContext(req));
   success(res, cliente, 'Cliente atualizado com sucesso.');
 }
 

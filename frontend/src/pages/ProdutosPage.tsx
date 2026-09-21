@@ -7,6 +7,7 @@ import {
 } from '../api/relatorios.api.js';
 import { listarServicosCatalogo } from '../api/servicos.api.js';
 import { CatalogTable } from '../components/catalog/CatalogTable.js';
+import { CurrencyCell } from '../components/ui/CurrencyCell.js';
 import {
   MobileRecordCard,
   Modal,
@@ -58,7 +59,8 @@ export function ProdutosPage() {
           {
             key: 'preco',
             header: 'Preço',
-            render: (p: ProdutoDTO) => formatMoney(p.precoUnitario) ?? '—',
+            render: (p: ProdutoDTO) => p.precoUnitario !== undefined
+              ? <CurrencyCell amount={p.precoUnitario.toFixed(2)} /> : '—',
             align: 'right' as const,
             mono: true,
             width: '110px',
@@ -107,7 +109,8 @@ export function ProdutosPage() {
           {
             key: 'valor',
             header: 'Preço',
-            render: (s: ServicoDTO) => formatMoney(s.valorUnitario) ?? '—',
+            render: (s: ServicoDTO) => s.valorUnitario !== undefined
+              ? <CurrencyCell amount={s.valorUnitario.toFixed(2)} /> : '—',
             align: 'right' as const,
             mono: true,
             width: '110px',

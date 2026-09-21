@@ -11,13 +11,14 @@ import styles from './SidebarProfile.module.css';
 interface SidebarProfileProps {
   collapsed: boolean;
   onOpenProfile: () => void;
+  detailed?: boolean;
 }
 
 /**
  * Bloco de perfil no fim da sidebar: avatar + e-mail logado, clique abre um menu
  * com tema e acesso ao modal "Meu perfil" (nunca navega pra uma tela cheia).
  */
-export function SidebarProfile({ collapsed, onOpenProfile }: SidebarProfileProps) {
+export function SidebarProfile({ collapsed, onOpenProfile, detailed = false }: SidebarProfileProps) {
   const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
   const theme = useThemeStore((s) => s.theme);
@@ -102,15 +103,17 @@ export function SidebarProfile({ collapsed, onOpenProfile }: SidebarProfileProps
         </div>
       )}
 
-      <button type="button" className={styles.trigger} onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open}>
-        <Avatar name={user.name} photoUrl={user.photoUrl ?? undefined} />
+      <button type="button" className={`${styles.trigger} ${collapsed ? styles.triggerCollapsed : ''} ${detailed ? styles.triggerDetailed : ''}`} onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} title={collapsed ? user.name : undefined}>
+        <Avatar name={user.name} photoUrl={user.photoUrl ?? undefined} size={42} />
         {!collapsed && (
           <div className={styles.info}>
             <div className={styles.name}>{user.name}</div>
             <div className={styles.email}>{user.email}</div>
+            <div className={styles.role}>{user.roleName}</div>
+            <div className={styles.online}><span aria-hidden="true" />Online</div>
           </div>
         )}
-        {!collapsed && <span className={styles.chevron} aria-hidden="true">⌄</span>}
+        {!collapsed && <span className={styles.chevron} aria-hidden="true"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="m5 9 7 7 7-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></span>}
       </button>
     </div>
   );

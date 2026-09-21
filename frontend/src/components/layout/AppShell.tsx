@@ -117,6 +117,24 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [tituloPagina, branding?.nomeEmpresa]);
 
   useEffect(() => {
+    function openSearch(event: KeyboardEvent) {
+      if (!(event.ctrlKey || event.metaKey) || event.key.toLowerCase() !== 'k') return;
+      if (window.matchMedia('(max-width: 767px)').matches) {
+        event.preventDefault();
+        setMobileMenuOpen(false);
+        setMobileSearchOpen(true);
+        window.setTimeout(() => document.querySelector<HTMLInputElement>('[data-mobile-search] input')?.focus(), 0);
+      } else if (collapsed) {
+        event.preventDefault();
+        toggleSidebar();
+        window.setTimeout(() => document.querySelector<HTMLInputElement>('[data-sidebar-search] input')?.focus(), 0);
+      }
+    }
+    window.addEventListener('keydown', openSearch);
+    return () => window.removeEventListener('keydown', openSearch);
+  }, [collapsed, toggleSidebar]);
+
+  useEffect(() => {
     if (!user?.id) return;
     try {
       const value = localStorage.getItem(`notifications-read:${user.id}`);
@@ -185,15 +203,15 @@ export function AppShell({ children }: { children: ReactNode }) {
           title={collapsed ? 'Expandir menu' : 'Reduzir menu'}
         >
           <svg
-            width="14"
-            height="14"
+            width="20"
+            height="20"
             viewBox="0 0 24 24"
             fill="none"
             aria-hidden="true"
             style={{ transform: collapsed ? 'rotate(180deg)' : undefined }}
           >
             <path
-              d="M15 6l-6 6 6 6"
+              d="m13 5-7 7 7 7m6-14-7 7 7 7"
               stroke="currentColor"
               strokeWidth="2"
               strokeLinecap="round"
@@ -208,7 +226,15 @@ export function AppShell({ children }: { children: ReactNode }) {
             alt={branding?.nomeEmpresa || 'Oeste Freios'}
             className={`${styles.brandLogo} ${collapsed ? styles.brandLogoCollapsed : ''}`}
           />
-          {!collapsed && <span className={styles.brandCaption}>Mecânica Oeste Freios</span>}
+          {!collapsed && <><span className={styles.brandCaption}>Mecânica Oeste Freios</span><span className={styles.brandSlogan}>Oficina em movimento</span></>}
+        </div>
+
+        <div className={styles.sidebarSearch} data-sidebar-search>
+          {!collapsed ? <GlobalSearch className={styles.sidebarSearchField} placeholder="Buscar no sistema..." /> : (
+            <button type="button" className={styles.collapsedSearch} title="Buscar no sistema" aria-label="Buscar no sistema" onClick={() => { toggleSidebar(); window.setTimeout(() => document.querySelector<HTMLInputElement>('[data-sidebar-search] input')?.focus(), 0); }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" /><path d="m20 20-4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+            </button>
+          )}
         </div>
 
         <nav className={styles.sidebarNav} aria-label="Navegação principal">
@@ -226,7 +252,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   title={collapsed ? item.label : undefined}
                 >
                   <NavIcon name={item.icon} />
-                  {!collapsed && item.label}
+                  {!collapsed && <><span className={styles.sidebarItemLabel}>{item.label}</span>{item.to === '/' && <span className={styles.newBadge}>Novo</span>}<svg className={styles.activeChevron} width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></>}
                 </NavLink>
               ))}
             </div>
@@ -234,15 +260,16 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className={styles.sidebarFooter}>
+          <div className={styles.motivation} title="Mantendo sua oficina sempre em movimento">
+            <span className={styles.motivationIcon} aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18l3 3 5.3-5.3a5 5 0 0 0 6.4-6.4L14 13l-3-3 3.7-3.7Z" fill="currentColor" /></svg></span>
+            {!collapsed && <strong>Mantendo sua oficina sempre em movimento</strong>}
+          </div>
           <SidebarProfile collapsed={collapsed} onOpenProfile={() => setProfileOpen(true)} />
         </div>
       </aside>
 
       <main className={styles.main}>
         <header className={styles.desktopHeader}>
-          <div className={styles.desktopSearch}>
-            <GlobalSearch />
-          </div>
           <div className={styles.headerActions}>
             <div className={styles.notificationWrapper} ref={notificationWrapperRef}>
               <button
@@ -418,22 +445,26 @@ export function AppShell({ children }: { children: ReactNode }) {
               ✕
             </button>
           </div>
-          <div className={styles.mobileSearchBody}>
+          <div className={styles.mobileSearchBody} data-mobile-search>
             <GlobalSearch onNavigate={() => setMobileSearchOpen(false)} />
           </div>
         </div>
       )}
-      <Drawer open={mobileMenuOpen} title="" side="left" onClose={() => setMobileMenuOpen(false)}>
+      <Drawer open={mobileMenuOpen} title="" side="left" className={styles.mobileMenuDrawer} onClose={() => setMobileMenuOpen(false)}>
         <div className={styles.mobileBrand}>
           <img
             src={branding?.logoUrl || clientLogo}
             alt={branding?.nomeEmpresa || 'Oeste Freios'}
           />
           <div>
-            <strong>{branding?.nomeEmpresa || 'Oeste Freios'}</strong>
-            <span>Controle de ordens de serviço</span>
+            <strong>Mecânica Oeste Freios</strong>
+            <span>Oficina em movimento</span>
           </div>
         </div>
+        <button type="button" className={styles.mobileMenuSearch} onClick={() => { setMobileMenuOpen(false); setMobileSearchOpen(true); window.setTimeout(() => document.querySelector<HTMLInputElement>('[data-mobile-search] input')?.focus(), 0); }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="1.8" /><path d="m20 20-4-4" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" /></svg>
+          <span>Buscar no sistema...</span><kbd>Ctrl + K</kbd>
+        </button>
         <nav className={styles.mobileNav} aria-label="Navegação principal">
           {navSections.map((section) => (
             <div key={section.label} className={styles.mobileNavGroup}>
@@ -449,19 +480,28 @@ export function AppShell({ children }: { children: ReactNode }) {
                   }
                 >
                   <NavIcon name={item.icon} />
-                  {item.label}
+                  <span className={styles.mobileNavItemLabel}>{item.label}</span>
+                  {item.to === '/' && <span className={styles.mobileNewBadge}>Novo</span>}
+                  <svg className={styles.mobileActiveChevron} width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 </NavLink>
               ))}
             </div>
           ))}
         </nav>
+        <div className={styles.mobileMenuFooter}>
+          <div className={styles.mobileMotivation}>
+            <span className={styles.motivationIcon} aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18l3 3 5.3-5.3a5 5 0 0 0 6.4-6.4L14 13l-3-3 3.7-3.7Z" fill="currentColor" /></svg></span>
+            <strong>Mantendo sua oficina sempre em movimento</strong>
+          </div>
         <SidebarProfile
           collapsed={false}
+          detailed
           onOpenProfile={() => {
             setMobileMenuOpen(false);
             setProfileOpen(true);
           }}
         />
+        </div>
       </Drawer>
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </div>

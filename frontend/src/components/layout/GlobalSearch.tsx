@@ -15,7 +15,7 @@ function destino(result: DashboardSearchResult): string {
   return `/produtos?tipo=${result.tipo === 'SERVICO' ? 'servicos' : 'produtos'}&busca=${encodeURIComponent(result.id)}`;
 }
 
-export function GlobalSearch({ onNavigate }: { onNavigate?: () => void }) {
+export function GlobalSearch({ onNavigate, className, placeholder, shortcut = true }: { onNavigate?: () => void; className?: string; placeholder?: string; shortcut?: boolean }) {
   const navigate = useNavigate();
   const listId = useId();
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -32,7 +32,7 @@ export function GlobalSearch({ onNavigate }: { onNavigate?: () => void }) {
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+      if (shortcut && inputRef.current?.getClientRects().length && (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault();
         inputRef.current?.focus();
         setOpen(true);
@@ -48,7 +48,7 @@ export function GlobalSearch({ onNavigate }: { onNavigate?: () => void }) {
       window.removeEventListener('keydown', handler);
       document.removeEventListener('pointerdown', closeOutside);
     };
-  }, []);
+  }, [shortcut]);
 
   const { data = [], isFetching, isError } = useQuery({
     queryKey: ['global-search', debounced],
@@ -83,12 +83,12 @@ export function GlobalSearch({ onNavigate }: { onNavigate?: () => void }) {
 
   const showing = open && value.trim().length >= 2;
   return (
-    <div className={styles.wrapper} ref={wrapperRef}>
+    <div className={`${styles.wrapper} ${className ?? ''}`} ref={wrapperRef}>
       <span className={styles.icon} aria-hidden="true">⌕</span>
       <input ref={inputRef} value={value}
         onChange={(event) => { setValue(event.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)} onKeyDown={handleKeyDown}
-        placeholder="Buscar OS, cliente, placa, produto ou serviço..." aria-label="Busca global"
+        placeholder={placeholder ?? 'Buscar OS, cliente, placa, produto ou serviço...'} aria-label="Busca global"
         role="combobox" aria-expanded={showing} aria-controls={showing ? listId : undefined}
         aria-activedescendant={activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} />
       {value && <button className={styles.clear} type="button" onClick={() => { setValue(''); inputRef.current?.focus(); }} aria-label="Limpar busca">×</button>}

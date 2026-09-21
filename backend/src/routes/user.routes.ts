@@ -6,6 +6,7 @@ import {
   listRolesHandler,
   listCherpUsersHandler,
   listUsersHandler,
+  exportUsersExcelHandler,
   reenviarConviteHandler,
   updateUserHandler,
 } from '../controllers/user.controller.js';
@@ -20,6 +21,7 @@ export const userRouter = Router();
 userRouter.use(authenticate);
 
 userRouter.get('/', requirePermission('USER_VIEW'), asyncHandler(listUsersHandler));
+userRouter.get('/exportar-excel', requirePermission('USER_VIEW'), asyncHandler(exportUsersExcelHandler));
 userRouter.get('/roles', requirePermission('USER_VIEW'), asyncHandler(listRolesHandler));
 userRouter.get('/cherp', requirePermission('USER_VIEW'), asyncHandler(listCherpUsersHandler));
 userRouter.get('/:id', requirePermission('USER_VIEW'), validate(userIdParamSchema, 'params'), asyncHandler(getUserHandler));
