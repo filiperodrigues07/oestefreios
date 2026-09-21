@@ -27,7 +27,7 @@ export function AuditLogPage() {
   const [limit, setLimit] = useState(20);
   const [selecionado, setSelecionado] = useState<AuditLogDTO | null>(null);
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isError, error } = useQuery({
     queryKey: ['audit-logs', page, limit],
     queryFn: () => listarAuditLogs(page, limit),
   });
@@ -49,7 +49,7 @@ export function AuditLogPage() {
         </div>
       )}
 
-      {isError && <ErrorState />}
+      {isError && <ErrorState error={error} />}
 
       {!isLoading && !isError && data?.items.length === 0 && <EmptyState title="Nenhum evento registrado ainda." />}
 

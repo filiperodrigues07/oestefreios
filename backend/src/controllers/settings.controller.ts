@@ -32,6 +32,11 @@ export async function getFirebirdSettingsHandler(_req: Request, res: Response) {
   success(res, data);
 }
 
+export async function getFirebirdPasswordHandler(_req: Request, res: Response) {
+  res.setHeader('Cache-Control', 'no-store');
+  success(res, { password: await settingsService.getFirebirdPassword() });
+}
+
 export async function saveFirebirdSettingsHandler(req: Request, res: Response) {
   await settingsService.saveFirebirdSettings(req.body);
   const data = await settingsService.getFirebirdSettingsMasked();

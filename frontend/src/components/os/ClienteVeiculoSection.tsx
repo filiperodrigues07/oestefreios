@@ -1,11 +1,11 @@
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
-import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
 import { EquipamentoSearch } from '../search/EquipamentoSearch.js';
 import { ClienteSearch } from '../search/ClienteSearch.js';
 import { PlacaSearch } from '../search/PlacaSearch.js';
-import { Card } from '../ui/index.js';
-import { Link } from 'react-router';
+import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
+import { ActionIcon, Card, Button } from '../ui/index.js';
 import styles from './ClienteVeiculoSection.module.css';
 import { VeiculoFormModal } from '../veiculos/VeiculoFormModal.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
@@ -28,40 +28,70 @@ interface ClienteVeiculoSectionEditProps {
 type ClienteVeiculoSectionProps = ClienteVeiculoSectionCreateProps | ClienteVeiculoSectionEditProps;
 
 /**
- * Seção Cliente/Veículo — em modo `edit` é só um resumo (reatribuir cliente/veículo de uma OS
- * já criada no CHERP não é suportado hoje, ver notas da Fase OS-3 do plano). Em modo `create`
- * é o fluxo placa-primeiro: nada é gravado até "Criar OS".
+ * Seção Cliente/Veículo — em modo `edit` é um resumo com atalho pra editar o cadastro do cliente
+ * sem sair da OS (reatribuir cliente/veículo de uma OS já criada no CHERP não é suportado, ver
+ * notas da Fase OS-3 do plano). Em modo `create` são dois blocos independentes (Veículo / Cliente)
+ * que resolvem em qualquer ordem.
  */
 export function ClienteVeiculoSection(props: ClienteVeiculoSectionProps) {
   if (props.mode === 'edit') {
-    return (
-      <div className={styles.editCards}>
-        <Link to={`/clientes?busca=${encodeURIComponent(props.clienteNome)}`} className={styles.summaryCard}><span className={styles.cardIcon}>♙</span><span><small>Cliente</small><strong>{props.clienteCodigo} {props.clienteNome}</strong></span><b>Ver cadastro ›</b></Link>
-        <div className={styles.summaryCard}><span className={styles.cardIcon}>▱</span><span><small>Veículo</small><strong>{props.veiculoDescricao}</strong></span><b>Ver detalhes ›</b></div>
-      </div>
-    );
+    return <ClienteVeiculoEditSummary {...props} />;
   }
 
   return <ClienteVeiculoCreatePicker {...props} />;
 }
 
-function LinkButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {
+function ClienteVeiculoEditSummary({ clienteCodigo, clienteNome, veiculoDescricao }: ClienteVeiculoSectionEditProps) {
+  const queryClient = useQueryClient();
+  const [editandoCliente, setEditandoCliente] = useState(false);
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        background: 'transparent',
-        border: 'none',
-        color: 'var(--color-primary)',
-        cursor: 'pointer',
-        fontSize: 'var(--font-size-sm)',
-        textAlign: 'left',
-        padding: 0,
-      }}
-    >
-      {children}
-    </button>
+    <div className={styles.editCards}>
+      <div className={styles.summaryCard}>
+        <span className={styles.cardIcon}>♙</span>
+        <span>
+          <small>Cliente</small>
+          <strong>{clienteCodigo} {clienteNome}</strong>
+        </span>
+        <button type="button" className={styles.trocarButton} onClick={() => setEditandoCliente(true)}>
+          Editar cadastro ›
+        </button>
+      </div>
+      <div className={styles.summaryCard}>
+        <span className={styles.cardIcon}>▱</span>
+        <span>
+          <small>Veículo</small>
+          <strong>{veiculoDescricao}</strong>
+        </span>
+      </div>
+
+      <ClienteFormModal
+        open={editandoCliente}
+        mode="edit"
+        codigo={clienteCodigo}
+        onClose={() => setEditandoCliente(false)}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ['cliente', clienteCodigo] });
+          setEditandoCliente(false);
+        }}
+      />
+    </div>
+  );
+}
+
+/** Mesmo visual do resumo de edição (`.summaryCard`) — só troca o "Editar cadastro ›" por "Trocar" (ação). */
+function SlotSummary({ icon, label, value, onTrocar }: { icon: string; label: string; value: string; onTrocar: () => void }) {
+  return (
+    <div className={styles.summaryCard}>
+      <span className={styles.cardIcon}>{icon}</span>
+      <span>
+        <small>{label}</small>
+        <strong>{value}</strong>
+      </span>
+      <button type="button" className={styles.trocarButton} onClick={onTrocar}>
+        Trocar
+      </button>
+    </div>
   );
 }
 
@@ -78,117 +108,78 @@ function ClienteVeiculoCreatePicker({ cliente, equipamento, onClienteChange, onE
       const clienteDoVeiculo = await getClienteByCodigo(veiculo.clienteCodigo);
       onClienteChange(clienteDoVeiculo);
     } catch {
-      // Veículo achado mas cliente não resolveu (raro) — usuário escolhe manualmente abaixo.
+      // Veículo achado mas cliente não resolveu (raro) — segue pendente, busca manual no bloco Cliente.
     } finally {
       setResolvendoCliente(false);
     }
   }
 
-  function limpar() {
-    onEquipamentoChange(null);
-    onClienteChange(null);
-  }
-
-  // Veículo e cliente já resolvidos (via placa ou cadastro manual) — resumo, pronto pra "Criar OS".
-  if (equipamento && cliente) {
-    return (
-      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <FieldSummary label="Veículo" value={`${equipamento.identificacao ?? ''} · ${equipamento.descricao}`.trim()} onChange={limpar} />
-        <FieldSummary label="Cliente" value={cliente.nome} onChange={limpar} />
-      </Card>
-    );
-  }
-
-  // Achou o veículo mas não deu pra resolver o cliente dono automaticamente — deixa escolher.
-  if (equipamento && !cliente) {
-    return (
-      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <FieldSummary label="Veículo" value={`${equipamento.identificacao ?? ''} · ${equipamento.descricao}`.trim()} onChange={limpar} />
-        {resolvendoCliente ? (
-          <p style={{ margin: 0, color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)' }}>Buscando cliente...</p>
-        ) : (
-          <>
-            <ClienteSearch onSelect={onClienteChange} />
-            <LinkButton onClick={() => setNovoClienteAberto(true)}>+ Cadastrar novo cliente</LinkButton>
-          </>
-        )}
-
-        <ClienteFormModal
-          open={novoClienteAberto}
-          onClose={() => setNovoClienteAberto(false)}
-          onCreated={(clienteNovo) => {
-            onClienteChange(clienteNovo);
-            setNovoClienteAberto(false);
-          }}
-        />
-      </Card>
-    );
-  }
-
-  // Cliente escolhido (cadastrado agora ou já existente) mas ainda sem veículo — busca só entre os dele.
-  if (cliente && !equipamento) {
-    return (
-      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <FieldSummary label="Cliente" value={cliente.nome} onChange={limpar} />
-        <EquipamentoSearch clienteCodigo={cliente.codigo} onSelect={onEquipamentoChange} />
-        <LinkButton onClick={() => setNovoVeiculoAberto(true)}>+ Cadastrar novo veículo</LinkButton>
-
-        <VeiculoFormModal
-          open={novoVeiculoAberto}
-          clienteCodigo={cliente.codigo}
-          onClose={() => setNovoVeiculoAberto(false)}
-          onCreated={(veiculo) => {
-            onEquipamentoChange(veiculo);
-            setNovoVeiculoAberto(false);
-          }}
-        />
-      </Card>
-    );
-  }
-
   return (
-    <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      <PlacaSearch onSelect={handlePlacaSelect} onQueryChange={setPlacaDigitada} />
-      <LinkButton onClick={() => setNovoVeiculoAberto(true)}>+ Cadastrar novo veículo</LinkButton>
-      <LinkButton onClick={() => setNovoClienteAberto(true)}>+ Cadastrar novo cliente</LinkButton>
+    <Card>
+      <div className={styles.pickerGrid}>
+        <div className={styles.slot}>
+          <div className={styles.slotTitle}>Veículo</div>
+          {equipamento ? (
+            <SlotSummary
+              icon="▱"
+              label="Veículo"
+              value={`${equipamento.identificacao ?? ''} · ${equipamento.descricao}`.trim()}
+              onTrocar={() => onEquipamentoChange(null)}
+            />
+          ) : (
+            <>
+              {cliente ? (
+                <EquipamentoSearch clienteCodigo={cliente.codigo} onSelect={onEquipamentoChange} />
+              ) : (
+                <PlacaSearch onSelect={handlePlacaSelect} onQueryChange={setPlacaDigitada} />
+              )}
+              <Button type="button" variant="secondary" size="sm" onClick={() => setNovoVeiculoAberto(true)}>
+                <ActionIcon name="add" />
+                Cadastrar novo veículo
+              </Button>
+            </>
+          )}
+        </div>
+
+        <div className={styles.slot}>
+          <div className={styles.slotTitle}>Cliente</div>
+          {cliente ? (
+            <SlotSummary icon="♙" label="Cliente" value={cliente.nome} onTrocar={() => onClienteChange(null)} />
+          ) : resolvendoCliente ? (
+            <p className={styles.resolvendo}>Buscando cliente do veículo...</p>
+          ) : (
+            <>
+              <ClienteSearch onSelect={onClienteChange} />
+              <Button type="button" variant="secondary" size="sm" onClick={() => setNovoClienteAberto(true)}>
+                <ActionIcon name="add" />
+                Cadastrar novo cliente
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
 
       <VeiculoFormModal
         open={novoVeiculoAberto}
+        clienteCodigo={cliente?.codigo}
         placaInicial={placaDigitada}
         onClose={() => setNovoVeiculoAberto(false)}
         onCreated={(veiculo, clienteDoNovoVeiculo) => {
           onEquipamentoChange(veiculo);
-          onClienteChange(clienteDoNovoVeiculo ?? null);
+          if (clienteDoNovoVeiculo) onClienteChange(clienteDoNovoVeiculo);
           setNovoVeiculoAberto(false);
         }}
       />
 
       <ClienteFormModal
         open={novoClienteAberto}
+        mode="create"
         onClose={() => setNovoClienteAberto(false)}
-        onCreated={(clienteNovo) => {
+        onSaved={(clienteNovo) => {
           onClienteChange(clienteNovo);
           setNovoClienteAberto(false);
         }}
       />
     </Card>
-  );
-}
-
-function FieldSummary({ label, value, onChange }: { label: string; value: string; onChange: () => void }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <div>
-        <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>{label}</div>
-        <div style={{ fontWeight: 600 }}>{value}</div>
-      </div>
-      <button
-        type="button"
-        onClick={onChange}
-        style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: 'var(--font-size-sm)' }}
-      >
-        Trocar
-      </button>
-    </div>
   );
 }

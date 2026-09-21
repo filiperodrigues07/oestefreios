@@ -7,6 +7,7 @@ import { firebirdQuery, firebirdQueryWithBlob, firebirdTransaction } from '../..
 import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { NotFoundError } from '../../errors/NotFoundError.js';
 import { ValidationError } from '../../errors/ValidationError.js';
+import { logger } from '../../utils/logger.js';
 import type {
   OrdemServico,
   OSHistoricoEntry,
@@ -50,26 +51,23 @@ import type {
 const CHAVE_EMPRESA = 1;
 const CHAVE_TABELA_PRECO = 1;
 const SITUACAO_ABERTO = 0;
+const SITUACAO_ESTORNADA = 6;
 
 /** Grupo da tabela genérica TABELAS (Fase OS-0) com a "situação de atendimento" do CHERP. */
 const CHAVETABELA_SITUACAO_ATENDIMENTO = 15;
 
 /**
- * Espelho só-escrita do nosso status (7 valores) pro campo nativo CHAVESITUACAOOS do CHERP —
- * puramente informativo pra quem olha a OS direto no CHERP/faturamento, nunca lido de volta (o
- * app continua sendo a fonte de verdade via os_workflow). Mapeamento aproximado por não haver
- * correspondência 1:1: PRONTA (não ENCERRADA) para CONCLUIDA, porque "Finalizar OS" deliberadamente
- * não fecha nada no CHERP (ver situacaoFromStatus) — PRONTA é o rótulo do CHERP mais próximo de
- * "serviço pronto, falta faturar", que é exatamente o estado real nesse momento.
+ * Espelho só-escrita dos 5 status intermediários pro campo nativo CHAVESITUACAOOS do CHERP —
+ * puramente informativo pra quem olha a OS direto no CHERP. CONCLUIDA e CANCELADA ficam de fora de
+ * propósito: são decisão só do nosso app (`os_workflow.travado_local`, ver `atualizar` abaixo) e
+ * nunca escrevem nada no CHERP, pro time de faturamento continuar processando por lá.
  */
-const SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS: Record<OSStatus, string> = {
+const SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS: Partial<Record<OSStatus, string>> = {
   ABERTA: '000001', // EM ATENDIMENTO
   EM_ANALISE: '000001', // EM ATENDIMENTO
   EM_ANDAMENTO: '000001', // EM ATENDIMENTO
   AGUARDANDO_CLIENTE: '000002', // AGUARDANDO RET. CLIENTE
   AGUARDANDO_PECA: '000003', // AGUARDANDO PEÇAS
-  CONCLUIDA: '000004', // PRONTA
-  CANCELADA: '000006', // ENCERRADA
 };
 
 /**
@@ -105,24 +103,31 @@ function decodeObs(raw: unknown): { observacoes?: string; solucao?: string } {
 }
 
 /**
- * "Finalizar OS" (status CONCLUIDA) é uma decisão só do nosso app — nunca fecha a OS no CHERP
- * de propósito, pro time de faturamento continuar processando por lá (ver assertNaoFinalizada
- * em os.service.ts, que bloqueia edição posterior só do nosso lado). CANCELADA continua fechando
- * de verdade no Firebird — é um estado morto dos dois lados, sem essa ressalva.
+ * "Finalizar OS" (status CONCLUIDA/CANCELADA) é decisão só do nosso app, marcada em
+ * `os_workflow.travado_local` — nunca escreve nada no CHERP de propósito, pro time de faturamento
+ * continuar processando por lá (ver `assertNaoFinalizada` em os.service.ts, que bloqueia edição
+ * posterior só do nosso lado). Sem esse flag, o status exibido é sempre derivado do CHERP.
+ *
+ * CHAVESITUACAOOS (situação de atendimento) sozinha não é sinal confiável de conclusão: PRONTA
+ * (000004) é só o mecânico dizendo que terminou, nada fiscal aconteceu ainda; e ENCERRADA (000006)
+ * é setada automaticamente pelo CHERP tanto quando gera pedido/NF (conclusão de verdade) quanto,
+ * antes disso, só por outros motivos internos do atendimento — não dá pra distinguir só por ela.
+ * Por isso conclusão/cancelamento aqui são decididos pela SITUACAO fiscal (documento) e pela data
+ * nativa de fechamento, nunca pela situação de atendimento.
  */
-/** Sem situação de atendimento, o único sinal confiável de encerramento é a data nativa de fechamento. */
+/** Sem sinal fiscal de encerramento, o único indício confiável é a data nativa de fechamento. */
 function statusFromSituacaoOnly(dataFechamento: unknown): OSStatus {
   return dataFechamento != null ? 'CONCLUIDA' : 'ABERTA';
 }
 
-/** Situação de atendimento do CHERP é a fonte de verdade do status exibido na plataforma. */
-function statusFromCherpSituacao(codigo: string | null, dataFechamento: unknown): OSStatus {
+/** Situação fiscal (documento) manda no status exibido; atendimento só cobre os estados intermediários. */
+function statusFromCherpSituacao(codigo: string | null, dataFechamento: unknown, situacaoDocumento: number): OSStatus {
+  if (situacaoDocumento === SITUACAO_ESTORNADA) return 'CANCELADA';
+  if (situacaoDocumento !== SITUACAO_ABERTO) return 'CONCLUIDA'; // pedido/NF gerado no CHERP: faturado de verdade
   switch (codigo?.trim()) {
     case '000001': return 'ABERTA';
     case '000002': return 'AGUARDANDO_CLIENTE';
     case '000003': return 'AGUARDANDO_PECA';
-    case '000004': return 'CONCLUIDA';
-    case '000006': return 'CANCELADA';
     default: return statusFromSituacaoOnly(dataFechamento);
   }
 }
@@ -258,6 +263,7 @@ interface WorkflowRow {
   responsavelId: string | null;
   tecnicoId: string | null;
   dataPrevista: Date | null;
+  travadoLocal: boolean;
   historico: unknown;
 }
 
@@ -310,7 +316,9 @@ function buildOrdemServico(
     clienteNome: header.CLIENTE_NOME ?? undefined,
     equipamentoCodigo: header.EQUIPAMENTO_CODIGO ?? '',
     equipamentoDescricao: header.EQUIPAMENTO_DESCRICAO ?? undefined,
-    status: statusFromCherpSituacao(header.SITUACAO_ATENDIMENTO_CODIGO, header.DATAFECHA),
+    status: workflow?.travadoLocal
+      ? (workflow.status as OSStatus)
+      : statusFromCherpSituacao(header.SITUACAO_ATENDIMENTO_CODIGO, header.DATAFECHA, header.SITUACAO),
     prioridade: prioridadeFromCherp(header.PRIORIDADE),
     responsavelId: workflow?.responsavelId ?? undefined,
     tecnicoId: workflow?.tecnicoId ?? undefined,
@@ -327,6 +335,7 @@ function buildOrdemServico(
     dataPrevista: workflow?.dataPrevista ? workflow.dataPrevista.toISOString() : undefined,
     dataConclusao,
     situacaoDocumento: header.SITUACAO,
+    travadoLocal: workflow?.travadoLocal ?? false,
     faturamento,
     nroDav: header.NRODAV?.trim() || undefined,
     kmAtual: header.KMATUAL !== null ? Number(header.KMATUAL) : undefined,
@@ -647,10 +656,11 @@ export class OSRepositoryFirebird implements IOSRepository {
   }
 
   async criar(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico> {
+    // Toda OS nasce ABERTA (ver criarOS em os.service.ts) — '000001' é o único código possível aqui.
     const [chaveCliente, chaveEquipamento, chaveSituacaoAtendimento, perfilFiscalProduto] = await Promise.all([
       resolveChaveByCodigo('CLIFOR', os.clienteCodigo),
       resolveChaveByCodigo('EQUIPAMENTOS', os.equipamentoCodigo),
-      resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[os.status]),
+      resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, '000001'),
       resolvePerfilFiscalPadrao('N'),
     ]);
 
@@ -665,13 +675,31 @@ export class OSRepositoryFirebird implements IOSRepository {
       const ordem = String(chave).padStart(6, '0');
       const obs = encodeObs(os.observacoes, os.solucao);
 
+      // Mesma rotina que o CHERP nativo usa (ver procedure AGRUPARDAVOS) pra tirar o próximo número
+      // de DAV — contador por empresa em CONFIGCONT.NUMERODAV, incrementado atomicamente ali dentro.
+      // Exige GRANT EXECUTE ON PROCEDURE ATUALIZARNUMERODAV (+ SELECT/UPDATE em CONFIGCONT) pro
+      // usuário do app; sem essa permissão a OS é criada normalmente, só sem DAV (como já era).
+      let nroDav: string | null = null;
+      try {
+        const davRows = await query<{ NUMERODAV: number }>(
+          `SELECT NUMERODAV FROM ATUALIZARNUMERODAV(?)`,
+          [CHAVE_EMPRESA],
+        );
+        const numeroDav = davRows[0]?.NUMERODAV;
+        if (numeroDav !== undefined) {
+          nroDav = String(numeroDav).padStart(13, '0');
+        }
+      } catch (err) {
+        logger.warn({ err }, 'Sem permissão pra gerar NRODAV via ATUALIZARNUMERODAV — OS criada sem número de DAV.');
+      }
+
       const insertRows = await query<{ IDENTIFICADOR: string }>(
         `INSERT INTO ORDEMSERVICO (
            CHAVE, ATIVO, CHAVEEMPRESA, ORDEM, DATA, HORAABERTURA, DATAFECHA, HORAFECHAMENTO, DATAENTREGA, TIPO, SITUACAO,
            CHAVECLIFOR, CHAVEEQUIPAMENTO, PROBLEMAABERTURAOS, LAUDOTECNICO, OBS, CHAVEUSUARIOINICIOU,
-           TOTALPRODUTO, TOTALSERVICO, TOTALOS, CHAVESITUACAOOS, PRIORIDADE,
+           TOTALPRODUTO, TOTALSERVICO, TOTALOS, CHAVESITUACAOOS, PRIORIDADE, NRODAV,
            CHAVECFOPOPERFISCAIS, CHAVECFOPPROD, CHAVECFOPSERV, CHAVETIPOATENDIMENTO
-         ) VALUES (?, 1, ?, ?, CURRENT_DATE, CURRENT_TIME, NULL, NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, 0)
+         ) VALUES (?, 1, ?, ?, CURRENT_DATE, CURRENT_TIME, NULL, NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, 0)
          RETURNING IDENTIFICADOR`,
         [
           chave,
@@ -686,6 +714,7 @@ export class OSRepositoryFirebird implements IOSRepository {
           os.cherpUsuarioChave ?? env.FIREBIRD_OS_USUARIO_CHAVE,
           chaveSituacaoAtendimento ?? null,
           PRIORIDADE_CODIGO_POR_STATUS[os.prioridade],
+          nroDav,
           perfilFiscalProduto.chave,
           perfilFiscalProduto.chaveCfopProduto,
           perfilFiscalProduto.chaveCfopServico,
@@ -734,8 +763,10 @@ export class OSRepositoryFirebird implements IOSRepository {
       const solucao = patch.solucao !== undefined ? patch.solucao : atual.solucao;
       camposOSFB.push({ coluna: 'OBS', valor: encodeObs(observacoes, solucao) });
     }
-    if (patch.status !== undefined) {
-      const codigoSituacaoAtendimento = SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[patch.status];
+    // CONCLUIDA/CANCELADA não têm entrada em SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS de propósito —
+    // "Finalizar OS" trava só no nosso app (os_workflow.travado_local, abaixo), nunca escreve no CHERP.
+    const codigoSituacaoAtendimento = patch.status !== undefined ? SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[patch.status] : undefined;
+    if (codigoSituacaoAtendimento !== undefined) {
       const chaveSituacaoAtendimento = await resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, codigoSituacaoAtendimento);
       if (chaveSituacaoAtendimento !== undefined) {
         camposOSFB.push({ coluna: 'CHAVESITUACAOOS', valor: chaveSituacaoAtendimento });
@@ -821,7 +852,10 @@ export class OSRepositoryFirebird implements IOSRepository {
     });
 
     const camposWorkflow: Partial<typeof osWorkflow.$inferInsert> = { updatedAt: new Date() };
-    if (patch.status !== undefined) camposWorkflow.status = patch.status;
+    if (patch.status !== undefined) {
+      camposWorkflow.status = patch.status;
+      camposWorkflow.travadoLocal = patch.status === 'CONCLUIDA' || patch.status === 'CANCELADA';
+    }
     if (patch.prioridade !== undefined) camposWorkflow.prioridade = patch.prioridade;
     if (patch.responsavelId !== undefined) camposWorkflow.responsavelId = patch.responsavelId ?? null;
     if (patch.tecnicoId !== undefined) camposWorkflow.tecnicoId = patch.tecnicoId ?? null;
@@ -841,6 +875,7 @@ export class OSRepositoryFirebird implements IOSRepository {
         responsavelId: patch.responsavelId ?? null,
         tecnicoId: patch.tecnicoId ?? null,
         dataPrevista: patch.dataPrevista ? new Date(patch.dataPrevista) : null,
+        travadoLocal: patch.status === 'CONCLUIDA' || patch.status === 'CANCELADA',
         historico: patch.historico ?? base.historico,
       });
     }

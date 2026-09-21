@@ -9,10 +9,11 @@ interface DrawerProps {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  side?: 'left' | 'right';
 }
 
 /** Painel lateral — usado para busca/edição rápida sem sair do contexto da tela (ex.: adicionar produto à OS). */
-export function Drawer({ open, title, onClose, children }: DrawerProps) {
+export function Drawer({ open, title, onClose, children, side = 'right' }: DrawerProps) {
   const titleId = useId();
   const containerRef = useFocusTrap<HTMLDivElement>(open, onClose);
 
@@ -21,17 +22,36 @@ export function Drawer({ open, title, onClose, children }: DrawerProps) {
   return createPortal(
     <div
       className={styles.overlay}
-      style={{ justifyContent: 'flex-end', alignItems: 'stretch', padding: 0 }}
+      style={{
+        justifyContent: side === 'left' ? 'flex-start' : 'flex-end',
+        alignItems: 'stretch',
+        padding: 0,
+      }}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div ref={containerRef} className={styles.drawer} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
-        <div className={styles.header}>
-          <h2 id={titleId} className={styles.title}>
-            {title}
-          </h2>
-          <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Fechar">
+      <div
+        ref={containerRef}
+        className={`${styles.drawer} ${side === 'left' ? styles.drawerLeft : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={title ? titleId : undefined}
+        aria-label={title || 'Menu'}
+        tabIndex={-1}
+      >
+        <div className={`${styles.header} ${!title ? styles.headerWithoutTitle : ''}`}>
+          {title && (
+            <h2 id={titleId} className={styles.title}>
+              {title}
+            </h2>
+          )}
+          <button
+            type="button"
+            className={styles.closeButton}
+            onClick={onClose}
+            aria-label="Fechar"
+          >
             ✕
           </button>
         </div>

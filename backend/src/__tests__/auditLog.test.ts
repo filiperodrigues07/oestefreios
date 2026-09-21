@@ -47,7 +47,7 @@ describe('auditoria de negócio', () => {
     expect(entry).toBeDefined();
     expect(entry.entityType).toBe('OS');
     expect(entry.userName).toBe(adminName);
-    expect(entry.changes.after.problema).toBe('Teste de auditoria');
+    expect(entry.changes.after.problema).toBe('TESTE DE AUDITORIA');
   });
 
   it('nunca grava senha/token no campo changes', async () => {

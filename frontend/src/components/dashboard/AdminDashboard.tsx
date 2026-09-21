@@ -124,10 +124,10 @@ export function AdminDashboard() {
   const [customEnd, setCustomEnd] = useState(dateInputValue(today));
   const [granularidade, setGranularidade] = useState<DashboardGranularidade>('diario');
   const dates = useMemo(() => periodDates(period, customStart, customEnd), [period, customStart, customEnd]);
-  const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['dashboard-operacional', dates.inicio.toISOString(), dates.fim.toISOString(), granularidade], queryFn: () => getDashboardOperacional({ ...dates, granularidade }) });
+  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['dashboard-operacional', dates.inicio.toISOString(), dates.fim.toISOString(), granularidade], queryFn: () => getDashboardOperacional({ ...dates, granularidade }) });
 
   if (isLoading) return <div className={styles.loadingGrid}>{Array.from({ length: 7 }, (_, index) => <Skeleton key={index} height={index < 5 ? 130 : 300} />)}</div>;
-  if (isError || !data) return <ErrorState action={<button className={styles.retry} onClick={() => refetch()}>Tentar novamente</button>} />;
+  if (isError || !data) return <ErrorState error={error} action={<button className={styles.retry} onClick={() => refetch()}>Tentar novamente</button>} />;
 
   const values = {
     total: data.total,

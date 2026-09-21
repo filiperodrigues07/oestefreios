@@ -64,3 +64,19 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
+
+@media (max-width: 767px) {
+  .hint {
+    display: none;
+  }
+  .inputWithHint {
+    padding-right: 10px;
+  }
+  .listbox {
+    max-height: min(320px, 45dvh);
+  }
+  .option {
+    min-height: 48px;
+    justify-content: center;
+  }
+}

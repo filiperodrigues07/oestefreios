@@ -41,6 +41,7 @@ export function toOSDTO(
     dataPrevista: os.dataPrevista,
     dataConclusao: os.dataConclusao,
     situacaoDocumento: os.situacaoDocumento,
+    travadoLocal: os.travadoLocal,
     nroDav: os.nroDav,
     kmAtual: os.kmAtual,
     kmFinal: os.kmFinal,

@@ -18,7 +18,7 @@ interface FotosSectionProps {
 /** Fotos da OS — gravadas em ORDEMSERVICOIMG (BLOB nativo do CHERP), tirando foto ou enviando arquivo. */
 export function FotosSection({ id, podeEditar }: FotosSectionProps) {
   const { showToast } = useToast();
-  const { data: imagens, isLoading, isError, refetch } = useQuery({
+  const { data: imagens, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['os-imagens', id],
     queryFn: () => listarImagensOS(id),
   });
@@ -136,7 +136,7 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
         </div>
       )}
 
-      {isError && <ErrorState action={<Button variant="secondary" onClick={() => refetch()}>Tentar de novo</Button>} />}
+      {isError && <ErrorState error={error} action={<Button variant="secondary" onClick={() => refetch()}>Tentar de novo</Button>} />}
 
       {!isLoading && !isError && imagens?.length === 0 && (
         <EmptyState title="Nenhuma foto anexada ainda." />

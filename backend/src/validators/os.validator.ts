@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { toUppercase } from './textTransform.js';
 
 const OS_STATUS_VALUES = [
   'ABERTA',
@@ -15,7 +16,7 @@ const OS_PRIORIDADE_VALUES = ['BAIXA', 'NORMAL', 'MEDIA', 'ALTA', 'URGENTE'] as 
 export const criarOSSchema = z.object({
   clienteCodigo: z.string().trim().min(1, 'Cliente é obrigatório.'),
   equipamentoCodigo: z.string().trim().min(1, 'Equipamento é obrigatório.'),
-  problema: z.string().trim().min(1, 'Descreva o problema relatado.'),
+  problema: z.string().trim().transform(toUppercase).optional().default(''),
   prioridade: z.enum(OS_PRIORIDADE_VALUES).default('NORMAL'),
   responsavelId: z.string().trim().min(1).optional(),
   tecnicoId: z.string().trim().min(1).optional(),
@@ -24,9 +25,9 @@ export const criarOSSchema = z.object({
 
 export const atualizarOSSchema = z
   .object({
-    diagnostico: z.string().trim().optional(),
-    observacoes: z.string().trim().optional(),
-    solucao: z.string().trim().optional(),
+    diagnostico: z.string().trim().transform(toUppercase).optional(),
+    observacoes: z.string().trim().transform(toUppercase).optional(),
+    solucao: z.string().trim().transform(toUppercase).optional(),
     prioridade: z.enum(OS_PRIORIDADE_VALUES).optional(),
     responsavelId: z.string().trim().min(1).optional(),
     tecnicoId: z.string().trim().min(1).optional(),
@@ -65,7 +66,7 @@ export const adicionarProdutoSchema = z.object({
   /** Só aplicado se o usuário tiver FINANCIAL_EDIT (revalidado no service) — ignorado caso contrário. */
   precoUnitario: z.coerce.number().nonnegative().optional(),
   /** ITENSORDEMSERVICOPROD.DESCRCOMPLEMENT — texto livre, só o cliente preenche. */
-  descricaoComplementar: z.string().trim().max(1000).optional(),
+  descricaoComplementar: z.string().trim().max(1000).transform(toUppercase).optional(),
 });
 
 export const adicionarServicoSchema = z.object({
@@ -73,14 +74,14 @@ export const adicionarServicoSchema = z.object({
   quantidade: z.coerce.number().positive().default(1),
   /** Só aplicado se o usuário tiver FINANCIAL_EDIT (revalidado no service) — ignorado caso contrário. */
   valorUnitario: z.coerce.number().nonnegative().optional(),
-  descricaoComplementar: z.string().trim().max(1000).optional(),
+  descricaoComplementar: z.string().trim().max(1000).transform(toUppercase).optional(),
 });
 
 export const atualizarItemSchema = z
   .object({
     quantidade: z.coerce.number().positive().optional(),
     precoUnitario: z.coerce.number().nonnegative().optional(),
-    descricaoComplementar: z.string().trim().max(1000).optional(),
+    descricaoComplementar: z.string().trim().max(1000).transform(toUppercase).optional(),
   })
   .refine((data) => data.quantidade !== undefined || data.precoUnitario !== undefined || data.descricaoComplementar !== undefined, {
     message: 'Informe quantidade, preço unitário e/ou complemento pra atualizar.',

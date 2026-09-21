@@ -1,0 +1,46 @@
+.page {
+  width: min(100%, 1600px);
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+.searchForm,
+.clientFilter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.searchForm > :first-child,
+.clientFilter > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.total {
+  color: var(--color-text-secondary);
+}
+.pagination {
+  margin-top: var(--space-4);
+}
+
+@media (max-width: 767px) {
+  .desktopCreate {
+    display: none;
+  }
+  .page {
+    padding: var(--space-3);
+  }
+  .searchForm,
+  .clientFilter {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .searchForm > :first-child,
+  .clientFilter > :first-child {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}

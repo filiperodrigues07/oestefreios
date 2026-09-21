@@ -1,6 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { Button } from './Button.js';
-import { ErrorState } from './ErrorState.js';
+import { ErrorScreen } from './ErrorScreen.js';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -8,6 +7,7 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   hasError: boolean;
+  error?: Error;
 }
 
 /**
@@ -19,8 +19,8 @@ interface ErrorBoundaryState {
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false };
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -29,13 +29,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (this.state.hasError) {
-      return (
-        <ErrorState
-          title="Algo deu errado"
-          description="Ocorreu um erro inesperado nesta página. Recarregue para continuar."
-          action={<Button onClick={() => window.location.reload()}>Recarregar página</Button>}
-        />
-      );
+      return <ErrorScreen error={this.state.error} />;
     }
     return this.props.children;
   }

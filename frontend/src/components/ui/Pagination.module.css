@@ -68,4 +68,16 @@
     width: 100%;
     justify-content: center;
   }
+  .limitControl {
+    display: none;
+  }
+  .pageButton {
+    min-width: 72px;
+  }
+  .pageButton:first-child::after {
+    content: ' Anterior';
+  }
+  .pageButton:last-child::before {
+    content: 'Próxima ';
+  }
 }

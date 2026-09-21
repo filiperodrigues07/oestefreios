@@ -1,0 +1,93 @@
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.cnpjRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.cnpjRow > *:first-child {
+  flex: 1;
+  min-width: 180px;
+}
+
+.cepRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.cepRow > *:first-child {
+  flex: 1;
+  min-width: 140px;
+}
+
+.sectionTitle,
+.addressHeader {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.addressHeader {
+  margin-top: var(--space-1);
+}
+
+.twoColumns,
+.threeColumns {
+  display: grid;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+/* Flex + wrap, não grid — os dois grupos (Pessoa Jurídica/Física e Status) têm largura própria
+   pelo conteúdo (botões, não input que encolhe), então precisam poder quebrar linha sozinhos
+   quando o espaço aperta (modal é bem mais estreito que a página cheia), sem depender do
+   viewport (a media query de largura de tela não ajuda aqui, quem aperta é o container). */
+.statusRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.fieldLabel {
+  margin-bottom: var(--space-1);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.statusOptions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.twoColumns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.threeColumns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.codigo {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767px) {
+  .twoColumns,
+  .threeColumns {
+    grid-template-columns: 1fr;
+  }
+}

@@ -19,7 +19,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   function handleChange(e: ChangeEvent<HTMLInputElement>) {
     if (uppercase) {
       const pos = e.target.selectionStart;
-      e.target.value = e.target.value.toUpperCase();
+      e.target.value = e.target.value.toLocaleUpperCase('pt-BR');
       if (pos !== null) e.target.setSelectionRange(pos, pos);
     }
     onChange?.(e);

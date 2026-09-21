@@ -1,0 +1,1 @@
+ALTER TABLE "os_workflow" ADD COLUMN "travado_local" boolean DEFAULT false NOT NULL;

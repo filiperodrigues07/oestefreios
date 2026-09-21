@@ -32,7 +32,19 @@
 
 @media (max-width: 600px) {
   .header {
-    align-items: stretch;
-    flex-direction: column;
+    margin-bottom: var(--space-3);
+  }
+  .copy {
+    display: none;
+  }
+  .actions {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
+    scrollbar-width: none;
+  }
+  .actions > * {
+    flex-shrink: 0;
   }
 }

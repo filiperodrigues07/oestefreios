@@ -66,6 +66,7 @@ export function UsuariosPage() {
     data: usuarios,
     isLoading,
     isError,
+    error,
     refetch,
   } = useQuery({ queryKey: ['usuarios'], queryFn: listUsers });
 
@@ -170,7 +171,7 @@ export function UsuariosPage() {
         </div>
       )}
 
-      {isError && <ErrorState action={<Button onClick={() => refetch()}>Tentar de novo</Button>} />}
+      {isError && <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar de novo</Button>} />}
 
       {!isLoading && !isError && usuarios && usuarios.length === 0 && <EmptyState title="Nenhum usuário cadastrado ainda" />}
 
@@ -378,7 +379,7 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
                 <PasswordInput label="Senha inicial" value={form.password} maxLength={128} autoComplete="new-password" onChange={(e) => setForm({ ...form, password: e.target.value })} />
                 <PasswordInput label="Confirmar senha" value={form.passwordConfirmation} maxLength={128} autoComplete="new-password" onChange={(e) => setForm({ ...form, passwordConfirmation: e.target.value })} />
-                <div aria-live="polite" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', fontSize: 'var(--font-size-xs)' }}>
+                <div aria-live="polite" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '4px', fontSize: 'var(--font-size-xs)' }}>
                   {PASSWORD_RULES.map((rule) => <span key={rule.label} style={{ color: rule.test(form.password) ? 'var(--color-success)' : 'var(--color-text-secondary)' }}>{rule.test(form.password) ? '✓' : '○'} {rule.label}</span>)}
                   {(() => {
                     const primeiroNome = form.name.trim().split(' ')[0]?.toLowerCase() ?? '';
@@ -469,7 +470,7 @@ function PermissionGroupSection({ group, selected, preset, isAdminRole, onToggle
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
           gap: 'var(--space-1) var(--space-3)',
           paddingLeft: 'var(--space-6)',
         }}

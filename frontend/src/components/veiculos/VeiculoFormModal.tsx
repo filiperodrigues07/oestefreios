@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { criarEquipamento } from '../../api/equipamentos.api.js';
+import { useState } from 'react';
+import { atualizarEquipamento, criarEquipamento } from '../../api/equipamentos.api.js';
 import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
 import { ClienteSearch } from '../search/ClienteSearch.js';
 import { Button, Input, Modal } from '../ui/index.js';
@@ -12,6 +12,7 @@ interface VeiculoFormModalProps {
   clienteCodigo?: string;
   /** Placa já digitada na busca que não encontrou nada — pré-preenche o campo. */
   placaInicial?: string;
+  veiculo?: EquipamentoDTO;
   onClose: () => void;
   onCreated: (veiculo: EquipamentoDTO, cliente?: ClienteDTO) => void;
 }
@@ -31,26 +32,59 @@ const VAZIO: Omit<EquipamentoInput, 'clienteCodigo'> = {
  * existe no CHERP, então além dos dados do veículo, também precisa confirmar de quem ele é
  * (CHAVECLIFOR é obrigatório lá) — a menos que o cliente já tenha vindo pronto (`clienteCodigo`).
  */
-export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, onCreated }: VeiculoFormModalProps) {
-  const [form, setForm] = useState({ ...VAZIO, placa: placaInicial ?? '' });
-  const [clienteEscolhido, setClienteEscolhido] = useState<ClienteDTO | null>(null);
-  const [novoClienteAberto, setNovoClienteAberto] = useState(false);
+export function VeiculoFormModal(props: VeiculoFormModalProps) {
+  return props.open ? (
+    <VeiculoFormContent key={props.veiculo?.codigo ?? 'novo'} {...props} />
+  ) : null;
+}
 
-  // `placaInicial` só existe de verdade no momento em que o modal abre (a busca por placa que
-  // não achou nada) — useState só captura o valor do primeiro mount, então precisa resincronizar
-  // aqui toda vez que `open` vira true, senão o campo fica sempre vazio.
-  useEffect(() => {
-    if (open) {
-      setForm({ ...VAZIO, placa: placaInicial ?? '' });
-      setClienteEscolhido(null);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+function VeiculoFormContent({
+  open,
+  clienteCodigo,
+  placaInicial,
+  veiculo,
+  onClose,
+  onCreated,
+}: VeiculoFormModalProps) {
+  const [form, setForm] = useState<Omit<EquipamentoInput, 'clienteCodigo'>>(() => {
+    const marca = veiculo?.marca?.trim() ?? '';
+    const descricao = veiculo?.descricao?.trim() ?? '';
+    const modelo =
+      veiculo?.modelo ??
+      (descricao === veiculo?.identificacao
+        ? ''
+        : marca && (descricao === marca || descricao.startsWith(`${marca} `))
+          ? descricao.slice(marca.length).trim()
+          : descricao);
+    return veiculo
+      ? {
+          placa: veiculo.identificacao ?? '',
+          marca,
+          modelo,
+          anoFabricacao: veiculo.anoFabricacao ?? '',
+          anoModelo: veiculo.anoModelo ?? '',
+          cor: veiculo.cor ?? '',
+          chassi: veiculo.chassi ?? '',
+        }
+      : { ...VAZIO, placa: placaInicial ?? '' };
+  });
+  const [clienteEscolhido, setClienteEscolhido] = useState<ClienteDTO | null>(() =>
+    veiculo?.clienteCodigo
+      ? {
+          codigo: veiculo.clienteCodigo,
+          nome: veiculo.clienteNome ?? veiculo.clienteCodigo,
+        }
+      : null,
+  );
+  const [novoClienteAberto, setNovoClienteAberto] = useState(false);
 
   const clienteFinal = clienteCodigo ?? clienteEscolhido?.codigo;
 
   const mutation = useMutation({
-    mutationFn: () => criarEquipamento({ ...form, clienteCodigo: clienteFinal! }),
+    mutationFn: () => {
+      const input = { ...form, clienteCodigo: clienteFinal! };
+      return veiculo ? atualizarEquipamento(veiculo.codigo, input) : criarEquipamento(input);
+    },
     onSuccess: (veiculo) => {
       setForm({ ...VAZIO, placa: placaInicial ?? '' });
       setClienteEscolhido(null);
@@ -59,6 +93,7 @@ export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, o
   });
 
   function handleClose() {
+    if (mutation.isPending) return;
     setForm({ ...VAZIO, placa: placaInicial ?? '' });
     setClienteEscolhido(null);
     onClose();
@@ -69,15 +104,19 @@ export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, o
   return (
     <Modal
       open={open}
-      title="Novo veículo"
+      title={veiculo ? 'Editar veículo' : 'Novo veículo'}
       onClose={handleClose}
       footer={
         <>
-          <Button variant="secondary" onClick={handleClose}>
+          <Button variant="secondary" onClick={handleClose} disabled={mutation.isPending}>
             Cancelar
           </Button>
-          <Button onClick={() => mutation.mutate()} loading={mutation.isPending} disabled={!podeSalvar}>
-            Cadastrar
+          <Button
+            onClick={() => mutation.mutate()}
+            loading={mutation.isPending}
+            disabled={!podeSalvar}
+          >
+            {veiculo ? 'Salvar' : 'Cadastrar'}
           </Button>
         </>
       }
@@ -86,15 +125,30 @@ export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, o
         {!clienteCodigo && (
           <div>
             {clienteEscolhido ? (
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
                 <div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>Cliente</div>
+                  <div
+                    style={{
+                      fontSize: 'var(--font-size-xs)',
+                      color: 'var(--color-text-secondary)',
+                    }}
+                  >
+                    Cliente
+                  </div>
                   <div style={{ fontWeight: 600 }}>{clienteEscolhido.nome}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setClienteEscolhido(null)}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: 'var(--font-size-sm)' }}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--color-primary)',
+                    cursor: 'pointer',
+                    fontSize: 'var(--font-size-sm)',
+                  }}
                 >
                   Trocar
                 </button>
@@ -102,13 +156,9 @@ export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, o
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
                 <ClienteSearch onSelect={setClienteEscolhido} />
-                <button
-                  type="button"
-                  onClick={() => setNovoClienteAberto(true)}
-                  style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: 'var(--font-size-sm)', textAlign: 'left', padding: 0 }}
-                >
+                <Button type="button" variant="secondary" size="sm" onClick={() => setNovoClienteAberto(true)}>
                   + Cadastrar novo cliente
-                </button>
+                </Button>
               </div>
             )}
           </div>
@@ -116,8 +166,9 @@ export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, o
 
         <ClienteFormModal
           open={novoClienteAberto}
+          mode="create"
           onClose={() => setNovoClienteAberto(false)}
-          onCreated={(clienteNovo) => {
+          onSaved={(clienteNovo) => {
             setClienteEscolhido(clienteNovo);
             setNovoClienteAberto(false);
           }}
@@ -130,24 +181,63 @@ export function VeiculoFormModal({ open, clienteCodigo, placaInicial, onClose, o
           onChange={(e) => setForm({ ...form, placa: e.target.value.toUpperCase() })}
           placeholder="AAA-9999 ou AAA9A99"
         />
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--space-3)' }}>
-          <Input label="Marca" uppercase value={form.marca} onChange={(e) => setForm({ ...form, marca: e.target.value })} />
-          <Input label="Modelo" uppercase value={form.modelo} onChange={(e) => setForm({ ...form, modelo: e.target.value })} />
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            gap: 'var(--space-3)',
+          }}
+        >
+          <Input
+            label="Marca"
+            uppercase
+            value={form.marca}
+            onChange={(e) => setForm({ ...form, marca: e.target.value })}
+          />
+          <Input
+            label="Modelo"
+            uppercase
+            value={form.modelo}
+            onChange={(e) => setForm({ ...form, modelo: e.target.value })}
+          />
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'var(--space-3)' }}>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
+            gap: 'var(--space-3)',
+          }}
+        >
           <Input
             label="Ano fab."
             value={form.anoFabricacao}
             onChange={(e) => setForm({ ...form, anoFabricacao: e.target.value })}
           />
-          <Input label="Ano mod." value={form.anoModelo} onChange={(e) => setForm({ ...form, anoModelo: e.target.value })} />
-          <Input label="Cor" uppercase value={form.cor} onChange={(e) => setForm({ ...form, cor: e.target.value })} />
+          <Input
+            label="Ano mod."
+            value={form.anoModelo}
+            onChange={(e) => setForm({ ...form, anoModelo: e.target.value })}
+          />
+          <Input
+            label="Cor"
+            uppercase
+            value={form.cor}
+            onChange={(e) => setForm({ ...form, cor: e.target.value })}
+          />
         </div>
-        <Input label="Chassi" uppercase value={form.chassi} onChange={(e) => setForm({ ...form, chassi: e.target.value })} />
+        <Input
+          label="Chassi"
+          uppercase
+          value={form.chassi}
+          onChange={(e) => setForm({ ...form, chassi: e.target.value })}
+        />
 
         {mutation.isError && (
-          <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
-            {mutation.error instanceof Error ? mutation.error.message : 'Erro ao cadastrar veículo.'}
+          <p
+            role="alert"
+            style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}
+          >
+            {mutation.error instanceof Error ? mutation.error.message : 'Erro ao salvar veículo.'}
           </p>
         )}
       </div>

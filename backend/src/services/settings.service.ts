@@ -111,6 +111,11 @@ export async function getFirebirdSettingsMasked(): Promise<FirebirdSettings> {
   return { ...data, password: data.password ? SENHA_MASCARADA : '' };
 }
 
+/** Revelação explícita, restrita pela rota a SYSTEM_SETTINGS; nunca usada na carga normal da tela. */
+export async function getFirebirdPassword(): Promise<string> {
+  return (await getFirebirdSettings()).password;
+}
+
 /**
  * Salva as configs do Firebird e já troca o pool de conexões em uso (sem reiniciar o
  * processo — ver `reloadFirebirdPool`). Se `password` vier vazia ou igual à máscara

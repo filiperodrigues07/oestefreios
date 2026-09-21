@@ -15,4 +15,4 @@ dashboardRouter.get('/me', asyncHandler(getOperationalDashboardHandler));
 
 dashboardRouter.get('/admin', requirePermission('REPORT_VIEW'), asyncHandler(getAdminDashboardHandler));
 dashboardRouter.get('/operacional', requirePermission('REPORT_VIEW'), validate(dashboardOperacionalQuerySchema, 'query'), asyncHandler(getOperationalDashboardV2Handler));
-dashboardRouter.get('/busca', requirePermission('REPORT_VIEW'), validate(dashboardBuscaQuerySchema, 'query'), asyncHandler(searchDashboardHandler));
+dashboardRouter.get('/busca', validate(dashboardBuscaQuerySchema, 'query'), asyncHandler(searchDashboardHandler));

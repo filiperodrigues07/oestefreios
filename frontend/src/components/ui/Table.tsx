@@ -23,6 +23,8 @@ interface TableProps<T> {
   onSortChange?: (key: string) => void;
   /** Chave única (por tela) — liga redimensionar/reordenar colunas tipo planilha, persistido no navegador. */
   columnPrefsKey?: string;
+  /** Conteúdo resumido do cartão no mobile. O desktop continua usando as colunas da tabela. */
+  renderMobileCard?: (row: T) => ReactNode;
 }
 
 interface ColumnPrefs {
@@ -67,6 +69,7 @@ export function Table<T>({
   sortOrder,
   onSortChange,
   columnPrefsKey,
+  renderMobileCard,
 }: TableProps<T>) {
   const [order, setOrder] = useState<string[] | null>(null);
   const [widths, setWidths] = useState<Record<string, number>>({});
@@ -134,7 +137,10 @@ export function Table<T>({
     function onUp() {
       if (resizing.current) {
         setWidths((w) => {
-          persist(displayColumns.map((c) => c.key), w);
+          persist(
+            displayColumns.map((c) => c.key),
+            w,
+          );
           return w;
         });
       }
@@ -153,8 +159,47 @@ export function Table<T>({
     return thEl?.offsetWidth ?? 120;
   }
 
+  // Mobile: mesma coluna "ações" (header vazio, cheia de botões) vira um rodapé de card em vez
+  // de mais uma linha rotulada — o resto das colunas vira par rótulo/valor, sem precisar que cada
+  // tela (OS/Clientes/Produtos) declare nada a mais pra ganhar o modo cartão.
+  const actionColumn = displayColumns.find((col) => col.header === '');
+  const fieldColumns = displayColumns.filter((col) => col.header !== '');
+
   return (
     <div className={styles.wrapper}>
+      <div className={styles.cardList}>
+        {data.map((row) => (
+          <div
+            key={rowKey(row)}
+            className={[styles.card, onRowClick ? styles.cardClickable : '']
+              .filter(Boolean)
+              .join(' ')}
+            onClick={onRowClick ? () => onRowClick(row) : undefined}
+          >
+            {renderMobileCard ? (
+              renderMobileCard(row)
+            ) : (
+              <>
+                {fieldColumns.map((col) => (
+                  <div key={col.key} className={styles.cardField}>
+                    <span className={styles.cardLabel}>{col.header}</span>
+                    <span
+                      className={[styles.cardValue, col.mono ? styles.mono : '']
+                        .filter(Boolean)
+                        .join(' ')}
+                    >
+                      {col.render(row)}
+                    </span>
+                  </div>
+                ))}
+                {actionColumn && (
+                  <div className={styles.cardActions}>{actionColumn.render(row)}</div>
+                )}
+              </>
+            )}
+          </div>
+        ))}
+      </div>
       <table className={styles.table}>
         <thead>
           <tr>
@@ -177,9 +222,17 @@ export function Table<T>({
                   ]
                     .filter(Boolean)
                     .join(' ')}
-                  style={larguraSalva ? { width: `${larguraSalva}px` } : col.width ? { width: col.width } : undefined}
+                  style={
+                    larguraSalva
+                      ? { width: `${larguraSalva}px` }
+                      : col.width
+                        ? { width: col.width }
+                        : undefined
+                  }
                   onClick={clickable ? () => onSortChange(col.key) : undefined}
-                  aria-sort={isSorted ? (sortOrder === 'desc' ? 'descending' : 'ascending') : undefined}
+                  aria-sort={
+                    isSorted ? (sortOrder === 'desc' ? 'descending' : 'ascending') : undefined
+                  }
                 >
                   <span className={styles.thContent}>
                     {col.header}
@@ -215,7 +268,11 @@ export function Table<T>({
               {displayColumns.map((col) => (
                 <td
                   key={col.key}
-                  className={[styles.td, col.align === 'right' ? styles.alignRight : '', col.mono ? styles.mono : '']
+                  className={[
+                    styles.td,
+                    col.align === 'right' ? styles.alignRight : '',
+                    col.mono ? styles.mono : '',
+                  ]
                     .filter(Boolean)
                     .join(' ')}
                 >

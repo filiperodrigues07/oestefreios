@@ -2,7 +2,11 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { Input } from '../ui/Input.js';
-import { SearchCombobox, type SearchComboboxHandle, type SearchComboboxItem } from '../ui/SearchCombobox.js';
+import {
+  SearchCombobox,
+  type SearchComboboxHandle,
+  type SearchComboboxItem,
+} from '../ui/SearchCombobox.js';
 import styles from './ItemGrid.module.css';
 
 export interface ItemGridRow {
@@ -32,7 +36,12 @@ interface ItemGridProps {
   buscar: (query: string) => Promise<ItemGridCandidate[]>;
   /** Busca exata por código (Enter no campo Código) — retorna `null` quando não existe. */
   buscarPorCodigo: (codigo: string) => Promise<ItemGridCandidate | null>;
-  onAdicionar: (codigo: string, quantidade: number, precoUnitario?: number, descricaoComplementar?: string) => Promise<unknown>;
+  onAdicionar: (
+    codigo: string,
+    quantidade: number,
+    precoUnitario?: number,
+    descricaoComplementar?: string,
+  ) => Promise<unknown>;
   /** Editar quantidade/preço de um item já lançado (também usado pra somar quantidade em item duplicado). */
   onAtualizar: (codigo: string, patch: ItemPatch) => Promise<unknown>;
   onRemover: (row: ItemGridRow) => void;
@@ -73,7 +82,10 @@ export function ItemGrid({
   const [precoEditado, setPrecoEditado] = useState('');
   const [complemento, setComplemento] = useState('');
   const [erro, setErro] = useState<string | null>(null);
-  const [duplicado, setDuplicado] = useState<{ existente: ItemGridRow; novaQuantidade: number } | null>(null);
+  const [duplicado, setDuplicado] = useState<{
+    existente: ItemGridRow;
+    novaQuantidade: number;
+  } | null>(null);
   const [editandoCodigo, setEditandoCodigo] = useState<string | null>(null);
   const [editQtd, setEditQtd] = useState('');
   const [editPreco, setEditPreco] = useState('');
@@ -82,12 +94,21 @@ export function ItemGrid({
   const qtdRef = useRef<HTMLInputElement>(null);
   const codigoRef = useRef<HTMLInputElement>(null);
 
-  const { data: candidatos, isFetching, isError } = useQuery({
+  const {
+    data: candidatos,
+    isFetching,
+    isError,
+  } = useQuery({
     queryKey: [queryKeyPrefix, query],
     queryFn: () => buscar(query),
   });
 
-  const items: ComboItem[] = (candidatos ?? []).map((c) => ({ key: c.codigo, code: c.codigo, description: c.descricao, ...c }));
+  const items: ComboItem[] = (candidatos ?? []).map((c) => ({
+    key: c.codigo,
+    code: c.codigo,
+    description: c.descricao,
+    ...c,
+  }));
 
   const quantidadeNumero = Number(quantidade.replace(',', '.'));
   const quantidadeValida = Number.isFinite(quantidadeNumero) && quantidadeNumero > 0;
@@ -96,7 +117,9 @@ export function ItemGrid({
 
   useEffect(() => {
     if (selecionado && podeEditarPreco) {
-      setPrecoEditado(selecionado.precoUnitario !== undefined ? selecionado.precoUnitario.toFixed(2) : '');
+      setPrecoEditado(
+        selecionado.precoUnitario !== undefined ? selecionado.precoUnitario.toFixed(2) : '',
+      );
     }
   }, [selecionado, podeEditarPreco]);
 
@@ -110,7 +133,8 @@ export function ItemGrid({
         setErro(`Código "${codigoInput.trim()}" não encontrado.`);
       }
     },
-    onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível buscar o código.'),
+    onError: (err) =>
+      setErro(err instanceof Error ? err.message : 'Não foi possível buscar o código.'),
   });
 
   const addMutation = useMutation({
@@ -126,7 +150,10 @@ export function ItemGrid({
   });
 
   const somarDuplicadoMutation = useMutation({
-    mutationFn: () => onAtualizar(duplicado!.existente.codigo, { quantidade: duplicado!.existente.quantidade + duplicado!.novaQuantidade }),
+    mutationFn: () =>
+      onAtualizar(duplicado!.existente.codigo, {
+        quantidade: duplicado!.existente.quantidade + duplicado!.novaQuantidade,
+      }),
     onSuccess: () => {
       setDuplicado(null);
       resetarAdicao();
@@ -147,7 +174,8 @@ export function ItemGrid({
       return onAtualizar(codigo, patch);
     },
     onSuccess: () => setEditandoCodigo(null),
-    onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível salvar a edição.'),
+    onError: (err) =>
+      setErro(err instanceof Error ? err.message : 'Não foi possível salvar a edição.'),
   });
 
   function resetarAdicao() {
@@ -211,7 +239,8 @@ export function ItemGrid({
 
   const colCount = 4 + (mostrarPreco ? 2 : 0) + (podeEditar ? 1 : 0);
   const totalPrevia =
-    quantidadeValida && (podeEditarPreco ? precoEditadoValido : selecionado?.precoUnitario !== undefined)
+    quantidadeValida &&
+    (podeEditarPreco ? precoEditadoValido : selecionado?.precoUnitario !== undefined)
       ? (podeEditarPreco ? precoEditadoNumero : selecionado!.precoUnitario!) * quantidadeNumero
       : undefined;
 
@@ -250,7 +279,10 @@ export function ItemGrid({
                 renderItem={(item) => (
                   <>
                     <span>
-                      {item.descricao} <small style={{ color: 'var(--color-text-secondary)' }}>({item.unidade})</small>
+                      {item.descricao}{' '}
+                      <small style={{ color: 'var(--color-text-secondary)' }}>
+                        ({item.unidade})
+                      </small>
                     </span>
                     <span className={`${styles.optionMeta} ${styles.mono}`}>
                       {item.codigo}
@@ -262,57 +294,70 @@ export function ItemGrid({
             )}
           </div>
 
-          <div className={styles.addQty}>
-            <span className={styles.addQtyUnidade}>{selecionado?.unidade ?? '—'}</span>
-            <input
-              ref={qtdRef}
-              type="text"
-              inputMode="decimal"
-              className={styles.qtyInput}
-              value={quantidade}
-              disabled={!selecionado || addMutation.isPending}
-              onChange={(e) => setQuantidade(e.target.value)}
-              onKeyDown={handleQuantidadeKeyDown}
-              aria-label="Quantidade"
-            />
-            {mostrarPreco && selecionado && podeEditarPreco && (
+          {selecionado && (
+            <div className={styles.addQty}>
+              <span className={styles.addQtyUnidade}>{selecionado?.unidade ?? '—'}</span>
               <input
+                ref={qtdRef}
                 type="text"
                 inputMode="decimal"
-                className={`${styles.priceInput} ${styles.mono}`}
-                value={precoEditado}
-                disabled={addMutation.isPending}
-                onChange={(e) => setPrecoEditado(e.target.value)}
+                className={styles.qtyInput}
+                value={quantidade}
+                disabled={!selecionado || addMutation.isPending}
+                onChange={(e) => setQuantidade(e.target.value)}
                 onKeyDown={handleQuantidadeKeyDown}
-                aria-label="Preço unitário"
+                aria-label="Quantidade"
               />
-            )}
-            {mostrarPreco && selecionado && !podeEditarPreco && (
-              <span className={`${styles.addQtyPreco} ${styles.mono}`}>
-                {selecionado.precoUnitario !== undefined ? `R$ ${selecionado.precoUnitario.toFixed(2)}` : '—'}
-              </span>
-            )}
-            {mostrarPreco && selecionado && totalPrevia !== undefined && (
-              <span className={`${styles.addQtyPreco} ${styles.mono}`}>Total R$ {totalPrevia.toFixed(2)}</span>
-            )}
-            {selecionado && (
-              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+              {mostrarPreco && selecionado && podeEditarPreco && (
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  className={`${styles.priceInput} ${styles.mono}`}
+                  value={precoEditado}
+                  disabled={addMutation.isPending}
+                  onChange={(e) => setPrecoEditado(e.target.value)}
+                  onKeyDown={handleQuantidadeKeyDown}
+                  aria-label="Preço unitário"
+                />
+              )}
+              {mostrarPreco && selecionado && !podeEditarPreco && (
+                <span className={`${styles.addQtyPreco} ${styles.mono}`}>
+                  {selecionado.precoUnitario !== undefined
+                    ? `R$ ${selecionado.precoUnitario.toFixed(2)}`
+                    : '—'}
+                </span>
+              )}
+              {mostrarPreco && selecionado && totalPrevia !== undefined && (
+                <span className={`${styles.addQtyPreco} ${styles.mono}`}>
+                  Total R$ {totalPrevia.toFixed(2)}
+                </span>
+              )}
+              <div className={styles.addActions}>
                 <button
                   type="button"
                   className={styles.confirmButton}
                   onClick={handleConfirmarAdicao}
-                  disabled={!quantidadeValida || (podeEditarPreco && !precoEditadoValido) || addMutation.isPending}
+                  disabled={
+                    !quantidadeValida ||
+                    (podeEditarPreco && !precoEditadoValido) ||
+                    addMutation.isPending
+                  }
                   aria-label="Confirmar item (Enter)"
                 >
                   ✓
                 </button>
-                <button type="button" className={styles.cancelButton} onClick={cancelarSelecao} aria-label="Cancelar seleção (Esc)">
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={cancelarSelecao}
+                  aria-label="Cancelar seleção (Esc)"
+                >
                   ✕
                 </button>
                 <span className={styles.shortcutHint}>Enter confirma · Esc cancela</span>
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {selecionado && (
             <div className={styles.addComplemento}>
@@ -321,7 +366,7 @@ export function ItemGrid({
                 className={styles.complementoInput}
                 placeholder="Complemento (opcional)"
                 value={complemento}
-                onChange={(e) => setComplemento(e.target.value)}
+                onChange={(e) => setComplemento(e.target.value.toLocaleUpperCase('pt-BR'))}
                 disabled={addMutation.isPending}
                 aria-label="Complemento"
               />
@@ -371,12 +416,14 @@ export function ItemGrid({
                         className={styles.complementoInput}
                         placeholder="Complemento (opcional)"
                         value={editComplemento}
-                        onChange={(e) => setEditComplemento(e.target.value)}
+                        onChange={(e) => setEditComplemento(e.target.value.toLocaleUpperCase('pt-BR'))}
                         aria-label="Editar complemento"
                         style={{ marginTop: 'var(--space-1)' }}
                       />
                     ) : (
-                      item.descricaoComplementar && <div className={styles.complementoTexto}>{item.descricaoComplementar}</div>
+                      item.descricaoComplementar && (
+                        <div className={styles.complementoTexto}>{item.descricaoComplementar}</div>
+                      )
                     )}
                   </td>
                   <td>{item.unidade}</td>
@@ -413,12 +460,20 @@ export function ItemGrid({
                     </td>
                   )}
                   {mostrarPreco && (
-                    <td className={`${styles.center} ${styles.mono}`}>{item.total !== undefined ? `R$ ${item.total.toFixed(2)}` : '—'}</td>
+                    <td className={`${styles.center} ${styles.mono}`}>
+                      {item.total !== undefined ? `R$ ${item.total.toFixed(2)}` : '—'}
+                    </td>
                   )}
                   {podeEditar && (
                     <td className={styles.center}>
                       {emEdicao ? (
-                        <div style={{ display: 'flex', gap: 'var(--space-1)', justifyContent: 'center' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: 'var(--space-1)',
+                            justifyContent: 'center',
+                          }}
+                        >
                           <button
                             type="button"
                             className={styles.confirmButton}
@@ -438,7 +493,13 @@ export function ItemGrid({
                           </button>
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', gap: 'var(--space-1)', justifyContent: 'center' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: 'var(--space-1)',
+                            justifyContent: 'center',
+                          }}
+                        >
                           <button
                             type="button"
                             className={styles.editItemButton}
@@ -500,7 +561,7 @@ export function ItemGrid({
                       className={styles.complementoInput}
                       placeholder="Complemento (opcional)"
                       value={editComplemento}
-                      onChange={(e) => setEditComplemento(e.target.value)}
+                      onChange={(e) => setEditComplemento(e.target.value.toLocaleUpperCase('pt-BR'))}
                       aria-label="Editar complemento"
                     />
                   </div>
@@ -510,13 +571,17 @@ export function ItemGrid({
                       <span className={styles.mono}>{item.codigo}</span> · {item.unidade} · qtd{' '}
                       <span className={styles.mono}>{item.quantidade}</span>
                     </div>
-                    {item.descricaoComplementar && <div className={styles.complementoTexto}>{item.descricaoComplementar}</div>}
-                    {mostrarPreco && (item.precoUnitario !== undefined || item.total !== undefined) && (
-                      <div className={`${styles.itemCardMeta} ${styles.mono}`}>
-                        {item.precoUnitario !== undefined && `R$ ${item.precoUnitario.toFixed(2)} un.`}
-                        {item.total !== undefined && ` · Total R$ ${item.total.toFixed(2)}`}
-                      </div>
+                    {item.descricaoComplementar && (
+                      <div className={styles.complementoTexto}>{item.descricaoComplementar}</div>
                     )}
+                    {mostrarPreco &&
+                      (item.precoUnitario !== undefined || item.total !== undefined) && (
+                        <div className={`${styles.itemCardMeta} ${styles.mono}`}>
+                          {item.precoUnitario !== undefined &&
+                            `R$ ${item.precoUnitario.toFixed(2)} un.`}
+                          {item.total !== undefined && ` · Total R$ ${item.total.toFixed(2)}`}
+                        </div>
+                      )}
                   </>
                 )}
               </div>

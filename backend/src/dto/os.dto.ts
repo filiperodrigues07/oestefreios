@@ -39,6 +39,7 @@ export interface OperationalOSDTO {
   dataPrevista?: string;
   dataConclusao?: string;
   situacaoDocumento?: number;
+  travadoLocal?: boolean;
   nroDav?: string;
   kmAtual?: number;
   kmFinal?: number;

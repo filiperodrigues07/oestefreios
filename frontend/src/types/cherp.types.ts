@@ -89,6 +89,7 @@ export interface EquipamentoDTO {
   codigo: string;
   descricao: string;
   clienteCodigo: string;
+  clienteNome?: string;
   identificacao?: string;
   marca?: string;
   modelo?: string;

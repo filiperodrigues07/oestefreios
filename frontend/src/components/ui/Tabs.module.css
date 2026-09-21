@@ -1,18 +1,24 @@
 .tablist {
   display: flex;
   gap: var(--space-4);
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
   border-bottom: 1px solid var(--color-border);
   margin-bottom: var(--space-4);
 }
 
 .tab {
+  flex-shrink: 0;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: var(--space-2) 0;
-  font-size: var(--font-size-md);
+  padding: var(--space-3) 0;
+  font-size: var(--font-size-lg);
   font-weight: 500;
   color: var(--color-text-secondary);
+  white-space: nowrap;
   cursor: pointer;
   margin-bottom: -1px;
   transition:
@@ -56,4 +62,34 @@
 .segmented .tabActive {
   background: var(--color-primary);
   color: #fff;
+}
+
+.mobileLabel {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .tablist {
+    position: sticky;
+    top: calc(var(--app-header-height, 58px) + env(safe-area-inset-top));
+    z-index: calc(var(--z-nav) - 2);
+    gap: var(--space-2);
+    margin: 0 calc(var(--space-3) * -1) var(--space-3);
+    padding: 0 var(--space-3);
+    background: var(--color-background);
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+  .tab {
+    min-height: 44px;
+    padding: var(--space-2) var(--space-1);
+    font-size: var(--font-size-sm);
+    scroll-snap-align: start;
+  }
+  .desktopLabel {
+    display: none;
+  }
+  .mobileLabel {
+    display: inline;
+  }
 }

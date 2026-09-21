@@ -2,7 +2,17 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import type { CatalogParams, CatalogSortBy } from '../../api/catalog.types.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
-import { Button, EmptyState, ErrorState, ExportButtons, Pagination, SearchInput, Skeleton, Table, type TableColumn } from '../ui/index.js';
+import {
+  Button,
+  EmptyState,
+  ErrorState,
+  ExportButtons,
+  Pagination,
+  SearchInput,
+  Skeleton,
+  Table,
+  type TableColumn,
+} from '../ui/index.js';
 import styles from './CatalogTable.module.css';
 
 interface CatalogItemBase {
@@ -12,7 +22,9 @@ interface CatalogItemBase {
 }
 
 interface CatalogTableProps<T extends CatalogItemBase> {
-  fetchFn: (params: CatalogParams) => Promise<{ items: T[]; page: number; limit: number; total: number }>;
+  fetchFn: (
+    params: CatalogParams,
+  ) => Promise<{ items: T[]; page: number; limit: number; total: number }>;
   queryKey: string;
   columns: TableColumn<T>[];
   onSelect: (item: T) => void;
@@ -21,6 +33,8 @@ interface CatalogTableProps<T extends CatalogItemBase> {
   columnPrefsKey?: string;
   onExportarExcel?: (busca: string) => Promise<void>;
   onExportarPdf?: (busca: string) => Promise<void>;
+  renderMobileCard?: (item: T) => React.ReactNode;
+  initialSearch?: string;
 }
 
 const SORTAVEIS: CatalogSortBy[] = ['codigo', 'descricao', 'categoria', 'tipo'];
@@ -36,15 +50,17 @@ export function CatalogTable<T extends CatalogItemBase>({
   columnPrefsKey,
   onExportarExcel,
   onExportarPdf,
+  renderMobileCard,
+  initialSearch = '',
 }: CatalogTableProps<T>) {
-  const [filtroInput, setFiltroInput] = useState('');
+  const [filtroInput, setFiltroInput] = useState(initialSearch);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [sortBy, setSortBy] = useState<CatalogSortBy>('descricao');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const filtro = useDebouncedValue(filtroInput, 300);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: [queryKey, filtro, page, limit, sortBy, sortOrder],
     queryFn: () => fetchFn({ filtro, page, limit, sortBy, sortOrder }),
   });
@@ -69,7 +85,8 @@ export function CatalogTable<T extends CatalogItemBase>({
     <div>
       {data && !isLoading && !isError && (
         <p className={styles.total}>
-          <strong>{data.total.toLocaleString('pt-BR')}</strong> {data.total === 1 ? 'registro' : 'registros'}
+          <strong>{data.total.toLocaleString('pt-BR')}</strong>{' '}
+          {data.total === 1 ? 'registro' : 'registros'}
         </p>
       )}
 
@@ -83,7 +100,10 @@ export function CatalogTable<T extends CatalogItemBase>({
           }}
         />
         {onExportarExcel && onExportarPdf && (
-          <ExportButtons onExportarExcel={() => onExportarExcel(filtro)} onExportarPdf={() => onExportarPdf(filtro)} />
+          <ExportButtons
+            onExportarExcel={() => onExportarExcel(filtro)}
+            onExportarPdf={() => onExportarPdf(filtro)}
+          />
         )}
       </div>
 
@@ -95,7 +115,16 @@ export function CatalogTable<T extends CatalogItemBase>({
         </div>
       )}
 
-      {isError && <ErrorState action={<Button variant="secondary" onClick={() => refetch()}>Tentar de novo</Button>} />}
+      {isError && (
+        <ErrorState
+          error={error}
+          action={
+            <Button variant="secondary" onClick={() => refetch()}>
+              Tentar de novo
+            </Button>
+          }
+        />
+      )}
 
       {!isLoading && !isError && data?.items.length === 0 && <EmptyState title={emptyLabel} />}
 
@@ -110,9 +139,16 @@ export function CatalogTable<T extends CatalogItemBase>({
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
             columnPrefsKey={columnPrefsKey}
+            renderMobileCard={renderMobileCard}
           />
           <div className={styles.pagination}>
-            <Pagination page={data.page} limit={data.limit} total={data.total} onPageChange={setPage} onLimitChange={handleLimitChange} />
+            <Pagination
+              page={data.page}
+              limit={data.limit}
+              total={data.total}
+              onPageChange={setPage}
+              onLimitChange={handleLimitChange}
+            />
           </div>
         </>
       )}

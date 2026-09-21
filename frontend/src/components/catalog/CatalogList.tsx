@@ -42,7 +42,7 @@ export function CatalogList<T extends CatalogItemBase>({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const filtro = useDebouncedValue(filtroInput, 300);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: [queryKey, filtro, page, sortBy, sortOrder],
     queryFn: () => fetchFn({ filtro, page, limit: 10, sortBy, sortOrder }),
   });
@@ -93,7 +93,7 @@ export function CatalogList<T extends CatalogItemBase>({
         </div>
       )}
 
-      {isError && <ErrorState action={<RetryButton onClick={() => refetch()} />} />}
+      {isError && <ErrorState error={error} action={<RetryButton onClick={() => refetch()} />} />}
 
       {!isLoading && !isError && data?.items.length === 0 && <EmptyState title={emptyLabel} />}
 

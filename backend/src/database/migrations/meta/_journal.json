@@ -64,6 +64,13 @@
       "when": 1789651000000,
       "tag": "0008_case_insensitive_user_email",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789960227182,
+      "tag": "0009_cute_warbird",
+      "breakpoints": true
     }
   ]
 }

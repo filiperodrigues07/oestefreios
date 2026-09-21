@@ -143,6 +143,7 @@ function EditNumber({
       </div>
       <input
         type="number"
+        inputMode="numeric"
         min={0}
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -153,7 +154,7 @@ function EditNumber({
           border: '1px solid var(--color-border)',
           background: 'var(--color-surface)',
           color: 'var(--color-text-primary)',
-          fontSize: 'var(--font-size-md)',
+          fontSize: 'var(--font-size-input)',
           fontFamily: 'inherit',
         }}
       />
@@ -179,7 +180,7 @@ function EditTextarea({
       </div>
       <textarea
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(e.target.value.toLocaleUpperCase('pt-BR'))}
         rows={2}
         style={{
           width: '100%',
@@ -188,7 +189,7 @@ function EditTextarea({
           border: '1px solid var(--color-border)',
           background: 'var(--color-surface)',
           color: 'var(--color-text-primary)',
-          fontSize: 'var(--font-size-md)',
+          fontSize: 'var(--font-size-input)',
           fontFamily: 'inherit',
           resize: 'vertical',
         }}

@@ -81,7 +81,7 @@ export function RedefinirSenhaPage() {
               maxLength={128}
             />
 
-            <div aria-live="polite" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, color: '#adc7e9', fontSize: 12 }}>
+            <div aria-live="polite" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 4, color: '#adc7e9', fontSize: 12 }}>
               {PASSWORD_RULES.map((rule) => <span key={rule.label}>{rule.test(password) ? '✓' : '○'} {rule.label}</span>)}
               <span>{password && password === confirmacao ? '✓' : '○'} Senhas iguais</span>
             </div>

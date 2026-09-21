@@ -1,5 +1,11 @@
-import type { Equipamento, EquipamentoInput, PaginatedResult, SearchQuery } from '../../types/cherp.types.js';
+import type {
+  Equipamento,
+  EquipamentoInput,
+  PaginatedResult,
+  SearchQuery,
+} from '../../types/cherp.types.js';
 import type { IEquipamentoRepository } from '../interfaces/IEquipamentoRepository.js';
+import { ClienteRepositoryMock } from './ClienteRepository.mock.js';
 
 /**
  * MOCK — dados em memória, não vem do Firebird/CHERP.
@@ -7,8 +13,18 @@ import type { IEquipamentoRepository } from '../interfaces/IEquipamentoRepositor
  */
 const EQUIPAMENTOS: Equipamento[] = [
   { codigo: 'EQ01', descricao: 'Caminhão ABC', clienteCodigo: '000001', identificacao: 'ABC-1234' },
-  { codigo: 'EQ02', descricao: 'Van de Entrega', clienteCodigo: '000002', identificacao: 'DEF-5678' },
-  { codigo: 'EQ03', descricao: 'Carreta Graneleira', clienteCodigo: '000002', identificacao: 'GHI-9012' },
+  {
+    codigo: 'EQ02',
+    descricao: 'Van de Entrega',
+    clienteCodigo: '000002',
+    identificacao: 'DEF-5678',
+  },
+  {
+    codigo: 'EQ03',
+    descricao: 'Carreta Graneleira',
+    clienteCodigo: '000002',
+    identificacao: 'GHI-9012',
+  },
 ];
 
 let proximoCodigo = 4;
@@ -31,12 +47,28 @@ export class EquipamentoRepositoryMock implements IEquipamentoRepository {
       filtered = filtered.filter((e) => e.codigo === query.codigo);
     } else if (query.descricao) {
       const termo = query.descricao.toLowerCase();
-      filtered = filtered.filter((e) => e.descricao.toLowerCase().includes(termo));
+      const placa = termo.replace(/[^a-z0-9]/g, '');
+      filtered = filtered.filter(
+        (e) =>
+          e.descricao.toLowerCase().includes(termo) ||
+          (!!placa &&
+            (e.identificacao ?? '')
+              .toLowerCase()
+              .replace(/[^a-z0-9]/g, '')
+              .includes(placa)),
+      );
     }
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const start = (page - 1) * limit;
-    return { items: filtered.slice(start, start + limit), page, limit, total: filtered.length };
+    const clientes = new ClienteRepositoryMock();
+    const items = await Promise.all(
+      filtered.slice(start, start + limit).map(async (e) => ({
+        ...e,
+        clienteNome: (await clientes.buscarPorCodigo(e.clienteCodigo))?.nome,
+      })),
+    );
+    return { items, page, limit, total: filtered.length };
   }
 
   async criar(input: EquipamentoInput): Promise<Equipamento> {

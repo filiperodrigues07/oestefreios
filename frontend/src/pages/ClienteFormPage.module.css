@@ -4,87 +4,8 @@
   padding: var(--space-6);
 }
 
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.cnpjRow {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-}
-
-.cnpjRow > *:first-child {
-  flex: 1;
-}
-
-.cepRow {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--space-2);
-}
-
-.cepRow > *:first-child {
-  flex: 1;
-}
-
-.sectionTitle,
-.addressHeader {
-  padding-bottom: var(--space-2);
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-}
-
-.addressHeader {
-  margin-top: var(--space-1);
-}
-
-.statusRow,
-.twoColumns,
-.threeColumns {
-  display: grid;
-  align-items: end;
-  gap: var(--space-3);
-}
-
-.fieldLabel {
-  margin-bottom: var(--space-1);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-}
-
-.statusOptions {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.statusRow,
-.twoColumns {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.threeColumns {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.codigo {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
-
 @media (max-width: 767px) {
   .page {
     padding: var(--space-4);
-  }
-
-  .statusRow,
-  .twoColumns,
-  .threeColumns {
-    grid-template-columns: 1fr;
   }
 }

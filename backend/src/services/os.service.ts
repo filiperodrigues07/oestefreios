@@ -58,13 +58,16 @@ async function getOSOrThrow(id: string): Promise<OrdemServico> {
 }
 
 /**
- * "Finalizar OS" (Fase OS-6) muda o status pra CONCLUIDA só no nosso app — nunca fecha a OS no
- * CHERP (ver `situacaoFromStatus` em OSRepository.firebird.ts), de propósito, pro time de
- * faturamento continuar processando por lá. Em compensação, o mecânico não pode mais editar
- * nada por aqui depois disso — o backend garante isso em toda mutação, não só a UI.
+ * Bloqueio de edição depende só de sinais fiscais reais (situação/documento do CHERP, data nativa
+ * de fechamento) e do próprio "Finalizar OS" do app (`travadoLocal`) — nunca da situação de
+ * atendimento (PRONTA não trava mais nada sozinha, é só o mecânico sinalizando "terminei", o
+ * pedido/NF pode ainda nem ter sido gerado). "Finalizar OS" (Fase OS-6) muda o status pra CONCLUIDA
+ * só no nosso app — nunca fecha a OS no CHERP (ver `atualizar` em OSRepository.firebird.ts), de
+ * propósito, pro time de faturamento continuar processando por lá. Em compensação, o mecânico não
+ * pode mais editar nada por aqui depois disso — o backend garante isso em toda mutação, não só a UI.
  */
 function assertNaoFinalizada(os: OrdemServico): void {
-  if ((os.situacaoDocumento !== undefined && os.situacaoDocumento !== 0) || os.dataConclusao || os.status === 'CONCLUIDA' || os.status === 'CANCELADA') {
+  if ((os.situacaoDocumento !== undefined && os.situacaoDocumento !== 0) || os.dataConclusao || os.travadoLocal) {
     throw new ValidationError('OS fechada ou com pedido/NF gerado no CHERP é somente consulta e não pode ser alterada.');
   }
 }

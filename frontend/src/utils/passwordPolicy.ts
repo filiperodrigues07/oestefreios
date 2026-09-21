@@ -1,5 +1,5 @@
 export const PASSWORD_RULES = [
-  { label: '12 caracteres', test: (value: string) => value.length >= 12 },
+  { label: '8 caracteres', test: (value: string) => value.length >= 8 },
   { label: 'Uma letra maiúscula', test: (value: string) => /[A-Z]/.test(value) },
   { label: 'Uma letra minúscula', test: (value: string) => /[a-z]/.test(value) },
   { label: 'Um número', test: (value: string) => /\d/.test(value) },

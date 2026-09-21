@@ -9,9 +9,11 @@ const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 
 export class ApiError extends Error {
   code: string;
-  constructor(code: string, message: string) {
+  status?: number;
+  constructor(code: string, message: string, status?: number) {
     super(message);
     this.code = code;
+    this.status = status;
   }
 }
 
@@ -106,7 +108,8 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
       throw new OfflineQueuedError(queueId);
     }
 
-    throw networkError;
+    if (networkError instanceof Error && networkError.name === 'AbortError') throw networkError;
+    throw new ApiError('NETWORK_ERROR', 'Falha de comunicação com o servidor.');
   }
 
   const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
@@ -126,7 +129,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
   if (!body || !body.success) {
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
     const message = body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
-    throw new ApiError(code, message);
+    throw new ApiError(code, message, res.status);
   }
 
   return body.data;
@@ -159,7 +162,7 @@ export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob>
     const body = (await res.json().catch(() => null)) as ApiResponse<unknown> | null;
     const message = body && !body.success ? body.error.message : 'Não foi possível gerar o arquivo.';
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
-    throw new ApiError(code, message);
+    throw new ApiError(code, message, res.status);
   }
 
   return res.blob();
@@ -192,7 +195,7 @@ export async function apiFetchMultipart<T>(path: string, formData: FormData, isR
   if (!body || !body.success) {
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
     const message = body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
-    throw new ApiError(code, message);
+    throw new ApiError(code, message, res.status);
   }
 
   return body.data;

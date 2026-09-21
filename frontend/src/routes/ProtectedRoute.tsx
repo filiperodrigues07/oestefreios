@@ -3,6 +3,7 @@ import { Navigate } from 'react-router';
 import { useAuthStore } from '../store/authStore.js';
 import { hasPermission } from '../store/authStore.js';
 import type { Permission } from '../types/auth.types.js';
+import { ErrorScreen } from '../components/ui/ErrorScreen.js';
 
 export function ProtectedRoute({ children, requiredPermission }: { children: ReactNode; requiredPermission?: Permission }) {
   const status = useAuthStore((s) => s.status);
@@ -21,7 +22,7 @@ export function ProtectedRoute({ children, requiredPermission }: { children: Rea
   }
 
   if (requiredPermission && !hasPermission(requiredPermission)) {
-    return <Navigate to="/" replace />;
+    return <ErrorScreen error={{ status: 403 }} />;
   }
 
   return <>{children}</>;

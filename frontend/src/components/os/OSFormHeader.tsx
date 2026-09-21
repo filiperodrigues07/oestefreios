@@ -11,6 +11,7 @@ import styles from './OSFormHeader.module.css';
 interface OSFormHeaderProps {
   id: string;
   numero: number;
+  nroDav?: string;
   status: OSStatus;
   prioridade: OSPrioridade;
   dataAbertura: string;
@@ -28,6 +29,7 @@ interface OSFormHeaderProps {
 export function OSFormHeader({
   id,
   numero,
+  nroDav,
   status,
   prioridade,
   dataAbertura,
@@ -66,7 +68,7 @@ export function OSFormHeader({
   return <header className={styles.header}>
     <div className={styles.breadcrumb}><LinkButton to="/os" variant="ghost" size="sm">‹ Ordem de Serviço</LinkButton><span>›</span><strong>OS #{numero}</strong></div>
     <div className={styles.row}>
-      <div className={styles.titleBlock}><div><h1>OS #{numero}</h1><span className={styles.badge}>{OS_STATUS_CONFIG[status].label}</span><time>▣ {new Date(dataAbertura).toLocaleString('pt-BR')}</time></div></div>
+      <div className={styles.titleBlock}><div><h1>OS #{numero}</h1><span className={styles.badge}>{OS_STATUS_CONFIG[status].label}</span>{nroDav && <span className={styles.dav}>DAV Nº {Number(nroDav)}</span>}<time>▣ {new Date(dataAbertura).toLocaleString('pt-BR')}</time></div></div>
       <div className={styles.actions}>
         <Button type="button" variant="secondary" size="sm" onClick={handleVoltar}><ActionIcon name="back" />Voltar</Button>
         <Button type="button" variant="secondary" size="sm" onClick={handleImprimir} loading={imprimindo}><ActionIcon name="print" />{imprimindo ? 'Gerando PDF...' : 'Imprimir'}</Button>

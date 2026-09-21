@@ -42,6 +42,25 @@
   gap: var(--space-4);
 }
 
+.logo {
+  display: block;
+  width: 128px;
+  height: auto;
+  margin: 0 auto var(--space-2);
+}
+
+.rules {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-1) var(--space-4);
+  border: 1px solid rgba(103, 197, 255, 0.18);
+  border-radius: var(--radius-md);
+  background: rgba(103, 197, 255, 0.06);
+  color: #adc7e9;
+  font-size: var(--font-size-xs);
+  padding: var(--space-3);
+}
+
 .title {
   margin: 0;
   color: #fff;

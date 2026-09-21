@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import {
   getFirebirdSettings,
+  getFirebirdPassword,
   getGeralSettings,
   getSmtpSettings,
   saveFirebirdSettings,
@@ -17,6 +18,7 @@ import {
   Badge,
   Button,
   Card,
+  ErrorState,
   Input,
   Modal,
   PasswordInput,
@@ -125,7 +127,7 @@ export function ConfiguracoesPage() {
 
 function FirebirdTab() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['settings', 'firebird'],
     queryFn: getFirebirdSettings,
   });
@@ -161,6 +163,7 @@ function FirebirdTab() {
     },
   });
 
+  if (isError) return <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar novamente</Button>} />;
   if (isLoading || !form) return <Card>Carregando...</Card>;
 
   return (
@@ -196,6 +199,7 @@ function FirebirdTab() {
             <Input
               label="Porta"
               type="number"
+              inputMode="numeric"
               value={form.port}
               onChange={(e) => setForm({ ...form, port: Number(e.target.value) })}
             />
@@ -223,6 +227,11 @@ function FirebirdTab() {
               placeholder={form.password === '••••••••' ? '••••••••' : ''}
               value={form.password === '••••••••' ? '' : form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
+              onReveal={async () => {
+                const result = await getFirebirdPassword();
+                setForm((current) => current ? { ...current, password: result.password } : current);
+                return result.password;
+              }}
             />
             <p>Senha do usuário.</p>
           </div>
@@ -360,7 +369,7 @@ function FirebirdTab() {
 
 function SmtpTab() {
   const queryClient = useQueryClient();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['settings', 'smtp'],
     queryFn: getSmtpSettings,
   });
@@ -385,6 +394,7 @@ function SmtpTab() {
     onSuccess: setTestResult,
   });
 
+  if (isError) return <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar novamente</Button>} />;
   if (isLoading || !form) return <Card>Carregando...</Card>;
 
   return (
@@ -403,6 +413,7 @@ function SmtpTab() {
       <Input
         label="Porta"
         type="number"
+        inputMode="numeric"
         value={form.port}
         onChange={(e) => setForm({ ...form, port: Number(e.target.value) })}
       />
@@ -469,7 +480,7 @@ function SmtpTab() {
 function GeralTab() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['settings', 'geral'],
     queryFn: getGeralSettings,
   });
@@ -509,6 +520,7 @@ function GeralTab() {
     saveMutation.mutate({ ...form, logoUrl: '' }, { onSuccess: () => showToast('Logo removida.', 'success') });
   }
 
+  if (isError) return <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar novamente</Button>} />;
   if (isLoading || !form) return <Card>Carregando...</Card>;
 
   return (

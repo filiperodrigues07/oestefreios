@@ -12,9 +12,12 @@ import {
   ErrorState,
   ExportButtons,
   LinkButton,
+  MobileRecordCard,
+  MobileFab,
   PageHeader,
   Pagination,
   SearchInput,
+  ResponsiveFilters,
   Select,
   Skeleton,
   Table,
@@ -26,8 +29,35 @@ import styles from './ClientesPage.module.css';
 
 const UF_OPTIONS = [
   { value: '', label: 'Todas' },
-  ...['AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR',
-    'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'].map((uf) => ({ value: uf, label: uf })),
+  ...[
+    'AC',
+    'AL',
+    'AP',
+    'AM',
+    'BA',
+    'CE',
+    'DF',
+    'ES',
+    'GO',
+    'MA',
+    'MT',
+    'MS',
+    'MG',
+    'PA',
+    'PB',
+    'PR',
+    'PE',
+    'PI',
+    'RJ',
+    'RN',
+    'RS',
+    'RO',
+    'RR',
+    'SC',
+    'SP',
+    'SE',
+    'TO',
+  ].map((uf) => ({ value: uf, label: uf })),
 ];
 
 const TIPO_PESSOA_OPTIONS = [
@@ -53,7 +83,7 @@ export function ClientesPage() {
   const podeCriar = hasPermission('OS_CREATE');
   const podeEditar = hasPermission('OS_EDIT');
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['clientes', buscaAtiva, page, limit, tipoPessoa, uf, sortBy, sortOrder],
     queryFn: () =>
       searchClientes(buscaAtiva, page, limit, {
@@ -91,10 +121,31 @@ export function ClientesPage() {
   }
 
   const columns: TableColumn<ClienteDTO>[] = [
-    { key: 'codigo', header: 'Código', render: (c) => c.codigo, mono: true, width: '92px', sortable: true },
+    {
+      key: 'codigo',
+      header: 'Código',
+      render: (c) => c.codigo,
+      mono: true,
+      width: '92px',
+      sortable: true,
+    },
     { key: 'nome', header: 'Nome / Razão Social', render: (c) => c.nome, sortable: true },
-    { key: 'documento', header: 'CNPJ/CPF', render: (c) => c.documento ?? '—', mono: true, width: '140px', sortable: true },
-    { key: 'telefone', header: 'Telefone', render: (c) => c.telefone ?? '—', mono: true, width: '128px', sortable: true },
+    {
+      key: 'documento',
+      header: 'CNPJ/CPF',
+      render: (c) => c.documento ?? '—',
+      mono: true,
+      width: '140px',
+      sortable: true,
+    },
+    {
+      key: 'telefone',
+      header: 'Telefone',
+      render: (c) => c.telefone ?? '—',
+      mono: true,
+      width: '128px',
+      sortable: true,
+    },
     {
       key: 'cidade',
       header: 'Cidade/UF',
@@ -107,7 +158,10 @@ export function ClientesPage() {
       header: '',
       align: 'right',
       width: '56px',
-      render: (c) => (podeEditar ? <EditButton to={`/clientes/${c.codigo}/editar`} label={`Editar ${c.nome}`} /> : null),
+      render: (c) =>
+        podeEditar ? (
+          <EditButton to={`/clientes/${c.codigo}/editar`} label={`Editar ${c.nome}`} />
+        ) : null,
     },
   ];
 
@@ -118,10 +172,35 @@ export function ClientesPage() {
         description="Gerencie os cadastros e consulte os dados vinculados à oficina."
         actions={
           <>
-            {podeCriar && <LinkButton to="/clientes/novo"><ActionIcon name="add" />Novo cliente</LinkButton>}
+            {podeCriar && (
+              <span className={styles.desktopCreate}>
+                <LinkButton to="/clientes/novo">
+                  <ActionIcon name="add" />
+                  Novo cliente
+                </LinkButton>
+              </span>
+            )}
             <ExportButtons
-              onExportarExcel={() => baixarRelatorioClientes({ tipoPessoa: tipoPessoa || undefined, uf: uf || undefined, busca: buscaAtiva || undefined }, 'excel')}
-              onExportarPdf={() => baixarRelatorioClientes({ tipoPessoa: tipoPessoa || undefined, uf: uf || undefined, busca: buscaAtiva || undefined }, 'pdf')}
+              onExportarExcel={() =>
+                baixarRelatorioClientes(
+                  {
+                    tipoPessoa: tipoPessoa || undefined,
+                    uf: uf || undefined,
+                    busca: buscaAtiva || undefined,
+                  },
+                  'excel',
+                )
+              }
+              onExportarPdf={() =>
+                baixarRelatorioClientes(
+                  {
+                    tipoPessoa: tipoPessoa || undefined,
+                    uf: uf || undefined,
+                    busca: buscaAtiva || undefined,
+                  },
+                  'pdf',
+                )
+              }
             />
           </>
         }
@@ -129,7 +208,8 @@ export function ClientesPage() {
 
       {data && !isLoading && !isError && (
         <p className={styles.total}>
-          <strong>{data.total.toLocaleString('pt-BR')}</strong> {data.total === 1 ? 'registro' : 'registros'}
+          <strong>{data.total.toLocaleString('pt-BR')}</strong>{' '}
+          {data.total === 1 ? 'registro' : 'registros'}
         </p>
       )}
 
@@ -139,22 +219,31 @@ export function ClientesPage() {
           value={busca}
           onChange={(e) => setBusca(e.target.value)}
         />
-        <Select
-          options={TIPO_PESSOA_OPTIONS}
-          value={tipoPessoa}
-          onChange={(e) => {
-            setTipoPessoa(e.target.value as TipoPessoa | '');
-            handleFiltroChange();
+        <ResponsiveFilters
+          activeCount={Number(Boolean(tipoPessoa)) + Number(Boolean(uf))}
+          onClear={() => {
+            setTipoPessoa('');
+            setUf('');
+            setPage(1);
           }}
-        />
-        <Select
-          options={UF_OPTIONS}
-          value={uf}
-          onChange={(e) => {
-            setUf(e.target.value);
-            handleFiltroChange();
-          }}
-        />
+        >
+          <Select
+            options={TIPO_PESSOA_OPTIONS}
+            value={tipoPessoa}
+            onChange={(e) => {
+              setTipoPessoa(e.target.value as TipoPessoa | '');
+              handleFiltroChange();
+            }}
+          />
+          <Select
+            options={UF_OPTIONS}
+            value={uf}
+            onChange={(e) => {
+              setUf(e.target.value);
+              handleFiltroChange();
+            }}
+          />
+        </ResponsiveFilters>
         <Button type="submit" variant="secondary">
           <ActionIcon name="search" />
           Buscar
@@ -169,7 +258,12 @@ export function ClientesPage() {
         </Card>
       )}
 
-      {isError && <ErrorState action={<Button onClick={() => refetch()}>Tentar de novo</Button>} />}
+      {isError && (
+        <ErrorState
+          error={error}
+          action={<Button onClick={() => refetch()}>Tentar de novo</Button>}
+        />
+      )}
 
       {!isLoading && !isError && data && data.items.length === 0 && (
         <EmptyState title="Nenhum cliente cadastrado ainda" />
@@ -185,12 +279,47 @@ export function ClientesPage() {
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
             columnPrefsKey="clientes"
+            renderMobileCard={(cliente) => (
+              <MobileRecordCard
+                eyebrow={`Cliente ${cliente.codigo}`}
+                title={cliente.nome}
+                subtitle={cliente.documento ?? 'Documento não informado'}
+                fields={[
+                  {
+                    label: 'Telefone',
+                    value: cliente.telefone ?? cliente.celular ?? 'Não informado',
+                    mono: true,
+                  },
+                  {
+                    label: 'Cidade / UF',
+                    value: cliente.cidade
+                      ? `${cliente.cidade}/${cliente.uf ?? ''}`
+                      : 'Não informado',
+                  },
+                ]}
+                actions={
+                  podeEditar ? (
+                    <EditButton
+                      to={`/clientes/${cliente.codigo}/editar`}
+                      label={`Editar ${cliente.nome}`}
+                    />
+                  ) : undefined
+                }
+              />
+            )}
           />
           <div className={styles.pagination}>
-            <Pagination page={data.page} limit={data.limit} total={data.total} onPageChange={setPage} onLimitChange={handleLimitChange} />
+            <Pagination
+              page={data.page}
+              limit={data.limit}
+              total={data.total}
+              onPageChange={setPage}
+              onLimitChange={handleLimitChange}
+            />
           </div>
         </>
       )}
+      {podeCriar && <MobileFab to="/clientes/novo" label="Novo cliente" />}
     </div>
   );
 }

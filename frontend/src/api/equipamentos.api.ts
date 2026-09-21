@@ -8,12 +8,27 @@ interface PaginatedEquipamentos {
   total: number;
 }
 
+export function listarEquipamentos(
+  busca: string,
+  page: number,
+  limit: number,
+  clienteCodigo?: string,
+): Promise<PaginatedEquipamentos> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (busca.trim()) params.set('descricao', busca.trim());
+  if (clienteCodigo) params.set('clienteCodigo', clienteCodigo);
+  return apiFetch<PaginatedEquipamentos>(`/equipamentos?${params.toString()}`);
+}
+
 /**
  * Busca equipamento por código/descrição, sempre restrito ao cliente já selecionado (seção 8).
  * Sem termo digitado, devolve todos os equipamentos do cliente (lista costuma ser curta —
  * poucos veículos por cliente) em vez de exigir digitação antes de mostrar algo.
  */
-export function searchEquipamentos(query: string, clienteCodigo: string): Promise<PaginatedEquipamentos> {
+export function searchEquipamentos(
+  query: string,
+  clienteCodigo: string,
+): Promise<PaginatedEquipamentos> {
   const params = new URLSearchParams({ clienteCodigo, limit: '10' });
   const termo = query.trim();
   if (termo.length > 0) {
@@ -42,6 +57,9 @@ export function criarEquipamento(input: EquipamentoInput): Promise<EquipamentoDT
   return apiFetch<EquipamentoDTO>('/equipamentos', { method: 'POST', body: input });
 }
 
-export function atualizarEquipamento(codigo: string, input: EquipamentoInput): Promise<EquipamentoDTO> {
+export function atualizarEquipamento(
+  codigo: string,
+  input: EquipamentoInput,
+): Promise<EquipamentoDTO> {
   return apiFetch<EquipamentoDTO>(`/equipamentos/${codigo}`, { method: 'PUT', body: input });
 }

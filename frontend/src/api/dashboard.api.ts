@@ -19,7 +19,7 @@ export function getDashboardOperacional(input: { inicio: Date; fim: Date; granul
 }
 
 export interface DashboardSearchResult {
-  tipo: 'OS' | 'CLIENTE';
+  tipo: 'OS' | 'CLIENTE' | 'VEICULO' | 'PRODUTO' | 'SERVICO';
   id: string;
   titulo: string;
   descricao: string;

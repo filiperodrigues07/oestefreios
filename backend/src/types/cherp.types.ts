@@ -99,6 +99,7 @@ export interface Equipamento {
   codigo: string;
   descricao: string;
   clienteCodigo: string;
+  clienteNome?: string;
   /** Placa do veículo — nome de campo espelha a coluna IDENTIFICACAO do CHERP. */
   identificacao?: string;
   marca?: string;
@@ -187,6 +188,8 @@ export interface OrdemServico {
   dataConclusao?: string;
   /** Situação principal do documento no CHERP (ORDEMSERVICO.SITUACAO). Somente 0 (Aberta) permite edição. */
   situacaoDocumento?: number;
+  /** "Finalizar OS" pelo app (os_workflow.travado_local) — trava edição só aqui, nunca mexe no CHERP. */
+  travadoLocal?: boolean;
   faturamento?: number;
   /** Nº do DAV impresso no CHERP (ORDEMSERVICO.NRODAV) — só leitura, o CHERP quem gera. */
   nroDav?: string;

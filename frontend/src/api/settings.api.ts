@@ -34,6 +34,7 @@ interface TestResult {
 }
 
 export const getFirebirdSettings = () => apiFetch<FirebirdSettings>('/settings/firebird');
+export const getFirebirdPassword = () => apiFetch<{ password: string }>('/settings/firebird/password');
 export const saveFirebirdSettings = (data: FirebirdSettings) =>
   apiFetch<FirebirdSettings>('/settings/firebird', { method: 'PUT', body: data });
 export const testFirebirdSettings = (data: FirebirdSettings) =>

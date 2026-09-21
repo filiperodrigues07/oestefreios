@@ -86,7 +86,7 @@ function OSFormCreate() {
     },
   });
 
-  const podeSalvar = cliente && equipamento && problema.trim().length > 0 && !mutation.isPending;
+  const podeSalvar = cliente && equipamento && !mutation.isPending;
 
   return (
     <div className={`${styles.page} ${styles.detailPage}`}>
@@ -105,7 +105,7 @@ function OSFormCreate() {
           desabilitadas até "Criar OS", pra não parecer uma tela totalmente separada. */}
       <nav className={styles.tabs} aria-label="Seções da OS">
         <a href="#dados">▣ Dados da OS</a>
-        {['▤ Produtos e Serviços', '▱ Diagnóstico', '◷ Histórico', '📷 Fotos'].map((label) => (
+        {['▤ Produtos e Serviços', '▱ Diagnóstico', '📷 Fotos', '◷ Histórico'].map((label) => (
           <span key={label} className={styles.tabDisabled} title="Disponível depois de criar a OS">
             {label}
           </span>
@@ -136,19 +136,23 @@ function OSFormCreate() {
               }}
             >
               Descrição
-              <RequiredMark />
             </label>
             <textarea
               id="problema"
               value={problema}
-              onChange={(e) => setProblema(e.target.value)}
+              onChange={(e) => setProblema(e.target.value.toLocaleUpperCase('pt-BR'))}
               rows={3}
               className={styles.textarea}
             />
           </div>
 
           <Select
-            label={<>Prioridade<RequiredMark /></>}
+            label={
+              <>
+                Prioridade
+                <RequiredMark />
+              </>
+            }
             value={prioridade}
             onChange={(e) => setPrioridade(e.target.value as OSPrioridade)}
             options={OS_PRIORIDADE_OPTIONS}
@@ -206,6 +210,7 @@ function OSFormEdit({ id }: { id: string }) {
     isLoading,
     isFetching,
     isError,
+    error,
     refetch,
   } = useQuery({ queryKey: ['os', id], queryFn: () => getOS(id) });
 
@@ -268,9 +273,20 @@ function OSFormEdit({ id }: { id: string }) {
       handleMutationError(err, showToast, 'Não foi possível atualizar a prioridade.'),
   });
 
-  async function adicionarProduto(codigo: string, quantidade: number, precoUnitario?: number, descricaoComplementar?: string) {
+  async function adicionarProduto(
+    codigo: string,
+    quantidade: number,
+    precoUnitario?: number,
+    descricaoComplementar?: string,
+  ) {
     try {
-      const atualizado = await adicionarProdutoOS(id, codigo, quantidade, precoUnitario, descricaoComplementar);
+      const atualizado = await adicionarProdutoOS(
+        id,
+        codigo,
+        quantidade,
+        precoUnitario,
+        descricaoComplementar,
+      );
       queryClient.setQueryData(['os', id], atualizado);
       showToast('Produto adicionado.', 'success');
     } catch (err) {
@@ -279,9 +295,20 @@ function OSFormEdit({ id }: { id: string }) {
     }
   }
 
-  async function adicionarServico(codigo: string, quantidade: number, valorUnitario?: number, descricaoComplementar?: string) {
+  async function adicionarServico(
+    codigo: string,
+    quantidade: number,
+    valorUnitario?: number,
+    descricaoComplementar?: string,
+  ) {
     try {
-      const atualizado = await adicionarServicoOS(id, codigo, quantidade, valorUnitario, descricaoComplementar);
+      const atualizado = await adicionarServicoOS(
+        id,
+        codigo,
+        quantidade,
+        valorUnitario,
+        descricaoComplementar,
+      );
       queryClient.setQueryData(['os', id], atualizado);
       showToast('Serviço adicionado.', 'success');
     } catch (err) {
@@ -290,7 +317,10 @@ function OSFormEdit({ id }: { id: string }) {
     }
   }
 
-  async function atualizarProduto(codigo: string, patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string }) {
+  async function atualizarProduto(
+    codigo: string,
+    patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string },
+  ) {
     try {
       const atualizado = await atualizarProdutoItemOS(id, codigo, patch);
       queryClient.setQueryData(['os', id], atualizado);
@@ -301,7 +331,10 @@ function OSFormEdit({ id }: { id: string }) {
     }
   }
 
-  async function atualizarServico(codigo: string, patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string }) {
+  async function atualizarServico(
+    codigo: string,
+    patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string },
+  ) {
     try {
       const atualizado = await atualizarServicoItemOS(id, codigo, patch);
       queryClient.setQueryData(['os', id], atualizado);
@@ -341,16 +374,20 @@ function OSFormEdit({ id }: { id: string }) {
     return (
       <div className={styles.page}>
         <ErrorState
-          title="OS não encontrada"
-          description="Verifique o link ou volte para a lista."
+          error={error ?? { status: 404 }}
+          action={<Button onClick={() => refetch()}>Tentar novamente</Button>}
         />
       </div>
     );
   }
 
-  // OS pronta, encerrada ou fechada pelo CHERP: backend já rejeita qualquer mutação (assertNaoFinalizada em os.service.ts) —
-  // aqui é só pra não oferecer um controle que vai dar erro ao salvar, a permissão em si continua a mesma.
-  const osFinalizada = (os.situacaoDocumento !== undefined && os.situacaoDocumento !== 0) || Boolean(os.dataConclusao) || os.status === 'CONCLUIDA' || os.status === 'CANCELADA';
+  // OS com pedido/NF gerado, fechada no CHERP ou finalizada por aqui (travadoLocal): backend já rejeita
+  // qualquer mutação (assertNaoFinalizada em os.service.ts) — aqui é só pra não oferecer um controle que
+  // vai dar erro ao salvar. Situação de atendimento (PRONTA) sozinha não trava mais nada.
+  const osFinalizada =
+    (os.situacaoDocumento !== undefined && os.situacaoDocumento !== 0) ||
+    Boolean(os.dataConclusao) ||
+    Boolean(os.travadoLocal);
   const podeEditar = hasPermission('OS_EDIT') && !osFinalizada;
   const podeAddProduto = hasPermission('PRODUCT_ADD_TO_OS') && !osFinalizada;
   const podeAddServico = hasPermission('SERVICE_ADD_TO_OS') && !osFinalizada;
@@ -366,6 +403,7 @@ function OSFormEdit({ id }: { id: string }) {
       <OSFormHeader
         id={id}
         numero={os.numero}
+        nroDav={os.nroDav}
         status={os.status}
         prioridade={os.prioridade}
         dataAbertura={os.dataAbertura}
@@ -387,11 +425,16 @@ function OSFormEdit({ id }: { id: string }) {
 
       <Tabs
         items={[
-          { key: 'dados', label: '▣ Dados da OS' },
-          { key: 'itens', label: totalItens > 0 ? `▤ Produtos e Serviços (${totalItens})` : '▤ Produtos e Serviços' },
-          { key: 'diagnostico', label: '▱ Diagnóstico' },
-          { key: 'historico', label: '◷ Histórico' },
-          { key: 'fotos', label: '📷 Fotos' },
+          { key: 'dados', label: '▣ Dados da OS', mobileLabel: 'Dados' },
+          {
+            key: 'itens',
+            label:
+              totalItens > 0 ? `▤ Produtos e Serviços (${totalItens})` : '▤ Produtos e Serviços',
+            mobileLabel: totalItens > 0 ? `Itens (${totalItens})` : 'Itens',
+          },
+          { key: 'diagnostico', label: '▱ Diagnóstico', mobileLabel: 'Diagnóstico' },
+          { key: 'fotos', label: '📷 Fotos', mobileLabel: 'Fotos' },
+          { key: 'historico', label: '◷ Histórico', mobileLabel: 'Histórico' },
         ]}
         active={tab}
         onChange={mudarTab}
@@ -458,17 +501,24 @@ function OSFormEdit({ id }: { id: string }) {
                   <p>Totais calculados no Firebird pelos itens ativos.</p>
                 </div>
                 <div>
-                  <span>Total produtos</span>
-                  <strong>
-                    R$ {os.produtos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
-                  </strong>
-                  <span>Total serviços</span>
-                  <strong>
-                    R$ {os.servicos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
-                  </strong>
-                  <b>
-                    Total geral <em>R$ {(os.faturamento ?? 0).toFixed(2)}</em>
-                  </b>
+                  <div className={styles.summaryRow}>
+                    <span>Total produtos</span>
+                    <strong>
+                      R${' '}
+                      {os.produtos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
+                    </strong>
+                  </div>
+                  <div className={styles.summaryRow}>
+                    <span>Total serviços</span>
+                    <strong>
+                      R${' '}
+                      {os.servicos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
+                    </strong>
+                  </div>
+                  <div className={styles.summaryTotal}>
+                    <span>Total geral</span>
+                    <strong>R$ {(os.faturamento ?? 0).toFixed(2)}</strong>
+                  </div>
                 </div>
               </section>
             )}

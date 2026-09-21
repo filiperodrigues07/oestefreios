@@ -11,7 +11,7 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { cepParamSchema, clienteInputSchema, cnpjParamSchema } from '../validators/cliente.validator.js';
+import { cepParamSchema, clienteCreateSchema, clienteInputSchema, cnpjParamSchema } from '../validators/cliente.validator.js';
 import { codigoParamSchema, searchQuerySchema } from '../validators/search.validator.js';
 
 export const clienteRouter = Router();
@@ -25,7 +25,7 @@ clienteRouter.get('/cep/:cep', validate(cepParamSchema, 'params'), asyncHandler(
 clienteRouter.get('/:codigo', validate(codigoParamSchema, 'params'), asyncHandler(getClienteByCodigoHandler));
 
 // Cadastrar/editar cliente é parte do mesmo fluxo de quem cria/edita OS — reaproveita a permissão existente.
-clienteRouter.post('/', requirePermission('OS_CREATE'), validate(clienteInputSchema), asyncHandler(criarClienteHandler));
+clienteRouter.post('/', requirePermission('OS_CREATE'), validate(clienteCreateSchema), asyncHandler(criarClienteHandler));
 clienteRouter.put(
   '/:codigo',
   requirePermission('OS_EDIT'),

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   getBrandingHandler,
   getFirebirdSettingsHandler,
+  getFirebirdPasswordHandler,
   getGeralSettingsHandler,
   getSmtpSettingsHandler,
   saveFirebirdSettingsHandler,
@@ -25,6 +26,7 @@ settingsRouter.get('/branding', authenticate, asyncHandler(getBrandingHandler));
 settingsRouter.use(authenticate, requirePermission('SYSTEM_SETTINGS'));
 
 settingsRouter.get('/firebird', asyncHandler(getFirebirdSettingsHandler));
+settingsRouter.get('/firebird/password', asyncHandler(getFirebirdPasswordHandler));
 settingsRouter.put('/firebird', validate(firebirdSettingsSchema), asyncHandler(saveFirebirdSettingsHandler));
 settingsRouter.post('/firebird/test', validate(firebirdSettingsSchema), asyncHandler(testFirebirdSettingsHandler));
 

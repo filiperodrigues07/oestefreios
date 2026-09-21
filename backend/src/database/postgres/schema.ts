@@ -127,6 +127,12 @@ export const osWorkflow = pgTable('os_workflow', {
   responsavelId: uuid('responsavel_id').references(() => users.id, { onDelete: 'set null' }),
   tecnicoId: uuid('tecnico_id').references(() => users.id, { onDelete: 'set null' }),
   dataPrevista: timestamp('data_prevista', { withTimezone: true }),
+  /**
+   * "Finalizar OS" travou a edição só pra esse app — nunca escreve nada de volta no CHERP (o time de
+   * faturamento segue processando por lá). Único sinal de bloqueio que não depende de nenhum campo do
+   * CHERP; ver `assertNaoFinalizada` em os.service.ts.
+   */
+  travadoLocal: boolean('travado_local').notNull().default(false),
   /** Array de { timestamp, evento, usuarioNome } — timeline exibida na tela de detalhe da OS. */
   historico: jsonb('historico').notNull().default([]),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

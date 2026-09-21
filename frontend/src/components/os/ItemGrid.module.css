@@ -135,6 +135,92 @@
   }
 }
 
+/* Barra de adicionar item — no desktop reflui via flex-wrap; no celular, campos empilhados em
+   largura cheia ficam bem mais fáceis de tocar do que deixar o flex-wrap decidir sozinho. */
+@media (max-width: 767px) {
+  .wrapper {
+    border-radius: var(--radius-md);
+  }
+
+  .addControls {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    padding: var(--space-3);
+  }
+
+  .addCodigo,
+  .addSearch {
+    flex: none;
+    flex-basis: auto;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .addQty {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(88px, 1fr);
+    width: 100%;
+    padding-top: var(--space-2);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .addQtyUnidade {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: var(--color-surface);
+  }
+
+  .qtyInput,
+  .priceInput {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .addQtyPreco,
+  .addActions {
+    grid-column: 1 / -1;
+  }
+
+  .addActions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-2);
+  }
+
+  .addActions .confirmButton,
+  .addActions .cancelButton {
+    width: 100%;
+    height: 44px;
+  }
+
+  .cardList {
+    padding: var(--space-2);
+  }
+
+  .itemCard {
+    align-items: flex-start;
+    padding: var(--space-3);
+  }
+
+  .iconButton,
+  .trashButton,
+  .confirmButton,
+  .cancelButton,
+  .editItemButton {
+    width: 44px;
+    height: 44px;
+  }
+
+  .shortcutHint {
+    display: none;
+  }
+}
+
 .right {
   text-align: right;
 }
@@ -226,7 +312,7 @@
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-input);
 }
 
 .complementoTexto {
@@ -246,7 +332,7 @@
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-input);
 }
 
 .priceInput:disabled {
@@ -263,7 +349,7 @@
   border: 1px solid var(--color-border);
   background: var(--color-surface);
   color: var(--color-text-primary);
-  font-size: var(--font-size-md);
+  font-size: var(--font-size-input);
 }
 
 .qtyInput:disabled {
@@ -322,4 +408,15 @@
   padding: var(--space-2) var(--space-3);
   color: var(--color-danger);
   font-size: var(--font-size-sm);
+}
+
+/* Precisa ficar depois das regras base de .addCodigo/.addSearch. Em coluna, os flex-basis
+   desktop de 160/260px viravam altura e criavam o grande espaço vazio no celular. */
+@media (max-width: 767px) {
+  .addCodigo,
+  .addSearch {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0;
+  }
 }

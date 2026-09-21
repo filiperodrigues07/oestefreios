@@ -9,7 +9,7 @@ import type {
   DashboardOperacionalDTO,
   DashboardSerieDTO,
 } from '../dto/dashboard.dto.js';
-import { clienteRepository, osRepository } from '../repositories/index.js';
+import { clienteRepository, equipamentoRepository, osRepository, produtoRepository, servicoRepository } from '../repositories/index.js';
 import type { AuthenticatedUser, Permission } from '../types/auth.types.js';
 import type { OrdemServico, OSPrioridade, OSStatus } from '../types/cherp.types.js';
 
@@ -272,20 +272,29 @@ export async function getOperationalDashboardV2(input: {
 }
 
 export interface DashboardSearchResult {
-  tipo: 'OS' | 'CLIENTE';
+  tipo: 'OS' | 'CLIENTE' | 'VEICULO' | 'PRODUTO' | 'SERVICO';
   id: string;
   titulo: string;
   descricao: string;
 }
 
 /** Busca global limitada: OS por número/cliente/placa e clientes por código ou nome. */
-export async function searchDashboard(termo: string): Promise<DashboardSearchResult[]> {
-  const [ordens, clientes] = await Promise.all([
-    osRepository.buscarParaDashboard(termo),
-    clienteRepository.buscar({ codigo: /^\d+$/.test(termo) ? termo : undefined, descricao: /^\d+$/.test(termo) ? undefined : termo, limit: 5 }),
+export async function searchDashboard(termo: string, permissions: Permission[]): Promise<DashboardSearchResult[]> {
+  const podeVerOS = permissions.includes('OS_VIEW');
+  const podeVerProdutos = permissions.includes('PRODUCT_VIEW') || permissions.includes('PRODUCT_SEARCH');
+  const podeVerServicos = permissions.includes('SERVICE_VIEW') || permissions.includes('SERVICE_SEARCH');
+  const [ordens, clientes, veiculos, produtos, servicos] = await Promise.all([
+    podeVerOS ? osRepository.buscarParaDashboard(termo) : Promise.resolve([]),
+    podeVerOS ? clienteRepository.buscar({ busca: termo, limit: 4 }) : Promise.resolve({ items: [], page: 1, limit: 4, total: 0 }),
+    podeVerOS ? equipamentoRepository.buscar({ descricao: termo, limit: 4 }) : Promise.resolve({ items: [], page: 1, limit: 4, total: 0 }),
+    podeVerProdutos ? produtoRepository.buscar({ busca: termo, limit: 4 }) : Promise.resolve({ items: [], page: 1, limit: 4, total: 0 }),
+    podeVerServicos ? servicoRepository.buscar({ busca: termo, limit: 4 }) : Promise.resolve({ items: [], page: 1, limit: 4, total: 0 }),
   ]);
   return [
     ...ordens.map((os) => ({ tipo: 'OS' as const, id: os.id, titulo: `OS #${String(os.numero).padStart(6, '0')}`, descricao: [os.clienteNome || os.clienteCodigo, os.equipamentoDescricao].filter(Boolean).join(' · ') || 'Ordem de serviço' })),
     ...clientes.items.map((cliente) => ({ tipo: 'CLIENTE' as const, id: cliente.codigo, titulo: cliente.nome, descricao: cliente.documento || `Cliente ${cliente.codigo}` })),
-  ].slice(0, 10);
+    ...veiculos.items.map((veiculo) => ({ tipo: 'VEICULO' as const, id: veiculo.codigo, titulo: veiculo.identificacao || veiculo.descricao, descricao: [veiculo.descricao, veiculo.clienteNome].filter(Boolean).join(' · ') })),
+    ...produtos.items.map((produto) => ({ tipo: 'PRODUTO' as const, id: produto.codigo, titulo: produto.descricao, descricao: `Produto ${produto.codigo} · ${produto.unidade}` })),
+    ...servicos.items.map((servico) => ({ tipo: 'SERVICO' as const, id: servico.codigo, titulo: servico.descricao, descricao: `Serviço ${servico.codigo} · ${servico.unidade}` })),
+  ].slice(0, 20);
 }

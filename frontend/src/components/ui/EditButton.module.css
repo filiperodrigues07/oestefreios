@@ -15,3 +15,12 @@
   background: var(--color-primary-surface);
   color: var(--color-primary-on-surface);
 }
+
+/* No mobile o alvo de toque precisa de 44×44 (guia Apple/Material) — em tabela densa de desktop
+   (mouse, não dedo) o botão compacto de 32px continua, é o cartão do Table.tsx que ganha o botão maior. */
+@media (max-width: 767px) {
+  .button {
+    width: 44px;
+    height: 44px;
+  }
+}

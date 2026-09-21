@@ -1,6 +1,7 @@
 import type { NavItem } from './navItems.js';
 
 const PATHS: Record<NavItem['icon'], string> = {
+  truck: 'M3 6h11v11H3V6Zm11 4h4l3 4v3h-7M5 17a2 2 0 1 0 4 0M16 17a2 2 0 1 0 4 0',
   home: 'M4 11.5 12 5l8 6.5M6 10v9h12v-9',
   clipboard: 'M9 4h6a1 1 0 0 1 1 1v1H8V5a1 1 0 0 1 1-1ZM6 6h12v14H6z',
   box: 'M3 8l9-5 9 5-9 5-9-5Zm0 0v9l9 5m0-9v9m0-9 9-5v9l-9 5',

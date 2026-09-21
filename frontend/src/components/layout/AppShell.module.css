@@ -34,14 +34,14 @@
   border-bottom: 1px solid var(--color-border);
   background: var(--color-sidebar-elevated);
   box-shadow: var(--shadow-sm);
-  padding: var(--space-2) var(--space-4);
+  padding: calc(var(--space-2) + env(safe-area-inset-top)) var(--space-4) var(--space-2);
 }
 
 .mobileMenuButton,
 .mobileProfile {
   display: inline-flex;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   align-items: center;
   justify-content: center;
   overflow: hidden;
@@ -69,15 +69,63 @@
   gap: var(--space-1);
 }
 
+.mobileBrand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-1) var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.mobileBrand img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  border-radius: var(--radius-sm);
+}
+
+.mobileBrand div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mobileBrand strong {
+  overflow: hidden;
+  color: var(--color-text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobileBrand span,
+.mobileNavLabel {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.mobileNavGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.mobileNavLabel {
+  padding: var(--space-2) var(--space-2) var(--space-1);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
 .mobileNavItem {
   display: flex;
   min-height: 44px;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   border-radius: var(--radius-sm);
   color: var(--color-text-secondary);
   font-size: var(--font-size-md);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2);
   text-decoration: none;
 }
 
@@ -88,10 +136,98 @@
 }
 
 .bottomNav {
-  display: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-nav);
+  display: flex;
+  min-height: var(--bottom-nav-height);
+  border-top: 1px solid var(--color-border);
+  background: var(--color-sidebar-elevated);
+  box-shadow: var(--shadow-sm);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.bottomNavItem {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 6px 2px;
+  cursor: pointer;
+  text-decoration: none;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.bottomNavItem span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bottomNavItemActive {
+  color: var(--color-primary);
+}
+
+.mobileSearchOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-nav) + 10);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-background);
+}
+
+.mobileSearchHeader {
+  display: flex;
+  min-height: 58px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+  padding: calc(var(--space-2) + env(safe-area-inset-top)) var(--space-4) var(--space-2);
+  font-weight: 600;
+}
+
+.mobileSearchHeader button {
+  display: flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.mobileSearchBody {
+  padding: var(--space-4);
+}
+
+@media (max-width: 767px) {
+  .main {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 80px);
+  }
 }
 
 @media (min-width: 768px) {
+  .bottomNav,
+  .mobileSearchOverlay {
+    display: none;
+  }
+
   .main {
     --app-header-height: 64px;
   }
@@ -185,7 +321,13 @@
     gap: var(--space-4);
   }
 
-  .sidebarFooter { display: flex; flex-shrink: 0; flex-direction: column; gap: var(--space-2); margin-top: auto; }
+  .sidebarFooter {
+    display: flex;
+    flex-shrink: 0;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-top: auto;
+  }
 
   .navGroup {
     display: flex;
@@ -213,7 +355,9 @@
     font-size: var(--font-size-md);
     padding: var(--space-2) var(--space-3);
     text-decoration: none;
-    transition: background-color 0.15s ease, color 0.15s ease;
+    transition:
+      background-color 0.15s ease,
+      color 0.15s ease;
   }
 
   .sidebarItem > svg {
@@ -257,12 +401,68 @@
     padding: var(--space-3) var(--space-6);
   }
 
-  .desktopSearch { position: absolute; left: 50%; transform: translateX(-50%); }
+  .desktopSearch {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
 
-  .headerActions { position: absolute; right: var(--space-6); display: flex; align-items: center; gap: var(--space-2); }
-  .notificationWrapper { position: relative; }
-  .notificationMenu { position: absolute; top: calc(100% + 8px); right: 0; display: flex; width: 260px; flex-direction: column; gap: 4px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface-elevated); box-shadow: var(--shadow-lg); padding: 10px; z-index: calc(var(--z-nav) + 3); }
-  .notificationMenu > strong { padding: 4px 6px 8px; font-size: 13px; }.notificationMenu p { margin: 4px 6px; color: var(--color-text-secondary); font-size: 12px; }.notificationMenu button { display: flex; flex-direction: column; gap: 3px; border: 0; border-radius: 7px; background: transparent; color: var(--color-text-primary); padding: 8px 6px; text-align: left; cursor: pointer; }.notificationMenu button:hover { background: var(--color-neutral-surface); }.notificationMenu button b { font-size: 12px; }.notificationMenu button span { color: var(--color-text-secondary); font-size: 11px; }
+  .headerActions {
+    position: absolute;
+    right: var(--space-6);
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .notificationWrapper {
+    position: relative;
+  }
+  .notificationMenu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    display: flex;
+    width: 260px;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    background: var(--color-surface-elevated);
+    box-shadow: var(--shadow-lg);
+    padding: 10px;
+    z-index: calc(var(--z-nav) + 3);
+  }
+  .notificationMenu > strong {
+    padding: 4px 6px 8px;
+    font-size: 13px;
+  }
+  .notificationMenu p {
+    margin: 4px 6px;
+    color: var(--color-text-secondary);
+    font-size: 12px;
+  }
+  .notificationMenu button {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--color-text-primary);
+    padding: 8px 6px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .notificationMenu button:hover {
+    background: var(--color-neutral-surface);
+  }
+  .notificationMenu button b {
+    font-size: 12px;
+  }
+  .notificationMenu button span {
+    color: var(--color-text-secondary);
+    font-size: 11px;
+  }
 
   .notificationMenu {
     width: min(360px, calc(100vw - 32px));
@@ -301,7 +501,9 @@
     padding: 3px 2px !important;
   }
 
-  .markAllRead:hover { text-decoration: underline; }
+  .markAllRead:hover {
+    text-decoration: underline;
+  }
 
   .notificationItem {
     gap: 4px !important;
@@ -333,8 +535,20 @@
     font-size: 20px;
   }
 
-  .headerIcon:hover { background: var(--color-neutral-surface); color: var(--color-text-primary); }
-  .headerIcon i { position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border: 1px solid var(--color-background); border-radius: 50%; background: var(--color-danger); }
+  .headerIcon:hover {
+    background: var(--color-neutral-surface);
+    color: var(--color-text-primary);
+  }
+  .headerIcon i {
+    position: absolute;
+    top: 7px;
+    right: 7px;
+    width: 7px;
+    height: 7px;
+    border: 1px solid var(--color-background);
+    border-radius: 50%;
+    background: var(--color-danger);
+  }
 
   .desktopContext {
     color: var(--color-text-secondary);
@@ -372,7 +586,6 @@
     color: var(--color-text-secondary);
     font-size: var(--font-size-xs);
   }
-
 }
 
 @media (max-width: 767px) {

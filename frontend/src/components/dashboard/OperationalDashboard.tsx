@@ -7,7 +7,7 @@ import styles from './AdminDashboard.module.css';
 
 /** Dashboard operacional (seção 19 do briefing) — só "Minhas OS", nunca valor financeiro. */
 export function OperationalDashboard() {
-  const { data, isLoading, isError, refetch } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['dashboard-me'],
     queryFn: getOperationalDashboard,
   });
@@ -25,7 +25,7 @@ export function OperationalDashboard() {
   }
 
   if (isError || !data) {
-    return <ErrorState action={<Button onClick={() => refetch()}>Tentar de novo</Button>} />;
+    return <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar de novo</Button>} />;
   }
 
   return (

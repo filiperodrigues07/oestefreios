@@ -52,8 +52,11 @@
 }
 
 @media (max-width: 767px) {
+  .desktopCreate {
+    display: none;
+  }
   .page {
-    padding: var(--space-4);
+    padding: var(--space-3);
   }
 
   .toolbar {
@@ -62,6 +65,8 @@
   }
 
   .toolbar > *:first-child {
+    flex: 0 0 auto;
+    width: 100%;
     min-width: 0;
   }
 }

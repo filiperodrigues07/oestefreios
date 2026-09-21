@@ -19,7 +19,7 @@ export async function getOperationalDashboardV2Handler(req: Request, res: Respon
 
 export async function searchDashboardHandler(req: Request, res: Response) {
   const { q } = req.query as unknown as { q: string };
-  success(res, await dashboardService.searchDashboard(q));
+  success(res, await dashboardService.searchDashboard(q, req.user!.permissions));
 }
 
 export async function getOperationalDashboardHandler(req: Request, res: Response) {

@@ -20,6 +20,7 @@ const EQUIPAMENTO_SELECT = `
   E.CODIGO AS CODIGO,
   CAST(E.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
   C.CODIGO AS CLIENTE_CODIGO,
+  CAST(COALESCE(NULLIF(TRIM(C.FANTASIA), ''), C.RAZAOSOCIAL) AS VARCHAR(100) CHARACTER SET OCTETS) AS CLIENTE_NOME,
   CAST(E.IDENTIFICACAO AS VARCHAR(100) CHARACTER SET OCTETS) AS IDENTIFICACAO,
   CAST(E.MARCA AS VARCHAR(100) CHARACTER SET OCTETS) AS MARCA,
   E.ANOFAB AS ANOFAB,
@@ -47,13 +48,13 @@ const QUERY_BUSCAR_POR_CLIENTE: string | null = `
 const QUERY_BUSCAR_PAGINADO: string | null = `
   SELECT FIRST ? SKIP ? ${EQUIPAMENTO_SELECT}
   WHERE E.ATIVO = 1
-    AND C.CODIGO = COALESCE(?, C.CODIGO)
+    AND COALESCE(C.CODIGO, '') = COALESCE(?, C.CODIGO, '')
     AND E.CODIGO = COALESCE(?, E.CODIGO)
     AND (
       UPPER(E.DESCRICAO) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS))
       OR REPLACE(UPPER(E.IDENTIFICACAO), '-', '') LIKE COALESCE(?, CAST('%' AS VARCHAR(20) CHARACTER SET OCTETS))
     )
-  ORDER BY E.DESCRICAO
+  ORDER BY E.DESCRICAO, E.CODIGO
 `;
 
 const QUERY_CONTAR_TOTAL: string | null = `
@@ -61,7 +62,7 @@ const QUERY_CONTAR_TOTAL: string | null = `
   FROM EQUIPAMENTOS E
   LEFT JOIN CLIFOR C ON C.CHAVE = E.CHAVECLIFOR
   WHERE E.ATIVO = 1
-    AND C.CODIGO = COALESCE(?, C.CODIGO)
+    AND COALESCE(C.CODIGO, '') = COALESCE(?, C.CODIGO, '')
     AND E.CODIGO = COALESCE(?, E.CODIGO)
     AND (
       UPPER(E.DESCRICAO) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS))
@@ -73,7 +74,8 @@ function mapRowToEquipamento(row: Record<string, unknown>): Equipamento {
   return {
     codigo: String(row.CODIGO ?? row.codigo),
     descricao: String(row.DESCRICAO ?? row.descricao),
-    clienteCodigo: String(row.CLIENTE_CODIGO ?? row.clienteCodigo),
+    clienteCodigo: String(row.CLIENTE_CODIGO ?? row.clienteCodigo ?? ''),
+    clienteNome: row.CLIENTE_NOME ? String(row.CLIENTE_NOME) : undefined,
     identificacao: row.IDENTIFICACAO ? String(row.IDENTIFICACAO) : undefined,
     marca: row.MARCA ? String(row.MARCA) : undefined,
     anoFabricacao: row.ANOFAB ? String(row.ANOFAB) : undefined,
