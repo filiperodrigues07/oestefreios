@@ -211,10 +211,13 @@ export interface PaginatedResult<T> {
 }
 
 export interface SearchQuery {
+  tipoCodigo?: number;
+  tipoModo?: 'somente' | 'exceto';
   codigo?: string;
   descricao?: string;
   /** Só usado por equipamentos: filtra pelo cliente já selecionado no fluxo de criação de OS. */
   clienteCodigo?: string;
+  anoFabricacao?: number;
   /** Só usado por clientes. */
   tipoPessoa?: TipoPessoa;
   uf?: string;
@@ -222,6 +225,6 @@ export interface SearchQuery {
   busca?: string;
   page?: number;
   limit?: number;
-  sortBy?: 'codigo' | 'descricao' | 'nome' | 'documento' | 'telefone' | 'cidade' | 'categoria' | 'tipo';
+  sortBy?: 'codigo' | 'descricao' | 'nome' | 'documento' | 'telefone' | 'cidade' | 'categoria' | 'tipo' | 'identificacao' | 'ano' | 'cliente';
   sortOrder?: 'asc' | 'desc';
 }

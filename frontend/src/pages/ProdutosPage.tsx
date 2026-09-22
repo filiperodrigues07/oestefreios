@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
-import { listarProdutosCatalogo } from '../api/produtos.api.js';
+import { listarProdutosCatalogo, listarTiposProduto } from '../api/produtos.api.js';
 import {
   baixarRelatorioCatalogoProdutos,
   baixarRelatorioCatalogoServicos,
@@ -12,6 +13,9 @@ import {
   MobileRecordCard,
   Modal,
   PageHeader,
+  ExportButtons,
+  ResponsiveFilters,
+  Select,
   Tabs,
   type TableColumn,
 } from '../components/ui/index.js';
@@ -25,6 +29,13 @@ function formatMoney(value?: number): string | undefined {
   return value !== undefined ? `R$ ${value.toFixed(2)}` : undefined;
 }
 
+function formatSaldo(value?: number): string {
+  return value === undefined ? '—' : value.toLocaleString('pt-BR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
 /** Catálogo do CHERP: toda filtragem, ordenação e visibilidade financeira continuam delegadas às fontes existentes. */
 export function ProdutosPage() {
   const [searchParams] = useSearchParams();
@@ -33,6 +44,13 @@ export function ProdutosPage() {
   const [tab, setTab] = useState<Tab>(initialTab);
   const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoDTO | null>(null);
   const [servicoSelecionado, setServicoSelecionado] = useState<ServicoDTO | null>(null);
+  const [buscaProdutos, setBuscaProdutos] = useState(initialTab === 'produtos' ? initialSearch : '');
+  const [buscaServicos, setBuscaServicos] = useState(initialTab === 'servicos' ? initialSearch : '');
+  const [tipoCodigo, setTipoCodigo] = useState('');
+  const [tipoModo, setTipoModo] = useState<'somente' | 'exceto'>('somente');
+  const { data: tipos = [] } = useQuery({ queryKey: ['tipos-produto'], queryFn: listarTiposProduto });
+  const filtroTipo = tipoCodigo ? { tipoCodigo: Number(tipoCodigo), tipoModo } : {};
+  const filtroRelatorioProdutos = { busca: buscaProdutos || undefined, ...filtroTipo };
   const podeVerFinanceiro = hasPermission('FINANCIAL_VIEW');
 
   const colunasProdutos: TableColumn<ProdutoDTO>[] = [
@@ -80,7 +98,7 @@ export function ProdutosPage() {
           p.disponivel < p.estoqueMinimo;
         return (
           <span className={abaixoDoMinimo ? styles.stockLow : undefined}>
-            {p.disponivel ?? '—'}
+            {formatSaldo(p.disponivel)}
           </span>
         );
       },
@@ -124,6 +142,14 @@ export function ProdutosPage() {
       <PageHeader
         title="Produtos e Serviços"
         description="Consulte o catálogo integrado e acesse os detalhes de produtos e serviços."
+        actions={<ExportButtons
+          onExportarExcel={() => tab === 'produtos'
+            ? baixarRelatorioCatalogoProdutos(filtroRelatorioProdutos, 'excel')
+            : baixarRelatorioCatalogoServicos({ busca: buscaServicos || undefined }, 'excel')}
+          onExportarPdf={() => tab === 'produtos'
+            ? baixarRelatorioCatalogoProdutos(filtroRelatorioProdutos, 'pdf')
+            : baixarRelatorioCatalogoServicos({ busca: buscaServicos || undefined }, 'pdf')}
+        />}
       />
 
       <Tabs
@@ -140,19 +166,29 @@ export function ProdutosPage() {
           <CatalogTable<ProdutoDTO>
             key="produtos"
             queryKey="produtos-catalogo"
-            initialSearch={initialTab === 'produtos' ? initialSearch : ''}
+            initialSearch={buscaProdutos}
             fetchFn={listarProdutosCatalogo}
             columns={colunasProdutos}
             onSelect={setProdutoSelecionado}
             emptyLabel="Nenhum produto encontrado."
             searchPlaceholder="Buscar por código, descrição, tipo ou grupo"
             columnPrefsKey="produtos"
-            onExportarExcel={(busca) =>
-              baixarRelatorioCatalogoProdutos({ busca: busca || undefined }, 'excel')
-            }
-            onExportarPdf={(busca) =>
-              baixarRelatorioCatalogoProdutos({ busca: busca || undefined }, 'pdf')
-            }
+            onFilterChange={setBuscaProdutos}
+            extraParams={filtroTipo}
+            filters={<ResponsiveFilters activeCount={tipoCodigo ? 1 : 0} onClear={() => { setTipoCodigo(''); setTipoModo('somente'); }}>
+              <Select
+                label="Tipo de produto"
+                value={tipoCodigo}
+                onChange={(event) => setTipoCodigo(event.target.value)}
+                options={[{ value: '', label: 'Todos os tipos' }, ...tipos.map((tipo) => ({ value: String(tipo.codigo), label: tipo.descricao }))]}
+              />
+              <Select
+                label="Filtro"
+                value={tipoModo}
+                onChange={(event) => setTipoModo(event.target.value as 'somente' | 'exceto')}
+                options={[{ value: 'somente', label: 'Somente este tipo' }, { value: 'exceto', label: 'Tudo exceto este tipo' }]}
+              />
+            </ResponsiveFilters>}
             renderMobileCard={(produto) => (
               <MobileRecordCard
                 eyebrow={produto.codigo}
@@ -175,7 +211,7 @@ export function ProdutosPage() {
                             : undefined
                         }
                       >
-                        {produto.disponivel ?? '—'}
+                        {formatSaldo(produto.disponivel)}
                       </span>
                     ),
                     mono: true,
@@ -197,19 +233,14 @@ export function ProdutosPage() {
           <CatalogTable<ServicoDTO>
             key="servicos"
             queryKey="servicos-catalogo"
-            initialSearch={initialTab === 'servicos' ? initialSearch : ''}
+            initialSearch={buscaServicos}
             fetchFn={listarServicosCatalogo}
             columns={colunasServicos}
             onSelect={setServicoSelecionado}
             emptyLabel="Nenhum serviço encontrado."
             searchPlaceholder="Buscar por código, descrição, tipo ou grupo"
             columnPrefsKey="servicos"
-            onExportarExcel={(busca) =>
-              baixarRelatorioCatalogoServicos({ busca: busca || undefined }, 'excel')
-            }
-            onExportarPdf={(busca) =>
-              baixarRelatorioCatalogoServicos({ busca: busca || undefined }, 'pdf')
-            }
+            onFilterChange={setBuscaServicos}
             renderMobileCard={(servico) => (
               <MobileRecordCard
                 eyebrow={servico.codigo}
@@ -248,7 +279,7 @@ export function ProdutosPage() {
               <DetailRow label="Grupo Produto" value={produtoSelecionado.categoria} />
             )}
             {produtoSelecionado.disponivel !== undefined && (
-              <DetailRow label="Disponível" value={String(produtoSelecionado.disponivel)} />
+              <DetailRow label="Disponível" value={formatSaldo(produtoSelecionado.disponivel)} />
             )}
             {podeVerFinanceiro && produtoSelecionado.precoUnitario !== undefined && (
               <DetailRow

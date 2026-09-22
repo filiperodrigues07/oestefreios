@@ -5,6 +5,10 @@ import type { Permission } from '../types/auth.types.js';
 import type { PaginatedResult, SearchQuery } from '../types/cherp.types.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 
+export function listarTiposProdutos(): Promise<{ codigo: number; descricao: string }[]> {
+  return produtoRepository.listarTipos();
+}
+
 export async function searchProdutos(
   query: SearchQuery,
   permissions: Permission[],

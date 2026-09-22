@@ -28,6 +28,15 @@ export function listarProdutosCatalogo(params: CatalogParams): Promise<Paginated
   return apiFetch<PaginatedProdutos>(`/produtos?${buildCatalogParams(params).toString()}`);
 }
 
+export interface TipoProduto {
+  codigo: number;
+  descricao: string;
+}
+
+export function listarTiposProduto(): Promise<TipoProduto[]> {
+  return apiFetch<TipoProduto[]>('/produtos/tipos');
+}
+
 /** Busca exata por código (Enter no campo Código do lançamento de itens da OS) — 404 se não existir. */
 export function getProdutoByCodigo(codigo: string): Promise<ProdutoDTO> {
   return apiFetch<ProdutoDTO>(`/produtos/${encodeURIComponent(codigo)}`);

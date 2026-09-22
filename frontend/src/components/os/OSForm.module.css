@@ -101,6 +101,7 @@
   display: inline-flex;
   min-height: 35px;
   align-items: center;
+  gap: 6px;
   border-radius: 7px 7px 0 0;
   color: var(--color-text-secondary);
   font-size: 12px;
@@ -111,13 +112,18 @@
 }
 
 .contextBar {
-  margin: 10px 0 0;
-  color: var(--color-text-secondary);
-  font-size: 13px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 14px;
 }
+.contextBar > span { display: flex; min-width: 0; flex: 1 1 220px; flex-direction: column; gap: 3px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface-elevated); padding: 10px 14px; }
+.contextBar small { color: var(--color-text-secondary); font-size: 11px; }
 .contextBar strong {
   color: var(--color-text-primary);
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .statusSection {
@@ -221,10 +227,8 @@
     padding: var(--space-3);
   }
   .contextBar {
-    display: -webkit-box;
-    overflow: hidden;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 2;
-    line-height: 1.5;
+    gap: 8px;
+    margin: 12px 0;
   }
+  .contextBar > span { flex-basis: 100%; }
 }

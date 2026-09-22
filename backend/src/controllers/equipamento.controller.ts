@@ -8,8 +8,11 @@ export async function searchEquipamentosHandler(req: Request, res: Response) {
     codigo?: string;
     descricao?: string;
     clienteCodigo?: string;
+    anoFabricacao?: number;
     page: number;
     limit: number;
+    sortBy?: 'identificacao' | 'descricao' | 'ano' | 'cliente';
+    sortOrder?: 'asc' | 'desc';
   };
   const result = await equipamentoService.searchEquipamentos(query);
   success(res, result);

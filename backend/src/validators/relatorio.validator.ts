@@ -29,6 +29,8 @@ export const relatorioClientesQuerySchema = z.object({
 
 export const relatorioCatalogoQuerySchema = z.object({
   busca: z.string().trim().min(1).optional(),
+  tipoCodigo: z.coerce.number().int().nonnegative().optional(),
+  tipoModo: z.enum(['somente', 'exceto']).optional(),
   formato: formatoSchema,
 });
 

@@ -8,15 +8,23 @@ interface PaginatedEquipamentos {
   total: number;
 }
 
+export type EquipamentoSortBy = 'identificacao' | 'descricao' | 'ano' | 'cliente';
+
 export function listarEquipamentos(
   busca: string,
   page: number,
   limit: number,
   clienteCodigo?: string,
+  sortBy?: EquipamentoSortBy,
+  sortOrder: 'asc' | 'desc' = 'asc',
+  anoFabricacao?: number,
 ): Promise<PaginatedEquipamentos> {
   const params = new URLSearchParams({ page: String(page), limit: String(limit) });
   if (busca.trim()) params.set('descricao', busca.trim());
   if (clienteCodigo) params.set('clienteCodigo', clienteCodigo);
+  if (anoFabricacao) params.set('anoFabricacao', String(anoFabricacao));
+  if (sortBy) params.set('sortBy', sortBy);
+  params.set('sortOrder', sortOrder);
   return apiFetch<PaginatedEquipamentos>(`/equipamentos?${params.toString()}`);
 }
 

@@ -29,6 +29,7 @@
   min-width: 260px;
   flex: 1 1 260px;
 }
+.searchForm > button[type='submit'] { min-height: 44px; }
 
 .pagination {
   margin-top: var(--space-4);

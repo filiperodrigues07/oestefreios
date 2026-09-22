@@ -68,6 +68,9 @@
   display: none;
 }
 
+.desktopLabel, .mobileLabel { align-items: center; gap: 6px; }
+.desktopLabel { display: inline-flex; }
+
 @media (max-width: 767px) {
   .tablist {
     position: sticky;
@@ -90,6 +93,6 @@
     display: none;
   }
   .mobileLabel {
-    display: inline;
+    display: inline-flex;
   }
 }

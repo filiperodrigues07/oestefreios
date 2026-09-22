@@ -78,6 +78,9 @@ export async function exportarExcel(relatorio: RelatorioResultado, branding: Rel
       if (col.tipo === 'moeda' && typeof valor === 'number') {
         cell.value = valor;
         cell.numFmt = '"R$" #,##0.00';
+      } else if (col.tipo === 'decimal' && typeof valor === 'number') {
+        cell.value = valor;
+        cell.numFmt = '#,##0.00';
       } else if (col.tipo === 'data' && valor) {
         cell.value = new Date(valor as string);
         cell.numFmt = 'dd/mm/yyyy';

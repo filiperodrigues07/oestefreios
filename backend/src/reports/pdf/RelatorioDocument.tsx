@@ -40,6 +40,9 @@ function formatarCelula(valor: RelatorioValor | undefined, tipo?: string): strin
   if (tipo === 'moeda' && typeof valor === 'number') {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
   }
+  if (tipo === 'decimal' && typeof valor === 'number') {
+    return valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
   if (tipo === 'data') {
     return new Date(valor as string).toLocaleDateString('pt-BR');
   }

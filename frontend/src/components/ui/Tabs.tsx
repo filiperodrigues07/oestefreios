@@ -3,8 +3,8 @@ import styles from './Tabs.module.css';
 
 export interface TabItem {
   key: string;
-  label: string;
-  mobileLabel?: string;
+  label: ReactNode;
+  mobileLabel?: ReactNode;
 }
 
 interface TabsProps {

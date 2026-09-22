@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { listarEquipamentos } from '../api/equipamentos.api.js';
+import { listarEquipamentos, type EquipamentoSortBy } from '../api/equipamentos.api.js';
 import { ClienteSearch } from '../components/search/ClienteSearch.js';
 import { VeiculoFormModal } from '../components/veiculos/VeiculoFormModal.js';
 import {
@@ -14,7 +14,9 @@ import {
   MobileRecordCard,
   MobileFab,
   Pagination,
+  ResponsiveFilters,
   SearchInput,
+  Select,
   Skeleton,
   Table,
   type TableColumn,
@@ -30,24 +32,35 @@ export function VeiculosPage() {
   const [busca, setBusca] = useState(initialBusca);
   const [buscaAtiva, setBuscaAtiva] = useState(initialBusca);
   const [cliente, setCliente] = useState<ClienteDTO | null>(null);
+  const [anoFabricacao, setAnoFabricacao] = useState('');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
+  const [sortBy, setSortBy] = useState<EquipamentoSortBy>('descricao');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [modal, setModal] = useState<{ veiculo?: EquipamentoDTO } | null>(null);
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['equipamentos', 'lista', buscaAtiva, cliente?.codigo, page, limit],
-    queryFn: () => listarEquipamentos(buscaAtiva, page, limit, cliente?.codigo),
+    queryKey: ['equipamentos', 'lista', buscaAtiva, cliente?.codigo, anoFabricacao, page, limit, sortBy, sortOrder],
+    queryFn: () => listarEquipamentos(buscaAtiva, page, limit, cliente?.codigo, sortBy, sortOrder, anoFabricacao ? Number(anoFabricacao) : undefined),
   });
+  function handleSortChange(key: string) {
+    if (!['identificacao', 'descricao', 'ano', 'cliente'].includes(key)) return;
+    if (key === sortBy) setSortOrder((value) => value === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(key as EquipamentoSortBy); setSortOrder('asc'); }
+    setPage(1);
+  }
   const columns: TableColumn<EquipamentoDTO>[] = [
-    { key: 'identificacao', header: 'Placa', mono: true, render: (v) => v.identificacao || '—' },
-    { key: 'descricao', header: 'Marca / Modelo', render: (v) => v.descricao },
+    { key: 'identificacao', header: 'Placa', mono: true, sortable: true, render: (v) => v.identificacao || '—' },
+    { key: 'descricao', header: 'Marca / Modelo', sortable: true, render: (v) => v.descricao },
     {
       key: 'ano',
       header: 'Ano fab. / mod.',
+      sortable: true,
       render: (v) => `${v.anoFabricacao || '—'} / ${v.anoModelo || '—'}`,
     },
     {
       key: 'cliente',
       header: 'Cliente',
+      sortable: true,
       render: (v) =>
         v.clienteNome
           ? `${v.clienteNome} (${v.clienteCodigo})`
@@ -61,10 +74,13 @@ export function VeiculosPage() {
         hasPermission('OS_EDIT') ? (
           <Button
             variant="secondary"
+            size="sm"
+            className={styles.editButton}
             onClick={() => setModal({ veiculo: v })}
             aria-label={`Editar veículo ${v.identificacao || v.codigo}`}
+            title={`Editar veículo ${v.identificacao || v.codigo}`}
           >
-            Editar
+            <ActionIcon name="edit" />
           </Button>
         ) : null,
     },
@@ -86,6 +102,7 @@ export function VeiculosPage() {
           ) : undefined
         }
       />
+      {data && !isLoading && !isError && <p className={styles.total}><strong>{data.total.toLocaleString('pt-BR')}</strong> {data.total === 1 ? 'registro' : 'registros'}</p>}
       <form
         className={styles.searchForm}
         onSubmit={(event) => {
@@ -100,37 +117,29 @@ export function VeiculosPage() {
           value={busca}
           onChange={(event) => setBusca(event.target.value)}
         />
+        <ResponsiveFilters activeCount={Number(Boolean(cliente)) + Number(Boolean(anoFabricacao))} onClear={() => { setCliente(null); setAnoFabricacao(''); setPage(1); }}>
+          <div className={styles.clientFilter}>
+            {cliente ? (
+              <>
+                <span>Cliente: <strong>{cliente.nome}</strong></span>
+                <Button type="button" variant="secondary" onClick={() => { setCliente(null); setPage(1); }}>Limpar cliente</Button>
+              </>
+            ) : (
+              <ClienteSearch label="Filtrar por cliente" onSelect={(value) => { setCliente(value); setPage(1); }} />
+            )}
+          </div>
+          <Select
+            label="Ano de fabricação"
+            value={anoFabricacao}
+            onChange={(event) => { setAnoFabricacao(event.target.value); setPage(1); }}
+            options={[{ value: '', label: 'Todos' }, ...Array.from({ length: new Date().getFullYear() - 1969 }, (_, index) => { const year = new Date().getFullYear() - index; return { value: String(year), label: String(year) }; })]}
+          />
+        </ResponsiveFilters>
         <Button type="submit" variant="secondary">
           <ActionIcon name="search" />
           Buscar
         </Button>
       </form>
-      <div className={styles.clientFilter}>
-        {cliente ? (
-          <>
-            <span>
-              Cliente: <strong>{cliente.nome}</strong>
-            </span>
-            <Button
-              variant="secondary"
-              onClick={() => {
-                setCliente(null);
-                setPage(1);
-              }}
-            >
-              Todos os clientes
-            </Button>
-          </>
-        ) : (
-          <ClienteSearch
-            label="Filtrar por cliente"
-            onSelect={(value) => {
-              setCliente(value);
-              setPage(1);
-            }}
-          />
-        )}
-      </div>
       {isLoading && (
         <Card>
           <Skeleton height={200} />
@@ -144,9 +153,6 @@ export function VeiculosPage() {
       )}
       {!isLoading && !isError && data && (
         <>
-          <p className={styles.total}>
-            {data.total.toLocaleString('pt-BR')} {data.total === 1 ? 'veículo' : 'veículos'}
-          </p>
           {data.items.length === 0 ? (
             <EmptyState title="Nenhum veículo encontrado" />
           ) : (
@@ -155,6 +161,9 @@ export function VeiculosPage() {
                 columns={columns}
                 data={data.items}
                 rowKey={(v) => v.codigo}
+                sortBy={sortBy}
+                sortOrder={sortOrder}
+                onSortChange={handleSortChange}
                 columnPrefsKey="veiculos"
                 renderMobileCard={(veiculo) => (
                   <MobileRecordCard
@@ -167,8 +176,8 @@ export function VeiculosPage() {
                     ]}
                     actions={
                       hasPermission('OS_EDIT') ? (
-                        <Button variant="secondary" size="sm" onClick={() => setModal({ veiculo })}>
-                          Editar
+                        <Button variant="secondary" size="sm" className={styles.editButton} onClick={() => setModal({ veiculo })} aria-label={`Editar veículo ${veiculo.identificacao || veiculo.codigo}`} title={`Editar veículo ${veiculo.identificacao || veiculo.codigo}`}>
+                          <ActionIcon name="edit" />
                         </Button>
                       ) : undefined
                     }

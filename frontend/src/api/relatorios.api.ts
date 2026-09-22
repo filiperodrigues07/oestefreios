@@ -3,7 +3,7 @@ import { apiFetch, apiFetchBlob, salvarBlobComoArquivo } from './httpClient.js';
 export interface RelatorioColuna {
   key: string;
   label: string;
-  tipo?: 'texto' | 'numero' | 'moeda' | 'data';
+  tipo?: 'texto' | 'numero' | 'decimal' | 'moeda' | 'data';
   alinhamento?: 'left' | 'right';
 }
 
@@ -41,6 +41,8 @@ export interface RelatorioProdutosServicosFiltro {
 
 export interface RelatorioCatalogoFiltro {
   busca?: string;
+  tipoCodigo?: number;
+  tipoModo?: 'somente' | 'exceto';
 }
 
 function paramsOS(filtro: RelatorioOSFiltro, formato?: string): string {
@@ -57,6 +59,10 @@ function paramsOS(filtro: RelatorioOSFiltro, formato?: string): string {
 function paramsCatalogo(filtro: RelatorioCatalogoFiltro, formato?: string): string {
   const usp = new URLSearchParams();
   if (filtro.busca) usp.set('busca', filtro.busca);
+  if (filtro.tipoCodigo !== undefined) {
+    usp.set('tipoCodigo', String(filtro.tipoCodigo));
+    usp.set('tipoModo', filtro.tipoModo ?? 'somente');
+  }
   if (formato) usp.set('formato', formato);
   return usp.toString();
 }

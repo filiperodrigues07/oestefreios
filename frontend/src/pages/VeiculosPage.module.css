@@ -4,27 +4,32 @@
   padding: var(--space-6);
 }
 
-.searchForm,
-.clientFilter {
+.searchForm {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-3);
   margin-bottom: var(--space-4);
 }
 
-.searchForm > :first-child,
-.clientFilter > :first-child {
-  flex: 1;
-  min-width: 0;
-}
+.searchForm > :first-child { flex: 1 1 260px; min-width: 260px; }
+.searchForm > button[type='submit'] { min-height: 44px; }
+.clientFilter { display: flex; flex: 0 1 320px; min-width: 230px; align-items: flex-end; gap: var(--space-2); }
+.clientFilter > :first-child { flex: 1; min-width: 0; }
+.clientFilter > span { align-self: center; overflow: hidden; color: var(--color-text-secondary); font-size: var(--font-size-sm); text-overflow: ellipsis; white-space: nowrap; }
+.searchForm select { min-width: 140px; }
 
 .total {
+  margin: calc(var(--space-3) * -1) 0 var(--space-4);
   color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
+.total strong { color: var(--color-text-primary); font-family: var(--font-mono); font-variant-numeric: tabular-nums; margin-right: var(--space-1); }
 .pagination {
   margin-top: var(--space-4);
 }
+
+.editButton { width: 34px; min-width: 34px; height: 34px; padding: 0; }
 
 @media (max-width: 767px) {
   .desktopCreate {
@@ -33,14 +38,15 @@
   .page {
     padding: var(--space-3);
   }
-  .searchForm,
-  .clientFilter {
+  .searchForm {
     flex-direction: column;
     align-items: stretch;
   }
-  .searchForm > :first-child,
-  .clientFilter > :first-child {
+  .searchForm > :first-child {
     flex: 0 0 auto;
     width: 100%;
+    min-width: 0;
   }
+  .clientFilter { width: 100%; min-width: 0; flex: 0 0 auto; }
+  .total { margin: 0 0 var(--space-3); }
 }

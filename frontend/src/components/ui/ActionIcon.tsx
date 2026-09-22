@@ -1,5 +1,5 @@
 interface ActionIconProps {
-  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'edit' | 'delete';
+  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'edit' | 'delete' | 'save' | 'ready' | 'photo';
   size?: number;
 }
 
@@ -16,5 +16,8 @@ export function ActionIcon({ name, size = 16 }: ActionIconProps) {
   if (name === 'mail') return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>;
   if (name === 'edit') return <svg {...common}><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>;
   if (name === 'delete') return <svg {...common}><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6" /></svg>;
+  if (name === 'save') return <svg {...common}><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-7h8v7" /></svg>;
+  if (name === 'ready') return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></svg>;
+  if (name === 'photo') return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m4 17 5-5 3 3 3-4 5 6" /></svg>;
   return <svg {...common}><path d="M20 11a8 8 0 1 0 2 5.3" /><path d="M20 4v7h-7" /></svg>;
 }

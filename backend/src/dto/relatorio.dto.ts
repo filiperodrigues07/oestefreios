@@ -2,7 +2,7 @@
 export interface RelatorioColuna {
   key: string;
   label: string;
-  tipo?: 'texto' | 'numero' | 'moeda' | 'data';
+  tipo?: 'texto' | 'numero' | 'decimal' | 'moeda' | 'data';
   alinhamento?: 'left' | 'right';
 }
 

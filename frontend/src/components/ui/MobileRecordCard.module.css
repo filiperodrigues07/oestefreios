@@ -44,14 +44,14 @@
   flex-direction: column;
   gap: 3px;
 }
-.fields span {
+.fields > div > span {
   color: var(--color-text-secondary);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.fields b {
+.fields > div > b {
   overflow: hidden;
   color: var(--color-text-primary);
   font-size: var(--font-size-xs);

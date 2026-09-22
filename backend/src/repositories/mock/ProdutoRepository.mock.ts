@@ -24,6 +24,9 @@ const PRODUTOS: Produto[] = [
 ];
 
 export class ProdutoRepositoryMock implements IProdutoRepository {
+  async listarTipos(): Promise<{ codigo: number; descricao: string }[]> {
+    return [];
+  }
   async buscarPorCodigo(codigo: string): Promise<Produto | null> {
     return PRODUTOS.find((p) => p.codigo === codigo) ?? null;
   }

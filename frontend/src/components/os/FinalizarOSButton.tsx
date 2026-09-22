@@ -17,7 +17,7 @@ export function FinalizarOSButton({ onConfirm, loading }: FinalizarOSButtonProps
   return (
     <>
       <Button variant="primary" size="sm" onClick={() => setConfirmando(true)}>
-        <ActionIcon name="update" />
+        <ActionIcon name="ready" />
         Marcar como pronta
       </Button>
 

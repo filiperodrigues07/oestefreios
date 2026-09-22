@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { CatalogParams, CatalogSortBy } from '../../api/catalog.types.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import {
@@ -35,6 +35,9 @@ interface CatalogTableProps<T extends CatalogItemBase> {
   onExportarPdf?: (busca: string) => Promise<void>;
   renderMobileCard?: (item: T) => React.ReactNode;
   initialSearch?: string;
+  filters?: ReactNode;
+  extraParams?: Pick<CatalogParams, 'tipoCodigo' | 'tipoModo'>;
+  onFilterChange?: (value: string) => void;
 }
 
 const SORTAVEIS: CatalogSortBy[] = ['codigo', 'descricao', 'categoria', 'tipo'];
@@ -52,6 +55,9 @@ export function CatalogTable<T extends CatalogItemBase>({
   onExportarPdf,
   renderMobileCard,
   initialSearch = '',
+  filters,
+  extraParams,
+  onFilterChange,
 }: CatalogTableProps<T>) {
   const [filtroInput, setFiltroInput] = useState(initialSearch);
   const [page, setPage] = useState(1);
@@ -60,9 +66,12 @@ export function CatalogTable<T extends CatalogItemBase>({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const filtro = useDebouncedValue(filtroInput, 300);
 
+  useEffect(() => { onFilterChange?.(filtro); }, [filtro, onFilterChange]);
+  useEffect(() => { setPage(1); }, [extraParams?.tipoCodigo, extraParams?.tipoModo]);
+
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: [queryKey, filtro, page, limit, sortBy, sortOrder],
-    queryFn: () => fetchFn({ filtro, page, limit, sortBy, sortOrder }),
+    queryKey: [queryKey, filtro, page, limit, sortBy, sortOrder, extraParams?.tipoCodigo, extraParams?.tipoModo],
+    queryFn: () => fetchFn({ filtro, page, limit, sortBy, sortOrder, ...extraParams }),
   });
 
   function handleLimitChange(novoLimit: number) {
@@ -99,6 +108,7 @@ export function CatalogTable<T extends CatalogItemBase>({
             setPage(1);
           }}
         />
+        {filters}
         {onExportarExcel && onExportarPdf && (
           <ExportButtons
             onExportarExcel={() => onExportarExcel(filtro)}

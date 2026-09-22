@@ -117,6 +117,18 @@ function mapRowToProduto(row: Record<string, unknown>): Produto {
 }
 
 export class ProdutoRepositoryFirebird implements IProdutoRepository {
+  async listarTipos(): Promise<{ codigo: number; descricao: string }[]> {
+    const rows = await firebirdQuery<{ CODIGO: number; DESCRICAO: string }>(`
+      SELECT DISTINCT PT.CODIGO AS CODIGO,
+        CAST(PT.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO
+      FROM PRODUTO P
+      JOIN PRODUTOTIPO PT ON PT.CODIGO = P.TIPO AND PT.ATIVO = 1
+      WHERE P.ATIVO = 1 AND P.TIPO <> 9
+      ORDER BY DESCRICAO
+    `, []);
+    return rows.map((row) => ({ codigo: Number(row.CODIGO), descricao: String(row.DESCRICAO) }));
+  }
+
   async buscarPorCodigo(codigo: string): Promise<Produto | null> {
     if (!QUERY_BUSCAR_POR_CODIGO) throw new NotImplementedError('ProdutoRepository.buscarPorCodigo');
     const rows = await firebirdQuery(QUERY_BUSCAR_POR_CODIGO, [codigo.trim()]);
@@ -141,11 +153,15 @@ export class ProdutoRepositoryFirebird implements IProdutoRepository {
     const buscaCodigoLike = buscaFlag ? Buffer.from(`%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`, 'latin1') : null;
     const buscaTextoLike = buscaFlag ? toLatin1SearchParam(buscaFlag) : null;
     const buscaParams = [buscaFlag, buscaCodigoLike, buscaTextoLike, buscaTextoLike, buscaTextoLike];
-    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE} ORDER BY ${buildOrderBy(query)}`;
+    const tipoClause = query.tipoCodigo === undefined
+      ? ''
+      : ` AND P.TIPO ${query.tipoModo === 'exceto' ? '<>' : '='} ?`;
+    const params = query.tipoCodigo === undefined ? buscaParams : [...buscaParams, query.tipoCodigo];
+    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE}${tipoClause} ORDER BY ${buildOrderBy(query)}`;
 
     const [rows, countRows] = await Promise.all([
-      firebirdQuery(queryPaginada, [limit, skip, ...buscaParams]),
-      firebirdQuery<{ TOTAL: number }>(QUERY_CONTAR_TOTAL, buscaParams),
+      firebirdQuery(queryPaginada, [limit, skip, ...params]),
+      firebirdQuery<{ TOTAL: number }>(`${QUERY_CONTAR_TOTAL}${tipoClause}`, params),
     ]);
 
     return {

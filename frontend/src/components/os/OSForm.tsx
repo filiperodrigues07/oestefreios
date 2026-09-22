@@ -105,11 +105,13 @@ function OSFormCreate() {
           desabilitadas até "Criar OS", pra não parecer uma tela totalmente separada. */}
       <nav className={styles.tabs} aria-label="Seções da OS">
         <a href="#dados">▣ Dados da OS</a>
-        {['▤ Produtos e Serviços', '▱ Diagnóstico', '📷 Fotos', '◷ Histórico'].map((label) => (
+        {['▤ Produtos e Serviços', '▱ Diagnóstico'].map((label) => (
           <span key={label} className={styles.tabDisabled} title="Disponível depois de criar a OS">
             {label}
           </span>
         ))}
+        <span className={styles.tabDisabled} title="Disponível depois de criar a OS"><ActionIcon name="photo" /> Fotos</span>
+        <span className={styles.tabDisabled} title="Disponível depois de criar a OS">◷ Histórico</span>
       </nav>
 
       <section id="dados" className={styles.identity}>
@@ -419,9 +421,10 @@ function OSFormEdit({ id }: { id: string }) {
       />
 
       {/* Resumo fixo — some quem é o cliente/veículo mesmo fora da aba "Dados". */}
-      <p className={styles.contextBar}>
-        Cliente <strong>{nomeCliente}</strong> · Veículo <strong>{descricaoVeiculo}</strong>
-      </p>
+      <div className={styles.contextBar}>
+        <span><small>Cliente</small><strong>{nomeCliente}</strong></span>
+        <span><small>Veículo</small><strong>{descricaoVeiculo}</strong></span>
+      </div>
 
       <Tabs
         items={[
@@ -433,7 +436,7 @@ function OSFormEdit({ id }: { id: string }) {
             mobileLabel: totalItens > 0 ? `Itens (${totalItens})` : 'Itens',
           },
           { key: 'diagnostico', label: '▱ Diagnóstico', mobileLabel: 'Diagnóstico' },
-          { key: 'fotos', label: '📷 Fotos', mobileLabel: 'Fotos' },
+          { key: 'fotos', label: <><ActionIcon name="photo" /> Fotos</>, mobileLabel: <><ActionIcon name="photo" /> Fotos</> },
           { key: 'historico', label: '◷ Histórico', mobileLabel: 'Histórico' },
         ]}
         active={tab}

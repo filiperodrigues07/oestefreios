@@ -40,7 +40,7 @@ const QUERY_BUSCAR_POR_CLIENTE: string | null = `
   WHERE E.ATIVO = 1 AND C.CODIGO = ?
 `;
 
-// Parâmetros nesta ordem: limit, skip, clienteCodigo|null, codigo|null, descricaoLike|null, descricaoLike|null (ver buscar() abaixo).
+// Parâmetros nesta ordem: limit, skip, clienteCodigo|null, codigo|null, anoFabricacao|null x2, descricaoLike|null x2.
 // O termo livre compara DESCRICAO (marca+modelo) E IDENTIFICACAO (placa) — antes só batia em DESCRICAO,
 // então buscar por placa falhava silenciosamente pra qualquer veículo com marca/modelo preenchido.
 // IDENTIFICACAO compara sem hífen dos dois lados (REPLACE) — placa sempre grava com hífen
@@ -50,12 +50,25 @@ const QUERY_BUSCAR_PAGINADO: string | null = `
   WHERE E.ATIVO = 1
     AND COALESCE(C.CODIGO, '') = COALESCE(?, C.CODIGO, '')
     AND E.CODIGO = COALESCE(?, E.CODIGO)
+    AND (? IS NULL OR E.ANOFAB = ?)
     AND (
       UPPER(E.DESCRICAO) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS))
       OR REPLACE(UPPER(E.IDENTIFICACAO), '-', '') LIKE COALESCE(?, CAST('%' AS VARCHAR(20) CHARACTER SET OCTETS))
     )
-  ORDER BY E.DESCRICAO, E.CODIGO
 `;
+
+const ORDEM_POR_SORT_BY: Record<string, string> = {
+  identificacao: 'E.IDENTIFICACAO',
+  descricao: 'E.DESCRICAO',
+  ano: 'E.ANOFAB',
+  cliente: "COALESCE(NULLIF(TRIM(C.FANTASIA), ''), C.RAZAOSOCIAL)",
+};
+
+function buildOrderBy(sortBy?: string, sortOrder?: string): string {
+  const coluna = ORDEM_POR_SORT_BY[sortBy ?? ''] ?? 'E.DESCRICAO';
+  const direcao = sortOrder === 'desc' ? 'DESC' : 'ASC';
+  return `${coluna} ${direcao}${sortBy === 'ano' ? `, E.ANOMOD ${direcao}` : ''}, E.CODIGO ASC`;
+}
 
 const QUERY_CONTAR_TOTAL: string | null = `
   SELECT COUNT(*) AS TOTAL
@@ -64,6 +77,7 @@ const QUERY_CONTAR_TOTAL: string | null = `
   WHERE E.ATIVO = 1
     AND COALESCE(C.CODIGO, '') = COALESCE(?, C.CODIGO, '')
     AND E.CODIGO = COALESCE(?, E.CODIGO)
+    AND (? IS NULL OR E.ANOFAB = ?)
     AND (
       UPPER(E.DESCRICAO) LIKE COALESCE(?, CAST('%' AS VARCHAR(100) CHARACTER SET OCTETS))
       OR REPLACE(UPPER(E.IDENTIFICACAO), '-', '') LIKE COALESCE(?, CAST('%' AS VARCHAR(20) CHARACTER SET OCTETS))
@@ -134,10 +148,10 @@ export class EquipamentoRepositoryFirebird implements IEquipamentoRepository {
     // Precisa ir como Buffer latin1 (não string JS), igual descricaoLike — comparação é contra uma
     // expressão CHARACTER SET OCTETS (REPLACE/CAST sobre IDENTIFICACAO), que não casa com string comum.
     const placaLike = query.descricao ? toLatin1SearchParam(query.descricao.replace(/[^A-Za-z0-9]/g, '')) : null;
-    const filtros = [query.clienteCodigo ?? null, query.codigo ?? null, descricaoLike, placaLike];
+    const filtros = [query.clienteCodigo ?? null, query.codigo ?? null, query.anoFabricacao ?? null, query.anoFabricacao ?? null, descricaoLike, placaLike];
 
     const [rows, countRows] = await Promise.all([
-      firebirdQuery(QUERY_BUSCAR_PAGINADO, [limit, skip, ...filtros]),
+      firebirdQuery(`${QUERY_BUSCAR_PAGINADO} ORDER BY ${buildOrderBy(query.sortBy, query.sortOrder)}`, [limit, skip, ...filtros]),
       firebirdQuery<{ TOTAL: number }>(QUERY_CONTAR_TOTAL, filtros),
     ]);
 

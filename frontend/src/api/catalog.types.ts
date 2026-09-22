@@ -7,6 +7,8 @@ export interface CatalogParams {
   limit?: number;
   sortBy?: CatalogSortBy;
   sortOrder?: 'asc' | 'desc';
+  tipoCodigo?: number;
+  tipoModo?: 'somente' | 'exceto';
 }
 
 export function buildCatalogParams(params: CatalogParams): URLSearchParams {
@@ -16,5 +18,9 @@ export function buildCatalogParams(params: CatalogParams): URLSearchParams {
   usp.set('limit', String(params.limit ?? 10));
   usp.set('sortBy', params.sortBy ?? 'descricao');
   usp.set('sortOrder', params.sortOrder ?? 'asc');
+  if (params.tipoCodigo !== undefined) {
+    usp.set('tipoCodigo', String(params.tipoCodigo));
+    usp.set('tipoModo', params.tipoModo ?? 'somente');
+  }
   return usp;
 }

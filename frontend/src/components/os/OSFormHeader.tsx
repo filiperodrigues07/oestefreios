@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { baixarOSPdf } from '../../api/os.api.js';
-import { ActionIcon, Button, LinkButton, RefreshButton, useToast } from '../ui/index.js';
+import { ActionIcon, Button, LinkButton, PriorityBadge, RefreshButton, useToast } from '../ui/index.js';
 import { OS_PRIORITY_CONFIG, OS_STATUS_CONFIG } from '../../constants/osStatus.js';
 import { ALLOWED_TRANSITIONS, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
 import { FinalizarOSButton } from './FinalizarOSButton.js';
@@ -68,18 +68,36 @@ export function OSFormHeader({
   return <header className={styles.header}>
     <div className={styles.breadcrumb}><LinkButton to="/os" variant="ghost" size="sm">‹ Ordem de Serviço</LinkButton><span>›</span><strong>OS #{numero}</strong></div>
     <div className={styles.row}>
-      <div className={styles.titleBlock}><div><h1>OS #{numero}</h1><span className={styles.badge}>{OS_STATUS_CONFIG[status].label}</span>{nroDav && <span className={styles.dav}>DAV Nº {Number(nroDav)}</span>}<time>▣ {new Date(dataAbertura).toLocaleString('pt-BR')}</time></div></div>
+      <div className={styles.titleBlock}>
+        <div className={styles.titleLine}>
+          <h1>OS #{numero}</h1>
+          <span className={styles.badge}>{OS_STATUS_CONFIG[status].label}</span>
+          <PriorityBadge priority={prioridade} />
+        </div>
+        <div className={styles.metaLine}>
+          {nroDav && <span className={styles.dav}>DAV Nº <strong>{nroDav}</strong></span>}
+          <time>{new Date(dataAbertura).toLocaleString('pt-BR')}</time>
+        </div>
+      </div>
       <div className={styles.actions}>
         <Button type="button" variant="secondary" size="sm" onClick={handleVoltar}><ActionIcon name="back" />Voltar</Button>
         <Button type="button" variant="secondary" size="sm" onClick={handleImprimir} loading={imprimindo}><ActionIcon name="print" />{imprimindo ? 'Gerando PDF...' : 'Imprimir'}</Button>
-        <RefreshButton onClick={onRefresh} loading={refreshing} />
-        {canChangeStatus && <Button type="button" size="sm" disabled={updating || nextStatus === status} onClick={() => onStatusChange(nextStatus)}><ActionIcon name="update" />Atualizar status</Button>}
+        <RefreshButton onClick={onRefresh} loading={refreshing} label="Recarregar dados" />
+        {canChangeStatus && <Button type="button" size="sm" disabled={updating || nextStatus === status} onClick={() => onStatusChange(nextStatus)} title="Gravar a situação selecionada no CHERP"><ActionIcon name="save" />Salvar situação</Button>}
         {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} />}
       </div>
     </div>
     <div className={styles.summaryGrid}>
-      <div className={styles.selectBox}><OSFieldInfo field="status">Status da OS</OSFieldInfo><select value={nextStatus} disabled={!canChangeStatus || updating} onChange={(event) => setNextStatus(event.target.value as OSStatus)}>{transitions.map((value) => <option key={value} value={value}>{OS_STATUS_CONFIG[value].label}</option>)}</select></div>
-      <div className={styles.selectBox}><OSFieldInfo field="prioridade">Prioridade</OSFieldInfo><select value={prioridade} disabled={!canEdit || updating} onChange={(event) => onPriorityChange(event.target.value as OSPrioridade)}>{(Object.keys(OS_PRIORITY_CONFIG) as OSPrioridade[]).filter((value) => value !== 'URGENTE').map((value) => <option key={value} value={value}>{OS_PRIORITY_CONFIG[value].label}</option>)}</select></div>
+      <div className={styles.selectBox}><OSFieldInfo field="status">Sit. atendimento</OSFieldInfo><select value={nextStatus} disabled={!canChangeStatus || updating} onChange={(event) => setNextStatus(event.target.value as OSStatus)}>{transitions.map((value) => <option key={value} value={value}>{OS_STATUS_CONFIG[value].label}</option>)}</select></div>
+      <div className={styles.selectBox}>
+        <OSFieldInfo field="prioridade">Prioridade</OSFieldInfo>
+        <div className={styles.priorityControl} data-tone={OS_PRIORITY_CONFIG[prioridade].tone}>
+          <span className={styles.priorityDot} aria-hidden="true" />
+          <select value={prioridade} disabled={!canEdit || updating} onChange={(event) => onPriorityChange(event.target.value as OSPrioridade)}>
+            {(Object.keys(OS_PRIORITY_CONFIG) as OSPrioridade[]).filter((value) => value !== 'URGENTE').map((value) => <option key={value} value={value}>{OS_PRIORITY_CONFIG[value].label}</option>)}
+          </select>
+        </div>
+      </div>
     </div>
   </header>;
 }
