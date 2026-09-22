@@ -84,3 +84,15 @@ export async function saveGeralSettingsHandler(req: Request, res: Response) {
   const data = await settingsService.getGeralSettings();
   success(res, data, 'Configurações gerais salvas.');
 }
+
+export async function getIntegracoesSettingsHandler(_req: Request, res: Response) {
+  const data = await settingsService.getIntegracoesSettingsMasked();
+  success(res, data);
+}
+
+export async function saveIntegracoesSettingsHandler(req: Request, res: Response) {
+  await settingsService.saveIntegracoesSettings(req.body, req.user!, requestContext(req));
+  const data = await settingsService.getIntegracoesSettingsMasked();
+  success(res, data, 'Integrações salvas.');
+}
+

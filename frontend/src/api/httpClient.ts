@@ -10,10 +10,12 @@ const MUTATING_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 export class ApiError extends Error {
   code: string;
   status?: number;
-  constructor(code: string, message: string, status?: number) {
+  details?: unknown;
+  constructor(code: string, message: string, status?: number, details?: unknown) {
     super(message);
     this.code = code;
     this.status = status;
+    this.details = details;
   }
 }
 
@@ -134,7 +136,8 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
   if (!body || !body.success) {
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
     const message = body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
-    throw new ApiError(code, message, res.status);
+    const details = body && !body.success ? body.error.details : undefined;
+    throw new ApiError(code, message, res.status, details);
   }
 
   return body.data;
@@ -204,7 +207,8 @@ export async function apiFetchMultipart<T>(path: string, formData: FormData, isR
   if (!body || !body.success) {
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
     const message = body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
-    throw new ApiError(code, message, res.status);
+    const details = body && !body.success ? body.error.details : undefined;
+    throw new ApiError(code, message, res.status, details);
   }
 
   return body.data;

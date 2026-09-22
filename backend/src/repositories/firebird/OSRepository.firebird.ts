@@ -2,7 +2,7 @@ import { eq, inArray } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import { db } from '../../database/postgres/client.js';
 import { osWorkflow } from '../../database/postgres/schema.js';
-import { toLatin1Param } from '../../database/firebird/encoding.js';
+import { toLatin1Param, toLatin1SearchParam } from '../../database/firebird/encoding.js';
 import { firebirdQuery, firebirdQueryWithBlob, firebirdTransaction } from '../../database/firebird/pool.js';
 import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { NotFoundError } from '../../errors/NotFoundError.js';
@@ -510,11 +510,48 @@ export class OSRepositoryFirebird implements IOSRepository {
       conditions.push('CLI.CODIGO = ?');
       params.push(filter.clienteCodigo);
     }
+    if (filter.dataInicial) {
+      conditions.push('OS.DATA >= ?');
+      params.push(filter.dataInicial);
+    }
+    if (filter.dataFinal) {
+      conditions.push('OS.DATA <= ?');
+      params.push(filter.dataFinal);
+    }
+    // Prioridade é coluna direta (OS.PRIORIDADE) — dá pra filtrar em SQL, reduz o que precisa
+    // vir pra memória antes do filtro de status (ver comentário abaixo sobre por que status não dá).
+    if (filter.prioridade && filter.prioridade in PRIORIDADE_CODIGO_POR_STATUS) {
+      conditions.push('OS.PRIORIDADE = ?');
+      params.push(PRIORIDADE_CODIGO_POR_STATUS[filter.prioridade as OSPrioridade]);
+    }
+    // Busca livre também vai pra SQL — mesmo padrão de ClienteRepository/EquipamentoRepository
+    // (CAST sem OCTETS pra coluna curta, sem CAST nenhum pra RAZAOSOCIAL/FANTASIA/DESCRICAO,
+    // REPLACE sem hífen pra placa). Reduz bastante o que precisa vir pra memória numa busca típica.
+    const buscaFlag = filter.busca ? filter.busca.trim() : null;
+    if (buscaFlag) {
+      const buscaCodigoLike = Buffer.from(`%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`, 'latin1');
+      const buscaTextoLike = toLatin1SearchParam(buscaFlag);
+      const buscaPlacaLike = Buffer.from(`%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`, 'latin1');
+      conditions.push(`(
+        UPPER(CAST(OS.ORDEM AS VARCHAR(50))) LIKE ?
+        OR UPPER(CAST(CLI.CODIGO AS VARCHAR(50))) LIKE ?
+        OR UPPER(CLI.RAZAOSOCIAL) LIKE ?
+        OR UPPER(CLI.FANTASIA) LIKE ?
+        OR UPPER(CAST(EQ.CODIGO AS VARCHAR(50))) LIKE ?
+        OR REPLACE(UPPER(EQ.IDENTIFICACAO), '-', '') LIKE ?
+        OR UPPER(EQ.DESCRICAO) LIKE ?
+      )`);
+      params.push(buscaCodigoLike, buscaCodigoLike, buscaTextoLike, buscaTextoLike, buscaCodigoLike, buscaPlacaLike, buscaTextoLike);
+    }
     const candidateSql = `${HEADER_SELECT}${conditions.length ? ` AND ${conditions.join(' AND ')}` : ''} ORDER BY OS.CHAVE DESC`;
     const headers = await firebirdQuery<OSHeaderRow>(candidateSql, params);
 
     const workflows = await fetchWorkflows(headers.map((h) => h.IDENTIFICADOR));
 
+    // status e tecnicoId NÃO dá pra empurrar pro SQL: status é calculado combinando o atendimento
+    // do CHERP com `os_workflow.travado_local` do Postgres (ver buildOrdemServico), e tecnicoId
+    // mora só no Postgres (os_workflow) — nenhum dos dois existe como coluna no Firebird pra
+    // comparar na mesma query. Continuam filtrados aqui, depois do merge com o workflow.
     let merged = headers.map((h) => buildOrdemServico(h, [], [], workflows.get(h.IDENTIFICADOR.toLowerCase())));
     if (filter.status === 'AGUARDANDO') {
       merged = merged.filter((os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE');
@@ -526,21 +563,6 @@ export class OSRepositoryFirebird implements IOSRepository {
     }
     if (filter.tecnicoId) {
       merged = merged.filter((os) => os.tecnicoId === filter.tecnicoId);
-    }
-    if (filter.prioridade) {
-      merged = merged.filter((os) => os.prioridade === filter.prioridade);
-    }
-    if (filter.busca) {
-      const termo = filter.busca.trim().toUpperCase();
-      merged = merged.filter((os) =>
-        [
-          String(os.numero),
-          os.clienteCodigo,
-          os.clienteNome,
-          os.equipamentoCodigo,
-          os.equipamentoDescricao,
-        ].some((campo) => campo?.toUpperCase().includes(termo)),
-      );
     }
 
     if (filter.sortBy) {

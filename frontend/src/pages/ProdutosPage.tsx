@@ -48,9 +48,11 @@ export function ProdutosPage() {
   const [buscaServicos, setBuscaServicos] = useState(initialTab === 'servicos' ? initialSearch : '');
   const [tipoCodigo, setTipoCodigo] = useState('');
   const [tipoModo, setTipoModo] = useState<'somente' | 'exceto'>('somente');
+  const [saldoModo, setSaldoModo] = useState<'todos' | 'com_saldo' | 'sem_saldo' | 'negativo'>('todos');
   const { data: tipos = [] } = useQuery({ queryKey: ['tipos-produto'], queryFn: listarTiposProduto });
   const filtroTipo = tipoCodigo ? { tipoCodigo: Number(tipoCodigo), tipoModo } : {};
-  const filtroRelatorioProdutos = { busca: buscaProdutos || undefined, ...filtroTipo };
+  const filtroSaldo = saldoModo !== 'todos' ? { saldoModo } : {};
+  const filtroRelatorioProdutos = { busca: buscaProdutos || undefined, ...filtroTipo, ...filtroSaldo };
   const podeVerFinanceiro = hasPermission('FINANCIAL_VIEW');
 
   const colunasProdutos: TableColumn<ProdutoDTO>[] = [
@@ -174,8 +176,12 @@ export function ProdutosPage() {
             searchPlaceholder="Buscar por código, descrição, tipo ou grupo"
             columnPrefsKey="produtos"
             onFilterChange={setBuscaProdutos}
-            extraParams={filtroTipo}
-            filters={<ResponsiveFilters activeCount={tipoCodigo ? 1 : 0} onClear={() => { setTipoCodigo(''); setTipoModo('somente'); }}>
+            extraParams={{ ...filtroTipo, ...filtroSaldo }}
+            onClearExtraFilters={() => { setTipoCodigo(''); setTipoModo('somente'); setSaldoModo('todos'); }}
+            filters={<ResponsiveFilters
+              activeCount={Number(Boolean(tipoCodigo)) + Number(saldoModo !== 'todos')}
+              onClear={() => { setTipoCodigo(''); setTipoModo('somente'); setSaldoModo('todos'); }}
+            >
               <Select
                 label="Tipo de produto"
                 value={tipoCodigo}
@@ -187,6 +193,17 @@ export function ProdutosPage() {
                 value={tipoModo}
                 onChange={(event) => setTipoModo(event.target.value as 'somente' | 'exceto')}
                 options={[{ value: 'somente', label: 'Somente este tipo' }, { value: 'exceto', label: 'Tudo exceto este tipo' }]}
+              />
+              <Select
+                label="Disponibilidade"
+                value={saldoModo}
+                onChange={(event) => setSaldoModo(event.target.value as typeof saldoModo)}
+                options={[
+                  { value: 'todos', label: 'Todos' },
+                  { value: 'com_saldo', label: 'Com saldo' },
+                  { value: 'sem_saldo', label: 'Sem saldo' },
+                  { value: 'negativo', label: 'Saldo negativo' },
+                ]}
               />
             </ResponsiveFilters>}
             renderMobileCard={(produto) => (

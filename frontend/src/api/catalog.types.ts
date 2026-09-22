@@ -9,6 +9,8 @@ export interface CatalogParams {
   sortOrder?: 'asc' | 'desc';
   tipoCodigo?: number;
   tipoModo?: 'somente' | 'exceto';
+  /** Só usado por produtos. */
+  saldoModo?: 'todos' | 'com_saldo' | 'sem_saldo' | 'negativo';
 }
 
 export function buildCatalogParams(params: CatalogParams): URLSearchParams {
@@ -21,6 +23,9 @@ export function buildCatalogParams(params: CatalogParams): URLSearchParams {
   if (params.tipoCodigo !== undefined) {
     usp.set('tipoCodigo', String(params.tipoCodigo));
     usp.set('tipoModo', params.tipoModo ?? 'somente');
+  }
+  if (params.saldoModo && params.saldoModo !== 'todos') {
+    usp.set('saldoModo', params.saldoModo);
   }
   return usp;
 }

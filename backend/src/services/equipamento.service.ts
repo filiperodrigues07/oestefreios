@@ -1,3 +1,4 @@
+import { ConflictError } from '../errors/ConflictError.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { equipamentoRepository } from '../repositories/index.js';
 import type { Equipamento, EquipamentoInput, PaginatedResult, SearchQuery } from '../types/cherp.types.js';
@@ -26,6 +27,14 @@ export async function listEquipamentosByCliente(clienteCodigo: string): Promise<
 }
 
 export async function criarEquipamento(input: EquipamentoInput, usuario: AuthenticatedUser, ctx: RequestContext = {}): Promise<Equipamento> {
+  const existente = await equipamentoRepository.buscarPorPlaca(input.placa);
+  if (existente) {
+    throw new ConflictError(
+      `A placa "${input.placa}" já pertence a um veículo cadastrado.`,
+      'VEHICLE_DUPLICATE',
+      { codigo: existente.codigo, descricao: existente.descricao, clienteCodigo: existente.clienteCodigo, clienteNome: existente.clienteNome },
+    );
+  }
   const equipamento = await equipamentoRepository.criar(input);
   await auditEquipamento('VEICULO_CREATED', equipamento.codigo, usuario, ctx, { after: equipamento });
   return equipamento;

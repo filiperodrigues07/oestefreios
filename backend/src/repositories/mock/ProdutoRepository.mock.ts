@@ -44,6 +44,13 @@ export class ProdutoRepositoryMock implements IProdutoRepository {
       const termo = query.descricao.toLowerCase();
       filtered = filtered.filter((p) => p.descricao.toLowerCase().includes(termo));
     }
+    if (query.saldoModo === 'com_saldo') {
+      filtered = filtered.filter((p) => (p.disponivel ?? 0) > 0);
+    } else if (query.saldoModo === 'sem_saldo') {
+      filtered = filtered.filter((p) => (p.disponivel ?? 0) === 0);
+    } else if (query.saldoModo === 'negativo') {
+      filtered = filtered.filter((p) => (p.disponivel ?? 0) < 0);
+    }
 
     const sortBy = query.sortBy === 'codigo' ? 'codigo' : 'descricao';
     filtered = sortByField(filtered, sortBy, query.sortOrder ?? 'asc', (item, field) => item[field]);

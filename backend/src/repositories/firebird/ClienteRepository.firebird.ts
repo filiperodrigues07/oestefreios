@@ -62,6 +62,11 @@ const QUERY_BUSCAR_POR_NOME: string | null = `
   WHERE C.ATIVO = 1 AND COALESCE(C.STATUS, 0) = 0 AND C.CLIENTE = 'S' AND (UPPER(C.RAZAOSOCIAL) LIKE ? OR UPPER(C.FANTASIA) LIKE ?)
 `;
 
+const QUERY_BUSCAR_POR_DOCUMENTO: string | null = `
+  SELECT ${CLIFOR_SELECT}
+  WHERE C.ATIVO = 1 AND C.CLIENTE = 'S' AND C.CNPJCPF = ?
+`;
+
 // Parâmetros nesta ordem: limit, skip, codigo|null, nomeLike|null, nomeLike|null, pessoa|null, pessoa|null,
 // uf|null, uf|null, buscaFlag|null x1, codigoLike, nomeLike, nomeLike, docLike, telLike, celLike (ver buscar()).
 // PESSOA/UF usam "(? IS NULL OR col = ?)" em vez de "col = COALESCE(?, col)" — esse segundo padrão
@@ -204,6 +209,12 @@ export class ClienteRepositoryFirebird implements IClienteRepository {
     const nomeLike = toLatin1SearchParam(nome);
     const rows = await firebirdQuery(QUERY_BUSCAR_POR_NOME, [nomeLike, nomeLike]);
     return rows.map(mapRowToCliente);
+  }
+
+  async buscarPorDocumento(documento: string): Promise<Cliente | null> {
+    if (!QUERY_BUSCAR_POR_DOCUMENTO) throw new NotImplementedError('ClienteRepository.buscarPorDocumento');
+    const rows = await firebirdQuery(QUERY_BUSCAR_POR_DOCUMENTO, [documento]);
+    return rows[0] ? mapRowToCliente(rows[0]) : null;
   }
 
   async buscar(query: SearchQuery): Promise<PaginatedResult<Cliente>> {

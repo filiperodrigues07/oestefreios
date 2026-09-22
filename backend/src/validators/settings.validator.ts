@@ -30,3 +30,7 @@ export const testEmailSchema = z.object({
   destino: z.email(),
   smtp: smtpSettingsSchema,
 });
+
+export const integracoesSettingsSchema = z.object({
+  sintegraApiKey: z.string(),
+});

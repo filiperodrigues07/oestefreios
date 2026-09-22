@@ -5,14 +5,17 @@ import {
   getFirebirdSettings,
   getFirebirdPassword,
   getGeralSettings,
+  getIntegracoesSettings,
   getSmtpSettings,
   saveFirebirdSettings,
   saveGeralSettings,
+  saveIntegracoesSettings,
   saveSmtpSettings,
   testFirebirdSettings,
   testSmtpSettings,
   type FirebirdSettings,
   type GeralSettings,
+  type IntegracoesSettings,
   type SmtpSettings,
 } from '../api/settings.api.js';
 import {
@@ -24,6 +27,7 @@ import {
   Modal,
   PasswordInput,
   Select,
+  Tooltip,
   useToast,
 } from '../components/ui/index.js';
 import { NavIcon } from '../components/layout/NavIcon.js';
@@ -81,7 +85,7 @@ function SettingsIcon({
 export function ConfiguracoesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTab = searchParams.get('tab');
-  const tab = ['firebird', 'smtp', 'geral', 'auditoria', 'sobre'].includes(selectedTab ?? '')
+  const tab = ['firebird', 'smtp', 'geral', 'integracoes', 'auditoria', 'sobre'].includes(selectedTab ?? '')
     ? selectedTab!
     : 'firebird';
   const setTab = (value: string) => setSearchParams({ tab: value });
@@ -103,6 +107,7 @@ export function ConfiguracoesPage() {
           },
           { key: 'smtp', label: 'E-mail (SMTP)', icon: <SettingsIcon name="mail" /> },
           { key: 'geral', label: 'Geral', icon: <NavIcon name="gear" /> },
+          { key: 'integracoes', label: 'Integrações', icon: <SettingsIcon name="link" /> },
           { key: 'auditoria', label: 'Auditoria', icon: <NavIcon name="shield" /> },
           { key: 'sobre', label: 'Sobre', icon: <NavIcon name="users" /> },
         ].map((item) => (
@@ -130,6 +135,7 @@ export function ConfiguracoesPage() {
         {tab === 'firebird' && <FirebirdTab />}
         {tab === 'smtp' && <SmtpTab />}
         {tab === 'geral' && <GeralTab />}
+        {tab === 'integracoes' && <IntegracoesTab />}
         {tab === 'auditoria' && <AuditoriaTab />}
         {tab === 'sobre' && <SobreTab />}
       </div>
@@ -609,5 +615,60 @@ function GeralTab() {
         </Button>
       </div>
     </Card>
+  );
+}
+
+function IntegracoesTab() {
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ['settings', 'integracoes'],
+    queryFn: getIntegracoesSettings,
+  });
+  const [form, setForm] = useState<IntegracoesSettings | null>(null);
+
+  useEffect(() => {
+    if (data) setForm(data);
+  }, [data]);
+
+  const saveMutation = useMutation({
+    mutationFn: saveIntegracoesSettings,
+    onSuccess: (saved) => {
+      setForm(saved);
+      queryClient.setQueryData(['settings', 'integracoes'], saved);
+      showToast('Integrações salvas.', 'success');
+    },
+  });
+
+  if (isError) return <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar novamente</Button>} />;
+  if (isLoading || !form) return <Card>Carregando...</Card>;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+          <h2 style={{ margin: 0, fontSize: 'var(--font-size-md)' }}>Inscrição Estadual por CNPJ</h2>
+          <Tooltip content="Preenche a Inscrição Estadual automaticamente junto da consulta de CNPJ no cadastro de cliente (via SINTEGRA Brasil). Sem chave configurada, o campo continua editável manualmente.">
+            <span aria-hidden="true" style={{ color: 'var(--color-text-secondary)', cursor: 'help' }}>ⓘ</span>
+          </Tooltip>
+        </div>
+        <PasswordInput
+          label="Chave da API SINTEGRA Brasil"
+          value={form.sintegraApiKey}
+          onChange={(e) => setForm({ ...form, sintegraApiKey: e.target.value })}
+          placeholder={form.sintegraApiKey ? undefined : 'Nenhuma chave configurada'}
+        />
+        <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+          Gere uma chave grátis em{' '}
+          <a href="https://www.sintegrabrasil.com.br/api" target="_blank" rel="noreferrer">sintegrabrasil.com.br/api</a>
+          {' '}(cadastro só com e-mail).
+        </p>
+        <div>
+          <Button size="sm" onClick={() => saveMutation.mutate(form)} loading={saveMutation.isPending}>
+            Salvar chave
+          </Button>
+        </div>
+      </Card>
+    </div>
   );
 }

@@ -47,3 +47,9 @@ export async function consultarCepHandler(req: Request, res: Response) {
   const dados = await clienteService.consultarCep(cep);
   success(res, dados);
 }
+
+export async function consultarInscricaoEstadualHandler(req: Request, res: Response) {
+  const { cnpj } = req.params as unknown as { cnpj: string };
+  const dados = await clienteService.consultarInscricaoEstadual(cnpj);
+  success(res, dados);
+}

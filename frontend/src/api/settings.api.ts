@@ -48,6 +48,14 @@ export const testSmtpSettings = (smtp: SmtpSettings, destino: string) =>
 export const getGeralSettings = () => apiFetch<GeralSettings>('/settings/geral');
 export const saveGeralSettings = (data: GeralSettings) => apiFetch<GeralSettings>('/settings/geral', { method: 'PUT', body: data });
 
+export interface IntegracoesSettings {
+  sintegraApiKey: string;
+}
+
+export const getIntegracoesSettings = () => apiFetch<IntegracoesSettings>('/settings/integracoes');
+export const saveIntegracoesSettings = (data: IntegracoesSettings) =>
+  apiFetch<IntegracoesSettings>('/settings/integracoes', { method: 'PUT', body: data });
+
 export interface Branding {
   nomeEmpresa: string;
   logoUrl: string;

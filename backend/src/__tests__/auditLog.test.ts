@@ -99,11 +99,11 @@ describe('auditoria de negócio', () => {
       .send({ ...clienteInput, nome: 'Cliente Editado' });
     expect(editado.status).toBe(200);
     const veiculo = await request(app).post('/api/equipamentos').set('Authorization', `Bearer ${adminToken}`)
-      .send({ clienteCodigo: codigo, placa: 'ABC1234', marca: 'Volvo' });
+      .send({ clienteCodigo: codigo, placa: 'XYZ9876', marca: 'Volvo' });
     expect(veiculo.status).toBe(201);
     const veiculoCodigo = veiculo.body.data.codigo as string;
     const veiculoEditado = await request(app).put(`/api/equipamentos/${veiculoCodigo}`)
-      .set('Authorization', `Bearer ${adminToken}`).send({ clienteCodigo: codigo, placa: 'ABC1234', marca: 'Scania' });
+      .set('Authorization', `Bearer ${adminToken}`).send({ clienteCodigo: codigo, placa: 'XYZ9876', marca: 'Scania' });
     expect(veiculoEditado.status).toBe(200);
 
     const rows = await pool.query<{ event: string; entity_id: string; changes: { before?: { nome?: string; marca?: string }; after?: { nome?: string; marca?: string } } }>(

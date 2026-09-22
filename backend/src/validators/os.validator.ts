@@ -97,6 +97,8 @@ export const listarOSQuerySchema = z.object({
   tecnicoId: z.string().trim().min(1).optional(),
   prioridade: z.enum(OS_PRIORIDADE_VALUES).optional(),
   busca: z.string().trim().min(1).optional(),
+  dataInicial: z.coerce.date().optional(),
+  dataFinal: z.coerce.date().optional(),
   sortBy: z.enum(['numero', 'clienteNome', 'equipamentoDescricao', 'dataAbertura', 'status', 'prioridade', 'faturamento']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
   page: z.coerce.number().int().positive().default(1),

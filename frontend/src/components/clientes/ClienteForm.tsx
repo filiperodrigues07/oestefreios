@@ -1,7 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
-import { atualizarCliente, consultarCep, consultarCnpj, criarCliente } from '../../api/clientes.api.js';
-import { Button, Checkbox, Input, RequiredMark, Select } from '../ui/index.js';
+import { atualizarCliente, consultarCep, consultarCnpj, consultarInscricaoEstadual, criarCliente } from '../../api/clientes.api.js';
+import { ApiError } from '../../api/httpClient.js';
+import { Button, Checkbox, ConfirmDialog, Input, LinkButton, RequiredMark, Select, useToast } from '../ui/index.js';
 import type { ClienteDTO, ClienteInput, RegimeTributario, TipoPessoa } from '../../types/cherp.types.js';
 import { formatarCep, formatarDocumento, formatarTelefone } from '../../utils/clienteFormatters.js';
 import styles from './ClienteForm.module.css';
@@ -95,6 +96,7 @@ interface ClienteFormProps {
  */
 export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, cancelLabel = 'Cancelar' }: ClienteFormProps) {
   const modoEdicao = mode === 'edit';
+  const { showToast } = useToast();
   const [form, setForm] = useState<ClienteInput>(() => (clienteInicial ? clienteParaInput(clienteInicial) : FORM_VAZIO));
   const [cnpjErro, setCnpjErro] = useState<string | null>(null);
   const [cepErro, setCepErro] = useState<string | null>(null);
@@ -120,6 +122,22 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
     },
     onError: (err) => {
       setCnpjErro(err instanceof Error ? err.message : 'Não foi possível consultar o CNPJ — preencha manualmente.');
+    },
+  });
+
+  /** IE (Onda 3, SINTEGRA Brasil) — busca junto do CNPJ. Sem chave configurada ou com erro de rede,
+   * fica em silêncio (nunca trava o cadastro); "não achou nada" avisa por toast, porque senão fica
+   * indistinguível de "não fez nada" pra quem está testando/usando. */
+  const ieMutation = useMutation({
+    mutationFn: (cnpj: string) => consultarInscricaoEstadual(cnpj),
+    onSuccess: (lista) => {
+      const match = lista.find((item) => item.ativo && (!form.uf || item.uf === form.uf)) ?? lista.find((item) => item.ativo) ?? lista[0];
+      if (match) {
+        setForm((f) => ({ ...f, inscricaoEstadual: match.numero }));
+        showToast('Inscrição Estadual preenchida automaticamente.', 'success');
+      } else {
+        showToast('Inscrição Estadual não encontrada no SINTEGRA para esse CNPJ — preencha manualmente se necessário.', 'info');
+      }
     },
   });
 
@@ -151,6 +169,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
       return;
     }
     cnpjMutation.mutate(digits);
+    ieMutation.mutate(digits);
   }
 
   function buscarCep() {
@@ -162,8 +181,37 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
     cepMutation.mutate(digits);
   }
 
+  const [trocaTipoPendente, setTrocaTipoPendente] = useState<TipoPessoa | null>(null);
+
+  /** IE (form.inscricaoEstadual) é a mesma coluna do CHERP usada pra RG na PF — não é exclusiva de PJ,
+   * fica de fora da limpeza (ver comentário de podeSalvar acima). */
+  function temDadosExclusivosPreenchidos(indoPara: TipoPessoa): boolean {
+    if (indoPara === 'PF') {
+      return (
+        Boolean(form.nomeFantasia?.trim()) ||
+        form.regimeTributario !== undefined ||
+        Boolean(form.documento.trim())
+      );
+    }
+    return Boolean(form.documento.trim());
+  }
+
+  function aplicarTrocaTipo(tipo: TipoPessoa) {
+    setForm((f) => ({
+      ...f,
+      tipoPessoa: tipo,
+      documento: '',
+      ...(tipo === 'PF' ? { nomeFantasia: '', regimeTributario: undefined } : {}),
+    }));
+  }
+
   function handleTipoPessoa(tipo: TipoPessoa) {
-    setForm((f) => ({ ...f, tipoPessoa: tipo }));
+    if (tipo === form.tipoPessoa) return;
+    if (temDadosExclusivosPreenchidos(tipo)) {
+      setTrocaTipoPendente(tipo);
+      return;
+    }
+    aplicarTrocaTipo(tipo);
   }
 
   // Campos obrigatórios pra parear com o CHERP — só na criação (edição de cliente antigo/incompleto
@@ -327,11 +375,30 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
 
       {form.representante && <Input label="CORE (representante)" uppercase value={form.coreRepresentante} onChange={(e) => setForm({ ...form, coreRepresentante: e.target.value })} />}
 
-      {saveMutation.isError && (
-        <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
-          {saveMutation.error instanceof Error ? saveMutation.error.message : 'Erro ao salvar cliente.'}
-        </p>
-      )}
+      {saveMutation.isError && (() => {
+        const err = saveMutation.error;
+        const duplicado =
+          err instanceof ApiError && err.code === 'CLIENT_DUPLICATE'
+            ? (err.details as { codigo: string; nome: string } | undefined)
+            : undefined;
+        if (duplicado) {
+          return (
+            <div className={styles.duplicateWarning} role="alert">
+              <strong>Cliente já cadastrado</strong>
+              <p>{err instanceof Error ? err.message : ''}</p>
+              <p>{duplicado.nome} · Código: {duplicado.codigo}</p>
+              <LinkButton to={`/clientes/${duplicado.codigo}/editar`} variant="secondary" size="sm">
+                Visualizar cliente
+              </LinkButton>
+            </div>
+          );
+        }
+        return (
+          <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+            {err instanceof Error ? err.message : 'Erro ao salvar cliente.'}
+          </p>
+        );
+      })()}
 
       <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
         <Button type="button" variant="secondary" onClick={onCancel}>
@@ -341,6 +408,22 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
           {modoEdicao ? 'Salvar' : 'Cadastrar'}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={trocaTipoPendente !== null}
+        title="Alterar tipo de pessoa?"
+        description={
+          trocaTipoPendente === 'PF'
+            ? 'Ao mudar de Pessoa Jurídica para Pessoa Física, os dados exclusivos de empresa (CNPJ, Nome Fantasia, Regime Tributário) serão removidos.'
+            : 'Ao mudar de Pessoa Física para Pessoa Jurídica, o documento (CPF) será removido — informe o CNPJ correto.'
+        }
+        confirmLabel="Alterar e limpar"
+        onCancel={() => setTrocaTipoPendente(null)}
+        onConfirm={() => {
+          if (trocaTipoPendente) aplicarTrocaTipo(trocaTipoPendente);
+          setTrocaTipoPendente(null);
+        }}
+      />
     </div>
   );
 }

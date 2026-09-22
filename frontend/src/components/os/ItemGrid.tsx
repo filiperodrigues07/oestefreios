@@ -25,6 +25,8 @@ export interface ItemGridCandidate {
   descricao: string;
   unidade: string;
   precoUnitario?: number;
+  /** Só produtos têm estoque — serviços vêm sempre `undefined` e o saldo não aparece. */
+  disponivel?: number;
 }
 
 type ComboItem = ItemGridCandidate & SearchComboboxItem;
@@ -287,6 +289,11 @@ export function ItemGrid({
                     <span className={`${styles.optionMeta} ${styles.mono}`}>
                       {item.codigo}
                       {item.precoUnitario !== undefined && ` · R$ ${item.precoUnitario.toFixed(2)}`}
+                      {item.disponivel !== undefined && (
+                        <span className={item.disponivel > 0 ? styles.stockOk : styles.stockLow}>
+                          {' · '}Estoque: {item.disponivel.toLocaleString('pt-BR')} {item.unidade}
+                        </span>
+                      )}
                     </span>
                   </>
                 )}

@@ -15,6 +15,8 @@ export interface ListarOSFiltro {
   clienteCodigo?: string;
   prioridade?: OSPrioridade;
   busca?: string;
+  dataInicial?: string;
+  dataFinal?: string;
   sortBy?: OSSortBy;
   sortOrder?: 'asc' | 'desc';
   page?: number;
@@ -29,6 +31,8 @@ export function listarOS(filtro: ListarOSFiltro = {}): Promise<PaginatedOS> {
   if (filtro.clienteCodigo) params.set('clienteCodigo', filtro.clienteCodigo);
   if (filtro.prioridade) params.set('prioridade', filtro.prioridade);
   if (filtro.busca) params.set('busca', filtro.busca);
+  if (filtro.dataInicial) params.set('dataInicial', filtro.dataInicial);
+  if (filtro.dataFinal) params.set('dataFinal', filtro.dataFinal);
   if (filtro.sortBy) params.set('sortBy', filtro.sortBy);
   if (filtro.sortOrder) params.set('sortOrder', filtro.sortOrder);
   params.set('page', String(filtro.page ?? 1));

@@ -17,6 +17,7 @@ import {
   EmptyState,
   ErrorState,
   ExportButtons,
+  Input,
   LinkButton,
   MobileRecordCard,
   MobileFab,
@@ -61,6 +62,8 @@ export function OSListPage() {
       : '0',
   );
   const [prioridade, setPrioridade] = useState<OSPrioridade | ''>('');
+  const [dataInicial, setDataInicial] = useState('');
+  const [dataFinal, setDataFinal] = useState('');
   const [busca, setBusca] = useState('');
   const [buscaAtiva, setBuscaAtiva] = useState('');
   const [sortBy, setSortBy] = useState<OSSortBy | undefined>(undefined);
@@ -76,6 +79,8 @@ export function OSListPage() {
       'os-list',
       situacaoDocumento,
       prioridade,
+      dataInicial,
+      dataFinal,
       buscaAtiva,
       sortBy,
       sortOrder,
@@ -87,6 +92,8 @@ export function OSListPage() {
         situacaoDocumento: situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
         incluirFinalizadas: true,
         prioridade: prioridade || undefined,
+        dataInicial: dataInicial || undefined,
+        dataFinal: dataFinal || undefined,
         busca: buscaAtiva || undefined,
         sortBy,
         sortOrder,
@@ -97,6 +104,21 @@ export function OSListPage() {
 
   function handleLimitChange(novoLimit: number) {
     setLimit(novoLimit);
+    setPage(1);
+  }
+
+  const filtrosAtivos =
+    Number(situacaoDocumento !== '') +
+    Number(Boolean(prioridade)) +
+    Number(Boolean(dataInicial) || Boolean(dataFinal));
+
+  function limparFiltros() {
+    setSituacaoDocumento('');
+    setPrioridade('');
+    setDataInicial('');
+    setDataFinal('');
+    setBusca('');
+    setBuscaAtiva('');
     setPage(1);
   }
 
@@ -222,7 +244,7 @@ export function OSListPage() {
       : []),
     {
       key: 'acoes',
-      header: '',
+      header: 'Ações',
       align: 'right' as const,
       width: podeEditar ? '92px' : '48px',
       render: (os: OrdemServicoDTO) => (
@@ -258,6 +280,8 @@ export function OSListPage() {
                 baixarRelatorioOS(
                   {
                     ...periodoExportacaoPadrao(),
+                    ...(dataInicial ? { dataInicial } : {}),
+                    ...(dataFinal ? { dataFinal } : {}),
                     situacaoDocumento:
                       situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
                     prioridade: prioridade || undefined,
@@ -270,6 +294,8 @@ export function OSListPage() {
                 baixarRelatorioOS(
                   {
                     ...periodoExportacaoPadrao(),
+                    ...(dataInicial ? { dataInicial } : {}),
+                    ...(dataFinal ? { dataFinal } : {}),
                     situacaoDocumento:
                       situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
                     prioridade: prioridade || undefined,
@@ -301,12 +327,8 @@ export function OSListPage() {
           onChange={(e) => setBusca(e.target.value)}
         />
         <ResponsiveFilters
-          activeCount={Number(situacaoDocumento !== '') + Number(Boolean(prioridade))}
-          onClear={() => {
-            setSituacaoDocumento('');
-            setPrioridade('');
-            setPage(1);
-          }}
+          activeCount={filtrosAtivos}
+          onClear={limparFiltros}
         >
           <Select
             label="Situação"
@@ -321,6 +343,26 @@ export function OSListPage() {
             value={prioridade}
             onChange={(e) => handlePrioridadeChange(e.target.value)}
             options={OS_PRIORIDADE_OPTIONS}
+          />
+          <Input
+            type="date"
+            label="Abertura de"
+            value={dataInicial}
+            max={dataFinal || undefined}
+            onChange={(e) => {
+              setDataInicial(e.target.value);
+              setPage(1);
+            }}
+          />
+          <Input
+            type="date"
+            label="Abertura até"
+            value={dataFinal}
+            min={dataInicial || undefined}
+            onChange={(e) => {
+              setDataFinal(e.target.value);
+              setPage(1);
+            }}
           />
         </ResponsiveFilters>
         <Button type="submit" variant="secondary">
@@ -350,6 +392,7 @@ export function OSListPage() {
           <EmptyState
             title="Nenhuma OS encontrada"
             description="Ajuste os filtros ou crie uma nova OS."
+            action={filtrosAtivos > 0 || buscaAtiva ? <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button> : undefined}
           />
         )}
 

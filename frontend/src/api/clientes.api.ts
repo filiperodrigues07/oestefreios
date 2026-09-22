@@ -77,3 +77,15 @@ export interface CepLookupResult {
 export function consultarCep(cep: string): Promise<CepLookupResult> {
   return apiFetch<CepLookupResult>(`/clientes/cep/${cep}`);
 }
+
+export interface InscricaoEstadualLookupResult {
+  numero: string;
+  ativo: boolean;
+  uf: string;
+  atualizadoEm?: string;
+}
+
+/** SINTEGRA Brasil (Onda 3) — sem chave configurada, o backend devolve lista vazia, nunca erro. */
+export function consultarInscricaoEstadual(cnpj: string): Promise<InscricaoEstadualLookupResult[]> {
+  return apiFetch<InscricaoEstadualLookupResult[]>(`/clientes/inscricao-estadual/${cnpj}`);
+}

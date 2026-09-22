@@ -42,6 +42,16 @@ export function VeiculosPage() {
     queryKey: ['equipamentos', 'lista', buscaAtiva, cliente?.codigo, anoFabricacao, page, limit, sortBy, sortOrder],
     queryFn: () => listarEquipamentos(buscaAtiva, page, limit, cliente?.codigo, sortBy, sortOrder, anoFabricacao ? Number(anoFabricacao) : undefined),
   });
+  const filtrosAtivos = Number(Boolean(cliente)) + Number(Boolean(anoFabricacao));
+
+  function limparFiltros() {
+    setCliente(null);
+    setAnoFabricacao('');
+    setBusca('');
+    setBuscaAtiva('');
+    setPage(1);
+  }
+
   function handleSortChange(key: string) {
     if (!['identificacao', 'descricao', 'ano', 'cliente'].includes(key)) return;
     if (key === sortBy) setSortOrder((value) => value === 'asc' ? 'desc' : 'asc');
@@ -68,7 +78,7 @@ export function VeiculosPage() {
     },
     {
       key: 'acoes',
-      header: '',
+      header: 'Ações',
       align: 'right',
       render: (v) =>
         hasPermission('OS_EDIT') ? (
@@ -117,7 +127,7 @@ export function VeiculosPage() {
           value={busca}
           onChange={(event) => setBusca(event.target.value)}
         />
-        <ResponsiveFilters activeCount={Number(Boolean(cliente)) + Number(Boolean(anoFabricacao))} onClear={() => { setCliente(null); setAnoFabricacao(''); setPage(1); }}>
+        <ResponsiveFilters activeCount={filtrosAtivos} onClear={limparFiltros}>
           <div className={styles.clientFilter}>
             {cliente ? (
               <>
@@ -154,7 +164,11 @@ export function VeiculosPage() {
       {!isLoading && !isError && data && (
         <>
           {data.items.length === 0 ? (
-            <EmptyState title="Nenhum veículo encontrado" />
+            <EmptyState
+              title="Nenhum veículo encontrado"
+              description={filtrosAtivos > 0 || buscaAtiva ? 'Não encontramos resultados com os filtros atuais.' : undefined}
+              action={filtrosAtivos > 0 || buscaAtiva ? <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button> : undefined}
+            />
           ) : (
             <>
               <Table

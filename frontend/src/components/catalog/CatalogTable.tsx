@@ -36,8 +36,10 @@ interface CatalogTableProps<T extends CatalogItemBase> {
   renderMobileCard?: (item: T) => React.ReactNode;
   initialSearch?: string;
   filters?: ReactNode;
-  extraParams?: Pick<CatalogParams, 'tipoCodigo' | 'tipoModo'>;
+  extraParams?: Pick<CatalogParams, 'tipoCodigo' | 'tipoModo' | 'saldoModo'>;
   onFilterChange?: (value: string) => void;
+  /** Limpa os filtros extras que o pai controla (tipo/saldo) — usado junto da busca no "Limpar filtros" do estado vazio. */
+  onClearExtraFilters?: () => void;
 }
 
 const SORTAVEIS: CatalogSortBy[] = ['codigo', 'descricao', 'categoria', 'tipo'];
@@ -58,6 +60,7 @@ export function CatalogTable<T extends CatalogItemBase>({
   filters,
   extraParams,
   onFilterChange,
+  onClearExtraFilters,
 }: CatalogTableProps<T>) {
   const [filtroInput, setFiltroInput] = useState(initialSearch);
   const [page, setPage] = useState(1);
@@ -67,10 +70,10 @@ export function CatalogTable<T extends CatalogItemBase>({
   const filtro = useDebouncedValue(filtroInput, 300);
 
   useEffect(() => { onFilterChange?.(filtro); }, [filtro, onFilterChange]);
-  useEffect(() => { setPage(1); }, [extraParams?.tipoCodigo, extraParams?.tipoModo]);
+  useEffect(() => { setPage(1); }, [extraParams?.tipoCodigo, extraParams?.tipoModo, extraParams?.saldoModo]);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: [queryKey, filtro, page, limit, sortBy, sortOrder, extraParams?.tipoCodigo, extraParams?.tipoModo],
+    queryKey: [queryKey, filtro, page, limit, sortBy, sortOrder, extraParams?.tipoCodigo, extraParams?.tipoModo, extraParams?.saldoModo],
     queryFn: () => fetchFn({ filtro, page, limit, sortBy, sortOrder, ...extraParams }),
   });
 
@@ -87,6 +90,14 @@ export function CatalogTable<T extends CatalogItemBase>({
       setSortBy(key as CatalogSortBy);
       setSortOrder('asc');
     }
+    setPage(1);
+  }
+
+  const temFiltroExtra = Boolean(extraParams?.tipoCodigo !== undefined || (extraParams?.saldoModo && extraParams.saldoModo !== 'todos'));
+
+  function limparFiltros() {
+    setFiltroInput('');
+    onClearExtraFilters?.();
     setPage(1);
   }
 
@@ -136,7 +147,13 @@ export function CatalogTable<T extends CatalogItemBase>({
         />
       )}
 
-      {!isLoading && !isError && data?.items.length === 0 && <EmptyState title={emptyLabel} />}
+      {!isLoading && !isError && data?.items.length === 0 && (
+        <EmptyState
+          title={emptyLabel}
+          description={filtro || temFiltroExtra ? 'Ajuste os filtros ou a busca e tente de novo.' : undefined}
+          action={filtro || temFiltroExtra ? <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button> : undefined}
+        />
+      )}
 
       {!isLoading && !isError && data && data.items.length > 0 && (
         <>

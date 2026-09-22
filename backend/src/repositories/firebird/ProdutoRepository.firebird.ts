@@ -156,12 +156,24 @@ export class ProdutoRepositoryFirebird implements IProdutoRepository {
     const tipoClause = query.tipoCodigo === undefined
       ? ''
       : ` AND P.TIPO ${query.tipoModo === 'exceto' ? '<>' : '='} ?`;
+    // DISPONIVEL é subquery correlacionada (ver mapRowToProduto/PRODUTO_SELECT), não uma coluna —
+    // QUERY_CONTAR_TOTAL não seleciona ela, então repete a mesma expressão aqui em vez de comparar
+    // por alias (não existe alias pra comparar fora do SELECT).
+    const saldoClause = (() => {
+      switch (query.saldoModo) {
+        case 'com_saldo': return ` AND (SELECT SUM(PE.SALDO) FROM PRODUTOESTOQUE PE WHERE PE.CHAVEPRODUTO = P.CHAVE AND PE.ATIVO = 1) > 0`;
+        case 'sem_saldo': return ` AND COALESCE((SELECT SUM(PE.SALDO) FROM PRODUTOESTOQUE PE WHERE PE.CHAVEPRODUTO = P.CHAVE AND PE.ATIVO = 1), 0) = 0`;
+        case 'negativo': return ` AND (SELECT SUM(PE.SALDO) FROM PRODUTOESTOQUE PE WHERE PE.CHAVEPRODUTO = P.CHAVE AND PE.ATIVO = 1) < 0`;
+        default: return '';
+      }
+    })();
+    const extraClause = `${tipoClause}${saldoClause}`;
     const params = query.tipoCodigo === undefined ? buscaParams : [...buscaParams, query.tipoCodigo];
-    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE}${tipoClause} ORDER BY ${buildOrderBy(query)}`;
+    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE}${extraClause} ORDER BY ${buildOrderBy(query)}`;
 
     const [rows, countRows] = await Promise.all([
       firebirdQuery(queryPaginada, [limit, skip, ...params]),
-      firebirdQuery<{ TOTAL: number }>(`${QUERY_CONTAR_TOTAL}${tipoClause}`, params),
+      firebirdQuery<{ TOTAL: number }>(`${QUERY_CONTAR_TOTAL}${extraClause}`, params),
     ]);
 
     return {

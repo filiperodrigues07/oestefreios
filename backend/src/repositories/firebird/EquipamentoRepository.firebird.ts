@@ -40,6 +40,13 @@ const QUERY_BUSCAR_POR_CLIENTE: string | null = `
   WHERE E.ATIVO = 1 AND C.CODIGO = ?
 `;
 
+// Placa sempre grava com hífen (ver normalizarPlaca) — comparar sem hífen dos dois lados evita
+// falso-negativo se algum registro antigo tiver sido gravado sem a normalização.
+const QUERY_BUSCAR_POR_PLACA: string | null = `
+  SELECT ${EQUIPAMENTO_SELECT}
+  WHERE E.ATIVO = 1 AND REPLACE(UPPER(E.IDENTIFICACAO), '-', '') = ?
+`;
+
 // Parâmetros nesta ordem: limit, skip, clienteCodigo|null, codigo|null, anoFabricacao|null x2, descricaoLike|null x2.
 // O termo livre compara DESCRICAO (marca+modelo) E IDENTIFICACAO (placa) — antes só batia em DESCRICAO,
 // então buscar por placa falhava silenciosamente pra qualquer veículo com marca/modelo preenchido.
@@ -129,6 +136,13 @@ export class EquipamentoRepositoryFirebird implements IEquipamentoRepository {
   async buscarPorCodigo(codigo: string): Promise<Equipamento | null> {
     if (!QUERY_BUSCAR_POR_CODIGO) throw new NotImplementedError('EquipamentoRepository.buscarPorCodigo');
     const rows = await firebirdQuery(QUERY_BUSCAR_POR_CODIGO, [codigo]);
+    return rows[0] ? mapRowToEquipamento(rows[0]) : null;
+  }
+
+  async buscarPorPlaca(placa: string): Promise<Equipamento | null> {
+    if (!QUERY_BUSCAR_POR_PLACA) throw new NotImplementedError('EquipamentoRepository.buscarPorPlaca');
+    const placaLimpa = toLatin1Param(placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''));
+    const rows = await firebirdQuery(QUERY_BUSCAR_POR_PLACA, [placaLimpa]);
     return rows[0] ? mapRowToEquipamento(rows[0]) : null;
   }
 

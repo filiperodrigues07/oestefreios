@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getProdutoByCodigo, searchProdutos } from '../../api/produtos.api.js';
 import { getServicoByCodigo, searchServicos } from '../../api/servicos.api.js';
 import { ApiError } from '../../api/httpClient.js';
+import { Checkbox } from '../ui/index.js';
 import { ItemGrid, type ItemGridCandidate, type ItemGridRow } from './ItemGrid.js';
 import type { OSItemProduto, OSItemServico } from '../../types/os.types.js';
 import styles from './ProdutosServicosSection.module.css';
@@ -47,6 +48,7 @@ async function buscarProdutoPorCodigo(codigo: string): Promise<ItemGridCandidate
       descricao: p.descricao,
       unidade: p.unidade,
       precoUnitario: p.precoUnitario,
+      disponivel: p.disponivel,
     };
   } catch (err) {
     if (err instanceof ApiError && err.code === 'PRODUCT_NOT_FOUND') return null;
@@ -86,6 +88,7 @@ export function ProdutosServicosSection({
   onRemoverServico,
 }: ProdutosServicosSectionProps) {
   const [grupoMobile, setGrupoMobile] = useState<'produtos' | 'servicos'>('produtos');
+  const [somenteComSaldo, setSomenteComSaldo] = useState(false);
   const produtosGrid: ItemGridRow[] = produtos.map((p) => ({
     codigo: p.produtoCodigo,
     descricao: p.descricao,
@@ -130,16 +133,25 @@ export function ProdutosServicosSection({
         <h2 className={styles.heading}>
           Produtos <span>{produtos.length}</span>
         </h2>
+        {podeAddProduto && (
+          <Checkbox
+            label="Somente produtos com saldo"
+            checked={somenteComSaldo}
+            onChange={(e) => setSomenteComSaldo(e.target.checked)}
+            className={styles.saldoCheckbox}
+          />
+        )}
         <ItemGrid
           itens={produtosGrid}
-          queryKeyPrefix="os-grid-produtos"
+          queryKeyPrefix={somenteComSaldo ? 'os-grid-produtos-com-saldo' : 'os-grid-produtos'}
           buscar={(query) =>
-            searchProdutos(query).then((r) =>
+            searchProdutos(query, somenteComSaldo).then((r) =>
               r.items.map((p) => ({
                 codigo: p.codigo,
                 descricao: p.descricao,
                 unidade: p.unidade,
                 precoUnitario: p.precoUnitario,
+                disponivel: p.disponivel,
               })),
             )
           }

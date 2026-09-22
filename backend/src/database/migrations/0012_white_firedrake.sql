@@ -1,0 +1,1 @@
+DROP TABLE "placa_lookup_usage" CASCADE;

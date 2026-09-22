@@ -38,6 +38,11 @@ export class EquipamentoRepositoryMock implements IEquipamentoRepository {
     return EQUIPAMENTOS.filter((e) => e.clienteCodigo === clienteCodigo);
   }
 
+  async buscarPorPlaca(placa: string): Promise<Equipamento | null> {
+    const limpa = placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    return EQUIPAMENTOS.find((e) => e.identificacao?.toUpperCase().replace(/[^A-Z0-9]/g, '') === limpa) ?? null;
+  }
+
   async buscar(query: SearchQuery): Promise<PaginatedResult<Equipamento>> {
     let filtered = EQUIPAMENTOS;
     if (query.clienteCodigo) {

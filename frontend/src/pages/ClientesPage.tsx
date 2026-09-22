@@ -104,6 +104,16 @@ export function ClientesPage() {
     setPage(1);
   }
 
+  const filtrosAtivos = Number(Boolean(tipoPessoa)) + Number(Boolean(uf));
+
+  function limparFiltros() {
+    setTipoPessoa('');
+    setUf('');
+    setBusca('');
+    setBuscaAtiva('');
+    setPage(1);
+  }
+
   function handleLimitChange(novoLimit: number) {
     setLimit(novoLimit);
     setPage(1);
@@ -155,7 +165,7 @@ export function ClientesPage() {
     },
     {
       key: 'acoes',
-      header: '',
+      header: 'Ações',
       align: 'right',
       width: '56px',
       render: (c) =>
@@ -220,12 +230,8 @@ export function ClientesPage() {
           onChange={(e) => setBusca(e.target.value)}
         />
         <ResponsiveFilters
-          activeCount={Number(Boolean(tipoPessoa)) + Number(Boolean(uf))}
-          onClear={() => {
-            setTipoPessoa('');
-            setUf('');
-            setPage(1);
-          }}
+          activeCount={filtrosAtivos}
+          onClear={limparFiltros}
         >
           <Select
             options={TIPO_PESSOA_OPTIONS}
@@ -266,7 +272,11 @@ export function ClientesPage() {
       )}
 
       {!isLoading && !isError && data && data.items.length === 0 && (
-        <EmptyState title="Nenhum cliente cadastrado ainda" />
+        <EmptyState
+          title={filtrosAtivos > 0 || buscaAtiva ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado ainda'}
+          description={filtrosAtivos > 0 || buscaAtiva ? 'Não encontramos resultados com os filtros atuais.' : undefined}
+          action={filtrosAtivos > 0 || buscaAtiva ? <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button> : undefined}
+        />
       )}
 
       {!isLoading && !isError && data && data.items.length > 0 && (

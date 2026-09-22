@@ -240,6 +240,7 @@ export interface RelatorioCatalogoFiltro {
   busca?: string;
   tipoCodigo?: number;
   tipoModo?: 'somente' | 'exceto';
+  saldoModo?: 'todos' | 'com_saldo' | 'sem_saldo' | 'negativo';
 }
 
 /** Exporta o catálogo de produtos tal como a tela de Produtos mostra — não é ranking de vendas. */
@@ -252,6 +253,7 @@ export async function gerarRelatorioCatalogoProdutos(
     busca: filtro.busca,
     tipoCodigo: filtro.tipoCodigo,
     tipoModo: filtro.tipoModo,
+    saldoModo: filtro.saldoModo,
     page: 1,
     limit: LIMITE_LINHAS_RELATORIO,
     sortBy: 'descricao',

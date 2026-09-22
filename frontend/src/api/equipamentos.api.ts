@@ -71,3 +71,4 @@ export function atualizarEquipamento(
 ): Promise<EquipamentoDTO> {
   return apiFetch<EquipamentoDTO>(`/equipamentos/${codigo}`, { method: 'PUT', body: input });
 }
+

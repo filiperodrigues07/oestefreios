@@ -183,6 +183,14 @@ export class OSRepositoryMock implements IOSRepository {
     if (filter.tecnicoId) {
       filtered = filtered.filter((os) => os.tecnicoId === filter.tecnicoId);
     }
+    if (filter.dataInicial) {
+      const inicio = filter.dataInicial.getTime();
+      filtered = filtered.filter((os) => new Date(os.dataAbertura).getTime() >= inicio);
+    }
+    if (filter.dataFinal) {
+      const fim = filter.dataFinal.getTime();
+      filtered = filtered.filter((os) => new Date(os.dataAbertura).getTime() <= fim);
+    }
     const page = filter.page ?? 1;
     const limit = filter.limit ?? 20;
     const start = (page - 1) * limit;

@@ -280,6 +280,15 @@
   color: var(--color-text-secondary);
 }
 
+.stockOk {
+  color: var(--color-success, var(--color-text-secondary));
+}
+
+.stockLow {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
 .addQty {
   display: flex;
   align-items: center;

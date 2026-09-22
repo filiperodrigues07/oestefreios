@@ -4,9 +4,11 @@ import {
   getFirebirdSettingsHandler,
   getFirebirdPasswordHandler,
   getGeralSettingsHandler,
+  getIntegracoesSettingsHandler,
   getSmtpSettingsHandler,
   saveFirebirdSettingsHandler,
   saveGeralSettingsHandler,
+  saveIntegracoesSettingsHandler,
   saveSmtpSettingsHandler,
   testFirebirdSettingsHandler,
   testSmtpSettingsHandler,
@@ -15,7 +17,13 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { firebirdSettingsSchema, geralSettingsSchema, smtpSettingsSchema, testEmailSchema } from '../validators/settings.validator.js';
+import {
+  firebirdSettingsSchema,
+  geralSettingsSchema,
+  integracoesSettingsSchema,
+  smtpSettingsSchema,
+  testEmailSchema,
+} from '../validators/settings.validator.js';
 
 export const settingsRouter = Router();
 
@@ -36,3 +44,6 @@ settingsRouter.post('/smtp/test', validate(testEmailSchema), asyncHandler(testSm
 
 settingsRouter.get('/geral', asyncHandler(getGeralSettingsHandler));
 settingsRouter.put('/geral', validate(geralSettingsSchema), asyncHandler(saveGeralSettingsHandler));
+
+settingsRouter.get('/integracoes', asyncHandler(getIntegracoesSettingsHandler));
+settingsRouter.put('/integracoes', validate(integracoesSettingsSchema), asyncHandler(saveIntegracoesSettingsHandler));

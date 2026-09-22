@@ -43,6 +43,7 @@ export interface RelatorioCatalogoFiltro {
   busca?: string;
   tipoCodigo?: number;
   tipoModo?: 'somente' | 'exceto';
+  saldoModo?: 'todos' | 'com_saldo' | 'sem_saldo' | 'negativo';
 }
 
 function paramsOS(filtro: RelatorioOSFiltro, formato?: string): string {
@@ -63,6 +64,7 @@ function paramsCatalogo(filtro: RelatorioCatalogoFiltro, formato?: string): stri
     usp.set('tipoCodigo', String(filtro.tipoCodigo));
     usp.set('tipoModo', filtro.tipoModo ?? 'somente');
   }
+  if (filtro.saldoModo && filtro.saldoModo !== 'todos') usp.set('saldoModo', filtro.saldoModo);
   if (formato) usp.set('formato', formato);
   return usp.toString();
 }

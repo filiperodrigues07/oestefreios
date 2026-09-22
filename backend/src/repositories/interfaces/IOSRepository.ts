@@ -10,6 +10,9 @@ export interface OSListFilter {
   prioridade?: string;
   /** Busca livre — casa contra número da OS, código/nome do cliente, código/placa/descrição do veículo. */
   busca?: string;
+  /** Período de abertura (ORDEMSERVICO.DATA) — ambos opcionais e combináveis entre si. */
+  dataInicial?: Date;
+  dataFinal?: Date;
   sortBy?: 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';
   sortOrder?: 'asc' | 'desc';
   page?: number;

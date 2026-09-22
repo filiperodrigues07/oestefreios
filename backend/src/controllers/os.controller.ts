@@ -17,6 +17,8 @@ export async function listOSHandler(req: Request, res: Response) {
     tecnicoId?: string;
     prioridade?: string;
     busca?: string;
+    dataInicial?: Date;
+    dataFinal?: Date;
     sortBy?: 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';
     sortOrder?: 'asc' | 'desc';
     page?: number;

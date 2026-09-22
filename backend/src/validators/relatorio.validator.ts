@@ -31,6 +31,7 @@ export const relatorioCatalogoQuerySchema = z.object({
   busca: z.string().trim().min(1).optional(),
   tipoCodigo: z.coerce.number().int().nonnegative().optional(),
   tipoModo: z.enum(['somente', 'exceto']).optional(),
+  saldoModo: z.enum(['todos', 'com_saldo', 'sem_saldo', 'negativo']).optional(),
   formato: formatoSchema,
 });
 

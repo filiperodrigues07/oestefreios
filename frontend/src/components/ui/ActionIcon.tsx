@@ -1,5 +1,5 @@
 interface ActionIconProps {
-  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'edit' | 'delete' | 'save' | 'ready' | 'photo';
+  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'edit' | 'delete' | 'save' | 'ready' | 'photo' | 'chevronDown' | 'export' | 'calendar';
   size?: number;
 }
 
@@ -19,5 +19,8 @@ export function ActionIcon({ name, size = 16 }: ActionIconProps) {
   if (name === 'save') return <svg {...common}><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-7h8v7" /></svg>;
   if (name === 'ready') return <svg {...common}><circle cx="12" cy="12" r="9" /><path d="m8 12 3 3 5-6" /></svg>;
   if (name === 'photo') return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="8.5" cy="9" r="1.5" /><path d="m4 17 5-5 3 3 3-4 5 6" /></svg>;
+  if (name === 'chevronDown') return <svg {...common}><path d="m6 9 6 6 6-6" /></svg>;
+  if (name === 'export') return <svg {...common}><path d="M12 3v12m0-12 4 4m-4-4-4 4" /><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" /></svg>;
+  if (name === 'calendar') return <svg {...common}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>;
   return <svg {...common}><path d="M20 11a8 8 0 1 0 2 5.3" /><path d="M20 4v7h-7" /></svg>;
 }

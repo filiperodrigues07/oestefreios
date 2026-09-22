@@ -1,7 +1,21 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { exportarAuditLogs, listarAuditLogs, type AuditLogFilters } from '../../api/auditLog.api.js';
-import { Button, Card, EmptyState, ErrorState, Input, Modal, Pagination, Select, Skeleton, useToast } from '../../components/ui/index.js';
+import {
+  Button,
+  Card,
+  EmptyState,
+  ErrorState,
+  Input,
+  Modal,
+  Pagination,
+  ResponsiveFilters,
+  SearchInput,
+  Select,
+  Skeleton,
+  useToast,
+} from '../../components/ui/index.js';
+import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import type { AuditLogDTO } from '../../types/auditLog.types.js';
 import styles from './AuditoriaTab.module.css';
 
@@ -23,6 +37,7 @@ const EVENT_LABELS: Record<string, string> = {
   VEICULO_CREATED: 'Veículo criado', VEICULO_UPDATED: 'Veículo atualizado',
   SETTINGS_FIREBIRD_UPDATED: 'Firebird atualizado', SETTINGS_SMTP_UPDATED: 'E-mail atualizado',
   SETTINGS_GERAL_UPDATED: 'Configurações gerais atualizadas',
+  SETTINGS_INTEGRACOES_UPDATED: 'Integrações atualizadas',
   SESSION_FORCE_LOGOUT: 'Sessão encerrada', SESSION_FORCE_LOGOUT_ALL: 'Todas as sessões encerradas',
   USER_CREATED: 'Usuário criado', USER_UPDATED: 'Usuário atualizado', USER_DELETED: 'Usuário excluído',
   USER_INVITE_RESENT: 'Convite reenviado',
@@ -45,29 +60,33 @@ export function AuditoriaTab() {
   const [selecionado, setSelecionado] = useState<AuditLogDTO | null>(null);
   const [filtros, setFiltros] = useState<AuditLogFilters>({});
   const [busca, setBusca] = useState('');
+  const buscaDebounced = useDebouncedValue(busca, 300);
   const [exportando, setExportando] = useState(false);
   const { showToast } = useToast();
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setFiltros(current => ({ ...current, busca: busca || undefined })), 350);
-    return () => window.clearTimeout(timer);
-  }, [busca]);
 
   function updateFiltro(key: keyof AuditLogFilters, value: string) {
     setPage(1);
     setFiltros(current => ({ ...current, [key]: value || undefined, ...(key === 'categoria' ? { event: undefined } : {}) }));
   }
 
+  function limparFiltros() {
+    setPage(1);
+    setFiltros({});
+    setBusca('');
+  }
+
+  const activeCount = Object.values(filtros).filter(Boolean).length;
+
   async function exportar() {
     setExportando(true);
-    try { await exportarAuditLogs({ ...filtros, busca: busca || undefined }); }
+    try { await exportarAuditLogs({ ...filtros, busca: buscaDebounced || undefined }); }
     catch (error) { showToast(error instanceof Error ? error.message : 'Falha ao exportar.', 'danger'); }
     finally { setExportando(false); }
   }
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['audit-logs', page, limit, filtros],
-    queryFn: () => listarAuditLogs({ ...filtros, page, limit }),
+    queryKey: ['audit-logs', page, limit, filtros, buscaDebounced],
+    queryFn: () => listarAuditLogs({ ...filtros, busca: buscaDebounced || undefined, page, limit }),
   });
 
   function handleLimitChange(novoLimit: number) {
@@ -81,22 +100,28 @@ export function AuditoriaTab() {
         <h2>Auditoria</h2>
         <p>Rastreie ações do sistema. Busca livre cobre usuário, evento e ID; não cobre dados alterados.</p>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'end' }}>
-        <Input label="Data inicial" type="date" value={filtros.dataInicial ?? ''} onChange={e => updateFiltro('dataInicial', e.target.value)} />
-        <Input label="Data final" type="date" value={filtros.dataFinal ?? ''} onChange={e => updateFiltro('dataFinal', e.target.value)} />
-        <Select label="Entidade" value={filtros.entityType ?? ''} onChange={e => updateFiltro('entityType', e.target.value)} options={[
-          { value: '', label: 'Todas' }, ...['OS', 'USER', 'CLIENTE', 'VEICULO', 'SETTINGS', 'SESSION'].map(value => ({ value, label: value }))
-        ]} />
-        <Select label="Categoria" value={filtros.categoria ?? ''} onChange={e => updateFiltro('categoria', e.target.value)} options={[
-          { value: '', label: 'Todas' }, ...['AUTH', 'OS', 'USER', 'CLIENTE', 'VEICULO', 'SETTINGS', 'SESSION'].map(value => ({ value, label: value }))
-        ]} />
-        <Select label="Evento" value={filtros.event ?? ''} onChange={e => updateFiltro('event', e.target.value)} options={[
-          { value: '', label: 'Todos' }, ...Object.entries(EVENT_LABELS)
-            .filter(([value]) => !filtros.categoria || eventCategory(value) === filtros.categoria)
-            .map(([value, label]) => ({ value, label }))
-        ]} />
-        <Input label="Usuário" value={filtros.usuario ?? ''} onChange={e => updateFiltro('usuario', e.target.value)} />
-        <Input label="Busca" value={busca} onChange={e => { setBusca(e.target.value); setPage(1); }} />
-        <Button variant="secondary" loading={exportando} onClick={exportar}>Exportar Excel</Button>
+          <SearchInput
+            placeholder="Buscar por usuário, evento ou ID"
+            value={busca}
+            onChange={e => { setBusca(e.target.value); setPage(1); }}
+          />
+          <ResponsiveFilters activeCount={activeCount} onClear={limparFiltros}>
+            <Input label="Data inicial" type="date" value={filtros.dataInicial ?? ''} onChange={e => updateFiltro('dataInicial', e.target.value)} />
+            <Input label="Data final" type="date" value={filtros.dataFinal ?? ''} onChange={e => updateFiltro('dataFinal', e.target.value)} />
+            <Select label="Entidade" value={filtros.entityType ?? ''} onChange={e => updateFiltro('entityType', e.target.value)} options={[
+              { value: '', label: 'Todas' }, ...['OS', 'USER', 'CLIENTE', 'VEICULO', 'SETTINGS', 'SESSION'].map(value => ({ value, label: value }))
+            ]} />
+            <Select label="Categoria" value={filtros.categoria ?? ''} onChange={e => updateFiltro('categoria', e.target.value)} options={[
+              { value: '', label: 'Todas' }, ...['AUTH', 'OS', 'USER', 'CLIENTE', 'VEICULO', 'SETTINGS', 'SESSION'].map(value => ({ value, label: value }))
+            ]} />
+            <Select label="Evento" value={filtros.event ?? ''} onChange={e => updateFiltro('event', e.target.value)} options={[
+              { value: '', label: 'Todos' }, ...Object.entries(EVENT_LABELS)
+                .filter(([value]) => !filtros.categoria || eventCategory(value) === filtros.categoria)
+                .map(([value, label]) => ({ value, label }))
+            ]} />
+            <Input label="Usuário" value={filtros.usuario ?? ''} onChange={e => updateFiltro('usuario', e.target.value)} />
+          </ResponsiveFilters>
+          <Button variant="secondary" loading={exportando} onClick={exportar}>Exportar Excel</Button>
         </div>
       </section>
 
@@ -110,7 +135,13 @@ export function AuditoriaTab() {
 
       {isError && <ErrorState error={error} />}
 
-      {!isLoading && !isError && data?.items.length === 0 && <EmptyState title="Nenhum evento registrado ainda." />}
+      {!isLoading && !isError && data?.items.length === 0 && (
+        <EmptyState
+          title={activeCount > 0 || busca ? 'Nenhum evento encontrado' : 'Nenhum evento registrado ainda.'}
+          description={activeCount > 0 || busca ? 'Não encontramos resultados com os filtros atuais.' : undefined}
+          action={(activeCount > 0 || busca) ? <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button> : undefined}
+        />
+      )}
 
       <div className={styles.logList}>
         {data?.items.map((entry) => (

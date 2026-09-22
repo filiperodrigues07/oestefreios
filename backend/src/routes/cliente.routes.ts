@@ -3,6 +3,7 @@ import {
   atualizarClienteHandler,
   consultarCepHandler,
   consultarCnpjHandler,
+  consultarInscricaoEstadualHandler,
   criarClienteHandler,
   getClienteByCodigoHandler,
   searchClientesHandler,
@@ -21,6 +22,7 @@ clienteRouter.use(authenticate);
 
 clienteRouter.get('/', validate(searchQuerySchema, 'query'), asyncHandler(searchClientesHandler));
 clienteRouter.get('/cnpj/:cnpj', validate(cnpjParamSchema, 'params'), asyncHandler(consultarCnpjHandler));
+clienteRouter.get('/inscricao-estadual/:cnpj', validate(cnpjParamSchema, 'params'), asyncHandler(consultarInscricaoEstadualHandler));
 clienteRouter.get('/cep/:cep', validate(cepParamSchema, 'params'), asyncHandler(consultarCepHandler));
 clienteRouter.get('/:codigo', validate(codigoParamSchema, 'params'), asyncHandler(getClienteByCodigoHandler));
 

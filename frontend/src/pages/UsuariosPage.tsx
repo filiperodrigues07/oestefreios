@@ -176,7 +176,7 @@ export function UsuariosPage() {
     },
     {
       key: 'acoes',
-      header: '',
+      header: 'Ações',
       align: 'right',
       width: '160px',
       render: (u) => (

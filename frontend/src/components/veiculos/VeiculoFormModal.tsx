@@ -1,9 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { atualizarEquipamento, criarEquipamento } from '../../api/equipamentos.api.js';
+import { ApiError } from '../../api/httpClient.js';
 import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
 import { ClienteSearch } from '../search/ClienteSearch.js';
-import { Button, Input, Modal } from '../ui/index.js';
+import { Button, Input, LinkButton, Modal } from '../ui/index.js';
 import type { ClienteDTO, EquipamentoDTO, EquipamentoInput } from '../../types/cherp.types.js';
 
 interface VeiculoFormModalProps {
@@ -232,14 +233,45 @@ function VeiculoFormContent({
           onChange={(e) => setForm({ ...form, chassi: e.target.value })}
         />
 
-        {mutation.isError && (
-          <p
-            role="alert"
-            style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}
-          >
-            {mutation.error instanceof Error ? mutation.error.message : 'Erro ao salvar veículo.'}
-          </p>
-        )}
+        {mutation.isError && (() => {
+          const err = mutation.error;
+          const duplicado =
+            err instanceof ApiError && err.code === 'VEHICLE_DUPLICATE'
+              ? (err.details as { codigo: string; descricao: string; clienteNome?: string } | undefined)
+              : undefined;
+          if (duplicado) {
+            return (
+              <div
+                role="alert"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 'var(--space-1)',
+                  border: '1px solid var(--color-warning)',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-warning-surface)',
+                  padding: 'var(--space-3)',
+                }}
+              >
+                <strong>Veículo já cadastrado</strong>
+                <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                  {err instanceof Error ? err.message : ''}
+                </p>
+                <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                  {duplicado.descricao}{duplicado.clienteNome ? ` · Cliente: ${duplicado.clienteNome}` : ''}
+                </p>
+                <LinkButton to={`/veiculos?busca=${encodeURIComponent(form.placa)}`} variant="secondary" size="sm">
+                  Ver veículo cadastrado
+                </LinkButton>
+              </div>
+            );
+          }
+          return (
+            <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+              {err instanceof Error ? err.message : 'Erro ao salvar veículo.'}
+            </p>
+          );
+        })()}
       </div>
     </Modal>
   );

@@ -213,6 +213,8 @@ export interface PaginatedResult<T> {
 export interface SearchQuery {
   tipoCodigo?: number;
   tipoModo?: 'somente' | 'exceto';
+  /** Só usado por produtos: filtra pelo saldo em estoque (PRODUTOESTOQUE.SALDO somado). */
+  saldoModo?: 'todos' | 'com_saldo' | 'sem_saldo' | 'negativo';
   codigo?: string;
   descricao?: string;
   /** Só usado por equipamentos: filtra pelo cliente já selecionado no fluxo de criação de OS. */

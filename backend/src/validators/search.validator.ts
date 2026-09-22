@@ -4,6 +4,8 @@ import { z } from 'zod';
 export const searchQuerySchema = z.object({
   tipoCodigo: z.coerce.number().int().nonnegative().optional(),
   tipoModo: z.enum(['somente', 'exceto']).optional(),
+  /** Só usado por produtos. */
+  saldoModo: z.enum(['todos', 'com_saldo', 'sem_saldo', 'negativo']).optional(),
   codigo: z.string().trim().min(1).optional(),
   descricao: z.string().trim().min(1).optional(),
   /** Só usado por equipamentos: filtra pelo cliente já selecionado no fluxo de criação de OS (seção 8). */

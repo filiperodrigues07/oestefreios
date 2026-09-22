@@ -68,6 +68,16 @@ export interface GeralSettings {
   fusoHorario: string;
 }
 
+/**
+ * Credencial da API externa opcional de Inscrição Estadual (SINTEGRA Brasil).
+ * A de consulta de placa foi desativada — provedor originalmente escolhido saiu do ar
+ * (domínio ckst.com.br não resolve mais) e não achamos substituto vivo com plano grátis
+ * mensal recorrente; ver histórico do commit se for reativar com outro provedor.
+ */
+export interface IntegracoesSettings {
+  sintegraApiKey: string;
+}
+
 const FIREBIRD_PADRAO: FirebirdSettings = {
   host: env.FIREBIRD_HOST,
   port: env.FIREBIRD_PORT,
@@ -92,6 +102,10 @@ const GERAL_PADRAO: GeralSettings = {
   logoUrl: '',
   corDestaque: '',
   fusoHorario: 'America/Sao_Paulo',
+};
+
+const INTEGRACOES_PADRAO: IntegracoesSettings = {
+  sintegraApiKey: '',
 };
 
 async function readCategory<T>(category: string, fallback: T): Promise<T> {
@@ -265,5 +279,29 @@ export async function saveGeralSettings(input: GeralSettings, usuario?: Authenti
     before: { nomeEmpresa: atual.nomeEmpresa, corDestaque: atual.corDestaque, fusoHorario: atual.fusoHorario },
     after: { nomeEmpresa: input.nomeEmpresa, corDestaque: input.corDestaque, fusoHorario: input.fusoHorario },
     logoChanged: input.logoUrl !== atual.logoUrl,
+  });
+}
+
+export async function getIntegracoesSettings(): Promise<IntegracoesSettings> {
+  const data = await readCategory('integracoes', INTEGRACOES_PADRAO);
+  return { sintegraApiKey: decryptSecret(data.sintegraApiKey) };
+}
+
+/** Versão segura pra devolver ao frontend — chave nunca volta em texto puro. */
+export async function getIntegracoesSettingsMasked(): Promise<IntegracoesSettings> {
+  const data = await getIntegracoesSettings();
+  return { sintegraApiKey: data.sintegraApiKey ? SENHA_MASCARADA : '' };
+}
+
+export async function saveIntegracoesSettings(
+  input: IntegracoesSettings,
+  usuario?: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<void> {
+  const atual = await getIntegracoesSettings();
+  const sintegraApiKey = !input.sintegraApiKey || input.sintegraApiKey === SENHA_MASCARADA ? atual.sintegraApiKey : input.sintegraApiKey;
+  await writeCategory('integracoes', { sintegraApiKey: encryptSecret(sintegraApiKey) });
+  if (usuario) await auditSettings('SETTINGS_INTEGRACOES_UPDATED', usuario, ctx, {
+    sintegraApiKeyChanged: sintegraApiKey !== atual.sintegraApiKey,
   });
 }

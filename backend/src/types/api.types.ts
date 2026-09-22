@@ -9,6 +9,8 @@ export interface ApiErrorResponse {
   error: {
     code: string;
     message: string;
+    /** Payload estruturado opcional — ex.: registro conflitante num erro de duplicidade. */
+    details?: unknown;
   };
 }
 

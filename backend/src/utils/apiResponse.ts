@@ -6,7 +6,7 @@ export function success<T>(res: Response, data: T, message: string | null = null
   return res.status(statusCode).json(body);
 }
 
-export function failure(res: Response, code: string, message: string, statusCode: number) {
-  const body: ApiErrorResponse = { success: false, error: { code, message } };
+export function failure(res: Response, code: string, message: string, statusCode: number, details?: unknown) {
+  const body: ApiErrorResponse = { success: false, error: { code, message, details } };
   return res.status(statusCode).json(body);
 }

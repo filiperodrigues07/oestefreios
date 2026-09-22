@@ -29,6 +29,10 @@ export class ClienteRepositoryMock implements IClienteRepository {
     return CLIENTES.filter((c) => c.nome.toLowerCase().includes(termo));
   }
 
+  async buscarPorDocumento(documento: string): Promise<Cliente | null> {
+    return CLIENTES.find((c) => c.documento === documento) ?? null;
+  }
+
   async buscar(query: SearchQuery): Promise<PaginatedResult<Cliente>> {
     let filtered = CLIENTES;
     if (query.codigo) {
