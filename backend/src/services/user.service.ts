@@ -9,6 +9,7 @@ import { passwordResetTokenRepository } from '../repositories/postgres/PasswordR
 import { refreshTokenRepository } from '../repositories/postgres/RefreshTokenRepository.js';
 import { userRepository, type RoleRow, type UserRow } from '../repositories/postgres/UserRepository.js';
 import { cherpUsuarioRepository } from '../repositories/firebird/CherpUsuarioRepository.firebird.js';
+import { getCherpMode } from '../repositories/cherpMode.js';
 import type { AuthenticatedUser, Permission } from '../types/auth.types.js';
 import { logger } from '../utils/logger.js';
 import type { RequestContext } from '../utils/requestContext.js';
@@ -113,7 +114,7 @@ export async function listRoles(): Promise<RoleOptionDTO[]> {
 }
 
 export async function listCherpUsers() {
-  if (env.CHERP_MODE !== 'firebird') return [];
+  if (getCherpMode() !== 'firebird') return [];
   return cherpUsuarioRepository.listarAtivos();
 }
 

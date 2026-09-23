@@ -44,9 +44,12 @@ export async function getFirebirdConnectionStatusHandler(_req: Request, res: Res
 }
 
 export async function saveFirebirdSettingsHandler(req: Request, res: Response) {
-  await settingsService.saveFirebirdSettings(req.body, req.user!, requestContext(req));
+  const { cherpMode } = await settingsService.saveFirebirdSettings(req.body, req.user!, requestContext(req));
   const data = await settingsService.getFirebirdSettingsMasked();
-  success(res, data, 'Configurações do Firebird salvas.');
+  const mensagem = cherpMode === 'firebird'
+    ? 'Configurações do Firebird salvas. Conexão confirmada — o sistema já está usando dados reais do CHERP.'
+    : 'Configurações do Firebird salvas, mas não foi possível confirmar a conexão — revise os dados e teste novamente.';
+  success(res, { ...data, cherpMode }, mensagem);
 }
 
 export async function testFirebirdSettingsHandler(req: Request, res: Response) {

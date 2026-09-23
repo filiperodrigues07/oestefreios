@@ -1,6 +1,6 @@
 import { sql } from 'drizzle-orm';
-import { env } from '../config/env.js';
 import { db } from '../database/postgres/client.js';
+import { getCherpMode } from '../repositories/cherpMode.js';
 
 export async function getHealthStatus() {
   let postgres: 'ok' | 'down';
@@ -15,6 +15,6 @@ export async function getHealthStatus() {
     status: 'ok' as const,
     timestamp: new Date().toISOString(),
     postgres,
-    cherpMode: env.CHERP_MODE,
+    cherpMode: getCherpMode(),
   };
 }

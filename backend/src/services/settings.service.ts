@@ -7,6 +7,7 @@ import { firebirdOptions } from '../config/firebird.config.js';
 import { reloadFirebirdPool } from '../database/firebird/pool.js';
 import { db } from '../database/postgres/client.js';
 import { settings } from '../database/postgres/schema.js';
+import { getCherpMode, setCherpMode, type CherpMode as CherpModeType } from '../repositories/cherpMode.js';
 import { logger } from '../utils/logger.js';
 import type { AuthenticatedUser } from '../types/auth.types.js';
 import type { RequestContext } from '../utils/requestContext.js';
@@ -156,7 +157,7 @@ function toFirebirdAttachOptions(s: FirebirdSettings): Firebird.Options {
   };
 }
 
-export async function saveFirebirdSettings(input: FirebirdSettings, usuario?: AuthenticatedUser, ctx: RequestContext = {}): Promise<void> {
+export async function saveFirebirdSettings(input: FirebirdSettings, usuario?: AuthenticatedUser, ctx: RequestContext = {}): Promise<{ cherpMode: CherpModeType }> {
   const atual = await getFirebirdSettings();
   const password = !input.password || input.password === SENHA_MASCARADA ? atual.password : input.password;
   const final: FirebirdSettings = { ...input, password };
@@ -165,6 +166,18 @@ export async function saveFirebirdSettings(input: FirebirdSettings, usuario?: Au
     before: { ...atual, password: undefined }, after: { ...final, password: undefined }, passwordChanged: password !== atual.password,
   });
   await reloadFirebirdPool(toFirebirdAttachOptions(final));
+
+  // Credencial salva e conecta de verdade → liga o modo Firebird sozinho, sem precisar
+  // reiniciar o processo. Se não conectar, mantém o modo atual (não desliga um Firebird que
+  // já estava funcionando só porque uma tentativa de salvar deu errado).
+  const teste = await testFirebirdConnection(final);
+  if (teste.ok && getCherpMode() !== 'firebird') {
+    setCherpMode('firebird');
+    logger.info('CHERP_MODE ativado automaticamente para "firebird" após conexão bem-sucedida salva em Configurações.');
+  } else if (!teste.ok) {
+    logger.warn({ message: teste.message }, 'Configuração do Firebird salva, mas a conexão de teste falhou — modo CHERP não foi alterado.');
+  }
+  return { cherpMode: getCherpMode() };
 }
 
 /**
