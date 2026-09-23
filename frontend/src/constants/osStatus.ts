@@ -44,14 +44,14 @@ export const OS_STATUS_ABERTOS: OSStatus[] = [
 ];
 
 export const OS_PRIORITY_CONFIG: Record<OSPrioridade, OSStatusConfig> = {
-  BAIXA: { label: 'Baixa', tone: 'neutral' },
-  NORMAL: { label: 'Normal', tone: 'info' },
-  MEDIA: { label: 'Média', tone: 'primary' },
-  ALTA: { label: 'Alta', tone: 'warning' },
-  URGENTE: { label: 'Alta', tone: 'warning' },
+  NORMAL: { label: 'Normal', tone: 'success' },
+  BAIXA: { label: 'Baixa', tone: 'warning' },
+  MEDIA: { label: 'Média', tone: 'warning' },
+  ALTA: { label: 'Alta', tone: 'danger' },
+  URGENTE: { label: 'Alta', tone: 'danger' },
 };
 
-const PRIORIDADE_ORDEM: OSPrioridade[] = ['BAIXA', 'NORMAL', 'MEDIA', 'ALTA'];
+const PRIORIDADE_ORDEM: OSPrioridade[] = ['NORMAL', 'BAIXA', 'MEDIA', 'ALTA'];
 
 /** Opções pra Select de prioridade — mesma fonte de rótulo do badge, sem duplicar em cada tela. */
 export const OS_PRIORIDADE_OPTIONS = PRIORIDADE_ORDEM.map((value) => ({ value, label: OS_PRIORITY_CONFIG[value].label }));

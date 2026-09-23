@@ -14,6 +14,15 @@
   --color-warning: #fbbf24;
   --color-danger: #fb7185;
   --color-info: #38bdf8;
+  /* Prioridades do CHERP: mesma sequência de cores, com saturação adaptada ao tema. */
+  --os-priority-normal: #4ade80;
+  --os-priority-low: #facc15;
+  --os-priority-medium: #fb923c;
+  --os-priority-high: #f87171;
+  --os-priority-normal-text: var(--os-priority-normal);
+  --os-priority-low-text: var(--os-priority-low);
+  --os-priority-medium-text: var(--os-priority-medium);
+  --os-priority-high-text: var(--os-priority-high);
   /* Texto sobre fundo sólido saturado (botão primary/danger) — diferente de *-on-surface,
      que é pra texto sobre a versão tintada/clara do tom (badge, chip). */
   --color-on-primary: #fff;
@@ -106,6 +115,14 @@
   --color-warning: #d97706;
   --color-danger: #dc2626;
   --color-info: #0284c7;
+  --os-priority-normal: #16a34a;
+  --os-priority-low: #ca8a04;
+  --os-priority-medium: #ea580c;
+  --os-priority-high: #dc2626;
+  --os-priority-normal-text: #166534;
+  --os-priority-low-text: #854d0e;
+  --os-priority-medium-text: #9a3412;
+  --os-priority-high-text: #991b1b;
 
   --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.1);

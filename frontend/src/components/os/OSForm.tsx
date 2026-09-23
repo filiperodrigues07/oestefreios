@@ -152,6 +152,8 @@ function OSFormCreate() {
             </div>
 
             <Select
+              className="os-priority-select"
+              data-priority={prioridade}
               label={
                 <>
                   Prioridade

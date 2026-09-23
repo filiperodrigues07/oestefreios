@@ -15,8 +15,8 @@ export function StatusBadge({ status }: { status: OSStatus }) {
 export function PriorityBadge({ priority }: { priority: keyof typeof OS_PRIORITY_CONFIG }) {
   const config = OS_PRIORITY_CONFIG[priority];
   return (
-    <Badge tone={config.tone} className={styles.priorityBadge}>
-      <span className={`${styles.dot} ${styles[config.tone]}`} aria-hidden="true" />
+    <Badge tone={config.tone} className={`${styles.priorityBadge} ${styles[`priority${priority}`]}`}>
+      <span className={styles.dot} aria-hidden="true" />
       {config.label}
     </Badge>
   );

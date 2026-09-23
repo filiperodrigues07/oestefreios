@@ -360,6 +360,8 @@ export function OSListPage() {
             options={OS_DOCUMENT_STATUS_OPTIONS}
           />
           <Select
+            className="os-priority-select"
+            data-priority={prioridade || undefined}
             label="Prioridade"
             placeholder="Todas"
             value={prioridade}

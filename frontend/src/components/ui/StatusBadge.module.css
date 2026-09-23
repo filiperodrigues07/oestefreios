@@ -10,6 +10,13 @@
   justify-content: center;
 }
 
+.priorityBadge.priorityNORMAL { background: color-mix(in srgb, var(--os-priority-normal) 15%, var(--color-surface)); color: var(--os-priority-normal-text); }
+.priorityBadge.priorityBAIXA { background: color-mix(in srgb, var(--os-priority-low) 15%, var(--color-surface)); color: var(--os-priority-low-text); }
+.priorityBadge.priorityMEDIA { background: color-mix(in srgb, var(--os-priority-medium) 15%, var(--color-surface)); color: var(--os-priority-medium-text); }
+.priorityBadge.priorityALTA,
+.priorityBadge.priorityURGENTE { background: color-mix(in srgb, var(--os-priority-high) 15%, var(--color-surface)); color: var(--os-priority-high-text); }
+.priorityBadge .dot { box-shadow: none; }
+
 .dot {
   width: 6px;
   height: 6px;

@@ -91,7 +91,7 @@ export function OSFormHeader({
       <div className={styles.selectBox}><OSFieldInfo field="status">Sit. atendimento</OSFieldInfo><select value={nextStatus} disabled={!canChangeStatus || updating} onChange={(event) => setNextStatus(event.target.value as OSStatus)}>{transitions.map((value) => <option key={value} value={value}>{OS_STATUS_CONFIG[value].label}</option>)}</select></div>
       <div className={styles.selectBox}>
         <OSFieldInfo field="prioridade">Prioridade</OSFieldInfo>
-        <div className={styles.priorityControl} data-tone={OS_PRIORITY_CONFIG[prioridade].tone}>
+        <div className={styles.priorityControl} data-priority={prioridade}>
           <span className={styles.priorityDot} aria-hidden="true" />
           <select value={prioridade} disabled={!canEdit || updating} onChange={(event) => onPriorityChange(event.target.value as OSPrioridade)}>
             {(Object.keys(OS_PRIORITY_CONFIG) as OSPrioridade[]).filter((value) => value !== 'URGENTE').map((value) => <option key={value} value={value}>{OS_PRIORITY_CONFIG[value].label}</option>)}

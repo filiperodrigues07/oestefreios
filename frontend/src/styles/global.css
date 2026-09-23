@@ -43,3 +43,15 @@ textarea {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
 }
+
+/* Select nativo das prioridades de OS: mesmas cores do CHERP no valor selecionado. */
+.os-priority-select[data-priority] { color: var(--priority-text); background: color-mix(in srgb, var(--priority-accent) 15%, var(--color-surface)); font-weight: 700; }
+.os-priority-select[data-priority='NORMAL'] { --priority-accent: var(--os-priority-normal); --priority-text: var(--os-priority-normal-text); }
+.os-priority-select[data-priority='BAIXA'] { --priority-accent: var(--os-priority-low); --priority-text: var(--os-priority-low-text); }
+.os-priority-select[data-priority='MEDIA'] { --priority-accent: var(--os-priority-medium); --priority-text: var(--os-priority-medium-text); }
+.os-priority-select[data-priority='ALTA'],
+.os-priority-select[data-priority='URGENTE'] { --priority-accent: var(--os-priority-high); --priority-text: var(--os-priority-high-text); }
+.os-priority-select option[value='NORMAL'] { background: color-mix(in srgb, var(--os-priority-normal) 15%, var(--color-surface)); color: var(--os-priority-normal-text); }
+.os-priority-select option[value='BAIXA'] { background: color-mix(in srgb, var(--os-priority-low) 15%, var(--color-surface)); color: var(--os-priority-low-text); }
+.os-priority-select option[value='MEDIA'] { background: color-mix(in srgb, var(--os-priority-medium) 15%, var(--color-surface)); color: var(--os-priority-medium-text); }
+.os-priority-select option[value='ALTA'] { background: color-mix(in srgb, var(--os-priority-high) 15%, var(--color-surface)); color: var(--os-priority-high-text); }
