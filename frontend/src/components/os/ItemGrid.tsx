@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { ActionIcon } from '../ui/ActionIcon.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { Input } from '../ui/Input.js';
 import { CurrencyCell } from '../ui/CurrencyCell.js';
@@ -363,7 +364,7 @@ export function ItemGrid({
                       addMutation.isPending
                     }
                   >
-                    <span aria-hidden="true">✓</span> Adicionar
+                    <ActionIcon name="ready" size={14} /> Adicionar
                   </button>
                   <button type="button" className={styles.cancelAddButton} onClick={cancelarSelecao}>
                     Cancelar
@@ -496,7 +497,7 @@ export function ItemGrid({
                             disabled={editMutation.isPending}
                             aria-label={`Salvar ${item.descricao}`}
                           >
-                            ✓
+                            <ActionIcon name="ready" size={16} />
                           </button>
                           <button
                             type="button"
@@ -504,7 +505,7 @@ export function ItemGrid({
                             onClick={() => setEditandoCodigo(null)}
                             aria-label="Cancelar edição"
                           >
-                            ✕
+                            <ActionIcon name="close" size={16} />
                           </button>
                         </div>
                       ) : (
@@ -521,7 +522,7 @@ export function ItemGrid({
                             aria-label={`Editar ${item.descricao}`}
                             onClick={() => iniciarEdicaoLinha(item)}
                           >
-                            ✎
+                            <ActionIcon name="edit" size={16} />
                           </button>
                           <button
                             type="button"
@@ -529,7 +530,7 @@ export function ItemGrid({
                             aria-label={`Remover ${item.descricao}`}
                             onClick={() => onRemover(item)}
                           >
-                            🗑
+                            <ActionIcon name="delete" size={16} />
                           </button>
                         </div>
                       )}
@@ -611,7 +612,7 @@ export function ItemGrid({
                         disabled={editMutation.isPending}
                         aria-label={`Salvar ${item.descricao}`}
                       >
-                        ✓
+                        <ActionIcon name="ready" size={16} />
                       </button>
                       <button
                         type="button"
@@ -619,7 +620,7 @@ export function ItemGrid({
                         onClick={() => setEditandoCodigo(null)}
                         aria-label="Cancelar edição"
                       >
-                        ✕
+                        <ActionIcon name="close" size={16} />
                       </button>
                     </>
                   ) : (
@@ -630,7 +631,7 @@ export function ItemGrid({
                         aria-label={`Editar ${item.descricao}`}
                         onClick={() => iniciarEdicaoLinha(item)}
                       >
-                        ✎
+                        <ActionIcon name="edit" size={16} />
                       </button>
                       <button
                         type="button"
@@ -638,7 +639,7 @@ export function ItemGrid({
                         aria-label={`Remover ${item.descricao}`}
                         onClick={() => onRemover(item)}
                       >
-                        🗑
+                        <ActionIcon name="delete" size={16} />
                       </button>
                     </>
                   )}

@@ -270,6 +270,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
       <main className={styles.main}>
         <header className={styles.desktopHeader}>
+          <span className={styles.desktopContext}>{tituloPagina}</span>
           <div className={styles.headerActions}>
             <div className={styles.notificationWrapper} ref={notificationWrapperRef}>
               <button

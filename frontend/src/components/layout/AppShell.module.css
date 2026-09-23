@@ -1,5 +1,6 @@
 .shell {
   min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
 }
 
@@ -395,15 +396,13 @@
     display: flex;
     min-height: 64px;
     align-items: center;
-    justify-content: center;
+    justify-content: space-between;
     border-bottom: 1px solid var(--color-border);
     background: var(--color-background);
     padding: var(--space-3) var(--space-6);
   }
 
   .headerActions {
-    position: absolute;
-    right: var(--space-6);
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -687,13 +686,13 @@
     color: #dbe3f0;
   }
   .mobileMenuDrawer > :first-child { min-height: 34px; flex: none; }
-  .mobileMenuDrawer > :first-child button { display: grid; width: 34px; height: 34px; place-items: center; border: 1px solid rgba(172,191,224,.15); border-radius: 9px; background: #25324a; color: #e8eefb; }
+  .mobileMenuDrawer > :first-child button { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid rgba(172,191,224,.15); border-radius: 9px; background: #25324a; color: #e8eefb; }
   .mobileBrand { flex: none; flex-direction: column; gap: 3px; padding: 0 0 15px; border-color: rgba(178,192,219,.13); text-align: center; }
   .mobileBrand img { width: 84px; height: 84px; border-radius: 0; }
   .mobileBrand div { align-items: center; }
   .mobileBrand strong { color: #f7f9ff; font-size: 16px; }
   .mobileBrand span { color: #c5cedd; font-size: 12px; }
-  .mobileMenuSearch { display: flex; width: 100%; min-height: 42px; flex: none; align-items: center; gap: 9px; margin: 12px 0 14px; border: 1px solid rgba(172,191,224,.13); border-radius: 11px; background: rgba(255,255,255,.035); color: #b7c2d2; padding: 0 10px; cursor: pointer; text-align: left; }
+  .mobileMenuSearch { display: flex; width: 100%; min-height: 44px; flex: none; align-items: center; gap: 9px; margin: 12px 0 14px; border: 1px solid rgba(172,191,224,.13); border-radius: 11px; background: rgba(255,255,255,.035); color: #b7c2d2; padding: 0 10px; cursor: pointer; text-align: left; }
   .mobileMenuSearch svg { flex: none; }
   .mobileMenuSearch span { flex: 1; min-width: 0; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
   .mobileMenuSearch kbd { flex: none; border-radius: 5px; background: rgba(255,255,255,.06); color: #d6dfed; padding: 3px 5px; font-size: 9px; }
@@ -701,7 +700,7 @@
   .mobileNavGroup { gap: 3px; }
   .mobileNavLabel { display: flex; align-items: center; gap: 9px; padding: 0 7px 5px; color: #b9c4d5; font-size: 10px; font-weight: 600; letter-spacing: .16em; white-space: nowrap; }
   .mobileNavLabel::after { content: ''; flex: 1; height: 1px; background: rgba(177,191,214,.16); }
-  .mobileNavItem { min-height: 43px; gap: 12px; border: 1px solid transparent; border-radius: 10px; color: #d6deea; padding: 7px 11px; }
+  .mobileNavItem { min-height: 44px; gap: 12px; border: 1px solid transparent; border-radius: 10px; color: #d6deea; padding: 7px 11px; }
   .mobileNavItem > svg:first-child { flex: none; color: #aab9d1; }
   .mobileNavItemLabel { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .mobileNavItemActive { border-color: #428bff; background: linear-gradient(115deg, #1872ef, #1743b8); box-shadow: 0 7px 18px rgba(13,83,214,.24); color: #fff; }

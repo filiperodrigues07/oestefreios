@@ -229,19 +229,20 @@ export function Table<T>({
                         ? { width: col.width }
                         : undefined
                   }
-                  onClick={clickable ? () => onSortChange(col.key) : undefined}
                   aria-sort={
                     isSorted ? (sortOrder === 'desc' ? 'descending' : 'ascending') : undefined
                   }
                 >
-                  <span className={styles.thContent}>
-                    {col.header}
-                    {clickable && (
+                  {clickable ? (
+                    <button type="button" className={styles.thButton} onClick={() => onSortChange(col.key)}>
+                      {col.header}
                       <span className={styles.sortIcon} aria-hidden="true">
                         {isSorted ? (sortOrder === 'desc' ? '↓' : '↑') : '↕'}
                       </span>
-                    )}
-                  </span>
+                    </button>
+                  ) : (
+                    <span className={styles.thContent}>{col.header}</span>
+                  )}
                   {columnPrefsKey && (
                     <span
                       className={styles.resizeHandle}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Button } from '../ui/index.js';
 
 export interface DiagnosticoPatch {
@@ -134,14 +134,17 @@ function EditNumber({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const id = useId();
   return (
     <div>
-      <div
-        style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}
+      <label
+        htmlFor={id}
+        style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}
       >
         {label}
-      </div>
+      </label>
       <input
+        id={id}
         type="number"
         inputMode="numeric"
         min={0}
@@ -171,14 +174,17 @@ function EditTextarea({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const id = useId();
   return (
     <div>
-      <div
-        style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}
+      <label
+        htmlFor={id}
+        style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}
       >
         {label}
-      </div>
+      </label>
       <textarea
+        id={id}
         value={value}
         onChange={(e) => onChange(e.target.value.toLocaleUpperCase('pt-BR'))}
         rows={2}

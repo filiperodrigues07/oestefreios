@@ -105,84 +105,86 @@ function OSFormCreate() {
 
       {/* Mesma casca de abas da tela de edição — as que dependem da OS já existir ficam
           desabilitadas até "Criar OS", pra não parecer uma tela totalmente separada. */}
-      <nav className={styles.tabs} aria-label="Seções da OS">
-        <a href="#dados">▣ Dados da OS</a>
-        {['▤ Produtos e Serviços', '▱ Diagnóstico'].map((label) => (
-          <span key={label} className={styles.tabDisabled} title="Disponível depois de criar a OS">
-            {label}
-          </span>
-        ))}
-        <span className={styles.tabDisabled} title="Disponível depois de criar a OS"><ActionIcon name="photo" /> Fotos</span>
-        <span className={styles.tabDisabled} title="Disponível depois de criar a OS">◷ Histórico</span>
-      </nav>
-
-      <section id="dados" className={styles.identity}>
-        <ClienteVeiculoSection
-          mode="create"
-          cliente={cliente}
-          equipamento={equipamento}
-          onClienteChange={setCliente}
-          onEquipamentoChange={setEquipamento}
-        />
-      </section>
-
-      <section className={styles.section}>
-        <h2 className={styles.sectionTitle}>Problema relatado</h2>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-          <div>
-            <label
-              htmlFor="problema"
-              style={{
-                display: 'block',
-                fontSize: 'var(--font-size-sm)',
-                fontWeight: 500,
-                marginBottom: 'var(--space-1)',
-              }}
-            >
-              Descrição
-            </label>
-            <textarea
-              id="problema"
-              value={problema}
-              onChange={(e) => setProblema(e.target.value.toLocaleUpperCase('pt-BR'))}
-              rows={3}
-              className={styles.textarea}
-            />
-          </div>
-
-          <Select
-            label={
-              <>
-                Prioridade
-                <RequiredMark />
-              </>
-            }
-            value={prioridade}
-            onChange={(e) => setPrioridade(e.target.value as OSPrioridade)}
-            options={OS_PRIORIDADE_OPTIONS}
+      <Tabs
+        items={[
+          { key: 'dados', label: '▣ Dados da OS', mobileLabel: 'Dados' },
+          { key: 'itens', label: '▤ Produtos e Serviços', mobileLabel: 'Itens', disabled: true, title: 'Disponível depois de criar a OS' },
+          { key: 'diagnostico', label: '▱ Diagnóstico', mobileLabel: 'Diagnóstico', disabled: true, title: 'Disponível depois de criar a OS' },
+          { key: 'fotos', label: <><ActionIcon name="photo" /> Fotos</>, mobileLabel: <><ActionIcon name="photo" /> Fotos</>, disabled: true, title: 'Disponível depois de criar a OS' },
+          { key: 'historico', label: '◷ Histórico', mobileLabel: 'Histórico', disabled: true, title: 'Disponível depois de criar a OS' },
+        ]}
+        active="dados"
+        onChange={() => {}}
+        fullWidth
+      >
+        <section className={styles.identity}>
+          <ClienteVeiculoSection
+            mode="create"
+            cliente={cliente}
+            equipamento={equipamento}
+            onClienteChange={setCliente}
+            onEquipamentoChange={setEquipamento}
           />
+        </section>
 
-          {mutation.isError && (
-            <p
-              role="alert"
-              style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}
-            >
-              {mutation.error instanceof Error ? mutation.error.message : 'Erro ao criar OS.'}
-            </p>
-          )}
+        <section className={styles.section}>
+          <h2 className={styles.sectionTitle}>Problema relatado</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+            <div>
+              <label
+                htmlFor="problema"
+                style={{
+                  display: 'block',
+                  fontSize: 'var(--font-size-sm)',
+                  fontWeight: 500,
+                  marginBottom: 'var(--space-1)',
+                }}
+              >
+                Descrição
+              </label>
+              <textarea
+                id="problema"
+                value={problema}
+                onChange={(e) => setProblema(e.target.value.toLocaleUpperCase('pt-BR'))}
+                rows={3}
+                className={styles.textarea}
+              />
+            </div>
 
-          <div>
-            <Button
-              disabled={!podeSalvar}
-              loading={mutation.isPending}
-              onClick={() => mutation.mutate()}
-            >
-              <ActionIcon name="add" />
-              Criar OS
-            </Button>
+            <Select
+              label={
+                <>
+                  Prioridade
+                  <RequiredMark />
+                </>
+              }
+              value={prioridade}
+              onChange={(e) => setPrioridade(e.target.value as OSPrioridade)}
+              options={OS_PRIORIDADE_OPTIONS}
+            />
+
+            {mutation.isError && (
+              <p
+                role="alert"
+                style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}
+              >
+                {mutation.error instanceof Error ? mutation.error.message : 'Erro ao criar OS.'}
+              </p>
+            )}
+
+            <div>
+              <Button
+                disabled={!podeSalvar}
+                loading={mutation.isPending}
+                onClick={() => mutation.mutate()}
+              >
+                <ActionIcon name="add" />
+                Criar OS
+              </Button>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </Tabs>
     </div>
   );
 }

@@ -5,6 +5,9 @@ export interface TabItem {
   key: string;
   label: ReactNode;
   mobileLabel?: ReactNode;
+  disabled?: boolean;
+  /** Explica por que a aba está desabilitada (ex. "Disponível depois de criar a OS"). */
+  title?: string;
 }
 
 interface TabsProps {
@@ -37,14 +40,18 @@ export function Tabs({
             role="tab"
             type="button"
             aria-selected={active === item.key}
+            aria-disabled={item.disabled || undefined}
+            disabled={item.disabled}
+            title={item.title}
             className={[
               styles.tab,
               variant === 'segmented' ? styles.segmentedTab : '',
               active === item.key ? styles.tabActive : '',
+              item.disabled ? styles.tabDisabled : '',
             ]
               .filter(Boolean)
               .join(' ')}
-            onClick={() => onChange(item.key)}
+            onClick={() => !item.disabled && onChange(item.key)}
           >
             <span className={item.mobileLabel ? styles.desktopLabel : undefined}>{item.label}</span>
             {item.mobileLabel && <span className={styles.mobileLabel}>{item.mobileLabel}</span>}

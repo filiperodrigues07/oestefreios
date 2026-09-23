@@ -70,47 +70,6 @@
   grid-column: span 2;
 }
 
-.tabs {
-  display: flex;
-  gap: 2px;
-  margin-top: 18px;
-  border-bottom: 1px solid var(--color-border);
-  overflow-x: auto;
-}
-.tabs a {
-  display: inline-flex;
-  min-height: 35px;
-  align-items: center;
-  border-radius: 7px 7px 0 0;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  padding: 0 15px;
-  text-decoration: none;
-  white-space: nowrap;
-}
-.tabs a:first-child {
-  background: var(--color-primary);
-  color: #fff;
-}
-.tabs a:hover {
-  background: var(--color-neutral-surface);
-  color: var(--color-text-primary);
-}
-
-.tabDisabled {
-  display: inline-flex;
-  min-height: 35px;
-  align-items: center;
-  gap: 6px;
-  border-radius: 7px 7px 0 0;
-  color: var(--color-text-secondary);
-  font-size: 12px;
-  padding: 0 15px;
-  white-space: nowrap;
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
 .contextBar {
   display: flex;
   flex-wrap: wrap;

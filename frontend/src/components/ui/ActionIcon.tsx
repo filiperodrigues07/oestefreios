@@ -1,5 +1,5 @@
 interface ActionIconProps {
-  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'edit' | 'delete' | 'save' | 'ready' | 'photo' | 'chevronDown' | 'export' | 'calendar';
+  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'edit' | 'delete' | 'save' | 'ready' | 'photo' | 'chevronDown' | 'export' | 'calendar' | 'close';
   size?: number;
 }
 
@@ -22,5 +22,6 @@ export function ActionIcon({ name, size = 16 }: ActionIconProps) {
   if (name === 'chevronDown') return <svg {...common}><path d="m6 9 6 6 6-6" /></svg>;
   if (name === 'export') return <svg {...common}><path d="M12 3v12m0-12 4 4m-4-4-4 4" /><path d="M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" /></svg>;
   if (name === 'calendar') return <svg {...common}><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>;
+  if (name === 'close') return <svg {...common}><path d="M18 6 6 18M6 6l12 12" /></svg>;
   return <svg {...common}><path d="M20 11a8 8 0 1 0 2 5.3" /><path d="M20 4v7h-7" /></svg>;
 }
