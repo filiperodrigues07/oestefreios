@@ -57,7 +57,6 @@ export function OSFormHeader({
   onExcluir,
   excluindo,
 }: OSFormHeaderProps) {
-  const [nextStatus, setNextStatus] = useState(status);
   const [imprimindo, setImprimindo] = useState(false);
   const [confirmandoDuplicar, setConfirmandoDuplicar] = useState(false);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
@@ -104,13 +103,12 @@ export function OSFormHeader({
       </div>
       <div className={styles.actions}>
         <Button type="button" variant="secondary" size="sm" onClick={handleVoltar}><ActionIcon name="back" />Voltar</Button>
-        {canChangeStatus && <Button type="button" size="sm" disabled={updating || nextStatus === status} onClick={() => onStatusChange(nextStatus)} title="Gravar a situação selecionada no CHERP"><ActionIcon name="save" />Salvar situação</Button>}
         {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} />}
         <OSMoreActions items={moreItems} loading={imprimindo || refreshing || duplicando || excluindo} />
       </div>
     </div>
     <div className={styles.summaryGrid}>
-      <div className={styles.selectBox}><OSFieldInfo field="status">Sit. atendimento</OSFieldInfo><select value={nextStatus} disabled={!canChangeStatus || updating} onChange={(event) => setNextStatus(event.target.value as OSStatus)}>{transitions.map((value) => <option key={value} value={value}>{OS_STATUS_CONFIG[value].label}</option>)}</select></div>
+      <div className={styles.selectBox}><OSFieldInfo field="status">Sit. atendimento</OSFieldInfo><select value={status} disabled={!canChangeStatus || updating} onChange={(event) => onStatusChange(event.target.value as OSStatus)}>{transitions.map((value) => <option key={value} value={value}>{OS_STATUS_CONFIG[value].label}</option>)}</select></div>
       <div className={styles.selectBox}>
         <OSFieldInfo field="prioridade">Prioridade</OSFieldInfo>
         <div className={styles.priorityControl} data-priority={prioridade}>
