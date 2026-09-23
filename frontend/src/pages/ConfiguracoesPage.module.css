@@ -1,9 +1,4 @@
 ﻿.page {
-  --color-text-primary: #f5f7ff;
-  --color-text-secondary: #a5c8ec;
-  --color-border: #163451;
-  --color-surface: #061426;
-  --color-primary: #009bfa;
   color: #f5f7ff;
   width: 100%;
   flex: 1;
@@ -330,6 +325,67 @@
   line-height: 1.6;
   margin: 11px 0 21px;
 }
+.singleCard {
+  max-width: 760px;
+}
+.cardHeadingSimple {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.cardHeadingSimple h2 {
+  font-size: 16px;
+}
+.helpIcon {
+  color: #a5c8ec;
+  cursor: help;
+}
+.badgeRow {
+  margin-bottom: 20px;
+}
+.singleAction {
+  margin-top: 34px;
+}
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.logoPreview {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  border: 1px solid #163451;
+  border-radius: 10px;
+  flex-shrink: 0;
+}
+.logoPlaceholder {
+  width: 56px;
+  height: 56px;
+  border: 1px dashed #163451;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #a5c8ec;
+  flex-shrink: 0;
+  text-align: center;
+}
+.colorInput {
+  width: 60px;
+  height: 43px;
+  min-height: 43px;
+  border: 1px solid #163451;
+  border-radius: 7px;
+  background: #041224;
+  padding: 4px;
+}
+.integrationsList {
+  display: grid;
+  gap: 21px;
+}
 @media (min-width: 1400px) {
   .fields {
     row-gap: 24px;
@@ -381,6 +437,12 @@
   .statusCard,
   .supportCard {
     padding: 20px;
+  }
+  .singleCard {
+    max-width: none;
+  }
+  .logoRow {
+    flex-wrap: wrap;
   }
   .cardHeading {
     flex-wrap: wrap;

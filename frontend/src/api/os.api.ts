@@ -6,7 +6,7 @@ interface PaginatedOS {
   total: number;
 }
 
-export type OSSortBy = 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';
+export type OSSortBy = 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'situacaoDocumento' | 'prioridade' | 'faturamento';
 
 export interface ListarOSFiltro {
   status?: OSStatus | 'AGUARDANDO';

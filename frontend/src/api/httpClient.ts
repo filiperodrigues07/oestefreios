@@ -70,6 +70,8 @@ export function bootstrapSession(): Promise<boolean> {
 
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
+  /** Consultas externas pagas nunca devem ser repetidas automaticamente pela fila offline. */
+  queueOffline?: boolean;
   /**
    * Texto curto pro usuário, usado só se a mutação precisar ser enfileirada por falta de
    * conexão (seção 26). Sem isso, a fila usa uma descrição genérica "MÉTODO /rota".
@@ -80,7 +82,7 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
 /** Cliente HTTP com renovação automática de access token expirado (uma tentativa, sem loop). */
 export async function apiFetch<T>(path: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
   const { accessToken } = useAuthStore.getState();
-  const { offlineDescription, ...requestOptions } = options;
+  const { offlineDescription, queueOffline = true, ...requestOptions } = options;
   const method = (requestOptions.method ?? 'GET').toUpperCase();
 
   let res: Response;
@@ -100,7 +102,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
     const isAuthRoute = path.startsWith('/auth');
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-    if (isMutation && !isAuthRoute && isOffline) {
+    if (isMutation && !isAuthRoute && isOffline && queueOffline) {
       const queueId = await enqueueOperation({
         method: method as 'POST' | 'PUT' | 'PATCH' | 'DELETE',
         path,

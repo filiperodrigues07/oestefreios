@@ -5,6 +5,7 @@ import {
   relatorioClientesHandler,
   relatorioOSHandler,
   relatorioProdutosServicosHandler,
+  relatorioVeiculosHandler,
 } from '../controllers/relatorio.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
@@ -15,6 +16,7 @@ import {
   relatorioClientesQuerySchema,
   relatorioOSQuerySchema,
   relatorioProdutosServicosQuerySchema,
+  relatorioVeiculosQuerySchema,
 } from '../validators/relatorio.validator.js';
 
 export const relatorioRouter = Router();
@@ -29,6 +31,12 @@ relatorioRouter.get(
   requirePermission('OS_VIEW'),
   validate(relatorioClientesQuerySchema, 'query'),
   asyncHandler(relatorioClientesHandler),
+);
+relatorioRouter.get(
+  '/veiculos',
+  requirePermission('OS_VIEW'),
+  validate(relatorioVeiculosQuerySchema, 'query'),
+  asyncHandler(relatorioVeiculosHandler),
 );
 relatorioRouter.get(
   '/catalogo/produtos',

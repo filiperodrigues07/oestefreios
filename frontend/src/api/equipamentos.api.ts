@@ -8,7 +8,7 @@ interface PaginatedEquipamentos {
   total: number;
 }
 
-export type EquipamentoSortBy = 'identificacao' | 'descricao' | 'ano' | 'cliente';
+export type EquipamentoSortBy = 'codigo' | 'identificacao' | 'descricao' | 'ano' | 'cliente';
 
 export function listarEquipamentos(
   busca: string,
@@ -72,3 +72,38 @@ export function atualizarEquipamento(
   return apiFetch<EquipamentoDTO>(`/equipamentos/${codigo}`, { method: 'PUT', body: input });
 }
 
+export interface VehicleLookupQuota {
+  used: number;
+  limit: number;
+  remaining: number;
+  percentage: number;
+  period: string;
+  exhausted: boolean;
+}
+
+export interface VehicleLookupResult {
+  plate: string;
+  brand?: string;
+  model?: string;
+  version?: string;
+  manufactureYear?: number;
+  modelYear?: number;
+  color?: string;
+  fuel?: string;
+  city?: string;
+  state?: string;
+  engine?: string;
+  fipeCode?: string;
+}
+
+export type VehicleLookupResponse =
+  | { source: 'provider' | 'cache'; vehicle: VehicleLookupResult; quota: VehicleLookupQuota }
+  | { source: 'existing'; existingVehicle: EquipamentoDTO; quota: VehicleLookupQuota };
+
+export function getVehicleLookupQuota(): Promise<VehicleLookupQuota> {
+  return apiFetch('/equipamentos/lookup/quota');
+}
+
+export function lookupVehiclePlate(plate: string): Promise<VehicleLookupResponse> {
+  return apiFetch('/equipamentos/lookup', { method: 'POST', body: { plate }, queueOffline: false });
+}

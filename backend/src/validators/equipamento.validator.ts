@@ -11,4 +11,10 @@ export const equipamentoInputSchema = z.object({
   cor: z.string().trim().transform(toUppercase).optional(),
   chassi: z.string().trim().transform(toUppercase).optional(),
   kmAtual: z.coerce.number().int().nonnegative().optional(),
+  versao: z.string().trim().transform(toUppercase).optional(),
+  combustivel: z.string().trim().transform(toUppercase).optional(),
+  municipio: z.string().trim().transform(toUppercase).optional(),
+  uf: z.string().trim().transform(toUppercase).optional(),
+  motor: z.string().trim().transform(toUppercase).optional(),
+  codigoFipe: z.string().trim().optional(),
 });

@@ -214,7 +214,14 @@ function OSFormEdit({ id }: { id: string }) {
     isError,
     error,
     refetch,
-  } = useQuery({ queryKey: ['os', id], queryFn: () => getOS(id) });
+  } = useQuery({
+    queryKey: ['os', id],
+    queryFn: () => getOS(id),
+    // Sincroniza sozinho com o CHERP enquanto a tela fica aberta (ex.: faturamento fecha o
+    // pedido por lá) — seguro contra perder digitação porque cada seção com campo de texto
+    // livre (ver DiagnosticoSection) só resincroniza do servidor quando não há edição pendente.
+    refetchInterval: 30_000,
+  });
 
   const { data: cliente } = useQuery({
     queryKey: ['cliente', os?.clienteCodigo],

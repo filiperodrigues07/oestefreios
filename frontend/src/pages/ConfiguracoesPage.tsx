@@ -5,9 +5,11 @@ import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import {
   getFirebirdSettings,
   getFirebirdPassword,
+  getFirebirdConnectionStatus,
   getGeralSettings,
   getIntegracoesSettings,
   getSmtpSettings,
+  getIntegrationSecret,
   saveFirebirdSettings,
   saveGeralSettings,
   saveIntegracoesSettings,
@@ -152,6 +154,11 @@ function FirebirdTab() {
     queryKey: ['settings', 'firebird'],
     queryFn: getFirebirdSettings,
   });
+  const statusQuery = useQuery({
+    queryKey: ['settings', 'firebird', 'status'],
+    queryFn: getFirebirdConnectionStatus,
+    staleTime: 30_000,
+  });
   const [form, setForm] = useState<FirebirdSettings | null>(null);
   const [testResult, setTestResult] = useState<TestFeedback | null>(null);
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
@@ -167,6 +174,7 @@ function FirebirdTab() {
     onSuccess: (saved) => {
       setForm(saved);
       queryClient.setQueryData(['settings', 'firebird'], saved);
+      void statusQuery.refetch();
       showToast('Configurações do Firebird salvas.', 'success');
     },
     onError: (err) => handleMutationError(err, showToast, 'Não foi possível salvar as configurações do Firebird.'),
@@ -196,6 +204,9 @@ function FirebirdTab() {
       </Card>
     );
   }
+
+  const effectiveStatus = testResult ?? statusQuery.data ?? null;
+  const effectiveCheckedAt = checkedAt ?? (statusQuery.data?.checkedAt ? new Date(statusQuery.data.checkedAt) : null);
 
   return (
     <div className={styles.columns}>
@@ -308,20 +319,20 @@ function FirebirdTab() {
             Status da Conexão
           </h2>
           <div
-            className={`${styles.connectionStatus} ${testResult?.ok ? styles.connected : testResult ? styles.failed : ''}`}
+            className={`${styles.connectionStatus} ${effectiveStatus?.ok ? styles.connected : effectiveStatus ? styles.failed : ''}`}
             role="status"
           >
             <span />
-            {testMutation.isPending
+            {testMutation.isPending || statusQuery.isLoading
               ? 'Verificando...'
-              : testResult?.ok
+              : effectiveStatus?.ok
                 ? 'Conectado'
-                : testResult
+                : effectiveStatus
                   ? 'Falha na conexão'
                   : 'Não verificado'}
           </div>
           <p className={styles.statusDescription}>
-            {testResult?.message ?? 'Teste a conexão para verificar o status.'}
+            {effectiveStatus?.message ?? 'Não foi possível verificar a conexão automaticamente.'}
           </p>
           <dl className={styles.statusList}>
             <div>
@@ -354,7 +365,7 @@ function FirebirdTab() {
             <SettingsIcon name="clock" />
             <div>
               Última verificação
-              <span>{checkedAt ? checkedAt.toLocaleString('pt-BR') : 'Ainda não realizada'}</span>
+              <span>{effectiveCheckedAt ? effectiveCheckedAt.toLocaleString('pt-BR') : 'Ainda não realizada'}</span>
             </div>
             <Button
               variant="secondary"
@@ -440,82 +451,51 @@ function SmtpTab() {
   }
 
   return (
-    <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      {!form.host || !form.fromEmail ? (
-        <Badge tone="warning">
-          Configure o e-mail para habilitar a redefinição de senha no login.
-        </Badge>
-      ) : null}
-
-      <Input
-        label="Host SMTP"
-        value={form.host}
-        onChange={(e) => setForm({ ...form, host: e.target.value })}
-      />
-      <Input
-        label="Porta"
-        type="number"
-        inputMode="numeric"
-        value={form.port}
-        onChange={(e) => setForm({ ...form, port: Number(e.target.value) })}
-      />
-      <Select
-        label="Segurança"
-        options={SEGURANCA_OPTIONS}
-        value={form.seguranca}
-        onChange={(e) =>
-          setForm({ ...form, seguranca: e.target.value as SmtpSettings['seguranca'] })
-        }
-      />
-      <Input
-        label="Usuário"
-        value={form.user}
-        onChange={(e) => setForm({ ...form, user: e.target.value })}
-      />
-      <PasswordInput
-        label="Senha"
-        placeholder={form.password === '••••••••' ? 'Deixe em branco para manter a atual' : ''}
-        value={form.password === '••••••••' ? '' : form.password}
-        onChange={(e) => setForm({ ...form, password: e.target.value })}
-      />
-      <Input
-        label="E-mail remetente (De)"
-        type="email"
-        value={form.fromEmail}
-        onChange={(e) => setForm({ ...form, fromEmail: e.target.value })}
-      />
-      <Input
-        label="Nome do remetente"
-        value={form.fromName}
-        onChange={(e) => setForm({ ...form, fromName: e.target.value })}
-      />
-
-      <Input
-        label="Enviar e-mail de teste para"
-        type="email"
-        placeholder="seu@email.com"
-        value={destino}
-        onChange={(e) => setDestino(e.target.value)}
-      />
-
-      {testResult && (
-        <Badge tone={testResult.ok ? 'success' : 'danger'}>{testResult.message}</Badge>
-      )}
-
-      <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
-        <Button
-          variant="secondary"
-          onClick={() => testMutation.mutate()}
-          loading={testMutation.isPending}
-          disabled={!destino}
-        >
-          Enviar e-mail de teste
-        </Button>
-        <Button onClick={() => saveMutation.mutate(form)} loading={saveMutation.isPending}>
-          Salvar
-        </Button>
+    <section className={`${styles.connectionCard} ${styles.singleCard}`}>
+      <div className={styles.cardHeading}>
+        <span className={styles.iconTile}>
+          <SettingsIcon name="mail" />
+        </span>
+        <div>
+          <h2>Configurações de E-mail</h2>
+          <p>Servidor SMTP usado para envio de e-mails do sistema.</p>
+        </div>
       </div>
-    </Card>
+      {!form.host || !form.fromEmail ? (
+        <div className={styles.badgeRow}>
+          <Badge tone="warning">
+            Configure o e-mail para habilitar a redefinição de senha no login.
+          </Badge>
+        </div>
+      ) : null}
+      <div className={styles.settingsSection}>
+        <div className={styles.sectionIntro}><span>1</span><div><h3>Servidor de envio</h3><p>Dados fornecidos pelo seu provedor de e-mail.</p></div></div>
+        <div className={styles.fields}>
+          <Input label="Servidor SMTP" placeholder="smtp.exemplo.com" value={form.host} onChange={(e) => setForm({ ...form, host: e.target.value })} />
+          <Input label="Porta" type="number" inputMode="numeric" value={form.port} onChange={(e) => setForm({ ...form, port: Number(e.target.value) })} />
+          <Select label="Tipo de segurança" options={SEGURANCA_OPTIONS} value={form.seguranca} onChange={(e) => setForm({ ...form, seguranca: e.target.value as SmtpSettings['seguranca'] })} />
+        </div>
+      </div>
+      <div className={styles.settingsSection}>
+        <div className={styles.sectionIntro}><span>2</span><div><h3>Conta e remetente</h3><p>Credenciais de autenticação e nome exibido nos e-mails.</p></div></div>
+        <div className={styles.fields}>
+          <Input label="Usuário da conta" value={form.user} onChange={(e) => setForm({ ...form, user: e.target.value })} />
+          <PasswordInput label="Senha ou senha de aplicativo" placeholder={form.password === '••••••••' ? 'Deixe em branco para manter a atual' : ''} value={form.password === '••••••••' ? '' : form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <Input label="E-mail remetente" type="email" value={form.fromEmail} onChange={(e) => setForm({ ...form, fromEmail: e.target.value })} />
+          <Input label="Nome do remetente" value={form.fromName} onChange={(e) => setForm({ ...form, fromName: e.target.value })} />
+        </div>
+      </div>
+      <div className={styles.testPanel}>
+        <div><strong>3. Confirme antes de usar</strong><p>Envie uma mensagem para verificar servidor, credenciais e remetente.</p></div>
+        <Input label="E-mail para o teste" type="email" placeholder="voce@empresa.com" value={destino} onChange={(e) => setDestino(e.target.value)} />
+        <Button variant="secondary" onClick={() => testMutation.mutate()} loading={testMutation.isPending} disabled={!destino}>Enviar teste</Button>
+      </div>
+      {testResult && <div className={styles.badgeRow}><Badge tone={testResult.ok ? 'success' : 'danger'}>{testResult.message}</Badge></div>}
+      <div className={styles.formFooter}>
+        <p>As alterações passam a valer nos próximos e-mails enviados.</p>
+        <Button onClick={() => saveMutation.mutate(form)} loading={saveMutation.isPending}><SettingsIcon name="save" />Salvar configurações de e-mail</Button>
+      </div>
+    </section>
   );
 }
 
@@ -575,82 +555,72 @@ function GeralTab() {
   }
 
   return (
-    <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-      <Input
-        label="Nome da empresa"
-        value={form.nomeEmpresa}
-        onChange={(e) => setForm({ ...form, nomeEmpresa: e.target.value })}
-      />
-      <div>
-        <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}>
-          Logo da empresa
-        </label>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}>
-          {form.logoUrl ? (
-            <img src={form.logoUrl} alt="Logo atual" style={{ width: 56, height: 56, objectFit: 'contain', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)' }} />
-          ) : (
-            <div style={{ width: 56, height: 56, border: '1px dashed var(--color-border)', borderRadius: 'var(--radius-sm)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-              sem logo
-            </div>
-          )}
-          <input
-            ref={logoInputRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            style={{ display: 'none' }}
-            onChange={(e) => selecionarLogo(e.target.files?.[0])}
-          />
-          <Button size="sm" variant="secondary" loading={saveMutation.isPending} onClick={() => logoInputRef.current?.click()}>
-            Enviar logo
-          </Button>
-          {form.logoUrl && (
-            <Button size="sm" variant="secondary" loading={saveMutation.isPending} onClick={removerLogo}>
-              Remover
-            </Button>
-          )}
+    <section className={`${styles.connectionCard} ${styles.singleCard}`}>
+      <div className={styles.cardHeading}>
+        <span className={styles.iconTile}>
+          <NavIcon name="gear" />
+        </span>
+        <div>
+          <h2>Cadastro da empresa</h2>
+          <p>Informações que identificam sua empresa no sistema e nos documentos.</p>
         </div>
-        <p style={{ margin: 'var(--space-1) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-          PNG, JPEG ou WebP de até 1 MB. Aparece na barra lateral e no cabeçalho dos relatórios/impressões de OS.
-        </p>
       </div>
-      <div>
-        <label
-          style={{
-            display: 'block',
-            fontSize: 'var(--font-size-sm)',
-            fontWeight: 500,
-            marginBottom: 'var(--space-1)',
-          }}
-        >
-          Cor de destaque
-        </label>
-        <input
-          type="color"
-          value={form.corDestaque || '#0369a1'}
-          onChange={(e) => setForm({ ...form, corDestaque: e.target.value })}
-          style={{
-            width: 60,
-            height: 40,
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-sm)',
-          }}
-        />
+      <div className={styles.fields}>
+        <div className={styles.fullRow}>
+          <Input
+            label="Nome da empresa ou nome fantasia"
+            value={form.nomeEmpresa}
+            onChange={(e) => setForm({ ...form, nomeEmpresa: e.target.value })}
+          />
+          <p>Exibido na navegação, relatórios e impressões de ordem de serviço.</p>
+        </div>
+        <div className={styles.fullRow}>
+          <label className={styles.fieldLabel}>Logo da empresa</label>
+          <div className={styles.logoUploader}>
+            {form.logoUrl ? (
+              <img src={form.logoUrl} alt="Logo atual" className={styles.logoPreview} />
+            ) : (
+              <div className={styles.logoPlaceholder}><NavIcon name="users" /></div>
+            )}
+            <div className={styles.logoCopy}><strong>{form.logoUrl ? 'Logo atual' : 'Adicione a marca da empresa'}</strong><span>PNG, JPEG ou WebP · máximo de 1 MB</span></div>
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              style={{ display: 'none' }}
+              onChange={(e) => selecionarLogo(e.target.files?.[0])}
+            />
+            <Button size="sm" variant="secondary" loading={saveMutation.isPending} onClick={() => logoInputRef.current?.click()}>
+              {form.logoUrl ? 'Trocar logo' : 'Escolher logo'}
+            </Button>
+            {form.logoUrl && (
+              <Button size="sm" variant="secondary" loading={saveMutation.isPending} onClick={removerLogo}>
+                Remover
+              </Button>
+            )}
+          </div>
+          <p>A logo será usada na barra lateral e no cabeçalho de relatórios e ordens de serviço.</p>
+        </div>
+        <div className={styles.fullRow}>
+          <Input
+            label="Fuso horário"
+            value={form.fusoHorario}
+            onChange={(e) => setForm({ ...form, fusoHorario: e.target.value })}
+          />
+          <p>Usado nas datas de auditoria, consultas e registros do sistema.</p>
+        </div>
       </div>
-      <Input
-        label="Fuso horário"
-        value={form.fusoHorario}
-        onChange={(e) => setForm({ ...form, fusoHorario: e.target.value })}
-      />
 
-      <div>
+      <div className={styles.singleAction}>
         <Button
           onClick={() => saveMutation.mutate(form, { onSuccess: () => showToast('Configurações gerais salvas.', 'success') })}
           loading={saveMutation.isPending}
         >
-          Salvar
+          <SettingsIcon name="save" />
+          Salvar cadastro da empresa
         </Button>
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -689,31 +659,75 @@ function IntegracoesTab() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
-      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
-          <h2 style={{ margin: 0, fontSize: 'var(--font-size-md)' }}>Inscrição Estadual por CNPJ</h2>
-          <Tooltip content="Preenche a Inscrição Estadual automaticamente junto da consulta de CNPJ no cadastro de cliente (via SINTEGRA Brasil). Sem chave configurada, o campo continua editável manualmente.">
-            <span aria-hidden="true" style={{ color: 'var(--color-text-secondary)', cursor: 'help' }}>ⓘ</span>
+    <div className={styles.integrationsList}>
+      <section className={`${styles.connectionCard} ${styles.singleCard}`}>
+        <div className={styles.cardHeadingSimple}>
+          <span className={styles.integrationIcon}><SettingsIcon name="database" /></span>
+          <div><h2>Consulta de veículos pela placa</h2><p>Preenchimento automático no cadastro de veículos e na abertura de OS.</p></div>
+          <Badge tone={form.dadosApiToken ? 'success' : 'neutral'}>{form.dadosApiToken ? 'Configurada' : 'Não configurada'}</Badge>
+          <Tooltip content="A chave fica criptografada no servidor e nunca é enviada novamente ao navegador. Somente administradores podem alterá-la.">
+            <span aria-hidden="true" className={styles.helpIcon}>ⓘ</span>
           </Tooltip>
         </div>
-        <PasswordInput
-          label="Chave da API SINTEGRA Brasil"
-          value={form.sintegraApiKey}
-          onChange={(e) => setForm({ ...form, sintegraApiKey: e.target.value })}
-          placeholder={form.sintegraApiKey ? undefined : 'Nenhuma chave configurada'}
-        />
-        <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
-          Gere uma chave grátis em{' '}
-          <a href="https://www.sintegrabrasil.com.br/api" target="_blank" rel="noreferrer">sintegrabrasil.com.br/api</a>
-          {' '}(cadastro só com e-mail).
-        </p>
-        <div>
+        <div className={styles.fields}>
+          <div className={styles.fullRow}>
+            <PasswordInput
+              label="Chave da API DadosAPI"
+              value={form.dadosApiToken === '••••••••' ? '' : form.dadosApiToken}
+              onChange={(e) => setForm({ ...form, dadosApiToken: e.target.value })}
+              placeholder={form.dadosApiToken ? undefined : 'Nenhuma chave configurada'}
+              onReveal={async () => {
+                const result = await getIntegrationSecret('dadosApiToken');
+                setForm((current) => current ? { ...current, dadosApiToken: result.value } : current);
+                return result.value;
+              }}
+            />
+            <p>A DadosAPI libera a chave pela área restrita após o cadastro. Atualmente, o botão de cadastro do site direciona para o atendimento via WhatsApp.</p>
+          </div>
+        </div>
+        <div className={styles.singleAction}>
           <Button size="sm" onClick={() => saveMutation.mutate(form)} loading={saveMutation.isPending}>
+            <SettingsIcon name="save" />
+            Salvar chave da DadosAPI
+          </Button>
+        </div>
+      </section>
+      <section className={`${styles.connectionCard} ${styles.singleCard}`}>
+        <div className={styles.cardHeadingSimple}>
+          <span className={styles.integrationIcon}><SettingsIcon name="link" /></span>
+          <div><h2>Inscrição Estadual por CNPJ</h2><p>Complementa automaticamente o cadastro de clientes.</p></div>
+          <Badge tone={form.sintegraApiKey ? 'success' : 'neutral'}>{form.sintegraApiKey ? 'Configurada' : 'Não configurada'}</Badge>
+          <Tooltip content="Preenche a Inscrição Estadual automaticamente junto da consulta de CNPJ no cadastro de cliente (via SINTEGRA Brasil). Sem chave configurada, o campo continua editável manualmente.">
+            <span aria-hidden="true" className={styles.helpIcon}>ⓘ</span>
+          </Tooltip>
+        </div>
+        <div className={styles.fields}>
+          <div className={styles.fullRow}>
+            <PasswordInput
+              label="Chave da API SINTEGRA Brasil"
+              value={form.sintegraApiKey === '••••••••' ? '' : form.sintegraApiKey}
+              onChange={(e) => setForm({ ...form, sintegraApiKey: e.target.value })}
+              placeholder={form.sintegraApiKey ? undefined : 'Nenhuma chave configurada'}
+              onReveal={async () => {
+                const result = await getIntegrationSecret('sintegraApiKey');
+                setForm((current) => current ? { ...current, sintegraApiKey: result.value } : current);
+                return result.value;
+              }}
+            />
+            <p>
+              Gere uma chave grátis em{' '}
+              <a href="https://www.sintegrabrasil.com.br/api" target="_blank" rel="noreferrer">sintegrabrasil.com.br/api</a>
+              {' '}(cadastro só com e-mail).
+            </p>
+          </div>
+        </div>
+        <div className={styles.singleAction}>
+          <Button size="sm" onClick={() => saveMutation.mutate(form)} loading={saveMutation.isPending}>
+            <SettingsIcon name="save" />
             Salvar chave
           </Button>
         </div>
-      </Card>
+      </section>
     </div>
   );
 }

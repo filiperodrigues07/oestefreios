@@ -27,6 +27,13 @@ export const relatorioClientesQuerySchema = z.object({
   formato: formatoSchema,
 });
 
+export const relatorioVeiculosQuerySchema = z.object({
+  busca: z.string().trim().min(1).optional(),
+  clienteCodigo: z.string().trim().min(1).optional(),
+  anoFabricacao: z.coerce.number().int().optional(),
+  formato: formatoSchema,
+});
+
 export const relatorioCatalogoQuerySchema = z.object({
   busca: z.string().trim().min(1).optional(),
   tipoCodigo: z.coerce.number().int().nonnegative().optional(),

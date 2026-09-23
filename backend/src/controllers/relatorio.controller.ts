@@ -58,6 +58,17 @@ export async function relatorioClientesHandler(req: Request, res: Response) {
   await enviarResultado(res, relatorio, formato, 'relatorio-clientes');
 }
 
+export async function relatorioVeiculosHandler(req: Request, res: Response) {
+  const { busca, clienteCodigo, anoFabricacao, formato } = req.query as unknown as {
+    busca?: string;
+    clienteCodigo?: string;
+    anoFabricacao?: number;
+    formato: Formato;
+  };
+  const relatorio = await relatorioService.gerarRelatorioVeiculos({ busca, clienteCodigo, anoFabricacao });
+  await enviarResultado(res, relatorio, formato, 'relatorio-veiculos');
+}
+
 export async function relatorioProdutosServicosHandler(req: Request, res: Response) {
   const { dataInicial, dataFinal, dataReferencia, formato } = req.query as unknown as {
     dataInicial: Date;

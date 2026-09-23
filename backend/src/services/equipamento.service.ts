@@ -26,15 +26,29 @@ export async function listEquipamentosByCliente(clienteCodigo: string): Promise<
   return equipamentoRepository.buscarPorCliente(clienteCodigo);
 }
 
-export async function criarEquipamento(input: EquipamentoInput, usuario: AuthenticatedUser, ctx: RequestContext = {}): Promise<Equipamento> {
-  const existente = await equipamentoRepository.buscarPorPlaca(input.placa);
-  if (existente) {
+async function checarDuplicidade(input: EquipamentoInput, codigoAtual?: string): Promise<void> {
+  const existentePlaca = await equipamentoRepository.buscarPorPlaca(input.placa);
+  if (existentePlaca && existentePlaca.codigo !== codigoAtual) {
     throw new ConflictError(
       `A placa "${input.placa}" já pertence a um veículo cadastrado.`,
       'VEHICLE_DUPLICATE',
-      { codigo: existente.codigo, descricao: existente.descricao, clienteCodigo: existente.clienteCodigo, clienteNome: existente.clienteNome },
+      { codigo: existentePlaca.codigo, descricao: existentePlaca.descricao, clienteCodigo: existentePlaca.clienteCodigo, clienteNome: existentePlaca.clienteNome },
     );
   }
+  if (input.chassi?.trim()) {
+    const existenteChassi = await equipamentoRepository.buscarPorChassi(input.chassi);
+    if (existenteChassi && existenteChassi.codigo !== codigoAtual) {
+      throw new ConflictError(
+        `O chassi "${input.chassi}" já pertence a um veículo cadastrado.`,
+        'VEHICLE_CHASSIS_DUPLICATE',
+        { codigo: existenteChassi.codigo, descricao: existenteChassi.descricao, clienteCodigo: existenteChassi.clienteCodigo, clienteNome: existenteChassi.clienteNome },
+      );
+    }
+  }
+}
+
+export async function criarEquipamento(input: EquipamentoInput, usuario: AuthenticatedUser, ctx: RequestContext = {}): Promise<Equipamento> {
+  await checarDuplicidade(input);
   const equipamento = await equipamentoRepository.criar(input);
   await auditEquipamento('VEICULO_CREATED', equipamento.codigo, usuario, ctx, { after: equipamento });
   return equipamento;
@@ -42,6 +56,7 @@ export async function criarEquipamento(input: EquipamentoInput, usuario: Authent
 
 export async function atualizarEquipamento(codigo: string, input: EquipamentoInput, usuario: AuthenticatedUser, ctx: RequestContext = {}): Promise<Equipamento> {
   const before = await getEquipamentoByCodigo(codigo);
+  await checarDuplicidade(input, codigo);
   const equipamento = await equipamentoRepository.atualizar(codigo, input);
   await auditEquipamento('VEICULO_UPDATED', codigo, usuario, ctx, { before, after: equipamento });
   return equipamento;

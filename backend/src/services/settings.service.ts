@@ -68,14 +68,10 @@ export interface GeralSettings {
   fusoHorario: string;
 }
 
-/**
- * Credencial da API externa opcional de Inscrição Estadual (SINTEGRA Brasil).
- * A de consulta de placa foi desativada — provedor originalmente escolhido saiu do ar
- * (domínio ckst.com.br não resolve mais) e não achamos substituto vivo com plano grátis
- * mensal recorrente; ver histórico do commit se for reativar com outro provedor.
- */
+/** Credenciais de integrações externas, sempre criptografadas antes da persistência. */
 export interface IntegracoesSettings {
   sintegraApiKey: string;
+  dadosApiToken: string;
 }
 
 const FIREBIRD_PADRAO: FirebirdSettings = {
@@ -106,6 +102,7 @@ const GERAL_PADRAO: GeralSettings = {
 
 const INTEGRACOES_PADRAO: IntegracoesSettings = {
   sintegraApiKey: '',
+  dadosApiToken: env.DADOS_API_TOKEN ?? '',
 };
 
 async function readCategory<T>(category: string, fallback: T): Promise<T> {
@@ -135,6 +132,12 @@ export async function getFirebirdSettingsMasked(): Promise<FirebirdSettings> {
 /** Revelação explícita, restrita pela rota a SYSTEM_SETTINGS; nunca usada na carga normal da tela. */
 export async function getFirebirdPassword(): Promise<string> {
   return (await getFirebirdSettings()).password;
+}
+
+/** Verifica a configuração efetivamente carregada sem exigir que o usuário clique em testar. */
+export async function getFirebirdConnectionStatus(): Promise<{ ok: boolean; message: string; checkedAt: string }> {
+  const result = await testFirebirdConnection(await getFirebirdSettings());
+  return { ...result, checkedAt: new Date().toISOString() };
 }
 
 /**
@@ -284,13 +287,23 @@ export async function saveGeralSettings(input: GeralSettings, usuario?: Authenti
 
 export async function getIntegracoesSettings(): Promise<IntegracoesSettings> {
   const data = await readCategory('integracoes', INTEGRACOES_PADRAO);
-  return { sintegraApiKey: decryptSecret(data.sintegraApiKey) };
+  return {
+    sintegraApiKey: decryptSecret(data.sintegraApiKey),
+    dadosApiToken: decryptSecret(data.dadosApiToken),
+  };
 }
 
 /** Versão segura pra devolver ao frontend — chave nunca volta em texto puro. */
 export async function getIntegracoesSettingsMasked(): Promise<IntegracoesSettings> {
   const data = await getIntegracoesSettings();
-  return { sintegraApiKey: data.sintegraApiKey ? SENHA_MASCARADA : '' };
+  return {
+    sintegraApiKey: data.sintegraApiKey ? SENHA_MASCARADA : '',
+    dadosApiToken: data.dadosApiToken ? SENHA_MASCARADA : '',
+  };
+}
+
+export async function getIntegrationSecret(key: keyof IntegracoesSettings): Promise<string> {
+  return (await getIntegracoesSettings())[key];
 }
 
 export async function saveIntegracoesSettings(
@@ -300,8 +313,13 @@ export async function saveIntegracoesSettings(
 ): Promise<void> {
   const atual = await getIntegracoesSettings();
   const sintegraApiKey = !input.sintegraApiKey || input.sintegraApiKey === SENHA_MASCARADA ? atual.sintegraApiKey : input.sintegraApiKey;
-  await writeCategory('integracoes', { sintegraApiKey: encryptSecret(sintegraApiKey) });
+  const dadosApiToken = !input.dadosApiToken || input.dadosApiToken === SENHA_MASCARADA ? atual.dadosApiToken : input.dadosApiToken;
+  await writeCategory('integracoes', {
+    sintegraApiKey: encryptSecret(sintegraApiKey),
+    dadosApiToken: encryptSecret(dadosApiToken),
+  });
   if (usuario) await auditSettings('SETTINGS_INTEGRACOES_UPDATED', usuario, ctx, {
     sintegraApiKeyChanged: sintegraApiKey !== atual.sintegraApiKey,
+    dadosApiTokenChanged: dadosApiToken !== atual.dadosApiToken,
   });
 }

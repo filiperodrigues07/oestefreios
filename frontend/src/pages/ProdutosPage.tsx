@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router';
 import { listarProdutosCatalogo, listarTiposProduto } from '../api/produtos.api.js';
@@ -21,6 +21,7 @@ import {
 } from '../components/ui/index.js';
 import { hasPermission } from '../store/authStore.js';
 import type { ProdutoDTO, ServicoDTO } from '../types/cherp.types.js';
+import { readStoredFilters, writeStoredFilters } from '../utils/filterStorage.js';
 import styles from './ProdutosPage.module.css';
 
 type Tab = 'produtos' | 'servicos';
@@ -38,18 +39,44 @@ function formatSaldo(value?: number): string {
 
 /** Catálogo do CHERP: toda filtragem, ordenação e visibilidade financeira continuam delegadas às fontes existentes. */
 export function ProdutosPage() {
-  const [searchParams] = useSearchParams();
-  const initialTab: Tab = searchParams.get('tipo') === 'servicos' ? 'servicos' : 'produtos';
-  const initialSearch = searchParams.get('busca') ?? '';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtrosSalvos = readStoredFilters('produtos');
+  const initialTab: Tab = (searchParams.get('tipo') ?? filtrosSalvos.get('tipo')) === 'servicos' ? 'servicos' : 'produtos';
+  const initialSearch = searchParams.get('busca') ?? filtrosSalvos.get('busca') ?? '';
   const [tab, setTab] = useState<Tab>(initialTab);
   const [produtoSelecionado, setProdutoSelecionado] = useState<ProdutoDTO | null>(null);
   const [servicoSelecionado, setServicoSelecionado] = useState<ServicoDTO | null>(null);
   const [buscaProdutos, setBuscaProdutos] = useState(initialTab === 'produtos' ? initialSearch : '');
   const [buscaServicos, setBuscaServicos] = useState(initialTab === 'servicos' ? initialSearch : '');
-  const [tipoCodigo, setTipoCodigo] = useState('');
-  const [tipoModo, setTipoModo] = useState<'somente' | 'exceto'>('somente');
-  const [saldoModo, setSaldoModo] = useState<'todos' | 'com_saldo' | 'sem_saldo' | 'negativo'>('todos');
+  const [tipoCodigo, setTipoCodigo] = useState(() => searchParams.get('tipoCodigo') ?? filtrosSalvos.get('tipoCodigo') ?? '');
+  const [tipoModo, setTipoModo] = useState<'somente' | 'exceto'>(() =>
+    (searchParams.get('tipoModo') ?? filtrosSalvos.get('tipoModo')) === 'exceto' ? 'exceto' : 'somente',
+  );
+  const [saldoModo, setSaldoModo] = useState<'todos' | 'com_saldo' | 'sem_saldo' | 'negativo'>(() => {
+    const value = searchParams.get('saldoModo') ?? filtrosSalvos.get('saldoModo');
+    return value === 'com_saldo' || value === 'sem_saldo' || value === 'negativo' ? value : 'todos';
+  });
   const { data: tipos = [] } = useQuery({ queryKey: ['tipos-produto'], queryFn: listarTiposProduto });
+
+  // Filtros salvos na URL (compartilhável, funciona com voltar do navegador) e em sessionStorage
+  // (sobrevive a navegar pra outra tela pelo menu, que troca de rota sem manter query string).
+  // `replace` pra não empilhar histórico a cada tecla/seleção.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (tab === 'servicos') params.set('tipo', 'servicos');
+    const buscaAtual = tab === 'produtos' ? buscaProdutos : buscaServicos;
+    if (buscaAtual) params.set('busca', buscaAtual);
+    if (tab === 'produtos') {
+      if (tipoCodigo) {
+        params.set('tipoCodigo', tipoCodigo);
+        params.set('tipoModo', tipoModo);
+      }
+      if (saldoModo !== 'todos') params.set('saldoModo', saldoModo);
+    }
+    setSearchParams(params, { replace: true });
+    writeStoredFilters('produtos', params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, buscaProdutos, buscaServicos, tipoCodigo, tipoModo, saldoModo]);
   const filtroTipo = tipoCodigo ? { tipoCodigo: Number(tipoCodigo), tipoModo } : {};
   const filtroSaldo = saldoModo !== 'todos' ? { saldoModo } : {};
   const filtroRelatorioProdutos = { busca: buscaProdutos || undefined, ...filtroTipo, ...filtroSaldo };

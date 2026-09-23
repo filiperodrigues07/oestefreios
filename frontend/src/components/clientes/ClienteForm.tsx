@@ -1,8 +1,8 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
-import { atualizarCliente, consultarCep, consultarCnpj, consultarInscricaoEstadual, criarCliente } from '../../api/clientes.api.js';
+import { atualizarCliente, consultarCep, consultarCnpj, consultarInscricaoEstadual, criarCliente, getClienteByCodigo } from '../../api/clientes.api.js';
 import { ApiError } from '../../api/httpClient.js';
-import { Button, Checkbox, ConfirmDialog, Input, LinkButton, RequiredMark, Select, useToast } from '../ui/index.js';
+import { Button, Checkbox, ConfirmDialog, Input, RequiredMark, Select, useToast } from '../ui/index.js';
 import type { ClienteDTO, ClienteInput, RegimeTributario, TipoPessoa } from '../../types/cherp.types.js';
 import { formatarCep, formatarDocumento, formatarTelefone } from '../../utils/clienteFormatters.js';
 import styles from './ClienteForm.module.css';
@@ -95,11 +95,17 @@ interface ClienteFormProps {
  * editar cliente sem perder o que já estava sendo preenchido na OS).
  */
 export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, cancelLabel = 'Cancelar' }: ClienteFormProps) {
-  const modoEdicao = mode === 'edit';
   const { showToast } = useToast();
   const [form, setForm] = useState<ClienteInput>(() => (clienteInicial ? clienteParaInput(clienteInicial) : FORM_VAZIO));
   const [cnpjErro, setCnpjErro] = useState<string | null>(null);
   const [cepErro, setCepErro] = useState<string | null>(null);
+  // Efetivo != prop a partir do momento que um documento duplicado é detectado ao criar — o
+  // formulário troca sozinho pra edição do cadastro já existente, sem sair da tela (ver saveMutation
+  // abaixo). Até lá, fica igual à prop recebida do componente pai.
+  const [modoEfetivo, setModoEfetivo] = useState(mode);
+  const [codigoEfetivo, setCodigoEfetivo] = useState(codigo);
+  const [carregandoDuplicado, setCarregandoDuplicado] = useState(false);
+  const modoEdicao = modoEfetivo === 'edit';
 
   const cnpjMutation = useMutation({
     mutationFn: (cnpj: string) => consultarCnpj(cnpj),
@@ -158,8 +164,24 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
   });
 
   const saveMutation = useMutation({
-    mutationFn: () => (modoEdicao ? atualizarCliente(codigo!, form) : criarCliente(form)),
+    mutationFn: () => (modoEdicao ? atualizarCliente(codigoEfetivo!, form) : criarCliente(form)),
     onSuccess: (cliente) => onSaved(cliente),
+    onError: async (err) => {
+      if (!(err instanceof ApiError) || err.code !== 'CLIENT_DUPLICATE') return;
+      const duplicado = err.details as { codigo: string; nome: string } | undefined;
+      if (!duplicado?.codigo) return;
+      setCarregandoDuplicado(true);
+      try {
+        const clienteExistente = await getClienteByCodigo(duplicado.codigo);
+        setForm(clienteParaInput(clienteExistente));
+        setModoEfetivo('edit');
+        setCodigoEfetivo(duplicado.codigo);
+      } catch {
+        // Falhou ao buscar o cadastro existente — mantém só o aviso (renderizado abaixo com os dados do erro).
+      } finally {
+        setCarregandoDuplicado(false);
+      }
+    },
   });
 
   function buscarCnpj() {
@@ -235,7 +257,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
 
   return (
     <div className={styles.form}>
-      {modoEdicao && <Input label="Código" value={codigo ?? ''} disabled className={styles.codigo} />}
+      {modoEdicao && <Input label="Código" value={codigoEfetivo ?? ''} disabled className={styles.codigo} />}
 
       <div className={styles.sectionTitle}>Pessoa</div>
 
@@ -375,6 +397,12 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
 
       {form.representante && <Input label="CORE (representante)" uppercase value={form.coreRepresentante} onChange={(e) => setForm({ ...form, coreRepresentante: e.target.value })} />}
 
+      {carregandoDuplicado && (
+        <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+          Carregando cadastro existente...
+        </p>
+      )}
+
       {saveMutation.isError && (() => {
         const err = saveMutation.error;
         const duplicado =
@@ -385,11 +413,11 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
           return (
             <div className={styles.duplicateWarning} role="alert">
               <strong>Cliente já cadastrado</strong>
-              <p>{err instanceof Error ? err.message : ''}</p>
+              <p>
+                Já existe um cliente com esse documento — carregamos o cadastro dele abaixo,
+                revise e salve as alterações se for o caso.
+              </p>
               <p>{duplicado.nome} · Código: {duplicado.codigo}</p>
-              <LinkButton to={`/clientes/${duplicado.codigo}/editar`} variant="secondary" size="sm">
-                Visualizar cliente
-              </LinkButton>
             </div>
           );
         }

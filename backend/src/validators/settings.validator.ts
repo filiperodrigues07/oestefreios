@@ -33,4 +33,9 @@ export const testEmailSchema = z.object({
 
 export const integracoesSettingsSchema = z.object({
   sintegraApiKey: z.string(),
+  dadosApiToken: z.string(),
+});
+
+export const integrationSecretParamSchema = z.object({
+  key: z.enum(['dadosApiToken', 'sintegraApiKey']),
 });

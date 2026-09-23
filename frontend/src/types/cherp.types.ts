@@ -110,6 +110,12 @@ export interface EquipamentoInput {
   cor?: string;
   chassi?: string;
   kmAtual?: number;
+  versao?: string;
+  combustivel?: string;
+  municipio?: string;
+  uf?: string;
+  motor?: string;
+  codigoFipe?: string;
 }
 
 export interface ApiSuccess<T> {

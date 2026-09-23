@@ -92,6 +92,13 @@
       "when": 1790110614758,
       "tag": "0012_white_firedrake",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1790120000000,
+      "tag": "0013_vehicle_lookup_requests",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,12 @@
+.lookup { display:flex; flex-direction:column; gap:var(--space-2); padding:var(--space-3); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-neutral-surface); }
+.lookupRow { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:var(--space-2); align-items:end; }
+.quota { display:flex; flex-direction:column; gap:var(--space-1); color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+.quotaHeader { display:flex; justify-content:space-between; align-items:center; }
+.info { border:0; background:transparent; color:var(--color-text-secondary); cursor:help; padding:0 2px; }
+.track { height:6px; border-radius:var(--radius-full); overflow:hidden; background:var(--color-border); }
+.track span { display:block; height:100%; border-radius:inherit; background:var(--color-primary); transition:width .2s ease; }
+.warning .track span { background:var(--color-warning); }
+.critical .track span, .exhausted .track span { background:var(--color-danger); }
+.lookupError { margin:0; color:var(--color-danger); font-size:var(--font-size-sm); }
+.extraGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:var(--space-3); }
+@media (max-width:600px) { .lookupRow { grid-template-columns:1fr; } }

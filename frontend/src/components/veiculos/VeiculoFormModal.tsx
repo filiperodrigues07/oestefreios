@@ -1,11 +1,12 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { atualizarEquipamento, criarEquipamento } from '../../api/equipamentos.api.js';
+import { atualizarEquipamento, criarEquipamento, getEquipamentoByCodigo, getVehicleLookupQuota, lookupVehiclePlate, type VehicleLookupQuota, type VehicleLookupResult } from '../../api/equipamentos.api.js';
 import { ApiError } from '../../api/httpClient.js';
 import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
 import { ClienteSearch } from '../search/ClienteSearch.js';
-import { Button, Input, LinkButton, Modal, useToast } from '../ui/index.js';
+import { Button, ConfirmDialog, Input, Modal, Tooltip, useToast } from '../ui/index.js';
 import type { ClienteDTO, EquipamentoDTO, EquipamentoInput } from '../../types/cherp.types.js';
+import styles from './VehiclePlateLookup.module.css';
 
 interface VeiculoFormModalProps {
   open: boolean;
@@ -26,7 +27,30 @@ const VAZIO: Omit<EquipamentoInput, 'clienteCodigo'> = {
   anoModelo: '',
   cor: '',
   chassi: '',
+  versao: '', combustivel: '', municipio: '', uf: '', motor: '', codigoFipe: '',
 };
+
+function formFromEquipamento(veiculo: EquipamentoDTO): Omit<EquipamentoInput, 'clienteCodigo'> {
+  const marca = veiculo.marca?.trim() ?? '';
+  const descricao = veiculo.descricao?.trim() ?? '';
+  const modelo =
+    veiculo.modelo ??
+    (descricao === veiculo.identificacao
+      ? ''
+      : marca && (descricao === marca || descricao.startsWith(`${marca} `))
+        ? descricao.slice(marca.length).trim()
+        : descricao);
+  return {
+    placa: veiculo.identificacao ?? '',
+    marca,
+    modelo,
+    anoFabricacao: veiculo.anoFabricacao ?? '',
+    anoModelo: veiculo.anoModelo ?? '',
+    cor: veiculo.cor ?? '',
+    chassi: veiculo.chassi ?? '',
+    versao: '', combustivel: '', municipio: '', uf: '', motor: '', codigoFipe: '',
+  };
+}
 
 /**
  * Cadastro rápido de veículo — fluxo placa-primeiro da OS (Fase OS-3): a placa buscada não
@@ -48,28 +72,11 @@ function VeiculoFormContent({
   onCreated,
 }: VeiculoFormModalProps) {
   const { showToast } = useToast();
-  const [form, setForm] = useState<Omit<EquipamentoInput, 'clienteCodigo'>>(() => {
-    const marca = veiculo?.marca?.trim() ?? '';
-    const descricao = veiculo?.descricao?.trim() ?? '';
-    const modelo =
-      veiculo?.modelo ??
-      (descricao === veiculo?.identificacao
-        ? ''
-        : marca && (descricao === marca || descricao.startsWith(`${marca} `))
-          ? descricao.slice(marca.length).trim()
-          : descricao);
-    return veiculo
-      ? {
-          placa: veiculo.identificacao ?? '',
-          marca,
-          modelo,
-          anoFabricacao: veiculo.anoFabricacao ?? '',
-          anoModelo: veiculo.anoModelo ?? '',
-          cor: veiculo.cor ?? '',
-          chassi: veiculo.chassi ?? '',
-        }
-      : { ...VAZIO, placa: placaInicial ?? '' };
-  });
+  const queryClient = useQueryClient();
+  const [veiculoEfetivo, setVeiculoEfetivo] = useState(veiculo);
+  const [form, setForm] = useState<Omit<EquipamentoInput, 'clienteCodigo'>>(() =>
+    veiculo ? formFromEquipamento(veiculo) : { ...VAZIO, placa: placaInicial ?? '' },
+  );
   const [clienteEscolhido, setClienteEscolhido] = useState<ClienteDTO | null>(() =>
     veiculo?.clienteCodigo
       ? {
@@ -79,19 +86,68 @@ function VeiculoFormContent({
       : null,
   );
   const [novoClienteAberto, setNovoClienteAberto] = useState(false);
+  const [pendingLookup, setPendingLookup] = useState<VehicleLookupResult | null>(null);
+  const [carregandoDuplicado, setCarregandoDuplicado] = useState(false);
+  const quotaQuery = useQuery({ queryKey: ['vehicle-lookup-quota'], queryFn: getVehicleLookupQuota, enabled: !veiculoEfetivo });
+
+  function applyLookup(found: VehicleLookupResult) {
+    setForm((current) => ({ ...current,
+      placa: found.plate, marca: found.brand ?? '', modelo: found.model ?? '', versao: found.version ?? '',
+      anoFabricacao: found.manufactureYear?.toString() ?? '', anoModelo: found.modelYear?.toString() ?? '',
+      cor: found.color ?? '', combustivel: found.fuel ?? '', municipio: found.city ?? '', uf: found.state ?? '',
+      motor: found.engine ?? '', codigoFipe: found.fipeCode ?? '',
+    }));
+    showToast('Dados encontrados. Revise as informações antes de salvar.', 'success');
+  }
+
+  const lookupMutation = useMutation({
+    mutationFn: () => lookupVehiclePlate(form.placa),
+    onSuccess: (result) => {
+      queryClient.setQueryData(['vehicle-lookup-quota'], result.quota);
+      if (result.source === 'existing') {
+        showToast(`Este veículo já está cadastrado: ${result.existingVehicle.descricao}.`, 'warning');
+        return;
+      }
+      const hasConflict = [form.marca, form.modelo, form.anoFabricacao, form.anoModelo, form.cor].some(Boolean) &&
+        ((form.marca && result.vehicle.brand && form.marca.toUpperCase() !== result.vehicle.brand.toUpperCase()) ||
+         (form.modelo && result.vehicle.model && form.modelo.toUpperCase() !== result.vehicle.model.toUpperCase()));
+      if (hasConflict) setPendingLookup(result.vehicle); else applyLookup(result.vehicle);
+    },
+  });
 
   const clienteFinal = clienteCodigo ?? clienteEscolhido?.codigo;
 
   const mutation = useMutation({
     mutationFn: () => {
       const input = { ...form, clienteCodigo: clienteFinal! };
-      return veiculo ? atualizarEquipamento(veiculo.codigo, input) : criarEquipamento(input);
+      return veiculoEfetivo ? atualizarEquipamento(veiculoEfetivo.codigo, input) : criarEquipamento(input);
     },
     onSuccess: (veiculoSalvo) => {
-      showToast(veiculo ? 'Veículo atualizado.' : 'Veículo cadastrado.', 'success');
+      showToast(veiculoEfetivo ? 'Veículo atualizado.' : 'Veículo cadastrado.', 'success');
       setForm({ ...VAZIO, placa: placaInicial ?? '' });
       setClienteEscolhido(null);
       onCreated(veiculoSalvo, clienteEscolhido ?? undefined);
+    },
+    onError: async (err) => {
+      if (!(err instanceof ApiError) || (err.code !== 'VEHICLE_DUPLICATE' && err.code !== 'VEHICLE_CHASSIS_DUPLICATE')) return;
+      const duplicado = err.details as { codigo: string; descricao: string; clienteCodigo?: string; clienteNome?: string } | undefined;
+      if (!duplicado?.codigo) return;
+      setCarregandoDuplicado(true);
+      try {
+        const equipamentoExistente = await getEquipamentoByCodigo(duplicado.codigo);
+        setForm(formFromEquipamento(equipamentoExistente));
+        setVeiculoEfetivo(equipamentoExistente);
+        if (!clienteCodigo && equipamentoExistente.clienteCodigo) {
+          setClienteEscolhido({
+            codigo: equipamentoExistente.clienteCodigo,
+            nome: equipamentoExistente.clienteNome ?? equipamentoExistente.clienteCodigo,
+          });
+        }
+      } catch {
+        // Falhou ao buscar o cadastro existente — mantém só o aviso (renderizado abaixo com os dados do erro).
+      } finally {
+        setCarregandoDuplicado(false);
+      }
     },
   });
 
@@ -107,7 +163,7 @@ function VeiculoFormContent({
   return (
     <Modal
       open={open}
-      title={veiculo ? 'Editar veículo' : 'Novo veículo'}
+      title={veiculoEfetivo ? 'Editar veículo' : 'Novo veículo'}
       onClose={handleClose}
       footer={
         <>
@@ -119,7 +175,7 @@ function VeiculoFormContent({
             loading={mutation.isPending}
             disabled={!podeSalvar}
           >
-            {veiculo ? 'Salvar' : 'Cadastrar'}
+            {veiculoEfetivo ? 'Salvar' : 'Cadastrar'}
           </Button>
         </>
       }
@@ -177,13 +233,10 @@ function VeiculoFormContent({
           }}
         />
 
-        <Input
-          label="Placa"
-          required
-          value={form.placa}
-          onChange={(e) => setForm({ ...form, placa: e.target.value.toUpperCase() })}
-          placeholder="AAA-9999 ou AAA9A99"
-        />
+        {!veiculoEfetivo && <PlateLookup quota={quotaQuery.data} loadingQuota={quotaQuery.isLoading} loading={lookupMutation.isPending}
+          plate={form.placa} onPlateChange={(placa) => setForm({ ...form, placa })} onLookup={() => lookupMutation.mutate()} />}
+        {veiculoEfetivo && <Input label="Placa" required value={form.placa} onChange={(e) => setForm({ ...form, placa: e.target.value.toUpperCase() })} placeholder="AAA-9999 ou AAA9A99" />}
+        {lookupMutation.isError && <p role="alert" className={styles.lookupError}>{lookupMutation.error instanceof Error ? lookupMutation.error.message : 'Não foi possível consultar a placa.'}</p>}
         <div
           style={{
             display: 'grid',
@@ -234,11 +287,28 @@ function VeiculoFormContent({
           value={form.chassi}
           onChange={(e) => setForm({ ...form, chassi: e.target.value })}
         />
+        <div className={styles.extraGrid}>
+          <Input label="Versão" uppercase value={form.versao} onChange={(e) => setForm({ ...form, versao: e.target.value })} />
+          <Input label="Combustível" uppercase value={form.combustivel} onChange={(e) => setForm({ ...form, combustivel: e.target.value })} />
+          <Input label="Município" uppercase value={form.municipio} onChange={(e) => setForm({ ...form, municipio: e.target.value })} />
+          <Input label="UF" uppercase value={form.uf} onChange={(e) => setForm({ ...form, uf: e.target.value })} />
+          <Input label="Motor/cilindrada" uppercase value={form.motor} onChange={(e) => setForm({ ...form, motor: e.target.value })} />
+          <Input label="Código FIPE" value={form.codigoFipe} onChange={(e) => setForm({ ...form, codigoFipe: e.target.value })} />
+        </div>
+
+        <ConfirmDialog open={!!pendingLookup} title="Usar dados encontrados?" description="A consulta encontrou informações diferentes das preenchidas. Deseja substituir os dados atuais?" confirmLabel="Substituir dados" cancelLabel="Manter dados atuais" onConfirm={() => { if (pendingLookup) applyLookup(pendingLookup); setPendingLookup(null); }} onCancel={() => setPendingLookup(null)} />
+
+        {carregandoDuplicado && (
+          <p role="status" style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+            Carregando cadastro existente...
+          </p>
+        )}
 
         {mutation.isError && (() => {
           const err = mutation.error;
+          const isChassiDuplicado = err instanceof ApiError && err.code === 'VEHICLE_CHASSIS_DUPLICATE';
           const duplicado =
-            err instanceof ApiError && err.code === 'VEHICLE_DUPLICATE'
+            err instanceof ApiError && (err.code === 'VEHICLE_DUPLICATE' || err.code === 'VEHICLE_CHASSIS_DUPLICATE')
               ? (err.details as { codigo: string; descricao: string; clienteNome?: string } | undefined)
               : undefined;
           if (duplicado) {
@@ -255,16 +325,13 @@ function VeiculoFormContent({
                   padding: 'var(--space-3)',
                 }}
               >
-                <strong>Veículo já cadastrado</strong>
+                <strong>{isChassiDuplicado ? 'Chassi já cadastrado' : 'Placa já cadastrada'}</strong>
                 <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
                   {err instanceof Error ? err.message : ''}
                 </p>
                 <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                  {duplicado.descricao}{duplicado.clienteNome ? ` · Cliente: ${duplicado.clienteNome}` : ''}
+                  Os dados do cadastro existente foram carregados acima — revise e salve para atualizá-lo, ou cancele.
                 </p>
-                <LinkButton to={`/veiculos?busca=${encodeURIComponent(form.placa)}`} variant="secondary" size="sm">
-                  Ver veículo cadastrado
-                </LinkButton>
               </div>
             );
           }
@@ -277,4 +344,21 @@ function VeiculoFormContent({
       </div>
     </Modal>
   );
+}
+
+function PlateLookup({ quota, loadingQuota, loading, plate, onPlateChange, onLookup }: { quota?: VehicleLookupQuota; loadingQuota: boolean; loading: boolean; plate: string; onPlateChange: (value: string) => void; onLookup: () => void }) {
+  const tone = !quota ? 'normal' : quota.exhausted ? 'exhausted' : quota.percentage >= 95 ? 'critical' : quota.percentage >= 80 ? 'warning' : 'normal';
+  const message = quota?.exhausted ? 'Limite mensal de consultas atingido. O cadastro manual continua disponível.' : quota && quota.percentage >= 95 ? `Restam apenas ${quota.remaining} consultas neste mês.` : quota && quota.percentage >= 80 ? `Restam ${quota.remaining} consultas neste mês.` : quota ? `${quota.remaining} consultas disponíveis` : '';
+  return <section className={`${styles.lookup} ${styles[tone]}`} aria-label="Consulta automática pela placa">
+    <strong>Consulta automática pela placa</strong>
+    <div className={styles.lookupRow}>
+      <Input label="Placa" required value={plate} onChange={(e) => onPlateChange(e.target.value.toUpperCase())} placeholder="AAA-9999 ou AAA9A99" />
+      <Button type="button" onClick={onLookup} loading={loading} disabled={loadingQuota || quota?.exhausted || !plate.trim()}>{loading ? 'Consultando veículo...' : 'Consultar placa'}</Button>
+    </div>
+    {quota && <div className={styles.quota}>
+      <div className={styles.quotaHeader}><span>Consultas mensais <Tooltip content="A consulta automática de veículos possui um limite mensal. O contador é renovado automaticamente a cada mês. Caso o limite seja atingido, o cadastro manual continuará disponível normalmente."><button type="button" className={styles.info} aria-label="Sobre o limite mensal">ⓘ</button></Tooltip></span><strong>{quota.used} / {quota.limit}</strong></div>
+      <div className={styles.track} role="progressbar" aria-valuenow={quota.percentage} aria-valuemin={0} aria-valuemax={100}><span style={{ width: `${quota.percentage}%` }} /></div>
+      <small>{message}</small>
+    </div>}
+  </section>;
 }

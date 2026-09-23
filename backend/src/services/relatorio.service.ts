@@ -1,5 +1,5 @@
 import type { RelatorioColuna, RelatorioResultado } from '../dto/relatorio.dto.js';
-import { clienteRepository, osRepository, produtoRepository, servicoRepository } from '../repositories/index.js';
+import { clienteRepository, equipamentoRepository, osRepository, produtoRepository, servicoRepository } from '../repositories/index.js';
 import type { Permission } from '../types/auth.types.js';
 import type { OSPrioridade, OSStatus } from '../types/cherp.types.js';
 import { endOfDay, startOfDay } from './dashboard.service.js';
@@ -48,6 +48,12 @@ export interface RelatorioClientesFiltro {
   tipoPessoa?: 'PF' | 'PJ';
   uf?: string;
   busca?: string;
+}
+
+export interface RelatorioVeiculosFiltro {
+  busca?: string;
+  clienteCodigo?: string;
+  anoFabricacao?: number;
 }
 
 export interface RelatorioProdutosServicosFiltro {
@@ -151,6 +157,43 @@ export async function gerarRelatorioClientes(filtro: RelatorioClientesFiltro): P
 
   return {
     titulo: 'Clientes cadastrados',
+    geradoEm: new Date().toISOString(),
+    colunas,
+    linhas,
+  };
+}
+
+/** Exporta os veículos tal como a tela de Veículos mostra — mesmos filtros (busca/cliente/ano). */
+export async function gerarRelatorioVeiculos(filtro: RelatorioVeiculosFiltro): Promise<RelatorioResultado> {
+  const { items, total } = await equipamentoRepository.buscar({
+    descricao: filtro.busca,
+    clienteCodigo: filtro.clienteCodigo,
+    anoFabricacao: filtro.anoFabricacao,
+    page: 1,
+    limit: LIMITE_LINHAS_RELATORIO,
+    sortBy: 'descricao',
+    sortOrder: 'asc',
+  });
+  assertDentroDoLimite(total, 'veículos');
+
+  const colunas: RelatorioColuna[] = [
+    { key: 'codigo', label: 'Código' },
+    { key: 'placa', label: 'Placa' },
+    { key: 'marcaModelo', label: 'Marca / Modelo' },
+    { key: 'ano', label: 'Ano fab. / mod.' },
+    { key: 'cliente', label: 'Cliente' },
+  ];
+
+  const linhas = items.map((v) => ({
+    codigo: v.codigo,
+    placa: v.identificacao ?? null,
+    marcaModelo: v.descricao,
+    ano: `${v.anoFabricacao || '—'} / ${v.anoModelo || '—'}`,
+    cliente: v.clienteNome ? `${v.clienteNome} (${v.clienteCodigo})` : v.clienteCodigo || null,
+  }));
+
+  return {
+    titulo: 'Veículos cadastrados',
     geradoEm: new Date().toISOString(),
     colunas,
     linhas,

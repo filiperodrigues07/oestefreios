@@ -39,6 +39,12 @@ export interface RelatorioProdutosServicosFiltro {
   dataReferencia?: 'abertura' | 'conclusao';
 }
 
+export interface RelatorioVeiculosFiltro {
+  busca?: string;
+  clienteCodigo?: string;
+  anoFabricacao?: number;
+}
+
 export interface RelatorioCatalogoFiltro {
   busca?: string;
   tipoCodigo?: number;
@@ -78,6 +84,15 @@ function paramsClientes(filtro: RelatorioClientesFiltro, formato?: string): stri
   return usp.toString();
 }
 
+function paramsVeiculos(filtro: RelatorioVeiculosFiltro, formato?: string): string {
+  const usp = new URLSearchParams();
+  if (filtro.busca) usp.set('busca', filtro.busca);
+  if (filtro.clienteCodigo) usp.set('clienteCodigo', filtro.clienteCodigo);
+  if (filtro.anoFabricacao !== undefined) usp.set('anoFabricacao', String(filtro.anoFabricacao));
+  if (formato) usp.set('formato', formato);
+  return usp.toString();
+}
+
 function paramsProdutosServicos(filtro: RelatorioProdutosServicosFiltro, formato?: string): string {
   const usp = new URLSearchParams({ dataInicial: filtro.dataInicial, dataFinal: filtro.dataFinal });
   if (filtro.dataReferencia) usp.set('dataReferencia', filtro.dataReferencia);
@@ -90,6 +105,9 @@ export const getRelatorioOS = (filtro: RelatorioOSFiltro) =>
 
 export const getRelatorioClientes = (filtro: RelatorioClientesFiltro) =>
   apiFetch<RelatorioResultado>(`/relatorios/clientes?${paramsClientes(filtro)}`);
+
+export const getRelatorioVeiculos = (filtro: RelatorioVeiculosFiltro) =>
+  apiFetch<RelatorioResultado>(`/relatorios/veiculos?${paramsVeiculos(filtro)}`);
 
 export const getRelatorioProdutosServicos = (filtro: RelatorioProdutosServicosFiltro) =>
   apiFetch<RelatorioResultado>(`/relatorios/produtos-servicos?${paramsProdutosServicos(filtro)}`);
@@ -113,6 +131,9 @@ export const baixarRelatorioOS = (filtro: RelatorioOSFiltro, formato: Formato) =
 
 export const baixarRelatorioClientes = (filtro: RelatorioClientesFiltro, formato: Formato) =>
   baixar(`/relatorios/clientes?${paramsClientes(filtro, formato)}`, 'relatorio-clientes', formato);
+
+export const baixarRelatorioVeiculos = (filtro: RelatorioVeiculosFiltro, formato: Formato) =>
+  baixar(`/relatorios/veiculos?${paramsVeiculos(filtro, formato)}`, 'relatorio-veiculos', formato);
 
 export const baixarRelatorioProdutosServicos = (filtro: RelatorioProdutosServicosFiltro, formato: Formato) =>
   baixar(`/relatorios/produtos-servicos?${paramsProdutosServicos(filtro, formato)}`, `relatorio-produtos-servicos-${filtro.dataInicial}-a-${filtro.dataFinal}`, formato);

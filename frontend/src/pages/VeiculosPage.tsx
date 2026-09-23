@@ -1,15 +1,19 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { getClienteByCodigo } from '../api/clientes.api.js';
 import { listarEquipamentos, type EquipamentoSortBy } from '../api/equipamentos.api.js';
+import { baixarRelatorioVeiculos } from '../api/relatorios.api.js';
 import { ClienteSearch } from '../components/search/ClienteSearch.js';
 import { VeiculoFormModal } from '../components/veiculos/VeiculoFormModal.js';
+import { readStoredFilters, writeStoredFilters } from '../utils/filterStorage.js';
 import {
   ActionIcon,
   Button,
   Card,
   EmptyState,
   ErrorState,
+  ExportButtons,
   PageHeader,
   MobileRecordCard,
   MobileFab,
@@ -26,18 +30,45 @@ import type { ClienteDTO, EquipamentoDTO } from '../types/cherp.types.js';
 import styles from './VeiculosPage.module.css';
 
 export function VeiculosPage() {
-  const [searchParams] = useSearchParams();
-  const initialBusca = searchParams.get('busca') ?? '';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtrosSalvos = readStoredFilters('veiculos');
+  const initialBusca = searchParams.get('busca') ?? filtrosSalvos.get('busca') ?? '';
+  const initialClienteCodigo = searchParams.get('clienteCodigo') ?? filtrosSalvos.get('clienteCodigo') ?? '';
   const queryClient = useQueryClient();
   const [busca, setBusca] = useState(initialBusca);
   const [buscaAtiva, setBuscaAtiva] = useState(initialBusca);
   const [cliente, setCliente] = useState<ClienteDTO | null>(null);
-  const [anoFabricacao, setAnoFabricacao] = useState('');
+  const [anoFabricacao, setAnoFabricacao] = useState(() => searchParams.get('anoFabricacao') ?? filtrosSalvos.get('anoFabricacao') ?? '');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [sortBy, setSortBy] = useState<EquipamentoSortBy>('descricao');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [modal, setModal] = useState<{ veiculo?: EquipamentoDTO } | null>(null);
+
+  // A URL só guarda o código do cliente filtrado — reidrata o objeto completo (pro nome aparecer
+  // no chip do filtro) buscando uma vez ao montar, se a tela foi aberta com ?clienteCodigo= na URL.
+  const { data: clienteDaUrl } = useQuery({
+    queryKey: ['cliente', initialClienteCodigo],
+    queryFn: () => getClienteByCodigo(initialClienteCodigo),
+    enabled: Boolean(initialClienteCodigo),
+  });
+  useEffect(() => {
+    if (clienteDaUrl) setCliente(clienteDaUrl);
+  }, [clienteDaUrl]);
+
+  // Filtros salvos na URL (compartilhável, funciona com voltar do navegador) e em sessionStorage
+  // (sobrevive a navegar pra outra tela pelo menu, que troca de rota sem manter query string).
+  // `replace` pra não empilhar histórico a cada tecla/seleção.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (buscaAtiva) params.set('busca', buscaAtiva);
+    if (cliente?.codigo) params.set('clienteCodigo', cliente.codigo);
+    if (anoFabricacao) params.set('anoFabricacao', anoFabricacao);
+    setSearchParams(params, { replace: true });
+    writeStoredFilters('veiculos', params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buscaAtiva, cliente?.codigo, anoFabricacao]);
+
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['equipamentos', 'lista', buscaAtiva, cliente?.codigo, anoFabricacao, page, limit, sortBy, sortOrder],
     queryFn: () => listarEquipamentos(buscaAtiva, page, limit, cliente?.codigo, sortBy, sortOrder, anoFabricacao ? Number(anoFabricacao) : undefined),
@@ -53,12 +84,13 @@ export function VeiculosPage() {
   }
 
   function handleSortChange(key: string) {
-    if (!['identificacao', 'descricao', 'ano', 'cliente'].includes(key)) return;
+    if (!['codigo', 'identificacao', 'descricao', 'ano', 'cliente'].includes(key)) return;
     if (key === sortBy) setSortOrder((value) => value === 'asc' ? 'desc' : 'asc');
     else { setSortBy(key as EquipamentoSortBy); setSortOrder('asc'); }
     setPage(1);
   }
   const columns: TableColumn<EquipamentoDTO>[] = [
+    { key: 'codigo', header: 'Código', mono: true, width: '92px', sortable: true, render: (v) => v.codigo },
     { key: 'identificacao', header: 'Placa', mono: true, sortable: true, render: (v) => v.identificacao || '—' },
     { key: 'descricao', header: 'Marca / Modelo', sortable: true, render: (v) => v.descricao },
     {
@@ -102,14 +134,30 @@ export function VeiculosPage() {
         title="Veículos"
         description="Consulte os veículos ativos e seus clientes vinculados."
         actions={
-          hasPermission('OS_CREATE') ? (
-            <span className={styles.desktopCreate}>
-              <Button onClick={() => setModal({})}>
-                <ActionIcon name="add" />
-                Novo veículo
-              </Button>
-            </span>
-          ) : undefined
+          <>
+            {hasPermission('OS_CREATE') && (
+              <span className={styles.desktopCreate}>
+                <Button onClick={() => setModal({})}>
+                  <ActionIcon name="add" />
+                  Novo veículo
+                </Button>
+              </span>
+            )}
+            <ExportButtons
+              onExportarExcel={() =>
+                baixarRelatorioVeiculos(
+                  { busca: buscaAtiva || undefined, clienteCodigo: cliente?.codigo, anoFabricacao: anoFabricacao ? Number(anoFabricacao) : undefined },
+                  'excel',
+                )
+              }
+              onExportarPdf={() =>
+                baixarRelatorioVeiculos(
+                  { busca: buscaAtiva || undefined, clienteCodigo: cliente?.codigo, anoFabricacao: anoFabricacao ? Number(anoFabricacao) : undefined },
+                  'pdf',
+                )
+              }
+            />
+          </>
         }
       />
       {data && !isLoading && !isError && <p className={styles.total}><strong>{data.total.toLocaleString('pt-BR')}</strong> {data.total === 1 ? 'registro' : 'registros'}</p>}

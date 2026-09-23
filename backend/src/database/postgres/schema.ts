@@ -157,6 +157,23 @@ export const settings = pgTable('settings', {
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
 
+/** Histórico de chamadas ao provider e cache persistente por tenant/placa. */
+export const vehicleLookupRequests = pgTable('vehicle_lookup_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tenantId: text('tenant_id').notNull(),
+  provider: text('provider').notNull(),
+  plate: text('plate').notNull(),
+  status: text('status').notNull(),
+  success: boolean('success').notNull(),
+  consumedQuota: boolean('consumed_quota').notNull(),
+  result: jsonb('result'),
+  cacheExpiresAt: timestamp('cache_expires_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('vehicle_lookup_quota_idx').on(table.tenantId, table.createdAt),
+  index('vehicle_lookup_cache_idx').on(table.tenantId, table.plate, table.cacheExpiresAt),
+]);
+
 export const rolesRelations = relations(roles, ({ many }) => ({
   rolePermissions: many(rolePermissions),
   users: many(users),

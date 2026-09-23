@@ -3,6 +3,7 @@ import {
   getBrandingHandler,
   getFirebirdSettingsHandler,
   getFirebirdPasswordHandler,
+  getFirebirdConnectionStatusHandler,
   getGeralSettingsHandler,
   getIntegracoesSettingsHandler,
   getSmtpSettingsHandler,
@@ -12,6 +13,7 @@ import {
   saveSmtpSettingsHandler,
   testFirebirdSettingsHandler,
   testSmtpSettingsHandler,
+  getIntegrationSecretHandler,
 } from '../controllers/settings.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
@@ -23,6 +25,7 @@ import {
   integracoesSettingsSchema,
   smtpSettingsSchema,
   testEmailSchema,
+  integrationSecretParamSchema,
 } from '../validators/settings.validator.js';
 
 export const settingsRouter = Router();
@@ -35,6 +38,7 @@ settingsRouter.use(authenticate, requirePermission('SYSTEM_SETTINGS'));
 
 settingsRouter.get('/firebird', asyncHandler(getFirebirdSettingsHandler));
 settingsRouter.get('/firebird/password', asyncHandler(getFirebirdPasswordHandler));
+settingsRouter.get('/firebird/status', asyncHandler(getFirebirdConnectionStatusHandler));
 settingsRouter.put('/firebird', validate(firebirdSettingsSchema), asyncHandler(saveFirebirdSettingsHandler));
 settingsRouter.post('/firebird/test', validate(firebirdSettingsSchema), asyncHandler(testFirebirdSettingsHandler));
 
@@ -46,4 +50,5 @@ settingsRouter.get('/geral', asyncHandler(getGeralSettingsHandler));
 settingsRouter.put('/geral', validate(geralSettingsSchema), asyncHandler(saveGeralSettingsHandler));
 
 settingsRouter.get('/integracoes', asyncHandler(getIntegracoesSettingsHandler));
+settingsRouter.get('/integracoes/secret/:key', validate(integrationSecretParamSchema, 'params'), asyncHandler(getIntegrationSecretHandler));
 settingsRouter.put('/integracoes', validate(integracoesSettingsSchema), asyncHandler(saveIntegracoesSettingsHandler));

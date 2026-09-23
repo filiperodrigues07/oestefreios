@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { baixarOSPdf, listarOS, type OSSortBy } from '../api/os.api.js';
 import { baixarRelatorioOS } from '../api/relatorios.api.js';
@@ -10,6 +10,7 @@ import {
   OS_PRIORIDADE_OPTIONS,
 } from '../constants/osStatus.js';
 import { hasPermission } from '../store/authStore.js';
+import { readStoredFilters, writeStoredFilters } from '../utils/filterStorage.js';
 import {
   ActionIcon,
   Button,
@@ -54,18 +55,22 @@ function formatMoney(value: number): string {
 
 /** Lista de OS abertas: filtros inteligentes (busca livre + status + prioridade) e colunas ordenáveis. */
 export function OSListPage() {
-  const [searchParams] = useSearchParams();
-  const initialSituacaoDocumento = searchParams.get('situacaoDocumento');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtrosSalvos = readStoredFilters('os');
+  const initialSituacaoDocumento = searchParams.get('situacaoDocumento') ?? filtrosSalvos.get('situacaoDocumento');
   const [situacaoDocumento, setSituacaoDocumento] = useState(() =>
     initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)]
       ? initialSituacaoDocumento
       : '0',
   );
-  const [prioridade, setPrioridade] = useState<OSPrioridade | ''>('');
-  const [dataInicial, setDataInicial] = useState('');
-  const [dataFinal, setDataFinal] = useState('');
-  const [busca, setBusca] = useState('');
-  const [buscaAtiva, setBuscaAtiva] = useState('');
+  const [prioridade, setPrioridade] = useState<OSPrioridade | ''>(() => {
+    const value = searchParams.get('prioridade') ?? filtrosSalvos.get('prioridade');
+    return value && OS_PRIORIDADE_OPTIONS.some((o) => o.value === value) ? (value as OSPrioridade) : '';
+  });
+  const [dataInicial, setDataInicial] = useState(() => searchParams.get('dataInicial') ?? filtrosSalvos.get('dataInicial') ?? '');
+  const [dataFinal, setDataFinal] = useState(() => searchParams.get('dataFinal') ?? filtrosSalvos.get('dataFinal') ?? '');
+  const [busca, setBusca] = useState(() => searchParams.get('busca') ?? filtrosSalvos.get('busca') ?? '');
+  const [buscaAtiva, setBuscaAtiva] = useState(() => searchParams.get('busca') ?? filtrosSalvos.get('busca') ?? '');
   const [sortBy, setSortBy] = useState<OSSortBy | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
@@ -73,6 +78,21 @@ export function OSListPage() {
   const navigate = useNavigate();
   const canSeeFinancial = hasPermission('FINANCIAL_VIEW');
   const podeEditar = hasPermission('OS_EDIT');
+
+  // Filtros salvos na URL (compartilhável, funciona com voltar do navegador) e em sessionStorage
+  // (sobrevive a navegar pra outra tela pelo menu, que troca de rota sem manter query string).
+  // `replace` pra não empilhar uma entrada de histórico a cada tecla digitada na busca.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (situacaoDocumento) params.set('situacaoDocumento', situacaoDocumento);
+    if (prioridade) params.set('prioridade', prioridade);
+    if (dataInicial) params.set('dataInicial', dataInicial);
+    if (dataFinal) params.set('dataFinal', dataFinal);
+    if (buscaAtiva) params.set('busca', buscaAtiva);
+    setSearchParams(params, { replace: true });
+    writeStoredFilters('os', params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [situacaoDocumento, prioridade, dataInicial, dataFinal, buscaAtiva]);
 
   const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
     queryKey: [
@@ -144,6 +164,7 @@ export function OSListPage() {
       'clienteNome',
       'equipamentoDescricao',
       'dataAbertura',
+      'situacaoDocumento',
       'prioridade',
       'faturamento',
     ];
@@ -206,6 +227,7 @@ export function OSListPage() {
       key: 'situacaoDocumento',
       header: 'Situação',
       width: '130px',
+      sortable: true,
       render: (os) => {
         const config =
           os.situacaoDocumento === undefined

@@ -99,7 +99,7 @@ export const listarOSQuerySchema = z.object({
   busca: z.string().trim().min(1).optional(),
   dataInicial: z.coerce.date().optional(),
   dataFinal: z.coerce.date().optional(),
-  sortBy: z.enum(['numero', 'clienteNome', 'equipamentoDescricao', 'dataAbertura', 'status', 'prioridade', 'faturamento']).optional(),
+  sortBy: z.enum(['numero', 'clienteNome', 'equipamentoDescricao', 'dataAbertura', 'status', 'situacaoDocumento', 'prioridade', 'faturamento']).optional(),
   sortOrder: z.enum(['asc', 'desc']).optional(),
   page: z.coerce.number().int().positive().default(1),
   limit: z.coerce.number().int().positive().max(100).default(20),

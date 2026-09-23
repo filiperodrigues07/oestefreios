@@ -47,6 +47,11 @@ const QUERY_BUSCAR_POR_PLACA: string | null = `
   WHERE E.ATIVO = 1 AND REPLACE(UPPER(E.IDENTIFICACAO), '-', '') = ?
 `;
 
+const QUERY_BUSCAR_POR_CHASSI: string | null = `
+  SELECT ${EQUIPAMENTO_SELECT}
+  WHERE E.ATIVO = 1 AND UPPER(E.CHASSI) = ?
+`;
+
 // Parâmetros nesta ordem: limit, skip, clienteCodigo|null, codigo|null, anoFabricacao|null x2, descricaoLike|null x2.
 // O termo livre compara DESCRICAO (marca+modelo) E IDENTIFICACAO (placa) — antes só batia em DESCRICAO,
 // então buscar por placa falhava silenciosamente pra qualquer veículo com marca/modelo preenchido.
@@ -65,6 +70,7 @@ const QUERY_BUSCAR_PAGINADO: string | null = `
 `;
 
 const ORDEM_POR_SORT_BY: Record<string, string> = {
+  codigo: 'E.CODIGO',
   identificacao: 'E.IDENTIFICACAO',
   descricao: 'E.DESCRICAO',
   ano: 'E.ANOFAB',
@@ -143,6 +149,14 @@ export class EquipamentoRepositoryFirebird implements IEquipamentoRepository {
     if (!QUERY_BUSCAR_POR_PLACA) throw new NotImplementedError('EquipamentoRepository.buscarPorPlaca');
     const placaLimpa = toLatin1Param(placa.trim().toUpperCase().replace(/[^A-Z0-9]/g, ''));
     const rows = await firebirdQuery(QUERY_BUSCAR_POR_PLACA, [placaLimpa]);
+    return rows[0] ? mapRowToEquipamento(rows[0]) : null;
+  }
+
+  async buscarPorChassi(chassi: string): Promise<Equipamento | null> {
+    if (!QUERY_BUSCAR_POR_CHASSI) throw new NotImplementedError('EquipamentoRepository.buscarPorChassi');
+    const chassiLimpo = chassi.trim().toUpperCase();
+    if (!chassiLimpo) return null;
+    const rows = await firebirdQuery(QUERY_BUSCAR_POR_CHASSI, [chassiLimpo]);
     return rows[0] ? mapRowToEquipamento(rows[0]) : null;
   }
 

@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { searchClientes, type ClienteSortBy } from '../api/clientes.api.js';
 import { baixarRelatorioClientes } from '../api/relatorios.api.js';
@@ -25,6 +25,7 @@ import {
 } from '../components/ui/index.js';
 import { hasPermission } from '../store/authStore.js';
 import type { ClienteDTO, TipoPessoa } from '../types/cherp.types.js';
+import { readStoredFilters, writeStoredFilters } from '../utils/filterStorage.js';
 import styles from './ClientesPage.module.css';
 
 const UF_OPTIONS = [
@@ -69,12 +70,19 @@ const TIPO_PESSOA_OPTIONS = [
 const SORTAVEIS: ClienteSortBy[] = ['codigo', 'nome', 'documento', 'telefone', 'cidade'];
 
 export function ClientesPage() {
-  const [searchParams] = useSearchParams();
-  const initialBusca = searchParams.get('busca') ?? '';
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filtrosSalvos = readStoredFilters('clientes');
+  const initialBusca = searchParams.get('busca') ?? filtrosSalvos.get('busca') ?? '';
   const [busca, setBusca] = useState(initialBusca);
   const [buscaAtiva, setBuscaAtiva] = useState(initialBusca);
-  const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa | ''>('');
-  const [uf, setUf] = useState('');
+  const [tipoPessoa, setTipoPessoa] = useState<TipoPessoa | ''>(() => {
+    const value = searchParams.get('tipoPessoa') ?? filtrosSalvos.get('tipoPessoa');
+    return value === 'PJ' || value === 'PF' ? value : '';
+  });
+  const [uf, setUf] = useState(() => {
+    const value = searchParams.get('uf') ?? filtrosSalvos.get('uf') ?? '';
+    return UF_OPTIONS.some((o) => o.value === value) ? value : '';
+  });
   const [sortBy, setSortBy] = useState<ClienteSortBy | undefined>(undefined);
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
@@ -82,6 +90,19 @@ export function ClientesPage() {
 
   const podeCriar = hasPermission('OS_CREATE');
   const podeEditar = hasPermission('OS_EDIT');
+
+  // Filtros salvos na URL (compartilhável, funciona com voltar do navegador) e em sessionStorage
+  // (sobrevive a navegar pra outra tela pelo menu, que troca de rota sem manter query string).
+  // `replace` pra não empilhar histórico a cada tecla/seleção.
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (buscaAtiva) params.set('busca', buscaAtiva);
+    if (tipoPessoa) params.set('tipoPessoa', tipoPessoa);
+    if (uf) params.set('uf', uf);
+    setSearchParams(params, { replace: true });
+    writeStoredFilters('clientes', params);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buscaAtiva, tipoPessoa, uf]);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['clientes', buscaAtiva, page, limit, tipoPessoa, uf, sortBy, sortOrder],
@@ -234,6 +255,7 @@ export function ClientesPage() {
           onClear={limparFiltros}
         >
           <Select
+            label="Tipo de pessoa"
             options={TIPO_PESSOA_OPTIONS}
             value={tipoPessoa}
             onChange={(e) => {
@@ -242,6 +264,7 @@ export function ClientesPage() {
             }}
           />
           <Select
+            label="UF"
             options={UF_OPTIONS}
             value={uf}
             onChange={(e) => {
