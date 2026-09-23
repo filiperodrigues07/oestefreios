@@ -86,6 +86,7 @@
   margin: -2px -4px;
   border-radius: var(--radius-sm);
   font: inherit;
+  text-transform: uppercase;
   color: inherit;
   cursor: pointer;
 }
