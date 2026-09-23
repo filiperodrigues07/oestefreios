@@ -46,7 +46,7 @@
   align-items: center;
   gap: clamp(var(--space-8), 9vw, 10rem);
   margin: 0 auto;
-  padding: clamp(var(--space-6), 6vw, 6rem) clamp(var(--space-5), 6vw, 7rem);
+  padding: clamp(var(--space-6), 6vw, 6rem) clamp(var(--space-6), 6vw, 7rem);
 }
 
 .intro { max-width: 560px; }
@@ -83,7 +83,7 @@
 
 .introCopy {
   max-width: 430px;
-  margin: var(--space-5) 0 0;
+  margin: var(--space-6) 0 0;
   color: #bdd4f3;
   font-size: clamp(1rem, 1.4vw, 1.15rem);
   line-height: 1.65;
@@ -123,7 +123,7 @@
 .mobileLogoFrame {
   display: none;
   width: 120px;
-  margin: 0 auto var(--space-5);
+  margin: 0 auto var(--space-6);
 }
 
 .warning,
