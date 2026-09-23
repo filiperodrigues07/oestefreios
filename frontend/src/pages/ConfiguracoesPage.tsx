@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import {
   getFirebirdSettings,
   getFirebirdPassword,
@@ -27,6 +28,7 @@ import {
   Modal,
   PasswordInput,
   Select,
+  Skeleton,
   Tooltip,
   useToast,
 } from '../components/ui/index.js';
@@ -145,6 +147,7 @@ export function ConfiguracoesPage() {
 
 function FirebirdTab() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['settings', 'firebird'],
     queryFn: getFirebirdSettings,
@@ -164,7 +167,9 @@ function FirebirdTab() {
     onSuccess: (saved) => {
       setForm(saved);
       queryClient.setQueryData(['settings', 'firebird'], saved);
+      showToast('Configurações do Firebird salvas.', 'success');
     },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível salvar as configurações do Firebird.'),
   });
 
   const testMutation = useMutation({
@@ -182,7 +187,15 @@ function FirebirdTab() {
   });
 
   if (isError) return <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar novamente</Button>} />;
-  if (isLoading || !form) return <Card>Carregando...</Card>;
+  if (isLoading || !form) {
+    return (
+      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <Skeleton height={40} />
+        <Skeleton height={40} />
+        <Skeleton height={40} />
+      </Card>
+    );
+  }
 
   return (
     <div className={styles.columns}>
@@ -387,6 +400,7 @@ function FirebirdTab() {
 
 function SmtpTab() {
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['settings', 'smtp'],
     queryFn: getSmtpSettings,
@@ -404,7 +418,9 @@ function SmtpTab() {
     onSuccess: (saved) => {
       setForm(saved);
       queryClient.setQueryData(['settings', 'smtp'], saved);
+      showToast('Configurações de e-mail salvas.', 'success');
     },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível salvar as configurações de e-mail.'),
   });
 
   const testMutation = useMutation({
@@ -413,7 +429,15 @@ function SmtpTab() {
   });
 
   if (isError) return <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar novamente</Button>} />;
-  if (isLoading || !form) return <Card>Carregando...</Card>;
+  if (isLoading || !form) {
+    return (
+      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <Skeleton height={40} />
+        <Skeleton height={40} />
+        <Skeleton height={40} />
+      </Card>
+    );
+  }
 
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -516,6 +540,7 @@ function GeralTab() {
       queryClient.setQueryData(['settings', 'geral'], saved);
       queryClient.setQueryData(['branding'], { nomeEmpresa: saved.nomeEmpresa, logoUrl: saved.logoUrl, corDestaque: saved.corDestaque });
     },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível salvar as configurações gerais.'),
   });
 
   function selecionarLogo(file: File | undefined) {
@@ -539,7 +564,15 @@ function GeralTab() {
   }
 
   if (isError) return <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar novamente</Button>} />;
-  if (isLoading || !form) return <Card>Carregando...</Card>;
+  if (isLoading || !form) {
+    return (
+      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <Skeleton height={40} />
+        <Skeleton height={40} />
+        <Skeleton height={40} />
+      </Card>
+    );
+  }
 
   return (
     <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
@@ -610,7 +643,10 @@ function GeralTab() {
       />
 
       <div>
-        <Button onClick={() => saveMutation.mutate(form)} loading={saveMutation.isPending}>
+        <Button
+          onClick={() => saveMutation.mutate(form, { onSuccess: () => showToast('Configurações gerais salvas.', 'success') })}
+          loading={saveMutation.isPending}
+        >
           Salvar
         </Button>
       </div>
@@ -638,10 +674,19 @@ function IntegracoesTab() {
       queryClient.setQueryData(['settings', 'integracoes'], saved);
       showToast('Integrações salvas.', 'success');
     },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível salvar as integrações.'),
   });
 
   if (isError) return <ErrorState error={error} action={<Button onClick={() => refetch()}>Tentar novamente</Button>} />;
-  if (isLoading || !form) return <Card>Carregando...</Card>;
+  if (isLoading || !form) {
+    return (
+      <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+        <Skeleton height={40} />
+        <Skeleton height={40} />
+        <Skeleton height={40} />
+      </Card>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>

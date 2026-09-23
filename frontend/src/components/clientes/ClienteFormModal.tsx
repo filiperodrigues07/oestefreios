@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
-import { Modal, Skeleton } from '../ui/index.js';
+import { Modal, Skeleton, useToast } from '../ui/index.js';
 import type { ClienteDTO } from '../../types/cherp.types.js';
 import { ClienteForm } from './ClienteForm.js';
 
@@ -18,6 +18,7 @@ interface ClienteFormModalProps {
  * usado em `/clientes/novo` e `/clientes/:codigo/editar`) num modal, sem sair da OS em andamento.
  */
 export function ClienteFormModal({ open, mode, codigo, onClose, onSaved }: ClienteFormModalProps) {
+  const { showToast } = useToast();
   const { data: clienteInicial, isLoading } = useQuery({
     queryKey: ['cliente', codigo],
     queryFn: () => getClienteByCodigo(codigo!),
@@ -37,7 +38,10 @@ export function ClienteFormModal({ open, mode, codigo, onClose, onSaved }: Clien
           mode={mode}
           codigo={codigo}
           clienteInicial={clienteInicial}
-          onSaved={(cliente) => onSaved(cliente)}
+          onSaved={(cliente) => {
+            showToast(mode === 'edit' ? 'Cliente atualizado.' : 'Cliente cadastrado.', 'success');
+            onSaved(cliente);
+          }}
           onCancel={onClose}
         />
       )}

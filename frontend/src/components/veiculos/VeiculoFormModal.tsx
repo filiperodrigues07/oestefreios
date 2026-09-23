@@ -4,7 +4,7 @@ import { atualizarEquipamento, criarEquipamento } from '../../api/equipamentos.a
 import { ApiError } from '../../api/httpClient.js';
 import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
 import { ClienteSearch } from '../search/ClienteSearch.js';
-import { Button, Input, LinkButton, Modal } from '../ui/index.js';
+import { Button, Input, LinkButton, Modal, useToast } from '../ui/index.js';
 import type { ClienteDTO, EquipamentoDTO, EquipamentoInput } from '../../types/cherp.types.js';
 
 interface VeiculoFormModalProps {
@@ -47,6 +47,7 @@ function VeiculoFormContent({
   onClose,
   onCreated,
 }: VeiculoFormModalProps) {
+  const { showToast } = useToast();
   const [form, setForm] = useState<Omit<EquipamentoInput, 'clienteCodigo'>>(() => {
     const marca = veiculo?.marca?.trim() ?? '';
     const descricao = veiculo?.descricao?.trim() ?? '';
@@ -86,10 +87,11 @@ function VeiculoFormContent({
       const input = { ...form, clienteCodigo: clienteFinal! };
       return veiculo ? atualizarEquipamento(veiculo.codigo, input) : criarEquipamento(input);
     },
-    onSuccess: (veiculo) => {
+    onSuccess: (veiculoSalvo) => {
+      showToast(veiculo ? 'Veículo atualizado.' : 'Veículo cadastrado.', 'success');
       setForm({ ...VAZIO, placa: placaInicial ?? '' });
       setClienteEscolhido(null);
-      onCreated(veiculo, clienteEscolhido ?? undefined);
+      onCreated(veiculoSalvo, clienteEscolhido ?? undefined);
     },
   });
 
