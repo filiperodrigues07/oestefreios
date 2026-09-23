@@ -25,6 +25,10 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, onEscape?: 
     (focusables?.[0] ?? container)?.focus();
 
     function handleKeyDown(e: KeyboardEvent) {
+      // Diálogos podem abrir outro diálogo (ex.: cliente já cadastrado dentro da OS).
+      // Só o diálogo no topo deve responder a Esc/Tab.
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+      if (dialogs[dialogs.length - 1] !== container) return;
       if (e.key === 'Escape') {
         onEscapeRef.current?.();
         return;

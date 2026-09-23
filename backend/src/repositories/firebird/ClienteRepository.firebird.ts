@@ -64,7 +64,8 @@ const QUERY_BUSCAR_POR_NOME: string | null = `
 
 const QUERY_BUSCAR_POR_DOCUMENTO: string | null = `
   SELECT ${CLIFOR_SELECT}
-  WHERE C.ATIVO = 1 AND C.CLIENTE = 'S' AND C.CNPJCPF = ?
+  WHERE C.CLIENTE = 'S'
+    AND REPLACE(REPLACE(REPLACE(REPLACE(C.CNPJCPF, '.', ''), '-', ''), '/', ''), ' ', '') = ?
 `;
 
 // Parâmetros nesta ordem: limit, skip, codigo|null, nomeLike|null, nomeLike|null, pessoa|null, pessoa|null,
@@ -213,7 +214,7 @@ export class ClienteRepositoryFirebird implements IClienteRepository {
 
   async buscarPorDocumento(documento: string): Promise<Cliente | null> {
     if (!QUERY_BUSCAR_POR_DOCUMENTO) throw new NotImplementedError('ClienteRepository.buscarPorDocumento');
-    const rows = await firebirdQuery(QUERY_BUSCAR_POR_DOCUMENTO, [documento]);
+    const rows = await firebirdQuery(QUERY_BUSCAR_POR_DOCUMENTO, [documento.replace(/\D/g, '')]);
     return rows[0] ? mapRowToCliente(rows[0]) : null;
   }
 

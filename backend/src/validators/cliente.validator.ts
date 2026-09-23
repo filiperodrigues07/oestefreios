@@ -73,6 +73,10 @@ export const cnpjParamSchema = z.object({
     .refine((s) => s.length === 14, 'CNPJ precisa ter 14 dígitos.'),
 });
 
+export const documentoParamSchema = z.object({
+  documento: z.string().trim().transform((s) => s.replace(/\D/g, '')).refine((s) => s.length === 11 || s.length === 14, 'CPF/CNPJ inválido.'),
+});
+
 export const cepParamSchema = z.object({
   cep: z.string().trim().transform((s) => s.replace(/\D/g, '')).refine((s) => s.length === 8, 'CEP precisa ter 8 dígitos.'),
 });

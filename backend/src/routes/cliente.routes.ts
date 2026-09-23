@@ -6,13 +6,14 @@ import {
   consultarInscricaoEstadualHandler,
   criarClienteHandler,
   getClienteByCodigoHandler,
+  getClienteByDocumentoHandler,
   searchClientesHandler,
 } from '../controllers/cliente.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { cepParamSchema, clienteCreateSchema, clienteInputSchema, cnpjParamSchema } from '../validators/cliente.validator.js';
+import { cepParamSchema, clienteCreateSchema, clienteInputSchema, cnpjParamSchema, documentoParamSchema } from '../validators/cliente.validator.js';
 import { codigoParamSchema, searchQuerySchema } from '../validators/search.validator.js';
 
 export const clienteRouter = Router();
@@ -21,6 +22,7 @@ export const clienteRouter = Router();
 clienteRouter.use(authenticate);
 
 clienteRouter.get('/', validate(searchQuerySchema, 'query'), asyncHandler(searchClientesHandler));
+clienteRouter.get('/documento/:documento', validate(documentoParamSchema, 'params'), asyncHandler(getClienteByDocumentoHandler));
 clienteRouter.get('/cnpj/:cnpj', validate(cnpjParamSchema, 'params'), asyncHandler(consultarCnpjHandler));
 clienteRouter.get('/inscricao-estadual/:cnpj', validate(cnpjParamSchema, 'params'), asyncHandler(consultarInscricaoEstadualHandler));
 clienteRouter.get('/cep/:cep', validate(cepParamSchema, 'params'), asyncHandler(consultarCepHandler));

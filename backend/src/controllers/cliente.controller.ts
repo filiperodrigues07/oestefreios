@@ -25,6 +25,12 @@ export async function getClienteByCodigoHandler(req: Request, res: Response) {
   success(res, cliente);
 }
 
+export async function getClienteByDocumentoHandler(req: Request, res: Response) {
+  const { documento } = req.params as { documento: string };
+  const cliente = await clienteService.getClienteByDocumento(documento);
+  success(res, cliente);
+}
+
 export async function criarClienteHandler(req: Request, res: Response) {
   const cliente = await clienteService.criarCliente(req.body, req.user!, requestContext(req));
   success(res, cliente, 'Cliente cadastrado com sucesso.', 201);

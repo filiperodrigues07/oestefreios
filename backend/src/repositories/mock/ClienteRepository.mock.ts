@@ -30,7 +30,8 @@ export class ClienteRepositoryMock implements IClienteRepository {
   }
 
   async buscarPorDocumento(documento: string): Promise<Cliente | null> {
-    return CLIENTES.find((c) => c.documento === documento) ?? null;
+    const digitos = documento.replace(/\D/g, '');
+    return CLIENTES.find((c) => c.documento?.replace(/\D/g, '') === digitos) ?? null;
   }
 
   async buscar(query: SearchQuery): Promise<PaginatedResult<Cliente>> {

@@ -39,6 +39,10 @@ export function getClienteByCodigo(codigo: string): Promise<ClienteDTO> {
   return apiFetch<ClienteDTO>(`/clientes/${codigo}`);
 }
 
+export function getClienteByDocumento(documento: string): Promise<ClienteDTO | null> {
+  return apiFetch<ClienteDTO | null>(`/clientes/documento/${documento.replace(/\D/g, '')}`);
+}
+
 export function criarCliente(input: ClienteInput): Promise<ClienteDTO> {
   return apiFetch<ClienteDTO>('/clientes', { method: 'POST', body: input });
 }

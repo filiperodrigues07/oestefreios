@@ -64,14 +64,6 @@
    pelo conteúdo (botões, não input que encolhe), então precisam poder quebrar linha sozinhos
    quando o espaço aperta (modal é bem mais estreito que a página cheia), sem depender do
    viewport (a media query de largura de tela não ajuda aqui, quem aperta é o container). */
-.statusRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  justify-content: space-between;
-}
-
 .fieldLabel {
   margin-bottom: var(--space-1);
   color: var(--color-text-secondary);

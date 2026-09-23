@@ -1,4 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { getClienteByCodigo } from '../api/clientes.api.js';
 import { ClienteForm } from '../components/clientes/ClienteForm.js';
@@ -11,6 +12,7 @@ export function ClienteFormPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
+  const [clienteCarregado, setClienteCarregado] = useState<string | null>(null);
   const modoEdicao = Boolean(codigo);
 
   const { data: cliente, isLoading, isError, error } = useQuery({
@@ -42,8 +44,8 @@ export function ClienteFormPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title={modoEdicao ? 'Editar cliente' : 'Novo cliente'}
-        description={modoEdicao ? `Código ${codigo}` : 'Preencha os dados do novo cliente.'}
+        title={modoEdicao || clienteCarregado ? 'Editar cliente' : 'Novo cliente'}
+        description={modoEdicao || clienteCarregado ? `Código ${codigo ?? clienteCarregado}` : 'Preencha os dados do novo cliente.'}
         actions={
           <LinkButton to="/clientes" variant="secondary">
             Voltar
@@ -56,9 +58,10 @@ export function ClienteFormPage() {
           mode={modoEdicao ? 'edit' : 'create'}
           codigo={codigo}
           clienteInicial={cliente}
+          onExistingLoaded={(existente) => setClienteCarregado(existente.codigo)}
           onSaved={() => {
             queryClient.invalidateQueries({ queryKey: ['clientes'] });
-            showToast(modoEdicao ? 'Cliente atualizado.' : 'Cliente cadastrado.', 'success');
+            showToast(modoEdicao || clienteCarregado ? 'Cliente atualizado.' : 'Cliente cadastrado.', 'success');
             navigate('/clientes');
           }}
           onCancel={() => navigate('/clientes')}

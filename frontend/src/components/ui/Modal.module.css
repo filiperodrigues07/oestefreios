@@ -105,6 +105,10 @@
     padding: max(var(--space-2), env(safe-area-inset-top)) var(--space-2) max(var(--space-2), env(safe-area-inset-bottom));
   }
 
+  .overlay.centerOnMobile {
+    align-items: center;
+  }
+
   .dialog {
     max-height: calc(100dvh - var(--space-4) - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     border-radius: var(--radius-lg) var(--radius-lg) var(--radius-md) var(--radius-md);

@@ -9,6 +9,7 @@ interface ConfirmDialogProps {
   cancelLabel?: string;
   danger?: boolean;
   loading?: boolean;
+  centerOnMobile?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
 }
@@ -22,12 +23,14 @@ export function ConfirmDialog({
   cancelLabel = 'Cancelar',
   danger,
   loading,
+  centerOnMobile,
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
   return (
     <Modal
       open={open}
+      centerOnMobile={centerOnMobile}
       title={title}
       onClose={onCancel}
       footer={

@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
-import { useState } from 'react';
-import { atualizarCliente, consultarCep, consultarCnpj, consultarInscricaoEstadual, criarCliente, getClienteByCodigo } from '../../api/clientes.api.js';
+import { useRef, useState } from 'react';
+import { atualizarCliente, consultarCep, consultarCnpj, consultarInscricaoEstadual, criarCliente, getClienteByCodigo, getClienteByDocumento } from '../../api/clientes.api.js';
 import { ApiError } from '../../api/httpClient.js';
 import { Button, Checkbox, ConfirmDialog, Input, RequiredMark, Select, useToast } from '../ui/index.js';
 import type { ClienteDTO, ClienteInput, RegimeTributario, TipoPessoa } from '../../types/cherp.types.js';
@@ -87,6 +87,7 @@ interface ClienteFormProps {
   onSaved: (cliente: ClienteDTO) => void;
   onCancel: () => void;
   cancelLabel?: string;
+  onExistingLoaded?: (cliente: ClienteDTO) => void;
 }
 
 /**
@@ -94,23 +95,25 @@ interface ClienteFormProps {
  * quanto dentro de um modal (`ClienteFormModal`, aberto direto do fluxo de OS pra criar ou
  * editar cliente sem perder o que já estava sendo preenchido na OS).
  */
-export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, cancelLabel = 'Cancelar' }: ClienteFormProps) {
+export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, cancelLabel = 'Cancelar', onExistingLoaded }: ClienteFormProps) {
   const { showToast } = useToast();
   const [form, setForm] = useState<ClienteInput>(() => (clienteInicial ? clienteParaInput(clienteInicial) : FORM_VAZIO));
-  const [cnpjErro, setCnpjErro] = useState<string | null>(null);
+  const [documentoErro, setDocumentoErro] = useState<string | null>(null);
   const [cepErro, setCepErro] = useState<string | null>(null);
-  // Efetivo != prop a partir do momento que um documento duplicado é detectado ao criar — o
-  // formulário troca sozinho pra edição do cadastro já existente, sem sair da tela (ver saveMutation
-  // abaixo). Até lá, fica igual à prop recebida do componente pai.
+  const [clienteEncontrado, setClienteEncontrado] = useState<ClienteDTO | null>(null);
+  const [consultandoDocumento, setConsultandoDocumento] = useState(false);
+  const [carregandoDuplicado, setCarregandoDuplicado] = useState(false);
+  const documentoAtual = useRef(form.documento.replace(/\D/g, ''));
+  const consultaSequencia = useRef(0);
   const [modoEfetivo, setModoEfetivo] = useState(mode);
   const [codigoEfetivo, setCodigoEfetivo] = useState(codigo);
-  const [carregandoDuplicado, setCarregandoDuplicado] = useState(false);
   const modoEdicao = modoEfetivo === 'edit';
 
   const cnpjMutation = useMutation({
-    mutationFn: (cnpj: string) => consultarCnpj(cnpj),
-    onSuccess: (dados) => {
-      setCnpjErro(null);
+    mutationFn: ({ cnpj }: { cnpj: string; sequencia: number }) => consultarCnpj(cnpj),
+    onSuccess: (dados, { cnpj, sequencia }) => {
+      if (sequencia !== consultaSequencia.current || documentoAtual.current !== cnpj) return;
+      setDocumentoErro(null);
       setForm((f) => ({
         ...f,
         nome: dados.razaoSocial || f.nome,
@@ -126,8 +129,9 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
         regimeTributario: dados.regimeTributario ?? f.regimeTributario,
       }));
     },
-    onError: (err) => {
-      setCnpjErro(err instanceof Error ? err.message : 'Não foi possível consultar o CNPJ — preencha manualmente.');
+    onError: (err, { cnpj, sequencia }) => {
+      if (sequencia !== consultaSequencia.current || documentoAtual.current !== cnpj) return;
+      setDocumentoErro(err instanceof Error ? err.message : 'Não foi possível consultar o CNPJ — preencha manualmente.');
     },
   });
 
@@ -135,8 +139,9 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
    * fica em silêncio (nunca trava o cadastro); "não achou nada" avisa por toast, porque senão fica
    * indistinguível de "não fez nada" pra quem está testando/usando. */
   const ieMutation = useMutation({
-    mutationFn: (cnpj: string) => consultarInscricaoEstadual(cnpj),
-    onSuccess: (lista) => {
+    mutationFn: ({ cnpj }: { cnpj: string; sequencia: number }) => consultarInscricaoEstadual(cnpj),
+    onSuccess: (lista, { cnpj, sequencia }) => {
+      if (sequencia !== consultaSequencia.current || documentoAtual.current !== cnpj) return;
       const match = lista.find((item) => item.ativo && (!form.uf || item.uf === form.uf)) ?? lista.find((item) => item.ativo) ?? lista[0];
       if (match) {
         setForm((f) => ({ ...f, inscricaoEstadual: match.numero }));
@@ -173,25 +178,58 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
       setCarregandoDuplicado(true);
       try {
         const clienteExistente = await getClienteByCodigo(duplicado.codigo);
-        setForm(clienteParaInput(clienteExistente));
-        setModoEfetivo('edit');
-        setCodigoEfetivo(duplicado.codigo);
+        setClienteEncontrado(clienteExistente);
       } catch {
-        // Falhou ao buscar o cadastro existente — mantém só o aviso (renderizado abaixo com os dados do erro).
+        // Mantém o aviso de erro de salvamento se a leitura do cadastro falhar.
       } finally {
         setCarregandoDuplicado(false);
       }
     },
   });
 
-  function buscarCnpj() {
+  async function consultarDocumento() {
     const digits = form.documento.replace(/\D/g, '');
-    if (digits.length !== 14) {
-      setCnpjErro('CNPJ precisa ter 14 dígitos.');
+    const ehCnpj = form.tipoPessoa === 'PJ';
+    if (digits.length !== (ehCnpj ? 14 : 11)) {
+      setDocumentoErro(`${ehCnpj ? 'CNPJ' : 'CPF'} precisa ter ${ehCnpj ? 14 : 11} dígitos.`);
       return;
     }
-    cnpjMutation.mutate(digits);
-    ieMutation.mutate(digits);
+    setDocumentoErro(null);
+    setConsultandoDocumento(true);
+    const sequencia = ++consultaSequencia.current;
+    try {
+      const existente = await getClienteByDocumento(digits);
+      if (sequencia !== consultaSequencia.current || documentoAtual.current !== digits) return;
+      if (existente && existente.codigo !== codigoEfetivo) {
+        setClienteEncontrado(existente);
+        return;
+      }
+      if (!ehCnpj) {
+        showToast(existente ? 'Este CPF pertence ao cadastro atual.' : 'CPF não cadastrado no CHERP. Preencha os dados do cliente.', 'info');
+        return;
+      }
+      cnpjMutation.mutate({ cnpj: digits, sequencia });
+      ieMutation.mutate({ cnpj: digits, sequencia });
+    } catch (err) {
+      if (sequencia === consultaSequencia.current) {
+        setDocumentoErro(err instanceof Error ? err.message : 'Não foi possível consultar o documento.');
+      }
+    } finally {
+      if (sequencia === consultaSequencia.current) setConsultandoDocumento(false);
+    }
+  }
+
+  function carregarClienteEncontrado() {
+    if (!clienteEncontrado) return;
+    consultaSequencia.current++;
+    documentoAtual.current = clienteEncontrado.documento?.replace(/\D/g, '') ?? '';
+    setForm(clienteParaInput(clienteEncontrado));
+    setModoEfetivo('edit');
+    setCodigoEfetivo(clienteEncontrado.codigo);
+    onExistingLoaded?.(clienteEncontrado);
+    setClienteEncontrado(null);
+    setDocumentoErro(null);
+    saveMutation.reset();
   }
 
   function buscarCep() {
@@ -219,6 +257,11 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
   }
 
   function aplicarTrocaTipo(tipo: TipoPessoa) {
+    consultaSequencia.current++;
+    documentoAtual.current = '';
+    setDocumentoErro(null);
+    setConsultandoDocumento(false);
+    setClienteEncontrado(null);
     setForm((f) => ({
       ...f,
       tipoPessoa: tipo,
@@ -261,21 +304,20 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
 
       <div className={styles.sectionTitle}>Pessoa</div>
 
-      <div className={styles.statusRow}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-          <Button type="button" variant={form.tipoPessoa === 'PJ' ? 'primary' : 'secondary'} size="sm" onClick={() => handleTipoPessoa('PJ')}>
-            Pessoa Jurídica
-          </Button>
-          <Button type="button" variant={form.tipoPessoa === 'PF' ? 'primary' : 'secondary'} size="sm" onClick={() => handleTipoPessoa('PF')}>
-            Pessoa Física
-          </Button>
-        </div>
-        <div>
-          <div className={styles.fieldLabel}>Status</div>
-          <div className={styles.statusOptions} role="group" aria-label="Status do cliente">
-            <Button type="button" variant={form.ativo !== false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: true })}>Ativo</Button>
-            <Button type="button" variant={form.ativo === false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: false })}>Inativo</Button>
-          </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
+        <Button type="button" variant={form.tipoPessoa === 'PJ' ? 'primary' : 'secondary'} size="sm" onClick={() => handleTipoPessoa('PJ')}>
+          Pessoa Jurídica
+        </Button>
+        <Button type="button" variant={form.tipoPessoa === 'PF' ? 'primary' : 'secondary'} size="sm" onClick={() => handleTipoPessoa('PF')}>
+          Pessoa Física
+        </Button>
+      </div>
+
+      <div>
+        <div className={styles.fieldLabel}>Status</div>
+        <div className={styles.statusOptions} role="group" aria-label="Status do cliente">
+          <Button type="button" variant={form.ativo !== false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: true })}>Ativo</Button>
+          <Button type="button" variant={form.ativo === false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: false })}>Inativo</Button>
         </div>
       </div>
 
@@ -287,15 +329,21 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
             value={form.documento}
             inputMode="numeric"
             maxLength={form.tipoPessoa === 'PJ' ? 18 : 14}
-            onChange={(e) => setForm({ ...form, documento: formatarDocumento(e.target.value, form.tipoPessoa) })}
+            onChange={(e) => {
+              const documento = formatarDocumento(e.target.value, form.tipoPessoa);
+              documentoAtual.current = documento.replace(/\D/g, '');
+              consultaSequencia.current++;
+              setDocumentoErro(null);
+              setConsultandoDocumento(false);
+              setClienteEncontrado(null);
+              setForm({ ...form, documento });
+            }}
           />
-          {form.tipoPessoa === 'PJ' && (
-            <Button type="button" variant="secondary" loading={cnpjMutation.isPending} onClick={buscarCnpj}>
-              Buscar CNPJ
-            </Button>
-          )}
+          <Button type="button" variant="secondary" loading={consultandoDocumento || cnpjMutation.isPending} onClick={() => void consultarDocumento()}>
+            Consultar {form.tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF'}
+          </Button>
         </div>
-        {cnpjErro && <span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-danger)' }}>{cnpjErro}</span>}
+        {documentoErro && <span role="alert" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-danger)' }}>{documentoErro}</span>}
       </div>
 
       <div className={styles.twoColumns}>
@@ -409,18 +457,18 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
           err instanceof ApiError && err.code === 'CLIENT_DUPLICATE'
             ? (err.details as { codigo: string; nome: string } | undefined)
             : undefined;
-        if (duplicado) {
+        if (duplicado && !clienteEncontrado && !carregandoDuplicado) {
           return (
             <div className={styles.duplicateWarning} role="alert">
               <strong>Cliente já cadastrado</strong>
               <p>
-                Já existe um cliente com esse documento — carregamos o cadastro dele abaixo,
-                revise e salve as alterações se for o caso.
+                Já existe um cliente com esse documento, mas não foi possível carregar o cadastro. Tente consultar novamente.
               </p>
               <p>{duplicado.nome} · Código: {duplicado.codigo}</p>
             </div>
           );
         }
+        if (duplicado) return null;
         return (
           <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
             {err instanceof Error ? err.message : 'Erro ao salvar cliente.'}
@@ -436,6 +484,17 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
           {modoEdicao ? 'Salvar' : 'Cadastrar'}
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={clienteEncontrado !== null}
+        centerOnMobile
+        title="Cliente já cadastrado"
+        description={clienteEncontrado ? `${clienteEncontrado.nome} · Código ${clienteEncontrado.codigo} · ${clienteEncontrado.ativo === false ? 'Inativo' : 'Ativo'}. Deseja carregar os dados desse cliente para edição?` : ''}
+        confirmLabel="Carregar cadastro"
+        cancelLabel="Voltar ao formulário"
+        onCancel={() => setClienteEncontrado(null)}
+        onConfirm={carregarClienteEncontrado}
+      />
 
       <ConfirmDialog
         open={trocaTipoPendente !== null}

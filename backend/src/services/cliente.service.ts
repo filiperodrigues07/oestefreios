@@ -25,6 +25,10 @@ export async function getClienteByCodigo(codigo: string): Promise<Cliente> {
   return cliente;
 }
 
+export async function getClienteByDocumento(documento: string): Promise<Cliente | null> {
+  return clienteRepository.buscarPorDocumento(documento);
+}
+
 export async function criarCliente(input: ClienteInput, usuario: AuthenticatedUser, ctx: RequestContext = {}): Promise<Cliente> {
   const existente = await clienteRepository.buscarPorDocumento(input.documento);
   if (existente) {

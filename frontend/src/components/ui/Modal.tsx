@@ -11,9 +11,10 @@ interface ModalProps {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  centerOnMobile?: boolean;
 }
 
-export function Modal({ open, title, onClose, children, footer }: ModalProps) {
+export function Modal({ open, title, onClose, children, footer, centerOnMobile = false }: ModalProps) {
   const titleId = useId();
   const containerRef = useFocusTrap<HTMLDivElement>(open, onClose);
 
@@ -21,7 +22,7 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
 
   return createPortal(
     <div
-      className={styles.overlay}
+      className={`${styles.overlay} ${centerOnMobile ? styles.centerOnMobile : ''}`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
