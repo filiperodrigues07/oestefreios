@@ -278,7 +278,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 type="button"
                 className={styles.headerIcon}
                 title="Notificações"
-                aria-label="Notificações"
+                aria-label={notificacoes.length ? `Notificações (${notificacoes.length} não lidas)` : 'Notificações'}
                 onClick={() => setNotificationsOpen((open) => !open)}
               >
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -290,7 +290,11 @@ export function AppShell({ children }: { children: ReactNode }) {
                     strokeLinejoin="round"
                   />
                 </svg>
-                {notificacoes.length ? <i /> : null}
+                {notificacoes.length > 0 && (
+                  <span className={styles.notificationCount} aria-hidden="true">
+                    {notificacoes.length > 9 ? '9+' : notificacoes.length}
+                  </span>
+                )}
               </button>
               {notificationsOpen && (
                 <div className={styles.notificationMenu} role="dialog" aria-label="Notificações">

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { createPortal } from 'react-dom';
 import { useFocusTrap } from '../../hooks/useFocusTrap.js';
+import { ActionIcon } from './ActionIcon.js';
 import styles from './Modal.module.css';
 
 interface ModalProps {
@@ -31,10 +32,10 @@ export function Modal({ open, title, onClose, children, footer }: ModalProps) {
             {title}
           </h2>
           <button type="button" className={styles.closeButton} onClick={onClose} aria-label="Fechar">
-            ✕
+            <ActionIcon name="close" size={16} />
           </button>
         </div>
-        {children}
+        <div className={styles.body}>{children}</div>
         {footer && <div className={styles.footer}>{footer}</div>}
       </div>
     </div>,

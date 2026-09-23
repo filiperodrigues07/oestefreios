@@ -156,7 +156,7 @@ export function UsuariosPage() {
       header: 'Perfil',
       sortable: true,
       render: (u) => (
-        <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+        <div className={styles.roleCell}>
           <Badge tone={roleTone(u.roleName)}>{u.roleName}</Badge>
           {u.isCustom && <Badge tone="warning">Customizado</Badge>}
         </div>
@@ -232,7 +232,7 @@ export function UsuariosPage() {
       </div>
 
       {isLoading && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <div className={styles.loadingList}>
           <Skeleton height={40} />
           <Skeleton height={40} />
           <Skeleton height={40} />
@@ -389,7 +389,7 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
       title={usuario ? 'Editar usuário' : 'Novo usuário'}
       onClose={onClose}
       footer={
-        <div style={{ display: 'flex', gap: 'var(--space-2)', justifyContent: 'flex-end', width: '100%' }}>
+        <div className={styles.modalFooter}>
           <Button variant="secondary" onClick={onClose}>
             Cancelar
           </Button>
@@ -403,10 +403,10 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
         </div>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)', padding: 'var(--space-4)' }}>
+      <div className={styles.modalBody}>
         <Card>
-          <h3 style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--font-size-sm)' }}>Dados</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <h3 className={styles.cardTitle}>Dados</h3>
+          <div className={styles.fieldsCol}>
             <Input label="Nome" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
             <Input
               label="E-mail"
@@ -439,32 +439,32 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
 
         {!usuario && (
           <Card>
-            <h3 style={{ margin: '0 0 var(--space-3)', fontSize: 'var(--font-size-sm)' }}>Acesso ao sistema</h3>
+            <h3 className={styles.cardTitle}>Acesso ao sistema</h3>
             <Checkbox
               label="Definir senha inicial agora (em vez de enviar convite por e-mail)"
               checked={form.definirSenha}
               onChange={(e) => setForm({ ...form, definirSenha: e.target.checked, password: '', passwordConfirmation: '' })}
             />
             {form.definirSenha ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)', marginTop: 'var(--space-3)' }}>
+              <div className={styles.passwordFields}>
                 <PasswordInput label="Senha inicial" value={form.password} maxLength={128} autoComplete="new-password" onChange={(e) => setForm({ ...form, password: e.target.value })} />
                 <PasswordInput label="Confirmar senha" value={form.passwordConfirmation} maxLength={128} autoComplete="new-password" onChange={(e) => setForm({ ...form, passwordConfirmation: e.target.value })} />
-                <div aria-live="polite" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '4px', fontSize: 'var(--font-size-xs)' }}>
-                  {PASSWORD_RULES.map((rule) => <span key={rule.label} style={{ color: rule.test(form.password) ? 'var(--color-success)' : 'var(--color-text-secondary)' }}>{rule.test(form.password) ? '✓' : '○'} {rule.label}</span>)}
+                <div aria-live="polite" className={styles.passwordRules}>
+                  {PASSWORD_RULES.map((rule) => <span key={rule.label} data-ok={rule.test(form.password)}>{rule.test(form.password) ? '✓' : '○'} {rule.label}</span>)}
                   {(() => {
                     const primeiroNome = form.name.trim().split(' ')[0]?.toLowerCase() ?? '';
                     const semNome = form.password.length > 0 && primeiroNome.length > 0 && !form.password.toLowerCase().includes(primeiroNome);
                     return (
-                      <span style={{ color: semNome ? 'var(--color-success)' : 'var(--color-text-secondary)' }}>
+                      <span data-ok={semNome}>
                         {semNome ? '✓' : '○'} Não contém o nome do usuário
                       </span>
                     );
                   })()}
-                  <span style={{ color: form.password && form.password === form.passwordConfirmation ? 'var(--color-success)' : 'var(--color-text-secondary)' }}>{form.password && form.password === form.passwordConfirmation ? '✓' : '○'} Senhas iguais</span>
+                  <span data-ok={Boolean(form.password) && form.password === form.passwordConfirmation}>{form.password && form.password === form.passwordConfirmation ? '✓' : '○'} Senhas iguais</span>
                 </div>
               </div>
             ) : (
-              <p style={{ margin: 'var(--space-2) 0 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+              <p className={styles.inviteHint}>
                 Um e-mail de convite será enviado para que o usuário defina a própria senha.
               </p>
             )}
@@ -472,21 +472,14 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
         )}
 
         <Card>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: 'var(--space-3)',
-            }}
-          >
-            <h3 style={{ margin: 0, fontSize: 'var(--font-size-sm)' }}>Permissões</h3>
+          <div className={styles.permissionsCardHeading}>
+            <h3 className={styles.permissionsTitle}>Permissões</h3>
             <span role="status" aria-live="polite">
               {isCustom && <Badge tone="warning">Diferente do padrão do perfil</Badge>}
             </span>
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+          <div className={styles.permissionGroups}>
             {PERMISSION_GROUPS.map((group) => (
               <PermissionGroupSection
                 key={group.label}
@@ -502,7 +495,7 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
         </Card>
 
         {saveMutation.isError && (
-          <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+          <p role="alert" className={styles.formError}>
             {saveMutation.error instanceof Error ? saveMutation.error.message : 'Erro ao salvar usuário.'}
           </p>
         )}
@@ -527,10 +520,8 @@ function PermissionGroupSection({ group, selected, preset, isAdminRole, onToggle
   const diferenteDoPreset = group.permissions.some((p) => selected.includes(p) !== preset.includes(p));
 
   return (
-    <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-sm)', padding: 'var(--space-3)' }}>
-      <div
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}
-      >
+    <div className={styles.permissionGroup}>
+      <div className={styles.permissionGroupHeading}>
         <Checkbox
           label={group.label}
           checked={todasMarcadas}
@@ -539,14 +530,7 @@ function PermissionGroupSection({ group, selected, preset, isAdminRole, onToggle
         />
         {diferenteDoPreset && <Badge tone="warning">Customizado</Badge>}
       </div>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: 'var(--space-1) var(--space-3)',
-          paddingLeft: 'var(--space-6)',
-        }}
-      >
+      <div className={styles.permissionGrid}>
         {group.permissions.map((p) => {
           const bloqueadoParaNaoAdmin = p === 'SYSTEM_SETTINGS' && !isAdminRole;
           return (
