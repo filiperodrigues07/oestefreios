@@ -4,25 +4,12 @@
   padding: var(--space-6);
 }
 
-.total {
-  margin: calc(var(--space-3) * -1) 0 var(--space-4);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.total strong {
-  color: var(--color-text-primary);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  margin-right: var(--space-1);
-}
-
 .searchForm {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-2);
 }
 
 .searchForm > *:first-child {
@@ -52,8 +39,5 @@
     flex: 0 0 auto;
     width: 100%;
     min-width: 0;
-  }
-  .total {
-    margin: 0 0 var(--space-3);
   }
 }

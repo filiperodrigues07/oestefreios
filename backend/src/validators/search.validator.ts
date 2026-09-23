@@ -3,6 +3,7 @@ import { z } from 'zod';
 /** Schema de busca genérico reaproveitado por produto/serviço/cliente/equipamento. */
 export const searchQuerySchema = z.object({
   tipoCodigo: z.coerce.number().int().nonnegative().optional(),
+  tipoServicoCodigo: z.string().trim().min(1).max(30).optional(),
   tipoModo: z.enum(['somente', 'exceto']).optional(),
   /** Só usado por produtos. */
   saldoModo: z.enum(['todos', 'com_saldo', 'sem_saldo', 'negativo']).optional(),

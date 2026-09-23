@@ -5,6 +5,10 @@ import { servicoRepository } from '../repositories/index.js';
 import type { Permission } from '../types/auth.types.js';
 import type { PaginatedResult, SearchQuery } from '../types/cherp.types.js';
 
+export async function listarTiposServicos(): Promise<{ codigo: string; descricao: string }[]> {
+  return servicoRepository.listarTipos();
+}
+
 export async function searchServicos(
   query: SearchQuery,
   permissions: Permission[],

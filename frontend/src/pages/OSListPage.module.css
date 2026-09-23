@@ -4,25 +4,12 @@
   padding: var(--space-6);
 }
 
-.total {
-  margin: calc(var(--space-3) * -1) 0 var(--space-4);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.total strong {
-  color: var(--color-text-primary);
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  margin-right: var(--space-1);
-}
-
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  margin-bottom: var(--space-2);
 }
 
 .toolbar > *:first-child {
@@ -32,7 +19,7 @@
 .toolbar > button[type='submit'] { min-height: 44px; }
 
 .content {
-  margin-top: var(--space-4);
+  margin-top: 0;
 }
 
 .loading {

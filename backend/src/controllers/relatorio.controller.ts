@@ -87,7 +87,7 @@ export async function relatorioCatalogoProdutosHandler(req: Request, res: Respon
 }
 
 export async function relatorioCatalogoServicosHandler(req: Request, res: Response) {
-  const { busca, formato } = req.query as unknown as { busca?: string; formato: Formato };
-  const relatorio = await relatorioService.gerarRelatorioCatalogoServicos({ busca }, req.user!.permissions);
+  const { busca, tipoServicoCodigo, formato } = req.query as unknown as { busca?: string; tipoServicoCodigo?: string; formato: Formato };
+  const relatorio = await relatorioService.gerarRelatorioCatalogoServicos({ busca, tipoServicoCodigo }, req.user!.permissions);
   await enviarResultado(res, relatorio, formato, 'catalogo-servicos');
 }

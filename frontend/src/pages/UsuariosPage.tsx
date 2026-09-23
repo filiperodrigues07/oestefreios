@@ -15,6 +15,7 @@ import {
   PageHeader,
   PasswordInput,
   ResponsiveFilters,
+  ResultsSummary,
   SearchInput,
   Select,
   Skeleton,
@@ -220,8 +221,6 @@ export function UsuariosPage() {
         </>}
       />
 
-      {!isLoading && !isError && <p className={styles.total}><strong>{usuariosFiltrados.length.toLocaleString('pt-BR')}</strong> {usuariosFiltrados.length === 1 ? 'registro' : 'registros'}</p>}
-
       <div className={styles.filters} aria-label="Filtros de usuários">
         <SearchInput placeholder="Buscar por nome, e-mail, perfil ou CHERP" value={busca} onChange={(event) => setBusca(event.target.value)} aria-label="Buscar usuários" />
         <ResponsiveFilters activeCount={Number(Boolean(roleId)) + Number(Boolean(status)) + Number(Boolean(vinculo))} onClear={() => { setRoleId(''); setStatus(''); setVinculo(''); }}>
@@ -230,6 +229,8 @@ export function UsuariosPage() {
           <Select label="Vínculo CHERP" value={vinculo} onChange={(event) => setVinculo(event.target.value)} options={[{ value: '', label: 'Todos' }, { value: 'vinculado', label: 'Vinculados' }, { value: 'nao-vinculado', label: 'Não vinculados' }]} />
         </ResponsiveFilters>
       </div>
+
+      {!isError && <ResultsSummary total={isLoading ? undefined : usuariosFiltrados.length} />}
 
       {isLoading && (
         <div className={styles.loadingList}>

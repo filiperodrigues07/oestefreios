@@ -8,6 +8,7 @@ import {
   ErrorState,
   ExportButtons,
   Pagination,
+  ResultsSummary,
   SearchInput,
   Skeleton,
   Table,
@@ -36,7 +37,7 @@ interface CatalogTableProps<T extends CatalogItemBase> {
   renderMobileCard?: (item: T) => React.ReactNode;
   initialSearch?: string;
   filters?: ReactNode;
-  extraParams?: Pick<CatalogParams, 'tipoCodigo' | 'tipoModo' | 'saldoModo'>;
+  extraParams?: Pick<CatalogParams, 'tipoCodigo' | 'tipoModo' | 'tipoServicoCodigo' | 'saldoModo'>;
   onFilterChange?: (value: string) => void;
   /** Limpa os filtros extras que o pai controla (tipo/saldo) — usado junto da busca no "Limpar filtros" do estado vazio. */
   onClearExtraFilters?: () => void;
@@ -70,10 +71,10 @@ export function CatalogTable<T extends CatalogItemBase>({
   const filtro = useDebouncedValue(filtroInput, 300);
 
   useEffect(() => { onFilterChange?.(filtro); }, [filtro, onFilterChange]);
-  useEffect(() => { setPage(1); }, [extraParams?.tipoCodigo, extraParams?.tipoModo, extraParams?.saldoModo]);
+  useEffect(() => { setPage(1); }, [extraParams?.tipoCodigo, extraParams?.tipoModo, extraParams?.tipoServicoCodigo, extraParams?.saldoModo]);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: [queryKey, filtro, page, limit, sortBy, sortOrder, extraParams?.tipoCodigo, extraParams?.tipoModo, extraParams?.saldoModo],
+    queryKey: [queryKey, filtro, page, limit, sortBy, sortOrder, extraParams?.tipoCodigo, extraParams?.tipoModo, extraParams?.tipoServicoCodigo, extraParams?.saldoModo],
     queryFn: () => fetchFn({ filtro, page, limit, sortBy, sortOrder, ...extraParams }),
   });
 
@@ -93,7 +94,7 @@ export function CatalogTable<T extends CatalogItemBase>({
     setPage(1);
   }
 
-  const temFiltroExtra = Boolean(extraParams?.tipoCodigo !== undefined || (extraParams?.saldoModo && extraParams.saldoModo !== 'todos'));
+  const temFiltroExtra = Boolean(extraParams?.tipoCodigo !== undefined || extraParams?.tipoServicoCodigo || (extraParams?.saldoModo && extraParams.saldoModo !== 'todos'));
 
   function limparFiltros() {
     setFiltroInput('');
@@ -103,13 +104,6 @@ export function CatalogTable<T extends CatalogItemBase>({
 
   return (
     <div>
-      {data && !isLoading && !isError && (
-        <p className={styles.total}>
-          <strong>{data.total.toLocaleString('pt-BR')}</strong>{' '}
-          {data.total === 1 ? 'registro' : 'registros'}
-        </p>
-      )}
-
       <div className={styles.toolbar}>
         <SearchInput
           placeholder={searchPlaceholder ?? 'Buscar por código, descrição ou categoria'}
@@ -127,6 +121,8 @@ export function CatalogTable<T extends CatalogItemBase>({
           />
         )}
       </div>
+
+      {!isError && <ResultsSummary total={data?.total} />}
 
       {isLoading && (
         <div className={styles.loading}>

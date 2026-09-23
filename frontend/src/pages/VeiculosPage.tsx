@@ -19,6 +19,7 @@ import {
   MobileFab,
   Pagination,
   ResponsiveFilters,
+  ResultsSummary,
   SearchInput,
   Select,
   Skeleton,
@@ -160,7 +161,6 @@ export function VeiculosPage() {
           </>
         }
       />
-      {data && !isLoading && !isError && <p className={styles.total}><strong>{data.total.toLocaleString('pt-BR')}</strong> {data.total === 1 ? 'registro' : 'registros'}</p>}
       <form
         className={styles.searchForm}
         onSubmit={(event) => {
@@ -198,6 +198,7 @@ export function VeiculosPage() {
           Buscar
         </Button>
       </form>
+      {!isError && <ResultsSummary total={data?.total} />}
       {isLoading && (
         <Card>
           <Skeleton height={200} />

@@ -282,6 +282,7 @@ export async function gerarRelatorioProdutosServicos(
 export interface RelatorioCatalogoFiltro {
   busca?: string;
   tipoCodigo?: number;
+  tipoServicoCodigo?: string;
   tipoModo?: 'somente' | 'exceto';
   saldoModo?: 'todos' | 'com_saldo' | 'sem_saldo' | 'negativo';
 }
@@ -340,6 +341,7 @@ export async function gerarRelatorioCatalogoServicos(
   const mostrarFinanceiro = permissions.includes('FINANCIAL_VIEW');
   const { items, total } = await servicoRepository.buscar({
     busca: filtro.busca,
+    tipoServicoCodigo: filtro.tipoServicoCodigo,
     page: 1,
     limit: LIMITE_LINHAS_RELATORIO,
     sortBy: 'descricao',
@@ -349,15 +351,15 @@ export async function gerarRelatorioCatalogoServicos(
 
   const colunas: RelatorioColuna[] = [
     { key: 'codigo', label: 'Código' },
+    { key: 'tipoServicoCodigo', label: 'Tipo de serviço' },
     { key: 'descricao', label: 'Descrição' },
-    { key: 'categoria', label: 'Grupo Produto' },
     ...(mostrarFinanceiro ? ([{ key: 'valor', label: 'Preço', tipo: 'moeda' as const, alinhamento: 'right' as const }] as RelatorioColuna[]) : []),
   ];
 
   const linhas = items.map((s) => ({
     codigo: s.codigo,
+    tipoServicoCodigo: s.tipoServicoCodigo ?? null,
     descricao: s.descricao,
-    categoria: s.categoria ?? null,
     ...(mostrarFinanceiro ? { valor: s.valorUnitario ?? null } : {}),
   }));
 

@@ -25,6 +25,15 @@ export function listarServicosCatalogo(params: CatalogParams): Promise<Paginated
   return apiFetch<PaginatedServicos>(`/servicos?${buildCatalogParams(params).toString()}`);
 }
 
+export interface TipoServico {
+  codigo: string;
+  descricao: string;
+}
+
+export function listarTiposServico(): Promise<TipoServico[]> {
+  return apiFetch<TipoServico[]>('/servicos/tipos');
+}
+
 /** Busca exata por código (Enter no campo Código do lançamento de itens da OS) — 404 se não existir. */
 export function getServicoByCodigo(codigo: string): Promise<ServicoDTO> {
   return apiFetch<ServicoDTO>(`/servicos/${encodeURIComponent(codigo)}`);

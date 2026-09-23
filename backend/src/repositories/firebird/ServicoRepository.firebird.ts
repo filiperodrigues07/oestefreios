@@ -17,10 +17,13 @@ const SERVICO_SELECT = `
   CAST(P.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
   U.UNMAIOR AS UNIDADE,
   CAST(G.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS CATEGORIA,
+  TS.CODIGO AS TIPO_SERVICO_CODIGO,
+  CAST(TS.DESCRICAO AS VARCHAR(500) CHARACTER SET OCTETS) AS TIPO_SERVICO_DESCRICAO,
   PV.PRECOVENDA AS VALOR_UNITARIO
 FROM PRODUTO P
 LEFT JOIN UNIDADE U ON U.CHAVE = P.CHAVEUNIDADE
 LEFT JOIN GRUPOPRODUTO G ON G.CHAVE = P.CHAVEGRUPO
+LEFT JOIN PRODTIPOSERV TS ON TS.CHAVE = P.CHAVETIPOSERV
 LEFT JOIN PRODUTOVENDA PV ON PV.CHAVE = (
   SELECT FIRST 1 PV2.CHAVE FROM PRODUTOVENDA PV2
   WHERE PV2.CHAVEPRODUTO = P.CHAVE AND PV2.ATIVO = 1
@@ -47,6 +50,7 @@ const BUSCA_CONDICAO = `
       UPPER(CAST(P.CODIGO AS VARCHAR(50))) LIKE ?
       OR UPPER(P.DESCRICAO) LIKE ?
       OR UPPER(G.DESCRICAO) LIKE ?
+      OR UPPER(TS.CODIGO) LIKE ?
     )
   )
 `;
@@ -63,13 +67,14 @@ const QUERY_CONTAR_TOTAL: string | null = `
   SELECT COUNT(*) AS TOTAL
   FROM PRODUTO P
   LEFT JOIN GRUPOPRODUTO G ON G.CHAVE = P.CHAVEGRUPO
+  LEFT JOIN PRODTIPOSERV TS ON TS.CHAVE = P.CHAVETIPOSERV
   WHERE P.ATIVO = 1 AND P.TIPO = 9
     AND ${BUSCA_CONDICAO}
 `;
 
 /** sortBy/sortOrder já vêm validados por enum no zod (search.validator.ts) — seguro interpolar direto. */
 function buildOrderBy(query: SearchQuery): string {
-  const coluna = query.sortBy === 'codigo' ? 'P.CODIGO' : query.sortBy === 'categoria' ? 'G.DESCRICAO' : 'P.DESCRICAO';
+  const coluna = query.sortBy === 'codigo' ? 'P.CODIGO' : query.sortBy === 'categoria' ? 'G.DESCRICAO' : query.sortBy === 'tipo' ? 'TS.CODIGO' : 'P.DESCRICAO';
   const direcao = query.sortOrder === 'desc' ? 'DESC' : 'ASC';
   return `${coluna} ${direcao}`;
 }
@@ -80,11 +85,25 @@ function mapRowToServico(row: Record<string, unknown>): Servico {
     descricao: String(row.DESCRICAO ?? row.descricao),
     unidade: String(row.UNIDADE ?? row.unidade),
     categoria: row.CATEGORIA ? String(row.CATEGORIA) : undefined,
+    tipoServicoCodigo: row.TIPO_SERVICO_CODIGO ? String(row.TIPO_SERVICO_CODIGO).trim() : undefined,
+    tipoServicoDescricao: row.TIPO_SERVICO_DESCRICAO ? String(row.TIPO_SERVICO_DESCRICAO) : undefined,
     valorUnitario: row.VALOR_UNITARIO !== undefined ? Number(row.VALOR_UNITARIO) : undefined,
   };
 }
 
 export class ServicoRepositoryFirebird implements IServicoRepository {
+  async listarTipos(): Promise<{ codigo: string; descricao: string }[]> {
+    const rows = await firebirdQuery<{ CODIGO: string; DESCRICAO: string }>(`
+      SELECT DISTINCT TS.CODIGO AS CODIGO,
+        CAST(TS.DESCRICAO AS VARCHAR(500) CHARACTER SET OCTETS) AS DESCRICAO
+      FROM PRODUTO P
+      JOIN PRODTIPOSERV TS ON TS.CHAVE = P.CHAVETIPOSERV
+      WHERE P.ATIVO = 1 AND P.TIPO = 9
+      ORDER BY TS.CODIGO
+    `);
+    return rows.map((row) => ({ codigo: String(row.CODIGO).trim(), descricao: String(row.DESCRICAO) }));
+  }
+
   async buscarPorCodigo(codigo: string): Promise<Servico | null> {
     if (!QUERY_BUSCAR_POR_CODIGO) throw new NotImplementedError('ServicoRepository.buscarPorCodigo');
     const rows = await firebirdQuery(QUERY_BUSCAR_POR_CODIGO, [codigo.trim()]);
@@ -106,12 +125,14 @@ export class ServicoRepositoryFirebird implements IServicoRepository {
     const buscaFlag = termo ? termo.trim() : null;
     const buscaCodigoLike = buscaFlag ? Buffer.from(`%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`, 'latin1') : null;
     const buscaTextoLike = buscaFlag ? toLatin1SearchParam(buscaFlag) : null;
-    const buscaParams = [buscaFlag, buscaCodigoLike, buscaTextoLike, buscaTextoLike];
-    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE} ORDER BY ${buildOrderBy(query)}`;
+    const buscaParams = [buscaFlag, buscaCodigoLike, buscaTextoLike, buscaTextoLike, buscaTextoLike];
+    const tipoClause = query.tipoServicoCodigo ? ' AND TS.CODIGO = ?' : '';
+    const params = query.tipoServicoCodigo ? [...buscaParams, query.tipoServicoCodigo] : buscaParams;
+    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE}${tipoClause} ORDER BY ${buildOrderBy(query)}`;
 
     const [rows, countRows] = await Promise.all([
-      firebirdQuery(queryPaginada, [limit, skip, ...buscaParams]),
-      firebirdQuery<{ TOTAL: number }>(QUERY_CONTAR_TOTAL, buscaParams),
+      firebirdQuery(queryPaginada, [limit, skip, ...params]),
+      firebirdQuery<{ TOTAL: number }>(`${QUERY_CONTAR_TOTAL}${tipoClause}`, params),
     ]);
 
     return { items: rows.map(mapRowToServico), page, limit, total: Number(countRows[0]?.TOTAL ?? 0) };

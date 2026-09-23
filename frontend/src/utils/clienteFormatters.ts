@@ -5,6 +5,16 @@ export function apenasDigitos(valor: string, limite: number): string {
   return valor.replace(/\D/g, '').slice(0, limite);
 }
 
+export function cpfValido(valor: string): boolean {
+  const digitos = valor.replace(/\D/g, '');
+  if (digitos.length !== 11 || /^(\d)\1{10}$/.test(digitos)) return false;
+  for (const posicao of [9, 10]) {
+    const soma = digitos.slice(0, posicao).split('').reduce((total, digito, indice) => total + Number(digito) * (posicao + 1 - indice), 0);
+    if ((soma * 10) % 11 % 10 !== Number(digitos[posicao])) return false;
+  }
+  return true;
+}
+
 export function formatarDocumento(valor: string, tipo: TipoPessoa): string {
   const digitos = apenasDigitos(valor, tipo === 'PJ' ? 14 : 11);
   if (tipo === 'PJ') {

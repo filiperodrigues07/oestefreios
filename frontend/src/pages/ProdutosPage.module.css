@@ -9,6 +9,11 @@
   font-weight: 600;
 }
 
+.serviceTypeFilter {
+  width: min(100%, 300px);
+  min-width: 0;
+}
+
 .details {
   display: flex;
   flex-direction: column;
@@ -30,5 +35,9 @@
 @media (max-width: 899px) {
   .page {
     padding: var(--space-3);
+  }
+
+  .serviceTypeFilter {
+    width: 100%;
   }
 }

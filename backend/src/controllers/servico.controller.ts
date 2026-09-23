@@ -3,6 +3,10 @@ import * as servicoService from '../services/servico.service.js';
 import type { SearchQuery } from '../types/cherp.types.js';
 import { success } from '../utils/apiResponse.js';
 
+export async function listarTiposServicosHandler(_req: Request, res: Response) {
+  success(res, await servicoService.listarTiposServicos());
+}
+
 export async function searchServicosHandler(req: Request, res: Response) {
   const query = req.query as unknown as SearchQuery;
   const result = await servicoService.searchServicos(query, req.user!.permissions);

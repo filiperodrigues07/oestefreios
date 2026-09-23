@@ -38,6 +38,7 @@ export const relatorioVeiculosQuerySchema = z.object({
 export const relatorioCatalogoQuerySchema = z.object({
   busca: z.string().trim().min(1).optional(),
   tipoCodigo: z.coerce.number().int().nonnegative().optional(),
+  tipoServicoCodigo: z.string().trim().min(1).max(30).optional(),
   tipoModo: z.enum(['somente', 'exceto']).optional(),
   saldoModo: z.enum(['todos', 'com_saldo', 'sem_saldo', 'negativo']).optional(),
   formato: formatoSchema,

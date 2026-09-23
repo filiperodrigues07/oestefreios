@@ -21,6 +21,8 @@ export interface Servico {
   descricao: string;
   unidade: string;
   categoria?: string;
+  tipoServicoCodigo?: string;
+  tipoServicoDescricao?: string;
   valorUnitario?: number;
 }
 
@@ -218,6 +220,8 @@ export interface PaginatedResult<T> {
 
 export interface SearchQuery {
   tipoCodigo?: number;
+  /** Código de PRODTIPOSERV, usado somente no catálogo de serviços. */
+  tipoServicoCodigo?: string;
   tipoModo?: 'somente' | 'exceto';
   /** Só usado por produtos: filtra pelo saldo em estoque (PRODUTOESTOQUE.SALDO somado). */
   saldoModo?: 'todos' | 'com_saldo' | 'sem_saldo' | 'negativo';

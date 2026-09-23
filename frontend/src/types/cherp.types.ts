@@ -16,6 +16,8 @@ export interface ServicoDTO {
   descricao: string;
   unidade: string;
   categoria?: string;
+  tipoServicoCodigo?: string;
+  tipoServicoDescricao?: string;
   valorUnitario?: number;
 }
 

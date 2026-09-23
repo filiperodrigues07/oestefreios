@@ -1,12 +1,7 @@
 import { z } from 'zod';
 import { toUppercase } from './textTransform.js';
 
-// Base compartilhada por criação e edição — CHERP em si não trava nada disso no banco (só PESSOA
-// é NOT NULL na tabela CLIFOR), então aqui só Nome e Documento são obrigatórios sempre. Os demais
-// campos "pareados com o CHERP" (ver clienteCreateSchema) só viram obrigatórios na criação: 137
-// dos 368 clientes ativos hoje já existem sem um ou mais desses campos preenchidos (Celular e
-// Inscrição Estadual são os mais comuns de faltar) — travar a edição deles até completar os dados
-// deixaria gente presa numa alteração boba, tipo corrigir um telefone.
+// Base compartilhada; criação e edição usam clienteCreateSchema para exigir os mesmos campos.
 export const clienteInputSchema = z.object({
   ativo: z.boolean().default(true),
   tipoPessoa: z.enum(['PF', 'PJ']),
@@ -37,7 +32,7 @@ export const clienteInputSchema = z.object({
 });
 
 /**
- * Só pra criação (POST) — exige os campos definidos com o usuário pra parear com o CHERP.
+ * Criação e edição — exige os campos definidos com o usuário pra parear com o CHERP.
  * `inscricaoEstadual` é a mesma coluna do CHERP (IERG) usada tanto pra Inscrição Estadual (PJ)
  * quanto pra Identidade/RG (PF) — só o rótulo muda lá, o campo é o mesmo. Nome Fantasia e esse
  * campo só são obrigatórios pra pessoa jurídica; pessoa física pode cadastrar sem.
@@ -53,6 +48,9 @@ export const clienteCreateSchema = clienteInputSchema
     cep: z.string().trim().min(1, 'CEP é obrigatório.'),
   })
   .superRefine((data, ctx) => {
+    if (data.tipoPessoa === 'PF' && !cpfValido(data.documento)) {
+      ctx.addIssue({ code: 'custom', message: 'CPF inválido.', path: ['documento'] });
+    }
     if (data.tipoPessoa !== 'PJ') return;
     if (data.regimeTributario === undefined) {
       ctx.addIssue({ code: 'custom', message: 'Regime tributário é obrigatório para pessoa jurídica.', path: ['regimeTributario'] });
@@ -64,6 +62,17 @@ export const clienteCreateSchema = clienteInputSchema
       ctx.addIssue({ code: 'custom', message: 'Inscrição estadual é obrigatória para pessoa jurídica.', path: ['inscricaoEstadual'] });
     }
   });
+
+function cpfValido(documento: string): boolean {
+  const digits = documento.replace(/\D/g, '');
+  if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) return false;
+  for (const position of [9, 10]) {
+    const total = digits.slice(0, position).split('').reduce((sum, digit, index) => sum + Number(digit) * (position + 1 - index), 0);
+    const check = (total * 10) % 11 % 10;
+    if (check !== Number(digits[position])) return false;
+  }
+  return true;
+}
 
 export const cnpjParamSchema = z.object({
   cnpj: z

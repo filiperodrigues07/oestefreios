@@ -90,11 +90,14 @@ describe('auditoria de negócio', () => {
   });
 
   it('registra criação e edição de cliente e veículo com antes/depois', async () => {
-    const clienteInput = { tipoPessoa: 'PF', nome: 'Cliente Auditoria', documento: '12345678901',
+    const clienteInput = { tipoPessoa: 'PF', nome: 'Cliente Auditoria', documento: '52998224725',
       celular: '11999999999', endereco: 'Rua Teste', numero: '1', bairro: 'Centro', cidade: 'São Paulo', uf: 'SP', cep: '01001000' };
     const cliente = await request(app).post('/api/clientes').set('Authorization', `Bearer ${adminToken}`).send(clienteInput);
     expect(cliente.status).toBe(201);
     const codigo = cliente.body.data.codigo as string;
+    const incompleto = await request(app).put(`/api/clientes/${codigo}`).set('Authorization', `Bearer ${adminToken}`)
+      .send({ tipoPessoa: 'PF', nome: 'Cliente Editado', documento: clienteInput.documento });
+    expect(incompleto.status).toBe(400);
     const editado = await request(app).put(`/api/clientes/${codigo}`).set('Authorization', `Bearer ${adminToken}`)
       .send({ ...clienteInput, nome: 'Cliente Editado' });
     expect(editado.status).toBe(200);

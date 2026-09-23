@@ -4,7 +4,7 @@ import { atualizarCliente, consultarCep, consultarCnpj, consultarInscricaoEstadu
 import { ApiError } from '../../api/httpClient.js';
 import { Button, Checkbox, ConfirmDialog, Input, RequiredMark, Select, useToast } from '../ui/index.js';
 import type { ClienteDTO, ClienteInput, RegimeTributario, TipoPessoa } from '../../types/cherp.types.js';
-import { formatarCep, formatarDocumento, formatarTelefone } from '../../utils/clienteFormatters.js';
+import { cpfValido, formatarCep, formatarDocumento, formatarTelefone } from '../../utils/clienteFormatters.js';
 import styles from './ClienteForm.module.css';
 
 const REGIME_TRIBUTARIO_OPTIONS = [
@@ -187,11 +187,23 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
     },
   });
 
+  function salvarCliente() {
+    if (form.tipoPessoa === 'PF' && !cpfValido(form.documento)) {
+      setDocumentoErro('CPF inválido. Confira os 11 dígitos.');
+      return;
+    }
+    saveMutation.mutate();
+  }
+
   async function consultarDocumento() {
     const digits = form.documento.replace(/\D/g, '');
     const ehCnpj = form.tipoPessoa === 'PJ';
     if (digits.length !== (ehCnpj ? 14 : 11)) {
       setDocumentoErro(`${ehCnpj ? 'CNPJ' : 'CPF'} precisa ter ${ehCnpj ? 14 : 11} dígitos.`);
+      return;
+    }
+    if (!ehCnpj && !cpfValido(digits)) {
+      setDocumentoErro('CPF inválido. Confira os 11 dígitos.');
       return;
     }
     setDocumentoErro(null);
@@ -279,24 +291,22 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
     aplicarTrocaTipo(tipo);
   }
 
-  // Campos obrigatórios pra parear com o CHERP — só na criação (edição de cliente antigo/incompleto
-  // continua liberada). Nome Fantasia, Inscrição Estadual/Identidade e Regime tributário só valem
+  // Criação e edição exigem os mesmos campos. Nome Fantasia, Inscrição Estadual/Identidade e Regime tributário só valem
   // pra pessoa jurídica (esse campo de identidade é a mesma coluna do CHERP usada pra RG na física).
   const ehPJ = form.tipoPessoa === 'PJ';
   const podeSalvar =
     form.nome.trim().length > 0 &&
     form.documento.trim().length > 0 &&
-    (modoEdicao ||
-      ((!ehPJ || (form.nomeFantasia ?? '').trim().length > 0) &&
-        (!ehPJ || (form.inscricaoEstadual ?? '').trim().length > 0) &&
-        (!ehPJ || form.regimeTributario !== undefined) &&
-        (form.cep ?? '').trim().length > 0 &&
-        (form.endereco ?? '').trim().length > 0 &&
-        (form.numero ?? '').trim().length > 0 &&
-        (form.bairro ?? '').trim().length > 0 &&
-        (form.cidade ?? '').trim().length > 0 &&
-        (form.uf ?? '').trim().length > 0 &&
-        (form.celular ?? '').trim().length > 0));
+    (!ehPJ || (form.nomeFantasia ?? '').trim().length > 0) &&
+    (!ehPJ || (form.inscricaoEstadual ?? '').trim().length > 0) &&
+    (!ehPJ || form.regimeTributario !== undefined) &&
+    (form.cep ?? '').trim().length > 0 &&
+    (form.endereco ?? '').trim().length > 0 &&
+    (form.numero ?? '').trim().length > 0 &&
+    (form.bairro ?? '').trim().length > 0 &&
+    (form.cidade ?? '').trim().length > 0 &&
+    (form.uf ?? '').trim().length > 0 &&
+    (form.celular ?? '').trim().length > 0;
 
   return (
     <div className={styles.form}>
@@ -355,8 +365,8 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
           onChange={(e) => setForm({ ...form, nome: e.target.value })}
         />
         <Input
-          label={<>Nome Fantasia{!modoEdicao && ehPJ && <RequiredMark />}</>}
-          required={!modoEdicao && ehPJ}
+          label={<>Nome Fantasia{ehPJ && <RequiredMark />}</>}
+          required={ehPJ}
           uppercase
           value={form.nomeFantasia}
           onChange={(e) => setForm({ ...form, nomeFantasia: e.target.value })}
@@ -375,8 +385,8 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
 
       {form.tipoPessoa === 'PJ' && (
         <Select
-          label={<>Regime tributário{!modoEdicao && <RequiredMark />}</>}
-          required={!modoEdicao}
+          label={<>Regime tributário<RequiredMark /></>}
+          required
           placeholder="Selecione"
           options={REGIME_TRIBUTARIO_OPTIONS}
           value={form.regimeTributario !== undefined ? String(form.regimeTributario) : ''}
@@ -386,8 +396,8 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
 
       <div className={styles.threeColumns}>
         <Input
-          label={<>{form.tipoPessoa === 'PJ' ? 'Inscrição estadual' : 'Identidade (RG)'}{!modoEdicao && ehPJ && <RequiredMark />}</>}
-          required={!modoEdicao && ehPJ}
+          label={<>{form.tipoPessoa === 'PJ' ? 'Inscrição estadual' : 'Identidade (RG)'}{ehPJ && <RequiredMark />}</>}
+          required={ehPJ}
           uppercase
           value={form.inscricaoEstadual}
           onChange={(e) => setForm({ ...form, inscricaoEstadual: e.target.value })}
@@ -399,8 +409,8 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
       <div className={styles.addressHeader}>Endereço</div>
       <div className={styles.cepRow}>
         <Input
-          label={<>CEP{!modoEdicao && <RequiredMark />}</>}
-          required={!modoEdicao}
+          label={<>CEP<RequiredMark /></>}
+          required
           value={form.cep ?? ''}
           inputMode="numeric"
           maxLength={9}
@@ -411,18 +421,18 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
         <Button type="button" variant="secondary" loading={cepMutation.isPending} onClick={buscarCep}>Consultar CEP</Button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
-        <Input label={<>Endereço{!modoEdicao && <RequiredMark />}</>} required={!modoEdicao} uppercase value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
-        <Input label={<>Número{!modoEdicao && <RequiredMark />}</>} required={!modoEdicao} uppercase value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
+        <Input label={<>Endereço<RequiredMark /></>} required uppercase value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
+        <Input label={<>Número<RequiredMark /></>} required uppercase value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
-        <Input label={<>Bairro{!modoEdicao && <RequiredMark />}</>} required={!modoEdicao} uppercase value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+        <Input label={<>Bairro<RequiredMark /></>} required uppercase value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
         <Input label="Complemento" uppercase value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
-        <Input label={<>Cidade{!modoEdicao && <RequiredMark />}</>} required={!modoEdicao} uppercase value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+        <Input label={<>Cidade<RequiredMark /></>} required uppercase value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
         <Select
-          label={<>UF{!modoEdicao && <RequiredMark />}</>}
-          required={!modoEdicao}
+          label={<>UF<RequiredMark /></>}
+          required
           options={UF_OPTIONS}
           placeholder="—"
           value={form.uf}
@@ -431,7 +441,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
       </div>
 
       <div className={styles.twoColumns}>
-        <Input label={<>Celular / WhatsApp{!modoEdicao && <RequiredMark />}</>} required={!modoEdicao} value={form.celular} inputMode="tel" maxLength={15} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
+        <Input label={<>Celular / WhatsApp<RequiredMark /></>} required value={form.celular} inputMode="tel" maxLength={15} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
         <Input label="Telefone fixo" value={form.telefone} inputMode="tel" maxLength={15} onChange={(e) => setForm({ ...form, telefone: formatarTelefone(e.target.value) })} />
       </div>
 
@@ -480,7 +490,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
         <Button type="button" variant="secondary" onClick={onCancel}>
           {cancelLabel}
         </Button>
-        <Button onClick={() => saveMutation.mutate()} loading={saveMutation.isPending} disabled={!podeSalvar}>
+        <Button onClick={salvarCliente} loading={saveMutation.isPending} disabled={!podeSalvar}>
           {modoEdicao ? 'Salvar' : 'Cadastrar'}
         </Button>
       </div>

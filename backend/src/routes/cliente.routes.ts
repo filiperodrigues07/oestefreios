@@ -13,7 +13,7 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { cepParamSchema, clienteCreateSchema, clienteInputSchema, cnpjParamSchema, documentoParamSchema } from '../validators/cliente.validator.js';
+import { cepParamSchema, clienteCreateSchema, cnpjParamSchema, documentoParamSchema } from '../validators/cliente.validator.js';
 import { codigoParamSchema, searchQuerySchema } from '../validators/search.validator.js';
 
 export const clienteRouter = Router();
@@ -34,6 +34,6 @@ clienteRouter.put(
   '/:codigo',
   requirePermission('OS_EDIT'),
   validate(codigoParamSchema, 'params'),
-  validate(clienteInputSchema),
+  validate(clienteCreateSchema),
   asyncHandler(atualizarClienteHandler),
 );

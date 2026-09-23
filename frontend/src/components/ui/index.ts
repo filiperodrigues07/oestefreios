@@ -28,6 +28,7 @@ export { MetricCard } from './MetricCard.js';
 export { SearchInput } from './SearchInput.js';
 export { Tooltip } from './Tooltip.js';
 export { PageHeader } from './PageHeader.js';
+export { ResultsSummary } from './ResultsSummary.js';
 export { EditButton } from './EditButton.js';
 export { PrintButton } from './PrintButton.js';
 export { ExportButtons } from './ExportButtons.js';

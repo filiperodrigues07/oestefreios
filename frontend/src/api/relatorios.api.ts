@@ -48,6 +48,7 @@ export interface RelatorioVeiculosFiltro {
 export interface RelatorioCatalogoFiltro {
   busca?: string;
   tipoCodigo?: number;
+  tipoServicoCodigo?: string;
   tipoModo?: 'somente' | 'exceto';
   saldoModo?: 'todos' | 'com_saldo' | 'sem_saldo' | 'negativo';
 }
@@ -70,6 +71,7 @@ function paramsCatalogo(filtro: RelatorioCatalogoFiltro, formato?: string): stri
     usp.set('tipoCodigo', String(filtro.tipoCodigo));
     usp.set('tipoModo', filtro.tipoModo ?? 'somente');
   }
+  if (filtro.tipoServicoCodigo) usp.set('tipoServicoCodigo', filtro.tipoServicoCodigo);
   if (filtro.saldoModo && filtro.saldoModo !== 'todos') usp.set('saldoModo', filtro.saldoModo);
   if (formato) usp.set('formato', formato);
   return usp.toString();

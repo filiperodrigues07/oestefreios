@@ -26,6 +26,7 @@ import {
   Pagination,
   PrintButton,
   RefreshButton,
+  ResultsSummary,
   SearchInput,
   ResponsiveFilters,
   Select,
@@ -332,13 +333,6 @@ export function OSListPage() {
         }
       />
 
-      {data && !isLoading && !isError && (
-        <p className={styles.total}>
-          <strong>{data.total.toLocaleString('pt-BR')}</strong>{' '}
-          {data.total === 1 ? 'registro' : 'registros'}
-        </p>
-      )}
-
       <form
         onSubmit={handleBuscar}
         className={styles.toolbar}
@@ -395,6 +389,8 @@ export function OSListPage() {
           Buscar
         </Button>
       </form>
+
+      {!isError && <ResultsSummary total={data?.total} />}
 
       <section className={styles.content} aria-live="polite">
         {isLoading && (

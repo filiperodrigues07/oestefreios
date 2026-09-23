@@ -11,6 +11,8 @@ export function toServicoDTO(
     descricao: servico.descricao,
     unidade: servico.unidade,
     categoria: servico.categoria,
+    tipoServicoCodigo: servico.tipoServicoCodigo,
+    tipoServicoDescricao: servico.tipoServicoDescricao,
   };
 
   if (!permissions.includes('FINANCIAL_VIEW')) {

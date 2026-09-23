@@ -18,6 +18,7 @@ import {
   Pagination,
   SearchInput,
   ResponsiveFilters,
+  ResultsSummary,
   Select,
   Skeleton,
   Table,
@@ -237,13 +238,6 @@ export function ClientesPage() {
         }
       />
 
-      {data && !isLoading && !isError && (
-        <p className={styles.total}>
-          <strong>{data.total.toLocaleString('pt-BR')}</strong>{' '}
-          {data.total === 1 ? 'registro' : 'registros'}
-        </p>
-      )}
-
       <form onSubmit={handleBuscar} className={styles.searchForm}>
         <SearchInput
           placeholder="Buscar por nome, razão social, código, CNPJ/CPF ou telefone"
@@ -278,6 +272,8 @@ export function ClientesPage() {
           Buscar
         </Button>
       </form>
+
+      {!isError && <ResultsSummary total={data?.total} />}
 
       {isLoading && (
         <Card style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>

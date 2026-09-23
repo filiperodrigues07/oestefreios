@@ -6,7 +6,7 @@ import {
   baixarRelatorioCatalogoProdutos,
   baixarRelatorioCatalogoServicos,
 } from '../api/relatorios.api.js';
-import { listarServicosCatalogo } from '../api/servicos.api.js';
+import { listarServicosCatalogo, listarTiposServico } from '../api/servicos.api.js';
 import { CatalogTable } from '../components/catalog/CatalogTable.js';
 import { CurrencyCell } from '../components/ui/CurrencyCell.js';
 import {
@@ -49,6 +49,7 @@ export function ProdutosPage() {
   const [buscaProdutos, setBuscaProdutos] = useState(initialTab === 'produtos' ? initialSearch : '');
   const [buscaServicos, setBuscaServicos] = useState(initialTab === 'servicos' ? initialSearch : '');
   const [tipoCodigo, setTipoCodigo] = useState(() => searchParams.get('tipoCodigo') ?? filtrosSalvos.get('tipoCodigo') ?? '');
+  const [tipoServicoCodigo, setTipoServicoCodigo] = useState(() => searchParams.get('tipoServicoCodigo') ?? filtrosSalvos.get('tipoServicoCodigo') ?? '');
   const [tipoModo, setTipoModo] = useState<'somente' | 'exceto'>(() =>
     (searchParams.get('tipoModo') ?? filtrosSalvos.get('tipoModo')) === 'exceto' ? 'exceto' : 'somente',
   );
@@ -57,6 +58,7 @@ export function ProdutosPage() {
     return value === 'com_saldo' || value === 'sem_saldo' || value === 'negativo' ? value : 'todos';
   });
   const { data: tipos = [] } = useQuery({ queryKey: ['tipos-produto'], queryFn: listarTiposProduto });
+  const { data: tiposServico = [] } = useQuery({ queryKey: ['tipos-servico'], queryFn: listarTiposServico, enabled: tab === 'servicos' });
 
   // Filtros salvos na URL (compartilhável, funciona com voltar do navegador) e em sessionStorage
   // (sobrevive a navegar pra outra tela pelo menu, que troca de rota sem manter query string).
@@ -72,14 +74,17 @@ export function ProdutosPage() {
         params.set('tipoModo', tipoModo);
       }
       if (saldoModo !== 'todos') params.set('saldoModo', saldoModo);
+    } else if (tipoServicoCodigo) {
+      params.set('tipoServicoCodigo', tipoServicoCodigo);
     }
     setSearchParams(params, { replace: true });
     writeStoredFilters('produtos', params);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, buscaProdutos, buscaServicos, tipoCodigo, tipoModo, saldoModo]);
+  }, [tab, buscaProdutos, buscaServicos, tipoCodigo, tipoModo, saldoModo, tipoServicoCodigo]);
   const filtroTipo = tipoCodigo ? { tipoCodigo: Number(tipoCodigo), tipoModo } : {};
   const filtroSaldo = saldoModo !== 'todos' ? { saldoModo } : {};
   const filtroRelatorioProdutos = { busca: buscaProdutos || undefined, ...filtroTipo, ...filtroSaldo };
+  const filtroRelatorioServicos = { busca: buscaServicos || undefined, tipoServicoCodigo: tipoServicoCodigo || undefined };
   const podeVerFinanceiro = hasPermission('FINANCIAL_VIEW');
 
   const colunasProdutos: TableColumn<ProdutoDTO>[] = [
@@ -143,14 +148,15 @@ export function ProdutosPage() {
       sortable: true,
       width: '128px',
     },
-    { key: 'descricao', header: 'Descrição', render: (s) => s.descricao, sortable: true },
     {
-      key: 'categoria',
-      header: 'Grupo Produto',
-      render: (s) => s.categoria ?? '—',
+      key: 'tipo',
+      header: 'Tipo de serviço',
+      render: (s) => s.tipoServicoCodigo ?? '—',
+      mono: true,
       sortable: true,
-      width: '180px',
+      width: '155px',
     },
+    { key: 'descricao', header: 'Descrição', render: (s) => s.descricao, sortable: true },
     ...(podeVerFinanceiro
       ? [
           {
@@ -174,10 +180,10 @@ export function ProdutosPage() {
         actions={<ExportButtons
           onExportarExcel={() => tab === 'produtos'
             ? baixarRelatorioCatalogoProdutos(filtroRelatorioProdutos, 'excel')
-            : baixarRelatorioCatalogoServicos({ busca: buscaServicos || undefined }, 'excel')}
+            : baixarRelatorioCatalogoServicos(filtroRelatorioServicos, 'excel')}
           onExportarPdf={() => tab === 'produtos'
             ? baixarRelatorioCatalogoProdutos(filtroRelatorioProdutos, 'pdf')
-            : baixarRelatorioCatalogoServicos({ busca: buscaServicos || undefined }, 'pdf')}
+            : baixarRelatorioCatalogoServicos(filtroRelatorioServicos, 'pdf')}
         />}
       />
 
@@ -282,14 +288,33 @@ export function ProdutosPage() {
             columns={colunasServicos}
             onSelect={setServicoSelecionado}
             emptyLabel="Nenhum serviço encontrado."
-            searchPlaceholder="Buscar por código, descrição, tipo ou grupo"
+            searchPlaceholder="Buscar por código, descrição ou tipo"
             columnPrefsKey="servicos"
             onFilterChange={setBuscaServicos}
+            extraParams={{ tipoServicoCodigo: tipoServicoCodigo || undefined }}
+            onClearExtraFilters={() => setTipoServicoCodigo('')}
+            filters={<ResponsiveFilters
+              activeCount={Number(Boolean(tipoServicoCodigo))}
+              onClear={() => setTipoServicoCodigo('')}
+            >
+              <div className={styles.serviceTypeFilter}>
+                <Select
+                  label="Tipo de serviço"
+                  value={tipoServicoCodigo}
+                  title={tiposServico.find((tipo) => tipo.codigo === tipoServicoCodigo)?.descricao}
+                  onChange={(event) => setTipoServicoCodigo(event.target.value)}
+                  options={[{ value: '', label: 'Todos os tipos' }, ...tiposServico.map((tipo) => ({
+                    value: tipo.codigo,
+                    label: `${tipo.codigo} — ${tipo.descricao.length > 42 ? `${tipo.descricao.slice(0, 42).trimEnd()}…` : tipo.descricao}`,
+                  }))]}
+                />
+              </div>
+            </ResponsiveFilters>}
             renderMobileCard={(servico) => (
               <MobileRecordCard
                 eyebrow={servico.codigo}
                 title={servico.descricao}
-                subtitle={servico.categoria ?? 'Sem grupo informado'}
+                subtitle={servico.tipoServicoCodigo ? `Tipo de serviço ${servico.tipoServicoCodigo}` : 'Tipo de serviço não informado'}
                 fields={[
                   { label: 'Unidade', value: servico.unidade },
                   ...(podeVerFinanceiro
@@ -347,8 +372,8 @@ export function ProdutosPage() {
           <dl className={styles.details}>
             <DetailRow label="Código" value={servicoSelecionado.codigo} />
             <DetailRow label="Descrição" value={servicoSelecionado.descricao} />
-            {servicoSelecionado.categoria && (
-              <DetailRow label="Grupo Produto" value={servicoSelecionado.categoria} />
+            {servicoSelecionado.tipoServicoCodigo && (
+              <DetailRow label="Tipo de serviço" value={`${servicoSelecionado.tipoServicoCodigo}${servicoSelecionado.tipoServicoDescricao ? ` — ${servicoSelecionado.tipoServicoDescricao}` : ''}`} />
             )}
             {podeVerFinanceiro && servicoSelecionado.valorUnitario !== undefined && (
               <DetailRow label="Valor" value={formatMoney(servicoSelecionado.valorUnitario)!} />
