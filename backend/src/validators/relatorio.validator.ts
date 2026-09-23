@@ -1,11 +1,12 @@
 import { z } from 'zod';
+import { calendarEndSchema, calendarStartSchema } from './calendarDate.js';
 
 const formatoSchema = z.enum(['json', 'excel', 'pdf']).default('json');
 
 export const relatorioOSQuerySchema = z
   .object({
-    dataInicial: z.coerce.date(),
-    dataFinal: z.coerce.date(),
+    dataInicial: calendarStartSchema,
+    dataFinal: calendarEndSchema,
     dataReferencia: z.enum(['abertura', 'conclusao']).default('abertura'),
     status: z.string().trim().min(1).optional(),
     situacaoDocumento: z.coerce.number().int().min(0).max(6).optional(),
@@ -44,8 +45,8 @@ export const relatorioCatalogoQuerySchema = z.object({
 
 export const relatorioProdutosServicosQuerySchema = z
   .object({
-    dataInicial: z.coerce.date(),
-    dataFinal: z.coerce.date(),
+    dataInicial: calendarStartSchema,
+    dataFinal: calendarEndSchema,
     dataReferencia: z.enum(['abertura', 'conclusao']).default('abertura'),
     formato: formatoSchema,
   })

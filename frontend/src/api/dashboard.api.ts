@@ -9,10 +9,10 @@ export function getOperationalDashboard(): Promise<OperationalDashboardDTO> {
   return apiFetch<OperationalDashboardDTO>('/dashboard/me');
 }
 
-export function getDashboardOperacional(input: { inicio: Date; fim: Date; granularidade: DashboardGranularidade }): Promise<DashboardOperacionalDTO> {
+export function getDashboardOperacional(input: { inicio: string; fim: string; granularidade: DashboardGranularidade }): Promise<DashboardOperacionalDTO> {
   const params = new URLSearchParams({
-    inicio: input.inicio.toISOString(),
-    fim: input.fim.toISOString(),
+    inicio: input.inicio,
+    fim: input.fim,
     granularidade: input.granularidade,
   });
   return apiFetch<DashboardOperacionalDTO>(`/dashboard/operacional?${params.toString()}`);

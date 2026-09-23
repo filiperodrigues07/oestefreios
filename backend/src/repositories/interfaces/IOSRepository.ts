@@ -59,6 +59,8 @@ export interface OSImagemArquivo {
 export interface IOSRepository {
   buscarPorId(id: string): Promise<OrdemServico | null>;
   listar(filter: OSListFilter): Promise<{ items: OrdemServico[]; total: number }>;
+  /** Cabeçalhos de todas as OS (ou de uma situação nativa), sem itens e sem corte de paginação. */
+  listarCabecalhos(situacaoDocumento?: number): Promise<OrdemServico[]>;
   listarParaDashboard(filter: OSDashboardFilter): Promise<OrdemServico[]>;
   listarParaRelatorio(filter: OSReportFilter): Promise<OrdemServico[]>;
   buscarParaDashboard(termo: string): Promise<OrdemServico[]>;

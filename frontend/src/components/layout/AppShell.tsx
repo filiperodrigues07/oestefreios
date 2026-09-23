@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { getBranding } from '../../api/settings.api.js';
 import { getDashboardOperacional } from '../../api/dashboard.api.js';
+import { calendarDateValue } from '../../utils/calendarDate.js';
 import { hasPermission, useAuthStore } from '../../store/authStore.js';
 import { useSidebarStore } from '../../store/sidebarStore.js';
 import { useThemeStore } from '../../store/themeStore.js';
@@ -81,7 +82,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     const inicio = new Date(fim);
     inicio.setDate(inicio.getDate() - 29);
     inicio.setHours(0, 0, 0, 0);
-    return { inicio, fim, granularidade: 'diario' as const };
+    return { inicio: calendarDateValue(inicio), fim: calendarDateValue(fim), granularidade: 'diario' as const };
   }, []);
   const canViewDashboard = hasPermission('REPORT_VIEW');
   const { data: notificationData } = useQuery({

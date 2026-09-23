@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { calendarEndSchema, calendarStartSchema } from './calendarDate.js';
 
 export const dashboardOperacionalQuerySchema = z
   .object({
-    inicio: z.coerce.date(),
-    fim: z.coerce.date(),
+    inicio: calendarStartSchema,
+    fim: calendarEndSchema,
     granularidade: z.enum(['diario', 'semanal', 'mensal']).default('diario'),
   })
   .refine(({ inicio, fim }) => inicio <= fim, { message: 'A data inicial deve ser anterior à data final.' })

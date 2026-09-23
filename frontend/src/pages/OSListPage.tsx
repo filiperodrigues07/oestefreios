@@ -59,7 +59,7 @@ export function OSListPage() {
   const filtrosSalvos = readStoredFilters('os');
   const initialSituacaoDocumento = searchParams.get('situacaoDocumento') ?? filtrosSalvos.get('situacaoDocumento');
   const [situacaoDocumento, setSituacaoDocumento] = useState(() =>
-    initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)]
+    initialSituacaoDocumento === '' || (initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)])
       ? initialSituacaoDocumento
       : '0',
   );
@@ -84,7 +84,8 @@ export function OSListPage() {
   // `replace` pra não empilhar uma entrada de histórico a cada tecla digitada na busca.
   useEffect(() => {
     const params = new URLSearchParams();
-    if (situacaoDocumento) params.set('situacaoDocumento', situacaoDocumento);
+    // Valor vazio significa "todas" e precisa sobreviver a F5; ausência da chave usa o padrão "aberta".
+    params.set('situacaoDocumento', situacaoDocumento);
     if (prioridade) params.set('prioridade', prioridade);
     if (dataInicial) params.set('dataInicial', dataInicial);
     if (dataFinal) params.set('dataFinal', dataFinal);

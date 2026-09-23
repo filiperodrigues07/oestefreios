@@ -358,7 +358,11 @@ async function fetchWorkflow(id: string): Promise<WorkflowRow | undefined> {
  */
 async function fetchWorkflows(ids: string[]): Promise<Map<string, WorkflowRow>> {
   if (ids.length === 0) return new Map();
-  const rows = await db.select().from(osWorkflow).where(inArray(osWorkflow.id, ids));
+  const rows: WorkflowRow[] = [];
+  for (let start = 0; start < ids.length; start += 500) {
+    const lote = await db.select().from(osWorkflow).where(inArray(osWorkflow.id, ids.slice(start, start + 500)));
+    rows.push(...(lote as WorkflowRow[]));
+  }
   return new Map(rows.map((r) => [r.id.toLowerCase(), r as WorkflowRow]));
 }
 
@@ -610,6 +614,15 @@ export class OSRepositoryFirebird implements IOSRepository {
    * Indicadores usam somente cabeçalhos em duas janelas indexáveis (abertura e fechamento).
    * A união em memória remove duplicidade sem trazer itens nem valores da OS.
    */
+  async listarCabecalhos(situacaoDocumento?: number): Promise<OrdemServico[]> {
+    const headers = await firebirdQuery<OSHeaderRow>(
+      `${HEADER_SELECT}${situacaoDocumento === undefined ? '' : ' AND OS.SITUACAO = ?'}`,
+      situacaoDocumento === undefined ? [] : [situacaoDocumento],
+    );
+    const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
+    return headers.map((header) => buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())));
+  }
+
   async listarParaDashboard(filter: OSDashboardFilter): Promise<OrdemServico[]> {
     const inicio = filter.dataInicial;
     const fim = filter.dataFinal;

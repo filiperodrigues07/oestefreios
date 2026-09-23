@@ -197,6 +197,10 @@ export class OSRepositoryMock implements IOSRepository {
     return { items: filtered.slice(start, start + limit), total: filtered.length };
   }
 
+  async listarCabecalhos(situacaoDocumento?: number): Promise<OrdemServico[]> {
+    return OS_LIST.filter((os) => situacaoDocumento === undefined || os.situacaoDocumento === situacaoDocumento);
+  }
+
   async listarParaDashboard(filter: OSDashboardFilter): Promise<OrdemServico[]> {
     const inicio = filter.dataInicial.getTime();
     const fim = filter.dataFinal.getTime();

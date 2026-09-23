@@ -145,7 +145,7 @@ function toSummaryDTO(os: OrdemServico): OSSummaryDTO {
 }
 
 export async function getOperationalDashboard(usuario: AuthenticatedUser): Promise<OperationalDashboardDTO> {
-  const todasOS = await getAllOS();
+  const todasOS = await osRepository.listarCabecalhos();
   const minhas = todasOS.filter((os) => os.tecnicoId === usuario.id || os.responsavelId === usuario.id);
 
   const counts = { emAtendimento: 0, aguardando: 0, prontas: 0, encerradas: 0 };
@@ -245,13 +245,13 @@ export async function getOperationalDashboardV2(input: {
   }
 
   const agora = Date.now();
-  const altas = abertasNoPeriodo.filter((os) => os.prioridade === 'ALTA' || os.prioridade === 'URGENTE');
-  const aguardando = abertasNoPeriodo.filter((os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE');
-  const atencaoMap = new Map<string, OrdemServico>();
-  [...altas, ...aguardando]
-    .sort((a, b) => new Date(a.dataAbertura).getTime() - new Date(b.dataAbertura).getTime())
-    .forEach((os) => atencaoMap.set(os.id, os));
-  const atencao: DashboardAtencaoDTO[] = [...atencaoMap.values()].slice(0, 5).map((os) => ({
+  // A fila operacional não depende do filtro histórico: uma OS antiga urgente não pode desaparecer.
+  const osEmAberto = await osRepository.listarCabecalhos(0);
+  const altas = osEmAberto.filter((os) => os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA' && (os.prioridade === 'ALTA' || os.prioridade === 'URGENTE'));
+  const aguardando = osEmAberto.filter((os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE');
+  const candidatos = [...new Map([...altas, ...aguardando].map((os) => [os.id, os])).values()];
+  candidatos.sort((a, b) => new Date(a.dataAbertura).getTime() - new Date(b.dataAbertura).getTime());
+  const atencao: DashboardAtencaoDTO[] = candidatos.slice(0, 5).map((os) => ({
     id: os.id,
     numero: os.numero,
     clienteNome: os.clienteNome,

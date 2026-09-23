@@ -3,9 +3,10 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { getDashboardOperacional } from '../../api/dashboard.api.js';
 import { OS_DOCUMENT_STATUS_CONFIG, OS_PRIORITY_CONFIG } from '../../constants/osStatus.js';
+import { calendarDateValue } from '../../utils/calendarDate.js';
 import type { DashboardGranularidade, DashboardSerieDTO } from '../../types/dashboard.types.js';
 import type { OSPrioridade } from '../../types/os.types.js';
-import { EmptyState, ErrorState, PriorityBadge, Skeleton, StatusBadge } from '../ui/index.js';
+import { EmptyState, ErrorState, PriorityBadge, RefreshButton, Skeleton, StatusBadge } from '../ui/index.js';
 import styles from './AdminDashboard.module.css';
 
 type QuickPeriod = 'hoje' | '7dias' | '30dias' | 'mes' | 'personalizado';
@@ -20,28 +21,24 @@ const KPI_CONFIG: Array<{ key: 'total' | 'abertas' | 'geradoPedido' | 'geradoNF'
 
 const PRIORITY_ORDER: OSPrioridade[] = ['ALTA', 'MEDIA', 'NORMAL', 'BAIXA'];
 
-function dateInputValue(date: Date) {
-  return date.toISOString().slice(0, 10);
+function priorityCount(counts: Record<OSPrioridade, number>, priority: OSPrioridade): number {
+  return priority === 'ALTA' ? (counts.ALTA ?? 0) + (counts.URGENTE ?? 0) : (counts[priority] ?? 0);
 }
 
-function fromInput(value: string, end = false): Date {
-  const date = new Date(`${value}T${end ? '23:59:59.999' : '00:00:00.000'}`);
-  return Number.isNaN(date.getTime()) ? new Date() : date;
+function formatPeriodDate(value: string): string {
+  return new Date(`${value}T12:00:00`).toLocaleDateString('pt-BR');
 }
 
 function periodDates(period: QuickPeriod, customStart: string, customEnd: string) {
-  const end = new Date();
-  end.setHours(23, 59, 59, 999);
-  const start = new Date(end);
-  if (period === 'hoje') start.setHours(0, 0, 0, 0);
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   if (period === '7dias') start.setDate(start.getDate() - 6);
   if (period === '30dias') start.setDate(start.getDate() - 29);
   if (period === 'mes') {
     start.setDate(1);
-    start.setHours(0, 0, 0, 0);
   }
-  if (period === 'personalizado') return { inicio: fromInput(customStart), fim: fromInput(customEnd, true) };
-  return { inicio: start, fim: end };
+  if (period === 'personalizado') return { inicio: customStart, fim: customEnd };
+  return { inicio: calendarDateValue(start), fim: calendarDateValue(today) };
 }
 
 function buildLinePath(values: number[], width: number, height: number, max: number) {
@@ -123,11 +120,11 @@ export function AdminDashboard() {
   const navigate = useNavigate();
   const today = new Date();
   const [period, setPeriod] = useState<QuickPeriod>('30dias');
-  const [customStart, setCustomStart] = useState(dateInputValue(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29)));
-  const [customEnd, setCustomEnd] = useState(dateInputValue(today));
+  const [customStart, setCustomStart] = useState(calendarDateValue(new Date(today.getFullYear(), today.getMonth(), today.getDate() - 29)));
+  const [customEnd, setCustomEnd] = useState(calendarDateValue(today));
   const [granularidade, setGranularidade] = useState<DashboardGranularidade>('diario');
   const dates = useMemo(() => periodDates(period, customStart, customEnd), [period, customStart, customEnd]);
-  const { data, isLoading, isError, error, refetch } = useQuery({ queryKey: ['dashboard-operacional', dates.inicio.toISOString(), dates.fim.toISOString(), granularidade], queryFn: () => getDashboardOperacional({ ...dates, granularidade }) });
+  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({ queryKey: ['dashboard-operacional', dates.inicio, dates.fim, granularidade], queryFn: () => getDashboardOperacional({ ...dates, granularidade }) });
 
   if (isLoading) return <div className={styles.loadingGrid}>{Array.from({ length: 7 }, (_, index) => <Skeleton key={index} height={index < 5 ? 130 : 300} />)}</div>;
   if (isError || !data) return <ErrorState error={error} action={<button className={styles.retry} onClick={() => refetch()}>Tentar novamente</button>} />;
@@ -141,28 +138,29 @@ export function AdminDashboard() {
   };
   const selectPeriod = (value: QuickPeriod) => setPeriod(value);
   const navigateStatus = (key: keyof typeof values) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ dataInicial: dates.inicio, dataFinal: dates.fim, prioridade: '', busca: '' });
     const situacaoPorKpi = { abertas: 0, geradoPedido: 1, geradoNF: 3, encerradas: 4 } as const;
-    if (key !== 'total') params.set('situacaoDocumento', String(situacaoPorKpi[key]));
-    navigate(`/os${params.size ? `?${params.toString()}` : ''}`);
+    params.set('situacaoDocumento', key === 'total' ? '' : String(situacaoPorKpi[key]));
+    navigate(`/os?${params.toString()}`);
   };
 
   return <div className={styles.dashboard}>
     <header className={styles.dashboardHeader}>
-      <div><h1>Dashboard</h1><p>Visão geral das Ordens de Serviço</p></div>
+      <div><h1>Dashboard</h1><p>OS abertas no período · situação atual no CHERP</p></div>
       <div className={styles.periodControls}>
         <div className={styles.quickPeriods}>{[['hoje', 'Hoje'], ['7dias', '7 dias'], ['30dias', '30 dias'], ['mes', 'Este mês'], ['personalizado', 'Personalizado']].map(([value, label]) => <button key={value} onClick={() => selectPeriod(value as QuickPeriod)} className={period === value ? styles.periodActive : ''}>{label}</button>)}</div>
-        {period === 'personalizado' ? <div className={styles.dateRange}><input type="date" aria-label="Data inicial" value={customStart} onChange={(e) => setCustomStart(e.target.value)} /><span>—</span><input type="date" aria-label="Data final" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} /></div> : <div className={styles.dateRange}>▣ {dates.inicio.toLocaleDateString('pt-BR')} - {dates.fim.toLocaleDateString('pt-BR')}</div>}
+        {period === 'personalizado' ? <div className={styles.dateRange}><input type="date" aria-label="Data inicial" value={customStart} onChange={(e) => { const value = e.target.value; if (!value) return; setCustomStart(value); if (value > customEnd) setCustomEnd(value); }} /><span>—</span><input type="date" aria-label="Data final" value={customEnd} onChange={(e) => { const value = e.target.value; if (!value) return; setCustomEnd(value); if (value < customStart) setCustomStart(value); }} /></div> : <div className={styles.dateRange}>▣ {formatPeriodDate(dates.inicio)} - {formatPeriodDate(dates.fim)}</div>}
+        <RefreshButton onClick={() => { void refetch(); }} loading={isFetching} />
       </div>
     </header>
     <section className={styles.kpis}>{KPI_CONFIG.map((item) => <button key={item.key} className={`${styles.kpi} ${item.className}`} onClick={() => navigateStatus(item.key)}><span className={styles.kpiIcon}>{item.icon}</span><span className={styles.kpiLabel}>{item.label}</span><strong>{values[item.key].toLocaleString('pt-BR')}</strong><small>{item.key === 'total' ? 'no período selecionado' : `${data.total ? Math.round((values[item.key] / data.total) * 100) : 0}% do total`}</small><b>›</b></button>)}</section>
     <section className={styles.topGrid}>
-      <article className={styles.panel}><header><div><h2>Evolução das Ordens de Serviço</h2><p>Aberturas e fechamentos reais no CHERP por período</p></div><select value={granularidade} onChange={(e) => setGranularidade(e.target.value as DashboardGranularidade)}><option value="diario">Diário</option><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></header><div className={styles.legendInline}><span className={styles.openMark} />Abertas <span className={styles.doneMark} />Fechadas</div><EvolutionChart series={data.evolucao} /></article>
-      <article className={styles.panel}><header><div><h2>Situação do documento</h2><p>Distribuição de ORDEMSERVICO.SITUACAO no CHERP</p></div></header><Donut total={data.total} counts={data.countsBySituacaoDocumento} /></article>
+      <article className={styles.panel}><header><div><h2>Evolução das Ordens de Serviço</h2><p>Eventos no período; fechamentos podem ser de OS abertas antes</p></div><select value={granularidade} onChange={(e) => setGranularidade(e.target.value as DashboardGranularidade)}><option value="diario">Diário</option><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></header><div className={styles.legendInline}><span className={styles.openMark} />Aberturas <span className={styles.doneMark} />Fechamentos</div><EvolutionChart series={data.evolucao} /></article>
+      <article className={styles.panel}><header><div><h2>Situação atual do documento</h2><p>OS abertas no período, classificadas pela situação de hoje no CHERP</p></div></header><Donut total={data.total} counts={data.countsBySituacaoDocumento} /></article>
     </section>
     <section className={styles.bottomGrid}>
-      <article className={styles.panel}><header><div><h2>Ordens que exigem atenção</h2><p>Prioridade alta, urgente ou aguardando há mais tempo</p></div><button className={styles.secondaryButton} onClick={() => navigate('/os')}>Ver todas</button></header>{data.atencao.length ? <div className={styles.attentionTable}><div className={styles.attentionHead}><span># OS</span><span>Cliente</span><span>Status</span><span>Prioridade</span><span>Dias</span><span /></div>{data.atencao.map((os) => <button key={os.id} onClick={() => navigate(`/os/${os.id}`)} aria-label={`Abrir OS ${os.numero} de ${os.clienteNome || 'cliente não identificado'}`}><span className={styles.attentionNumber}>#{String(os.numero).padStart(6, '0')}</span><span className={styles.attentionClient}>{os.clienteNome || 'Cliente não identificado'}</span><span className={styles.attentionStatus}><StatusBadge status={os.status} /></span><span className={styles.attentionPriority}><PriorityBadge priority={os.prioridade} /></span><span className={`${styles.attentionDays} ${os.dias > 7 ? styles.overdue : ''}`}><span className={styles.mobileOnly}>Dias: </span>{os.dias}</span><span className={styles.attentionChevron} aria-hidden="true">›</span></button>)}</div> : <EmptyState title="Nenhuma OS exige atenção" description="Não há prioridades altas ou OS aguardando neste período." />}</article>
-      <article className={styles.panel}><header><div><h2>Prioridade das Ordens</h2><p>Distribuição de prioridade no período</p></div></header><div className={styles.priorityChart}>{PRIORITY_ORDER.map((priority) => { const value = data.countsByPrioridade[priority]; const max = Math.max(1, ...PRIORITY_ORDER.map((key) => data.countsByPrioridade[key])); return <div key={priority}><strong>{value}</strong><span className={`${styles.priorityBar} ${styles[`priority${priority}`]}`} style={{ height: `${Math.max(8, (value / max) * 150)}px` }} /><small>{OS_PRIORITY_CONFIG[priority].label}</small></div>; })}</div></article>
+      <article className={styles.panel}><header><div><h2>Ordens que exigem atenção</h2><p>OS ainda abertas com prioridade alta ou aguardando, inclusive antigas</p></div><button className={styles.secondaryButton} onClick={() => navigate('/os?situacaoDocumento=0&prioridade=&busca=&dataInicial=&dataFinal=')}>Ver OS abertas</button></header>{data.atencao.length ? <div className={styles.attentionTable}><div className={styles.attentionHead}><span># OS</span><span>Cliente</span><span>Status</span><span>Prioridade</span><span>Dias</span><span /></div>{data.atencao.map((os) => <button key={os.id} onClick={() => navigate(`/os/${os.id}`)} aria-label={`Abrir OS ${os.numero} de ${os.clienteNome || 'cliente não identificado'}`}><span className={styles.attentionNumber}>#{String(os.numero).padStart(6, '0')}</span><span className={styles.attentionClient}>{os.clienteNome || 'Cliente não identificado'}</span><span className={styles.attentionStatus}><StatusBadge status={os.status} /></span><span className={styles.attentionPriority}><PriorityBadge priority={os.prioridade} /></span><span className={`${styles.attentionDays} ${os.dias > 7 ? styles.overdue : ''}`}><span className={styles.mobileOnly}>Dias: </span>{os.dias}</span><span className={styles.attentionChevron} aria-hidden="true">›</span></button>)}</div> : <EmptyState title="Nenhuma OS exige atenção" description="Não há OS abertas de prioridade alta ou aguardando." />}</article>
+      <article className={styles.panel}><header><div><h2>Prioridade das Ordens</h2><p>OS abertas no período, pela prioridade atual; urgente junto de alta</p></div></header><div className={styles.priorityChart}>{PRIORITY_ORDER.map((priority) => { const value = priorityCount(data.countsByPrioridade, priority); const max = Math.max(1, ...PRIORITY_ORDER.map((key) => priorityCount(data.countsByPrioridade, key))); return <div key={priority}><strong>{value}</strong><span className={`${styles.priorityBar} ${styles[`priority${priority}`]}`} style={{ height: `${Math.max(8, (value / max) * 150)}px` }} /><small>{OS_PRIORITY_CONFIG[priority].label}</small></div>; })}</div></article>
     </section>
   </div>;
 }
