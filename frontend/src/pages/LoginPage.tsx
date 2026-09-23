@@ -38,7 +38,7 @@ export function LoginPage() {
           <div className={styles.logoFrame}>
             <img className={styles.brandLogo} src={clientLogo} alt="Oeste Freios" />
           </div>
-          <h2>Gestão inteligente para sua oficina.</h2>
+          <p className={styles.introTagline}>Gestão inteligente para sua oficina.</p>
           <p className={styles.introCopy}>
             Controle as ordens de serviço, produtos e clientes em uma única plataforma.
           </p>

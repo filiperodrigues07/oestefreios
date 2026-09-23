@@ -481,7 +481,9 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
             }}
           >
             <h3 style={{ margin: 0, fontSize: 'var(--font-size-sm)' }}>Permissões</h3>
-            {isCustom && <Badge tone="warning">Diferente do padrão do perfil</Badge>}
+            <span role="status" aria-live="polite">
+              {isCustom && <Badge tone="warning">Diferente do padrão do perfil</Badge>}
+            </span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>

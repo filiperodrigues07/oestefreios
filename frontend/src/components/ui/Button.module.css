@@ -27,7 +27,7 @@
 
 .primary {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
 }
 .primary:hover:not(:disabled) {
   background: var(--color-primary-hover);
@@ -45,7 +45,7 @@
 
 .danger {
   background: var(--color-danger);
-  color: #fff;
+  color: var(--color-on-danger);
 }
 .danger:hover:not(:disabled) {
   filter: brightness(0.92);
@@ -80,4 +80,11 @@
 
 .fullWidth {
   width: 100%;
+}
+
+@media (max-width: 899px) {
+  .button,
+  .sm {
+    min-height: 44px;
+  }
 }

@@ -198,8 +198,10 @@ function OSFormEdit({ id }: { id: string }) {
   const [tab, setTab] = useState<OSTab>(
     tabInicial && OS_TABS_VALIDAS.includes(tabInicial as OSTab) ? (tabInicial as OSTab) : 'dados',
   );
+  const [diagnosticoDirty, setDiagnosticoDirty] = useState(false);
+  const [trocaPendente, setTrocaPendente] = useState<string | null>(null);
 
-  function mudarTab(key: string) {
+  function aplicarTroca(key: string) {
     setTab(key as OSTab);
     setSearchParams(
       (prev) => {
@@ -209,6 +211,14 @@ function OSFormEdit({ id }: { id: string }) {
       },
       { replace: true },
     );
+  }
+
+  function mudarTab(key: string) {
+    if (tab === 'diagnostico' && diagnosticoDirty && key !== 'diagnostico') {
+      setTrocaPendente(key);
+      return;
+    }
+    aplicarTroca(key);
   }
 
   const {
@@ -480,6 +490,7 @@ function OSFormEdit({ id }: { id: string }) {
               podeEditar={podeEditar}
               salvando={salvarMutation.isPending}
               onSave={(patch) => salvarMutation.mutate(patch)}
+              onDirtyChange={setDiagnosticoDirty}
             />
           </section>
         )}
@@ -560,6 +571,21 @@ function OSFormEdit({ id }: { id: string }) {
         loading={removerMutation.isPending}
         onCancel={() => setRemovendo(null)}
         onConfirm={() => removerMutation.mutate()}
+      />
+
+      <ConfirmDialog
+        open={trocaPendente !== null}
+        title="Descartar alterações não salvas?"
+        description="Há alterações no Diagnóstico que ainda não foram salvas. Trocar de aba agora descarta o que foi digitado."
+        confirmLabel="Descartar e trocar"
+        danger
+        onCancel={() => setTrocaPendente(null)}
+        onConfirm={() => {
+          const key = trocaPendente!;
+          setTrocaPendente(null);
+          setDiagnosticoDirty(false);
+          aplicarTroca(key);
+        }}
       />
     </div>
   );

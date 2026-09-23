@@ -69,11 +69,12 @@
   height: auto;
 }
 
-.intro h2 {
+.introTagline {
   max-width: 520px;
   margin: 0;
   color: #f8fbff;
   font-size: clamp(2.15rem, 4vw, 3.55rem);
+  font-weight: 700;
   line-height: 1.08;
   letter-spacing: -0.048em;
   text-wrap: balance;

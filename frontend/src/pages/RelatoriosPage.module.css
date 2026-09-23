@@ -8,7 +8,7 @@
   padding: clamp(24px, 3vw, 48px) clamp(20px, 4vw, 64px) 56px;
 }
 
-.page > :first-child {
+.hero {
   display: flex;
   align-items: center;
   justify-content: flex-start;
@@ -25,7 +25,7 @@
   text-align: left;
 }
 
-.page > :first-child::before {
+.hero::before {
   width: 46px;
   height: 46px;
   flex: 0 0 46px;
@@ -111,6 +111,13 @@
   color: var(--color-primary-on-surface);
 }
 
+.atalhoAtivo,
+.atalhoAtivo:hover {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
 .previewHeader {
   display: flex;
   flex-wrap: wrap;
@@ -185,13 +192,13 @@
     padding: var(--space-4) var(--space-3) 40px;
   }
 
-  .page > :first-child {
+  .hero {
     align-items: flex-start;
     min-height: 0;
     padding: var(--space-4);
   }
 
-  .page > :first-child::before {
+  .hero::before {
     width: 38px;
     height: 38px;
     flex-basis: 38px;

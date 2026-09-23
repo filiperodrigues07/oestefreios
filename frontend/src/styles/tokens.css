@@ -14,6 +14,10 @@
   --color-warning: #fbbf24;
   --color-danger: #fb7185;
   --color-info: #38bdf8;
+  /* Texto sobre fundo sólido saturado (botão primary/danger) — diferente de *-on-surface,
+     que é pra texto sobre a versão tintada/clara do tom (badge, chip). */
+  --color-on-primary: #fff;
+  --color-on-danger: #fff;
 
   --space-1: 4px;
   --space-2: 8px;

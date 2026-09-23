@@ -113,7 +113,7 @@ export function RelatoriosPage() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Relatórios" description="Gere relatórios por período e exporte em Excel ou PDF." />
+      <PageHeader className={styles.hero} title="Relatórios" description="Gere relatórios por período e exporte em Excel ou PDF." />
 
       <section className={styles.workspace}>
       <Tabs
@@ -171,7 +171,7 @@ function RelatorioOSTab() {
     <div className={styles.tab}>
       <div className={styles.quickPeriodBar}>
         <span>Períodos rápidos</span>
-        <AtalhosPeriodo onSelect={({ inicio, fim }) => { setDataInicial(inicio); setDataFinal(fim); }} />
+        <AtalhosPeriodo dataInicial={dataInicial} dataFinal={dataFinal} onSelect={({ inicio, fim }) => { setDataInicial(inicio); setDataFinal(fim); }} />
       </div>
       <form className={styles.filtros} onSubmit={(e) => { e.preventDefault(); gerarMutation.mutate(); }}>
         <Input label="Data inicial" type="date" value={dataInicial} onChange={(e) => setDataInicial(e.target.value)} />
@@ -265,7 +265,7 @@ function RelatorioProdutosServicosTab() {
     <div className={styles.tab}>
       <div className={styles.quickPeriodBar}>
         <span>Períodos rápidos</span>
-        <AtalhosPeriodo onSelect={({ inicio, fim }) => { setDataInicial(inicio); setDataFinal(fim); }} />
+        <AtalhosPeriodo dataInicial={dataInicial} dataFinal={dataFinal} onSelect={({ inicio, fim }) => { setDataInicial(inicio); setDataFinal(fim); }} />
       </div>
       <form className={styles.filtros} onSubmit={(e) => { e.preventDefault(); gerarMutation.mutate(); }}>
         <Input label="Data inicial" type="date" value={dataInicial} onChange={(e) => setDataInicial(e.target.value)} />
@@ -296,12 +296,37 @@ interface RelatorioPreviewProps {
   onExportar: (formato: 'excel' | 'pdf') => void;
 }
 
-function AtalhosPeriodo({ onSelect }: { onSelect: (periodo: { inicio: string; fim: string }) => void }) {
+function AtalhosPeriodo({
+  dataInicial,
+  dataFinal,
+  onSelect,
+}: {
+  dataInicial: string;
+  dataFinal: string;
+  onSelect: (periodo: { inicio: string; fim: string }) => void;
+}) {
+  const opcoes: { tipo: 'hoje' | 'sete-dias' | 'mes-atual'; label: string }[] = [
+    { tipo: 'hoje', label: 'Hoje' },
+    { tipo: 'sete-dias', label: '7 dias' },
+    { tipo: 'mes-atual', label: 'Este mês' },
+  ];
   return (
     <div className={styles.atalhos} aria-label="Atalhos de período">
-      <button type="button" onClick={() => onSelect(periodoAtalho('hoje'))}>Hoje</button>
-      <button type="button" onClick={() => onSelect(periodoAtalho('sete-dias'))}>7 dias</button>
-      <button type="button" onClick={() => onSelect(periodoAtalho('mes-atual'))}>Este mês</button>
+      {opcoes.map(({ tipo, label }) => {
+        const periodo = periodoAtalho(tipo);
+        const ativo = periodo.inicio === dataInicial && periodo.fim === dataFinal;
+        return (
+          <button
+            key={tipo}
+            type="button"
+            aria-pressed={ativo}
+            className={ativo ? styles.atalhoAtivo : undefined}
+            onClick={() => onSelect(periodo)}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }

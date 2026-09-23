@@ -18,6 +18,8 @@ interface DiagnosticoSectionProps {
   podeEditar: boolean;
   salvando: boolean;
   onSave: (patch: DiagnosticoPatch) => void;
+  /** Avisa o pai quando há edição pendente não salva — usado pra confirmar antes de trocar de aba. */
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
 /** Campos da OS com escrita na integração CHERP — sempre editáveis (sem clicar "Editar" primeiro) pra quem tem permissão. */
@@ -30,8 +32,14 @@ export function DiagnosticoSection({
   podeEditar,
   salvando,
   onSave,
+  onDirtyChange,
 }: DiagnosticoSectionProps) {
   const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty]);
   const [diagnosticoForm, setDiagnosticoForm] = useState(diagnostico ?? '');
   const [observacoesForm, setObservacoesForm] = useState(observacoes ?? '');
   const [solucaoForm, setSolucaoForm] = useState(solucao ?? '');

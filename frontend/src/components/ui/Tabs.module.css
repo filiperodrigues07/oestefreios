@@ -75,7 +75,7 @@
 
 .segmented .tabActive {
   background: var(--color-primary);
-  color: #fff;
+  color: var(--color-on-primary);
 }
 
 .mobileLabel {
@@ -85,7 +85,7 @@
 .desktopLabel, .mobileLabel { align-items: center; gap: 6px; }
 .desktopLabel { display: inline-flex; }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .tablist {
     position: sticky;
     top: calc(var(--app-header-height, 58px) + env(safe-area-inset-top));
@@ -96,6 +96,7 @@
     background: var(--color-background);
     scroll-snap-type: x proximity;
     scrollbar-width: none;
+    mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 20px), transparent 100%);
   }
   .tab {
     min-height: 44px;
