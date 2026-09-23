@@ -34,7 +34,7 @@
   margin-top: var(--space-4);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .toolbar {
     width: 100%;
     align-items: stretch;

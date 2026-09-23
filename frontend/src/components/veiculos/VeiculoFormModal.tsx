@@ -266,11 +266,15 @@ function VeiculoFormContent({
         >
           <Input
             label="Ano fab."
+            inputMode="numeric"
+            maxLength={4}
             value={form.anoFabricacao}
             onChange={(e) => setForm({ ...form, anoFabricacao: e.target.value })}
           />
           <Input
             label="Ano mod."
+            inputMode="numeric"
+            maxLength={4}
             value={form.anoModelo}
             onChange={(e) => setForm({ ...form, anoModelo: e.target.value })}
           />

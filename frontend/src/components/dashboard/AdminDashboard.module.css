@@ -32,3 +32,32 @@
 @media (max-width: 1260px) { .dashboard { padding: 20px; }.dashboardHeader { align-items: flex-start; flex-direction: column; }.kpis { grid-template-columns: repeat(3, minmax(0,1fr)); }.topGrid,.bottomGrid { grid-template-columns: 1fr; }.panel { min-height: auto; }.donutContent { min-height: 230px; } }
 @media (max-width: 780px) { .dashboard { padding: 16px; }.periodControls { width: 100%; align-items: stretch; flex-direction: column; }.quickPeriods { width: 100%; overflow-x: auto; }.quickPeriods button { flex: 0 0 auto; }.dateRange { justify-content: center; }.kpis { grid-template-columns: repeat(2,minmax(0,1fr)); }.attentionTable { overflow-x: auto; }.attentionHead,.attentionTable button { min-width: 590px; }.donutContent { flex-direction: column; gap: 16px; }.legend { width: 100%; }.chartLabels { overflow: hidden; gap: 12px; }.loadingGrid { grid-template-columns: repeat(2,1fr); padding: 16px; } }
 @media (max-width: 460px) { .kpis { grid-template-columns: 1fr; }.dashboardHeader h1 { font-size: 26px; }.dateRange input { width: 105px; }.loadingGrid { grid-template-columns: 1fr; }.loadingGrid > :nth-child(n+6) { grid-column: auto; } }
+
+.mobileOnly { display: none; }
+
+@media (max-width: 780px) {
+  .quickPeriods button, .secondaryButton, .panel header select, .retry { min-height: 44px; }
+  .dateRange input { min-height: 44px; font-size: 16px; }
+  .kpi { background: var(--color-surface-elevated); }
+  .chartTooltip { background: var(--color-surface-elevated); }
+  .attentionTable { overflow: visible; border: 0; display: grid; gap: 10px; }
+  .attentionHead { display: none; }
+  .attentionTable button {
+    min-width: 0;
+    min-height: 88px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 7px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    padding: 12px;
+  }
+  .attentionNumber { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .attentionClient { grid-column: 1 / -1; grid-row: 2; min-width: 0; overflow-wrap: anywhere; font-size: var(--font-size-sm); }
+  .attentionStatus { grid-column: 1; grid-row: 3; }
+  .attentionPriority { grid-column: 2; grid-row: 3; justify-self: end; }
+  .attentionDays { grid-column: 2; grid-row: 1; justify-self: end; }
+  .attentionChevron { display: none; }
+  .mobileOnly { display: inline; }
+}

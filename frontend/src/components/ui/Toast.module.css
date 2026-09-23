@@ -49,7 +49,7 @@
   border-left-color: var(--color-danger);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .stack {
     left: var(--space-4);
     right: var(--space-4);

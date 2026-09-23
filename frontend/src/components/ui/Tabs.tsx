@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import styles from './Tabs.module.css';
 
 export interface TabItem {
@@ -28,15 +28,25 @@ export function Tabs({
   variant = 'underline',
   fullWidth = false,
 }: TabsProps) {
+  const tablistRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const selected = Array.from(tablistRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])
+      .find((tab) => tab.dataset.tabKey === active);
+    selected?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [active]);
+
   return (
     <div className={fullWidth ? styles.fullWidth : undefined}>
       <div
+        ref={tablistRef}
         className={`${styles.tablist} ${variant === 'segmented' ? styles.segmented : ''}`}
         role="tablist"
       >
         {items.map((item) => (
           <button
             key={item.key}
+            data-tab-key={item.key}
             role="tab"
             type="button"
             aria-selected={active === item.key}

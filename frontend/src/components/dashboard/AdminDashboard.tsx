@@ -36,7 +36,10 @@ function periodDates(period: QuickPeriod, customStart: string, customEnd: string
   if (period === 'hoje') start.setHours(0, 0, 0, 0);
   if (period === '7dias') start.setDate(start.getDate() - 6);
   if (period === '30dias') start.setDate(start.getDate() - 29);
-  if (period === 'mes') start.setDate(1), start.setHours(0, 0, 0, 0);
+  if (period === 'mes') {
+    start.setDate(1);
+    start.setHours(0, 0, 0, 0);
+  }
   if (period === 'personalizado') return { inicio: fromInput(customStart), fim: fromInput(customEnd, true) };
   return { inicio: start, fim: end };
 }
@@ -149,7 +152,7 @@ export function AdminDashboard() {
       <div><h1>Dashboard</h1><p>Visão geral das Ordens de Serviço</p></div>
       <div className={styles.periodControls}>
         <div className={styles.quickPeriods}>{[['hoje', 'Hoje'], ['7dias', '7 dias'], ['30dias', '30 dias'], ['mes', 'Este mês'], ['personalizado', 'Personalizado']].map(([value, label]) => <button key={value} onClick={() => selectPeriod(value as QuickPeriod)} className={period === value ? styles.periodActive : ''}>{label}</button>)}</div>
-        {period === 'personalizado' ? <div className={styles.dateRange}><input type="date" value={customStart} onChange={(e) => setCustomStart(e.target.value)} /><span>—</span><input type="date" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} /></div> : <div className={styles.dateRange}>▣ {dates.inicio.toLocaleDateString('pt-BR')} - {dates.fim.toLocaleDateString('pt-BR')}</div>}
+        {period === 'personalizado' ? <div className={styles.dateRange}><input type="date" aria-label="Data inicial" value={customStart} onChange={(e) => setCustomStart(e.target.value)} /><span>—</span><input type="date" aria-label="Data final" value={customEnd} onChange={(e) => setCustomEnd(e.target.value)} /></div> : <div className={styles.dateRange}>▣ {dates.inicio.toLocaleDateString('pt-BR')} - {dates.fim.toLocaleDateString('pt-BR')}</div>}
       </div>
     </header>
     <section className={styles.kpis}>{KPI_CONFIG.map((item) => <button key={item.key} className={`${styles.kpi} ${item.className}`} onClick={() => navigateStatus(item.key)}><span className={styles.kpiIcon}>{item.icon}</span><span className={styles.kpiLabel}>{item.label}</span><strong>{values[item.key].toLocaleString('pt-BR')}</strong><small>{item.key === 'total' ? 'no período selecionado' : `${data.total ? Math.round((values[item.key] / data.total) * 100) : 0}% do total`}</small><b>›</b></button>)}</section>
@@ -158,7 +161,7 @@ export function AdminDashboard() {
       <article className={styles.panel}><header><div><h2>Situação do documento</h2><p>Distribuição de ORDEMSERVICO.SITUACAO no CHERP</p></div></header><Donut total={data.total} counts={data.countsBySituacaoDocumento} /></article>
     </section>
     <section className={styles.bottomGrid}>
-      <article className={styles.panel}><header><div><h2>Ordens que exigem atenção</h2><p>Prioridade alta, urgente ou aguardando há mais tempo</p></div><button className={styles.secondaryButton} onClick={() => navigate('/os')}>Ver todas</button></header>{data.atencao.length ? <div className={styles.attentionTable}><div className={styles.attentionHead}><span># OS</span><span>Cliente</span><span>Status</span><span>Prioridade</span><span>Dias</span><span /></div>{data.atencao.map((os) => <button key={os.id} onClick={() => navigate(`/os/${os.id}`)}><span>#{String(os.numero).padStart(6, '0')}</span><span>{os.clienteNome || 'Cliente não identificado'}</span><StatusBadge status={os.status} /><PriorityBadge priority={os.prioridade} /><span className={os.dias > 7 ? styles.overdue : ''}>{os.dias}</span><span>›</span></button>)}</div> : <EmptyState title="Nenhuma OS exige atenção" description="Não há prioridades altas ou OS aguardando neste período." />}</article>
+      <article className={styles.panel}><header><div><h2>Ordens que exigem atenção</h2><p>Prioridade alta, urgente ou aguardando há mais tempo</p></div><button className={styles.secondaryButton} onClick={() => navigate('/os')}>Ver todas</button></header>{data.atencao.length ? <div className={styles.attentionTable}><div className={styles.attentionHead}><span># OS</span><span>Cliente</span><span>Status</span><span>Prioridade</span><span>Dias</span><span /></div>{data.atencao.map((os) => <button key={os.id} onClick={() => navigate(`/os/${os.id}`)} aria-label={`Abrir OS ${os.numero} de ${os.clienteNome || 'cliente não identificado'}`}><span className={styles.attentionNumber}>#{String(os.numero).padStart(6, '0')}</span><span className={styles.attentionClient}>{os.clienteNome || 'Cliente não identificado'}</span><span className={styles.attentionStatus}><StatusBadge status={os.status} /></span><span className={styles.attentionPriority}><PriorityBadge priority={os.prioridade} /></span><span className={`${styles.attentionDays} ${os.dias > 7 ? styles.overdue : ''}`}><span className={styles.mobileOnly}>Dias: </span>{os.dias}</span><span className={styles.attentionChevron} aria-hidden="true">›</span></button>)}</div> : <EmptyState title="Nenhuma OS exige atenção" description="Não há prioridades altas ou OS aguardando neste período." />}</article>
       <article className={styles.panel}><header><div><h2>Prioridade das Ordens</h2><p>Distribuição de prioridade no período</p></div></header><div className={styles.priorityChart}>{PRIORITY_ORDER.map((priority) => { const value = data.countsByPrioridade[priority]; const max = Math.max(1, ...PRIORITY_ORDER.map((key) => data.countsByPrioridade[key])); return <div key={priority}><strong>{value}</strong><span className={`${styles.priorityBar} ${styles[`priority${priority}`]}`} style={{ height: `${Math.max(8, (value / max) * 150)}px` }} /><small>{OS_PRIORITY_CONFIG[priority].label}</small></div>; })}</div></article>
     </section>
   </div>;

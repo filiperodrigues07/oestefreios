@@ -54,16 +54,6 @@
   text-decoration: none;
 }
 
-.mobileSection {
-  min-width: 0;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-md);
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .mobileNav {
   display: flex;
   flex-direction: column;
@@ -217,13 +207,13 @@
   padding: var(--space-4);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .main {
     padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 80px);
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 900px) {
   .bottomNav,
   .mobileSearchOverlay {
     display: none;
@@ -239,6 +229,7 @@
     display: flex;
     width: clamp(224px, 18vw, 256px);
     height: 100vh;
+    height: 100dvh;
     flex-shrink: 0;
     flex-direction: column;
     gap: 20px;
@@ -396,7 +387,7 @@
     display: flex;
     min-height: 64px;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     border-bottom: 1px solid var(--color-border);
     background: var(--color-background);
     padding: var(--space-3) var(--space-6);
@@ -550,12 +541,6 @@
     padding: 0 3px;
   }
 
-  .desktopContext {
-    color: var(--color-text-secondary);
-    font-size: var(--font-size-sm);
-    font-weight: 600;
-  }
-
   .desktopProfile {
     display: inline-flex;
     align-items: center;
@@ -588,13 +573,13 @@
   }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .main {
     --app-header-height: 58px;
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 900px) {
   .sidebar {
     width: 270px;
     gap: 0;
@@ -654,7 +639,7 @@
   .sidebarCollapsed .motivation { min-height: 48px; justify-content: center; padding: 5px; }
 }
 
-@media (min-width: 768px) and (max-height: 700px) {
+@media (min-width: 900px) and (max-height: 700px) {
   .brand { min-height: 128px; padding-top: 8px; }
   .brandLogo { width: 72px; height: 72px; }
   .sidebarNav { gap: 5px; }
@@ -662,7 +647,7 @@
   .motivation { min-height: 50px; }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 900px) {
   [data-theme='light'] .sidebar { background: linear-gradient(145deg, #fff, #f3f6fc); color: #27374f; border-color: #dde5f0; }
   [data-theme='light'] .brand { color: #18253a; border-color: #dce5ef; }
   [data-theme='light'] .brandSlogan, [data-theme='light'] .navLabel { color: #64748b; }
@@ -679,7 +664,7 @@
   [data-theme='light'] .collapsedSearch { color: #475569; }
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .mobileMenuDrawer.mobileMenuDrawer {
     box-sizing: border-box;
     width: min(86vw, 320px);
@@ -687,7 +672,7 @@
     height: 100dvh;
     gap: 0;
     overflow: visible;
-    padding: 14px 12px calc(12px + env(safe-area-inset-bottom));
+    padding: calc(14px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));
     border-right: 1px solid rgba(166, 186, 220, .16);
     background: radial-gradient(circle at 0 0, rgba(27, 85, 174, .24), transparent 30%), linear-gradient(145deg, #1d2635, #131c2b 65%, #1a2435);
     color: #dbe3f0;

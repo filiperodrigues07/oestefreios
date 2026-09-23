@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useInstallPrompt } from '../../hooks/useInstallPrompt.js';
 import styles from './InstallBanner.module.css';
 
 const DISMISS_KEY = 'install-banner-dismissed';
+const DISMISS_DURATION_MS = 5 * 60 * 1000;
 
 function isIos(): boolean {
   return /iphone|ipad|ipod/i.test(window.navigator.userAgent);
@@ -15,29 +16,37 @@ function isStandalone(): boolean {
   );
 }
 
-function lerDispensado(): boolean {
+function lerDispensadoAte(): number {
   try {
-    return localStorage.getItem(DISMISS_KEY) === '1';
+    return Number(localStorage.getItem(DISMISS_KEY)) || 0;
   } catch {
-    return false;
+    return 0;
   }
 }
 
 /**
  * Android/Chrome tem prompt nativo de instalação (`beforeinstallprompt`, ver `useInstallPrompt`);
  * iOS Safari nunca dispara esse evento — precisa de instrução própria ("Compartilhar → Adicionar
- * à Tela de Início"). Só aparece se ainda não estiver instalado e a pessoa não tiver dispensado antes.
+ * à Tela de Início"). Reaparece cinco minutos após ser dispensado, se ainda não estiver instalado.
  */
 export function InstallBanner() {
   const { canInstall, promptInstall } = useInstallPrompt();
-  const [dismissed, setDismissed] = useState(lerDispensado);
+  const [dismissedUntil, setDismissedUntil] = useState(lerDispensadoAte);
 
-  if (dismissed || isStandalone()) return null;
+  useEffect(() => {
+    if (!dismissedUntil) return;
+    const remaining = Math.max(0, dismissedUntil - Date.now());
+    const timeout = window.setTimeout(() => setDismissedUntil(0), remaining);
+    return () => window.clearTimeout(timeout);
+  }, [dismissedUntil]);
+
+  if (dismissedUntil !== 0 || isStandalone()) return null;
 
   function dismiss() {
-    setDismissed(true);
+    const until = Date.now() + DISMISS_DURATION_MS;
+    setDismissedUntil(until);
     try {
-      localStorage.setItem(DISMISS_KEY, '1');
+      localStorage.setItem(DISMISS_KEY, String(until));
     } catch {
       // Navegador privado/bloqueado — só não lembra a próxima vez, sem quebrar nada.
     }

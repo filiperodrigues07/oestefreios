@@ -142,7 +142,7 @@
 }
 .summaryTotal strong { color:var(--color-primary-on-surface); font-size:var(--font-size-xl); }
 
-@media (max-width: 720px) {
+@media (max-width: 899px) {
   .page {
     padding: var(--space-3);
   }

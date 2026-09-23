@@ -1,4 +1,8 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { getBranding, type Branding } from '../../api/settings.api.js';
+import { queryClient } from '../../api/queryClient.js';
+import { useAuthStore } from '../../store/authStore.js';
+import clientLogo from '../../../../img/logo-clean.webp';
 import { getErrorPresentation } from '../../utils/errorPresentation.js';
 import { Button } from './Button.js';
 import styles from './ErrorScreen.module.css';
@@ -22,11 +26,37 @@ export function ErrorScreen({
 }: ErrorScreenProps) {
   const online = useOnlineStatus();
   const presentation = getErrorPresentation(error, !online);
+  const [branding, setBranding] = useState<Branding | undefined>(() =>
+    queryClient.getQueryData<Branding>(['branding']),
+  );
+
+  useEffect(() => {
+    if (!fullPage || branding || useAuthStore.getState().status !== 'authenticated') return;
+    let active = true;
+    queryClient.fetchQuery({ queryKey: ['branding'], queryFn: getBranding, staleTime: 5 * 60_000 })
+      .then((result) => {
+        if (active) setBranding(result);
+      })
+      .catch(() => {
+        // A tela de erro deve continuar utilizável sem conexão com a API.
+      });
+    return () => { active = false; };
+  }, [fullPage, branding]);
+
   const content = (
     <section className={styles.card} role="alert" aria-label={title ?? presentation.title}>
       {fullPage && (
         <div className={styles.brand}>
-          OESTE <strong>FREIOS</strong>
+          <img
+            className={styles.brandLogo}
+            src={branding?.logoUrl || clientLogo}
+            alt={branding?.nomeEmpresa || 'Oeste Freios'}
+            onError={(event) => {
+              if (event.currentTarget.src !== new URL(clientLogo, window.location.href).href) {
+                event.currentTarget.src = clientLogo;
+              }
+            }}
+          />
           <span>Controle de ordens de serviço</span>
         </div>
       )}

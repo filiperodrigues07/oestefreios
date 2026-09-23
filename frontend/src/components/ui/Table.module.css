@@ -185,7 +185,7 @@ tbody tr:last-child .td {
   border-top: 1px solid var(--color-border);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .wrapper {
     margin-inline: 0;
     overflow-x: visible;

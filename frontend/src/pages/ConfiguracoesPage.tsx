@@ -666,7 +666,7 @@ function IntegracoesTab() {
           <div><h2>Consulta de veículos pela placa</h2><p>Preenchimento automático no cadastro de veículos e na abertura de OS.</p></div>
           <Badge tone={form.dadosApiToken ? 'success' : 'neutral'}>{form.dadosApiToken ? 'Configurada' : 'Não configurada'}</Badge>
           <Tooltip content="A chave fica criptografada no servidor e nunca é enviada novamente ao navegador. Somente administradores podem alterá-la.">
-            <span aria-hidden="true" className={styles.helpIcon}>ⓘ</span>
+            <button type="button" className={styles.helpIcon} aria-label="Sobre a chave da DadosAPI">ⓘ</button>
           </Tooltip>
         </div>
         <div className={styles.fields}>
@@ -698,7 +698,7 @@ function IntegracoesTab() {
           <div><h2>Inscrição Estadual por CNPJ</h2><p>Complementa automaticamente o cadastro de clientes.</p></div>
           <Badge tone={form.sintegraApiKey ? 'success' : 'neutral'}>{form.sintegraApiKey ? 'Configurada' : 'Não configurada'}</Badge>
           <Tooltip content="Preenche a Inscrição Estadual automaticamente junto da consulta de CNPJ no cadastro de cliente (via SINTEGRA Brasil). Sem chave configurada, o campo continua editável manualmente.">
-            <span aria-hidden="true" className={styles.helpIcon}>ⓘ</span>
+            <button type="button" className={styles.helpIcon} aria-label="Sobre a chave da SINTEGRA Brasil">ⓘ</button>
           </Tooltip>
         </div>
         <div className={styles.fields}>

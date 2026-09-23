@@ -18,19 +18,21 @@
   box-shadow: var(--shadow-md);
 }
 .brand {
-  color: var(--color-text-primary);
-  font-size: 20px;
-  letter-spacing: 0.12em;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
 }
-.brand strong {
-  color: var(--color-primary);
+.brandLogo {
+  display: block;
+  width: min(220px, 100%);
+  max-height: 110px;
+  object-fit: contain;
 }
 .brand span {
   display: block;
-  margin-top: 8px;
+  margin-top: 10px;
   color: var(--color-text-secondary);
   font-size: 12px;
-  letter-spacing: normal;
 }
 .illustration {
   width: 120px;

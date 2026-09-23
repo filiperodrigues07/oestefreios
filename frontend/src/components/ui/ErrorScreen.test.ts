@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { ErrorScreen } from './ErrorScreen.js';
 import { ErrorState } from './ErrorState.js';
 import { RouteErrorPage } from '../../routes/RouteErrorPage.js';
+import { queryClient } from '../../api/queryClient.js';
 
 describe('Telas de erro', () => {
   it('renderiza sem providers e oferece login no 401', () => {
@@ -12,7 +13,24 @@ describe('Telas de erro', () => {
     expect(html).toContain('href="/login"');
     expect(html).toContain('href="/"');
     expect(html).toContain('role="alert"');
+    expect(html).toContain('alt="Oeste Freios"');
     expect(html).not.toContain('Recarregar página');
+  });
+
+  it('usa logo e nome configurados quando disponíveis no cache', () => {
+    queryClient.setQueryData(['branding'], {
+      nomeEmpresa: 'Cliente Exemplo',
+      logoUrl: 'https://example.com/logo.png',
+      corDestaque: '#123456',
+    });
+    try {
+      const html = renderToStaticMarkup(createElement(ErrorScreen, { error: { status: 500 } }));
+      expect(html).toContain('src="https://example.com/logo.png"');
+      expect(html).toContain('alt="Cliente Exemplo"');
+      expect(html).not.toContain('OESTE <strong>FREIOS</strong>');
+    } finally {
+      queryClient.removeQueries({ queryKey: ['branding'] });
+    }
   });
 
   it('preserva a ação local de tentar novamente', () => {

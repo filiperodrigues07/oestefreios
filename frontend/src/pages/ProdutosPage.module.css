@@ -27,7 +27,7 @@
   font-weight: 500;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .page {
     padding: var(--space-3);
   }

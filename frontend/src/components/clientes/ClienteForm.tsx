@@ -389,9 +389,9 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
 
       <div className={styles.addressHeader}>E-mails e contato</div>
       <div className={styles.twoColumns}>
-        <Input label="E-mail comercial" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <Input label="E-mail financeiro" type="email" value={form.emailFinanceiro} onChange={(e) => setForm({ ...form, emailFinanceiro: e.target.value })} />
-        <Input label="E-mail NFe/NFSe" type="email" value={form.emailNfe} onChange={(e) => setForm({ ...form, emailNfe: e.target.value })} />
+        <Input label="E-mail comercial" type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+        <Input label="E-mail financeiro" type="email" autoComplete="off" value={form.emailFinanceiro} onChange={(e) => setForm({ ...form, emailFinanceiro: e.target.value })} />
+        <Input label="E-mail NFe/NFSe" type="email" autoComplete="off" value={form.emailNfe} onChange={(e) => setForm({ ...form, emailNfe: e.target.value })} />
         <Input label="Site" type="url" value={form.homePage} onChange={(e) => setForm({ ...form, homePage: e.target.value })} />
       </div>
 
@@ -428,7 +428,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
         );
       })()}
 
-      <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+      <div className={styles.actions}>
         <Button type="button" variant="secondary" onClick={onCancel}>
           {cancelLabel}
         </Button>

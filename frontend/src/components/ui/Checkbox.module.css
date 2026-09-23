@@ -23,3 +23,7 @@
 .label {
   user-select: none;
 }
+
+@media (max-width: 899px) {
+  .wrapper { min-height: 44px; }
+}

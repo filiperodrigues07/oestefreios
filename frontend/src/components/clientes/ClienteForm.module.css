@@ -4,6 +4,18 @@
   gap: var(--space-4);
 }
 
+.actions { display: flex; gap: var(--space-2); }
+
+:global([role="dialog"]) .actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  margin-top: var(--space-2);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-elevated);
+}
+
 .cnpjRow {
   display: flex;
   flex-wrap: wrap;
@@ -110,7 +122,8 @@
   margin-top: var(--space-1);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
+  .actions > * { flex: 1; }
   .twoColumns,
   .threeColumns {
     grid-template-columns: 1fr;

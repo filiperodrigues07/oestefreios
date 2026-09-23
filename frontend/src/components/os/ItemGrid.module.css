@@ -125,7 +125,7 @@
   color: var(--color-text-secondary);
 }
 
-@media (min-width: 768px) {
+@media (min-width: 900px) {
   .table {
     display: table;
   }
@@ -137,7 +137,7 @@
 
 /* Barra de adicionar item — no desktop reflui via flex-wrap; no celular, campos empilhados em
    largura cheia ficam bem mais fáceis de tocar do que deixar o flex-wrap decidir sozinho. */
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .wrapper {
     border-radius: var(--radius-md);
   }
@@ -441,7 +441,7 @@
 
 /* Precisa ficar depois das regras base de .addCodigo/.addSearch. Em coluna, os flex-basis
    desktop de 160/260px viravam altura e criavam o grande espaço vazio no celular. */
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .addCodigo,
   .addSearch {
     flex: 0 0 auto;

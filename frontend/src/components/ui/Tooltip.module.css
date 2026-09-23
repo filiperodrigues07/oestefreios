@@ -4,6 +4,8 @@
   outline: none;
 }
 
+.wrapper:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: var(--radius-sm); }
+
 .content {
   position: absolute;
   z-index: var(--z-toast);
@@ -11,6 +13,7 @@
   left: 50%;
   width: max-content;
   max-width: 240px;
+  max-width: min(240px, calc(100vw - 32px));
   transform: translateX(-50%);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-sm);
@@ -26,7 +29,12 @@
   transition: opacity 0.15s ease;
 }
 
-.wrapper:hover .content,
-.wrapper:focus-within .content {
+.wrapper:focus-visible .content,
+.wrapper:has(:focus-visible) .content,
+.open .content {
   opacity: 1;
+}
+
+@media (hover: hover) {
+  .wrapper:hover .content { opacity: 1; }
 }

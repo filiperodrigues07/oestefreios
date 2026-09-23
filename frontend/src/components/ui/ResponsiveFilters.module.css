@@ -35,7 +35,7 @@
   flex-shrink: 0;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .group {
     display: flex;
     width: 100%;
@@ -72,6 +72,6 @@
   .open .clear {
     display: inline-flex;
     align-self: flex-end;
-    height: 40px;
+    min-height: 44px;
   }
 }

@@ -31,7 +31,7 @@
 
 .editButton { width: 34px; min-width: 34px; height: 34px; padding: 0; }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .desktopCreate {
     display: none;
   }

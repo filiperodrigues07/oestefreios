@@ -162,7 +162,7 @@
 .triggerDetailed .name { color: #f7f9ff; }
 .triggerDetailed .chevron { display: grid; width: 26px; height: 26px; flex: none; place-items: center; border-radius: 7px; background: rgba(255,255,255,.05); color: #e5ecfa; }
 
-@media (min-width: 768px) {
+@media (min-width: 900px) {
   .trigger { min-height: 70px; border-radius: 14px; padding: 10px; background: rgba(35, 46, 65, .72); border-color: rgba(172, 188, 214, .12); }
   .trigger .email { display: none; }
   .trigger .role, .trigger .online { display: flex; }

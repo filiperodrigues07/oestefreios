@@ -56,7 +56,8 @@ export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(fu
             setVisible((v) => !v);
           }}
           aria-label={visible ? 'Ocultar senha' : 'Mostrar senha'}
-          tabIndex={-1}
+          aria-pressed={visible}
+          disabled={revealing}
         >
           {revealing ? '…' : visible ? (
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">

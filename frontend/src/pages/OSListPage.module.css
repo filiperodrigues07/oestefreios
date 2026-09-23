@@ -52,7 +52,7 @@
   font-size: var(--font-size-xs);
 }
 
-@media (max-width: 767px) {
+@media (max-width: 899px) {
   .desktopCreate {
     display: none;
   }
