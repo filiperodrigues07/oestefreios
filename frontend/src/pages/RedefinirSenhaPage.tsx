@@ -4,7 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router';
 import { resetPassword } from '../api/auth.api.js';
 import { Footer } from '../components/layout/Footer.js';
 import { Button, Card, PasswordInput, useToast } from '../components/ui/index.js';
-import truckHero from '../assets/login-truck-hero.png';
+import truckHero from '../assets/login-truck-hero.webp';
 import styles from './PublicAuthPage.module.css';
 import { isSecurePassword, PASSWORD_RULES } from '../utils/passwordPolicy.js';
 

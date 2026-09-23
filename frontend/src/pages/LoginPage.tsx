@@ -7,8 +7,8 @@ import { Button, Card, Input, PasswordInput } from '../components/ui/index.js';
 import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { useAuthStore } from '../store/authStore.js';
 import styles from './LoginPage.module.css';
-import clientLogo from '../../../img/logo-clean.png';
-import truckHero from '../assets/login-truck-hero.png';
+import clientLogo from '../../../img/logo-clean.webp';
+import truckHero from '../assets/login-truck-hero.webp';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');

@@ -17,7 +17,7 @@ import { OfflineBanner } from './OfflineBanner.js';
 import { ProfileModal } from './ProfileModal.js';
 import { SidebarProfile } from './SidebarProfile.js';
 import { GlobalSearch } from './GlobalSearch.js';
-import clientLogo from '../../../../img/logo-clean.png';
+import clientLogo from '../../../../img/logo-clean.webp';
 import type { DashboardAtencaoDTO } from '../../types/dashboard.types.js';
 
 function tituloDaPagina(pathname: string): string {

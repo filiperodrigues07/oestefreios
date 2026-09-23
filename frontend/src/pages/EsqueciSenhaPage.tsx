@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { forgotPassword } from '../api/auth.api.js';
 import { Footer } from '../components/layout/Footer.js';
 import { Button, Card, Input } from '../components/ui/index.js';
-import truckHero from '../assets/login-truck-hero.png';
+import truckHero from '../assets/login-truck-hero.webp';
 import styles from './PublicAuthPage.module.css';
 
 /** "Esqueci minha senha" (item 10): sempre mostra a mesma mensagem genérica, exista ou não o e-mail. */

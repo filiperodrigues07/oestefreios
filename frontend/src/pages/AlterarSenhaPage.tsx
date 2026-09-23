@@ -5,7 +5,7 @@ import { changePassword } from '../api/auth.api.js';
 import { Button, Card, PasswordInput } from '../components/ui/index.js';
 import { useAuthStore } from '../store/authStore.js';
 import { isSecurePassword, PASSWORD_RULES } from '../utils/passwordPolicy.js';
-import clientLogo from '../../../img/logo-clean.png';
+import clientLogo from '../../../img/logo-clean.webp';
 import styles from './PublicAuthPage.module.css';
 
 export function AlterarSenhaPage() {
