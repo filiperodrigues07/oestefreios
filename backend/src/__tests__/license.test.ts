@@ -5,7 +5,17 @@ import { hashPassword } from '../auth/password.js';
 import { app } from '../app.js';
 import { env } from '../config/env.js';
 import { pool } from '../database/postgres/client.js';
-import { decidirVaga, usuarioIsentoDeLimite } from '../services/license.service.js';
+import { decidirVaga, statusDePresenca, usuarioIsentoDeLimite } from '../services/license.service.js';
+
+describe('statusDePresenca', () => {
+  const agora = Date.now();
+  it('classifica online, ocioso e offline', () => {
+    expect(statusDePresenca(null, agora)).toBe('offline');
+    expect(statusDePresenca(new Date(agora - 60_000), agora)).toBe('online');
+    expect(statusDePresenca(new Date(agora - 10 * 60_000), agora)).toBe('ocioso');
+    expect(statusDePresenca(new Date(agora - 2 * 3600_000), agora)).toBe('offline');
+  });
+});
 
 describe('decidirVaga (regra pura da licença)', () => {
   it('ocupa vaga abaixo do limite e bloqueia quando lotado', () => {
@@ -94,7 +104,9 @@ describe('sessão única por usuário e presença', () => {
 
     const license = await request(app).get('/api/sessions/license').set('Authorization', `Bearer ${adminToken}`);
     expect(license.status).toBe(200);
-    expect(license.body.data.usuarios.some((u: { id: string }) => u.id === userId)).toBe(true);
+    const linha = license.body.data.usuarios.find((u: { id: string }) => u.id === userId);
+    expect(linha.status).toBe('online');
+    expect(linha.sessao).not.toBeNull();
 
     const logout = await request(app).post('/api/auth/logout').set('Cookie', cookie);
     expect(logout.status).toBeLessThan(300);
@@ -105,7 +117,8 @@ describe('sessão única por usuário e presença', () => {
   it('presença expirada (ociosa) deixa de contar como online', async () => {
     await pool.query("UPDATE users SET last_seen_at = now() - interval '2 hours' WHERE id = $1", [userId]);
     const license = await request(app).get('/api/sessions/license').set('Authorization', `Bearer ${adminToken}`);
-    expect(license.body.data.usuarios.some((u: { id: string }) => u.id === userId)).toBe(false);
+    const linha = license.body.data.usuarios.find((u: { id: string }) => u.id === userId);
+    expect(linha.status).toBe('offline');
   });
 
   it('só quem tem SYSTEM_SETTINGS vê o painel de licença', async () => {

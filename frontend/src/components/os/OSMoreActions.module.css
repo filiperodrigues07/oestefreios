@@ -62,3 +62,10 @@
 .danger:hover:not(:disabled) {
   background: var(--color-danger-surface);
 }
+
+@media (max-width: 600px) {
+  .menu {
+    left: 0;
+    right: auto;
+  }
+}

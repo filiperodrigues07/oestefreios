@@ -1,0 +1,19 @@
+.banner {
+  position: sticky;
+  top: var(--app-header-height, 0px);
+  z-index: var(--z-nav);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  text-align: center;
+  padding: var(--space-2) var(--space-4);
+}
+
+.warning {
+  background: var(--color-warning-surface);
+  color: var(--color-warning-on-surface);
+}
+
+.danger {
+  background: var(--color-danger-surface);
+  color: var(--color-danger-on-surface);
+}

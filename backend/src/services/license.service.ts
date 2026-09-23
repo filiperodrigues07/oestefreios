@@ -1,7 +1,8 @@
-import { and, eq, gt, ne, sql } from 'drizzle-orm';
+import { and, desc, eq, gt, isNull, ne, sql } from 'drizzle-orm';
+import { UAParser } from 'ua-parser-js';
 import { env } from '../config/env.js';
 import { db } from '../database/postgres/client.js';
-import { users } from '../database/postgres/schema.js';
+import { refreshTokens, roles, users } from '../database/postgres/schema.js';
 import { UnauthorizedError } from '../errors/UnauthorizedError.js';
 import type { Permission } from '../types/auth.types.js';
 
@@ -13,6 +14,7 @@ import type { Permission } from '../types/auth.types.js';
  */
 
 const PRESENCE_TOUCH_MS = 60_000;
+const ONLINE_RECENTE_MS = 5 * 60_000;
 
 export type DecisaoVaga = 'renovar' | 'ocupar' | 'bloquear';
 
@@ -88,23 +90,88 @@ export async function liberar(userId: string): Promise<void> {
   await db.update(users).set({ lastSeenAt: null }).where(eq(users.id, userId));
 }
 
+export type StatusPresenca = 'online' | 'ocioso' | 'offline';
+
+export interface UsuarioLicenca {
+  id: string;
+  name: string;
+  email: string;
+  roleName: string;
+  photoUrl: string | null;
+  status: StatusPresenca;
+  lastSeenAt: string | null;
+  sessao: { id: string; ip: string | null; os: string; browser: string; loginAt: string } | null;
+}
+
 export interface ResumoLicenca {
   limite: number;
   emUso: number;
   idleMinutes: number;
-  usuarios: { id: string; name: string; email: string; lastSeenAt: string }[];
+  usuarios: UsuarioLicenca[];
 }
 
+/** online = atividade recente; ocioso = ainda ocupa vaga mas parado; offline = sem vaga. */
+export function statusDePresenca(lastSeenAt: Date | null, agora = Date.now()): StatusPresenca {
+  if (!lastSeenAt) return 'offline';
+  const idade = agora - lastSeenAt.getTime();
+  if (idade < ONLINE_RECENTE_MS) return 'online';
+  return idade < env.LICENSE_IDLE_MINUTES * 60_000 ? 'ocioso' : 'offline';
+}
+
+const ORDEM_STATUS: Record<StatusPresenca, number> = { online: 0, ocioso: 1, offline: 2 };
+
 export async function getResumoLicenca(): Promise<ResumoLicenca> {
-  const rows = await db
-    .select({ id: users.id, name: users.name, email: users.email, lastSeenAt: users.lastSeenAt })
-    .from(users)
-    .where(and(eq(users.isActive, true), gt(users.lastSeenAt, corteOnline())))
-    .orderBy(users.name);
+  const [linhas, tokens] = await Promise.all([
+    db
+      .select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        photoUrl: users.photoUrl,
+        roleName: roles.name,
+        lastSeenAt: users.lastSeenAt,
+      })
+      .from(users)
+      .innerJoin(roles, eq(users.roleId, roles.id))
+      .where(eq(users.isActive, true)),
+    db
+      .select()
+      .from(refreshTokens)
+      .where(and(isNull(refreshTokens.revokedAt), gt(refreshTokens.expiresAt, new Date())))
+      .orderBy(desc(refreshTokens.createdAt)),
+  ]);
+  const sessaoPorUsuario = new Map<string, (typeof tokens)[number]>();
+  for (const token of tokens) if (!sessaoPorUsuario.has(token.userId)) sessaoPorUsuario.set(token.userId, token);
+
+  const agora = Date.now();
+  const lista: UsuarioLicenca[] = linhas.map((row) => {
+    const status = statusDePresenca(row.lastSeenAt, agora);
+    const token = sessaoPorUsuario.get(row.id);
+    const ua = new UAParser(token?.userAgent ?? '').getResult();
+    return {
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      roleName: row.roleName,
+      photoUrl: row.photoUrl,
+      status,
+      lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
+      sessao: token
+        ? {
+            id: token.id,
+            ip: token.createdByIp,
+            os: [ua.os.name, ua.os.version].filter(Boolean).join(' ') || 'Desconhecido',
+            browser: [ua.browser.name, ua.browser.version].filter(Boolean).join(' ') || 'Desconhecido',
+            loginAt: token.createdAt.toISOString(),
+          }
+        : null,
+    };
+  });
+  lista.sort((a, b) => ORDEM_STATUS[a.status] - ORDEM_STATUS[b.status] || a.name.localeCompare(b.name, 'pt-BR'));
   return {
     limite: limiteLicenca(),
-    emUso: rows.length,
+    emUso: lista.filter((u) => u.status !== 'offline').length,
     idleMinutes: env.LICENSE_IDLE_MINUTES,
-    usuarios: rows.map((row) => ({ id: row.id, name: row.name, email: row.email, lastSeenAt: row.lastSeenAt!.toISOString() })),
+    usuarios: lista,
   };
 }
