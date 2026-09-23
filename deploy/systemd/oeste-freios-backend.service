@@ -1,0 +1,30 @@
+## Copiar para /etc/systemd/system/oeste-freios-backend.service
+## Depois: systemctl daemon-reload && systemctl enable --now oeste-freios-backend
+
+[Unit]
+Description=Oeste Freios - backend API
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=oestefreios
+Group=oestefreios
+WorkingDirectory=/opt/oeste-freios/backend
+EnvironmentFile=/opt/oeste-freios/backend/.env
+ExecStart=/usr/bin/node dist/server.js
+Restart=on-failure
+RestartSec=3
+
+# Só o necessário: sem acesso ao resto do filesystem além da própria app e uploads.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/oeste-freios/backend/uploads
+ProtectHome=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=oeste-freios-backend
+
+[Install]
+WantedBy=multi-user.target

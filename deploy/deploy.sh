@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Script de atualização manual — roda como o usuário `oestefreios`, dentro de /opt/oeste-freios.
+# Uso: ./deploy/deploy.sh
+set -euo pipefail
+
+APP_DIR="/opt/oeste-freios"
+BRANCH="master"
+
+cd "$APP_DIR"
+
+echo "==> git pull (${BRANCH})"
+git fetch origin
+git checkout "$BRANCH"
+git pull origin "$BRANCH"
+
+echo "==> instalando dependências"
+npm ci
+
+echo "==> build (backend + frontend)"
+npm run build
+
+echo "==> rodando migrations"
+node backend/dist/database/postgres/migrate.js
+
+echo "==> reiniciando backend"
+sudo systemctl restart oeste-freios-backend
+
+echo "==> status do serviço"
+sudo systemctl status oeste-freios-backend --no-pager -l | head -15
+
+echo "==> testando nginx"
+sudo nginx -t
+
+echo "Deploy concluído."

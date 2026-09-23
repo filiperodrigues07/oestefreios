@@ -95,28 +95,32 @@ async function main() {
   await db
     .insert(users)
     .values({
-      name: 'Admin (dev)',
+      name: env.NODE_ENV === 'production' ? 'Administrador' : 'Admin (dev)',
       email: env.DEV_ADMIN_EMAIL,
       passwordHash,
       roleId: adminRole!.id,
     })
     .onConflictDoUpdate({ target: users.email, set: { passwordHash, roleId: adminRole!.id } });
 
-  console.log(`Admin de dev: ${env.DEV_ADMIN_EMAIL} / ${env.DEV_ADMIN_PASSWORD} (NUNCA usar em produção)`);
+  console.log(`Admin: ${env.DEV_ADMIN_EMAIL} (senha definida em DEV_ADMIN_PASSWORD)`);
 
-  const [mecanicoRole] = await db.select().from(roles).where(eq(roles.name, 'Mecânico'));
-  const mecanicoPasswordHash = await hashPassword('Mecanico@123456');
-  await db
-    .insert(users)
-    .values({
-      name: 'Mecânico (dev)',
-      email: 'mecanico@dev.local',
-      passwordHash: mecanicoPasswordHash,
-      roleId: mecanicoRole!.id,
-    })
-    .onConflictDoUpdate({ target: users.email, set: { passwordHash: mecanicoPasswordHash, roleId: mecanicoRole!.id } });
+  // Conta de teste com senha fixa e pública neste repositório — nunca criar em produção,
+  // senão qualquer pessoa com acesso ao código consegue logar como "Mecânico" no ambiente real.
+  if (env.NODE_ENV !== 'production') {
+    const [mecanicoRole] = await db.select().from(roles).where(eq(roles.name, 'Mecânico'));
+    const mecanicoPasswordHash = await hashPassword('Mecanico@123456');
+    await db
+      .insert(users)
+      .values({
+        name: 'Mecânico (dev)',
+        email: 'mecanico@dev.local',
+        passwordHash: mecanicoPasswordHash,
+        roleId: mecanicoRole!.id,
+      })
+      .onConflictDoUpdate({ target: users.email, set: { passwordHash: mecanicoPasswordHash, roleId: mecanicoRole!.id } });
 
-  console.log('Usuário de dev "Mecânico": mecanico@dev.local / Mecanico@123456 (NUNCA usar em produção)');
+    console.log('Usuário de dev "Mecânico": mecanico@dev.local / Mecanico@123456 (NUNCA usar em produção)');
+  }
 
   console.log('Seed concluído.');
   await pool.end();
