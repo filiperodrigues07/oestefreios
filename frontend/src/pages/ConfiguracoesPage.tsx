@@ -106,11 +106,11 @@ export function ConfiguracoesPage() {
         {[
           {
             key: 'firebird',
-            label: 'Banco de Dados (Firebird)',
+            label: 'Banco Firebird',
             icon: <SettingsIcon name="database" />,
           },
-          { key: 'smtp', label: 'E-mail (SMTP)', icon: <SettingsIcon name="mail" /> },
-          { key: 'geral', label: 'Geral', icon: <NavIcon name="gear" /> },
+          { key: 'smtp', label: 'E-mail', icon: <SettingsIcon name="mail" /> },
+          { key: 'geral', label: 'Empresa', icon: <NavIcon name="users" /> },
           { key: 'integracoes', label: 'Integrações', icon: <SettingsIcon name="link" /> },
           { key: 'auditoria', label: 'Auditoria', icon: <NavIcon name="shield" /> },
           { key: 'sobre', label: 'Sobre', icon: <NavIcon name="users" /> },
