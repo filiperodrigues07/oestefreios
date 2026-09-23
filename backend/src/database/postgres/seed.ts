@@ -3,7 +3,7 @@ import { env } from '../../config/env.js';
 import { hashPassword } from '../../auth/password.js';
 import { PERMISSIONS, type Permission } from '../../types/auth.types.js';
 import { db, pool } from './client.js';
-import { permissions, rolePermissions, roles, users } from './schema.js';
+import { permissions, rolePermissions, roles, userPermissions, users } from './schema.js';
 
 const ALL: Permission[] = [...PERMISSIONS];
 
@@ -88,11 +88,22 @@ async function main() {
     }
   }
 
+  // Permissão efetiva vive por usuário (tabela user_permissions), não só por role — o role aqui
+  // só serve de preset pra saber quais permissões dar ao criar a conta (ver UsuariosPage.tsx,
+  // mesma lógica). Sem isso, um usuário criado pelo seed loga mas não enxerga nada no app.
+  async function syncUserPermissions(userId: string, permissionCodes: Permission[]) {
+    await db.delete(userPermissions).where(eq(userPermissions.userId, userId));
+    for (const code of permissionCodes) {
+      await db.insert(userPermissions).values({ userId, permissionId: permissionRows.get(code)! });
+    }
+  }
+
   console.log('Seed: criando usuário admin de desenvolvimento...');
   const [adminRole] = await db.select().from(roles).where(eq(roles.name, 'Administrador'));
+  const adminRoleDef = ROLE_DEFINITIONS.find((r) => r.name === 'Administrador')!;
   const passwordHash = await hashPassword(env.DEV_ADMIN_PASSWORD);
 
-  await db
+  const [adminUser] = await db
     .insert(users)
     .values({
       name: env.NODE_ENV === 'production' ? 'Administrador' : 'Admin (dev)',
@@ -100,7 +111,9 @@ async function main() {
       passwordHash,
       roleId: adminRole!.id,
     })
-    .onConflictDoUpdate({ target: users.email, set: { passwordHash, roleId: adminRole!.id } });
+    .onConflictDoUpdate({ target: users.email, set: { passwordHash, roleId: adminRole!.id } })
+    .returning({ id: users.id });
+  await syncUserPermissions(adminUser!.id, adminRoleDef.permissions);
 
   console.log(`Admin: ${env.DEV_ADMIN_EMAIL} (senha definida em DEV_ADMIN_PASSWORD)`);
 
@@ -108,8 +121,9 @@ async function main() {
   // senão qualquer pessoa com acesso ao código consegue logar como "Mecânico" no ambiente real.
   if (env.NODE_ENV !== 'production') {
     const [mecanicoRole] = await db.select().from(roles).where(eq(roles.name, 'Mecânico'));
+    const mecanicoRoleDef = ROLE_DEFINITIONS.find((r) => r.name === 'Mecânico')!;
     const mecanicoPasswordHash = await hashPassword('Mecanico@123456');
-    await db
+    const [mecanicoUser] = await db
       .insert(users)
       .values({
         name: 'Mecânico (dev)',
@@ -117,7 +131,9 @@ async function main() {
         passwordHash: mecanicoPasswordHash,
         roleId: mecanicoRole!.id,
       })
-      .onConflictDoUpdate({ target: users.email, set: { passwordHash: mecanicoPasswordHash, roleId: mecanicoRole!.id } });
+      .onConflictDoUpdate({ target: users.email, set: { passwordHash: mecanicoPasswordHash, roleId: mecanicoRole!.id } })
+      .returning({ id: users.id });
+    await syncUserPermissions(mecanicoUser!.id, mecanicoRoleDef.permissions);
 
     console.log('Usuário de dev "Mecânico": mecanico@dev.local / Mecanico@123456 (NUNCA usar em produção)');
   }

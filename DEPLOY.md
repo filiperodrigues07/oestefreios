@@ -60,14 +60,24 @@ systemctl restart sshd
 
 A partir daqui, logue sempre como `oestefreios` (`ssh oestefreios@SEU_IP_DA_VPS`).
 
-```bash
-# Atualizações de segurança automáticas
-sudo apt install -y unattended-upgrades
-sudo dpkg-reconfigure -plow unattended-upgrades
+⚠️ **Cuidado ao testar o hardening**: depois de desabilitar `PermitRootLogin`, é tentador confirmar
+que o bloqueio funciona tentando logar como root de propósito. Nas VPS da HostGator (e em geral em
+imagens com `fail2ban` pré-instalado), 2-3 tentativas de login recusadas do mesmo IP em pouco tempo
+podem acionar um jail que bane **todas as portas** desse IP por um tempo — inclusive a sua própria
+sessão SSH. Se isso acontecer, o console web do painel da HostGator (fora da rede normal) continua
+funcionando; espere alguns minutos e tente de novo pela rede normal.
 
-# fail2ban — bloqueia IPs com tentativa de força-bruta no SSH
-sudo apt install -y fail2ban
+```bash
+# Verifica se já vem pré-instalado (comum em VPS da HostGator) antes de instalar
+dpkg -l | grep -E 'fail2ban|unattended-upgrades'
+
+# Se não estiver instalado:
+sudo apt install -y unattended-upgrades fail2ban
+sudo dpkg-reconfigure -plow unattended-upgrades
 sudo systemctl enable --now fail2ban
+
+# Confere se o jail do sshd já cobre a porta customizada (ajuste a porta se não cobrir)
+sudo cat /etc/fail2ban/jail.local 2>/dev/null | grep -A3 '\[sshd\]'
 ```
 
 ## 2. Node.js
@@ -149,13 +159,20 @@ cd /opt/oeste-freios
 npm ci
 npm run build
 
-# 8.1 — schema (tabelas, índices)
-node backend/dist/database/postgres/migrate.js
+# 8.1 — schema (tabelas, índices). migrate.js/seed.js precisam rodar de DENTRO de backend/
+# (o dotenv carrega o .env relativo ao diretório atual, não à raiz do monorepo).
+cd backend
+node dist/database/postgres/migrate.js
 
-# 8.2 — roles, permissões e o admin definido no .env
+# 8.2 — cria a pasta de uploads (logo, avatar) ANTES de subir o serviço — o systemd
+# (passo 9) usa ReadWritePaths apontando pra ela, e falha ao iniciar se não existir.
+mkdir -p uploads/avatars uploads/branding
+
+# 8.3 — roles, permissões e o admin definido no .env
 #       (NODE_ENV=production no .env garante que a conta de teste "mecanico@dev.local"
 #        com senha pública no repositório NUNCA é criada — só o admin real)
-node backend/dist/database/postgres/seed.js
+node dist/database/postgres/seed.js
+cd ..
 ```
 
 ## 9. systemd — backend como serviço
@@ -199,12 +216,21 @@ O certbot já configura renovação automática via timer systemd (`certbot.time
 
 ## 11. Firewall (ufw)
 
+⚠️ **Confirme a porta do SSH antes de habilitar** (`grep ^Port /etc/ssh/sshd_config` — nesta VPS é
+`22022`, não a 22 padrão). Habilitar o `ufw` sem liberar a porta certa te tranca pra fora do
+servidor até reiniciar via console web.
+
 ```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 'Nginx Full'
+sudo ufw allow 22022/tcp comment 'SSH'
+sudo ufw allow 80/tcp comment 'HTTP'
+sudo ufw allow 443/tcp comment 'HTTPS'
+sudo ufw show added   # confere as 3 regras antes de habilitar
 sudo ufw enable
-sudo ufw status
+sudo ufw status verbose
 ```
+
+Depois de habilitar, **teste a conexão SSH numa aba nova antes de fechar a atual** — se der
+timeout, você ainda tem a sessão original aberta pra corrigir (`sudo ufw disable` desfaz na hora).
 
 A porta 3000 (backend) **não** deve ficar acessível de fora — ele só escuta em `127.0.0.1` via
 nginx, então nem precisa de regra específica bloqueando; só confirme que não tem nada abrindo
@@ -213,14 +239,18 @@ nginx, então nem precisa de regra específica bloqueando; só confirme que não
 ## 12. Teste ponta a ponta
 
 - Abra `https://app.mecanicaoestefreios.com.br` — deve carregar o login, com cadeado válido.
-- Logue com o admin criado no passo 8.2, troque a senha.
+- Logue com o admin criado no passo 8.3, troque a senha.
 - Em Configurações > Firebird, teste a conexão com o CHERP — confirma que a VPS realmente alcança
   o servidor do cliente.
 - Abra uma OS de teste, confirme que lista clientes/veículos reais do CHERP.
 
 ## 13. Backups
 
+Banco (dono do cron é o usuário `postgres`, que já tem permissão de leitura no banco):
+
 ```bash
+sudo mkdir -p /var/backups/oeste-freios
+sudo chown postgres:postgres /var/backups/oeste-freios
 sudo -u postgres crontab -e
 ```
 
@@ -230,17 +260,20 @@ Adicione (backup diário às 3h, mantém 14 dias):
 0 3 * * * pg_dump -U postgres oeste_freios | gzip > /var/backups/oeste-freios/db-$(date +\%F).sql.gz && find /var/backups/oeste-freios -name 'db-*.sql.gz' -mtime +14 -delete
 ```
 
-```bash
-sudo mkdir -p /var/backups/oeste-freios
-```
+Uploads (logo, fotos de perfil) — backup separado (não fica no Postgres), dono do cron é o
+`oestefreios` (só ele tem permissão de leitura em `/opt/oeste-freios`):
 
-Uploads (logo, fotos de perfil) — backup separado, já que não fica no Postgres:
+```bash
+sudo mkdir -p /var/backups/oeste-freios-uploads
+sudo chown oestefreios:oestefreios /var/backups/oeste-freios-uploads
+crontab -e   # como oestefreios
+```
 
 ```cron
-30 3 * * * tar czf /var/backups/oeste-freios/uploads-$(date +\%F).tar.gz -C /opt/oeste-freios/backend uploads
+30 3 * * * tar czf /var/backups/oeste-freios-uploads/uploads-$(date +\%F).tar.gz -C /opt/oeste-freios/backend uploads && find /var/backups/oeste-freios-uploads -name 'uploads-*.tar.gz' -mtime +14 -delete
 ```
 
-Considere copiar `/var/backups/oeste-freios` pra fora da VPS periodicamente (outro storage, S3,
+Considere copiar `/var/backups/oeste-freios*` pra fora da VPS periodicamente (outro storage, S3,
 etc.) — backup só na mesma máquina não protege contra perda do servidor inteiro.
 
 ## 14. Atualizações futuras

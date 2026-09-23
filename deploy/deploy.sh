@@ -20,7 +20,8 @@ echo "==> build (backend + frontend)"
 npm run build
 
 echo "==> rodando migrations"
-node backend/dist/database/postgres/migrate.js
+# precisa rodar de dentro de backend/ — o dotenv carrega o .env relativo ao cwd atual.
+(cd backend && node dist/database/postgres/migrate.js)
 
 echo "==> reiniciando backend"
 sudo systemctl restart oeste-freios-backend
