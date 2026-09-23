@@ -27,6 +27,8 @@ const EVENT_LABELS: Record<string, string> = {
   OS_CREATED: 'OS criada',
   OS_UPDATED: 'OS atualizada',
   OS_STATUS_CHANGED: 'Status da OS alterado',
+  OS_DELETED: 'OS excluída',
+  OS_DUPLICATED: 'OS duplicada',
   OS_PRODUCT_ADDED: 'Produto adicionado à OS',
   OS_PRODUCT_REMOVED: 'Produto removido da OS',
   OS_PRODUCT_UPDATED: 'Produto atualizado na OS',

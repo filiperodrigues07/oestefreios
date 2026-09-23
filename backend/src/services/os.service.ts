@@ -129,6 +129,99 @@ export async function criarOS(
   return toOSDTO(novo, usuario.permissions);
 }
 
+/**
+ * Exclusão lógica da OS inteira (ATIVO = 0 no CHERP). Só OS aberta — mesma regra de bloqueio
+ * das demais mutações (`assertNaoFinalizada`), pra nunca sumir com documento fiscal/faturado.
+ * O motivo é obrigatório e fica na trilha de auditoria junto com um retrato da OS excluída.
+ */
+export async function excluirOS(
+  id: string,
+  motivo: string,
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<void> {
+  const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
+
+  await osRepository.excluir(id);
+
+  await auditOS('OS_DELETED', id, usuario, ctx, {
+    motivo,
+    before: {
+      numero: atual.numero,
+      nroDav: atual.nroDav,
+      clienteCodigo: atual.clienteCodigo,
+      clienteNome: atual.clienteNome,
+      equipamentoCodigo: atual.equipamentoCodigo,
+      equipamentoDescricao: atual.equipamentoDescricao,
+      status: atual.status,
+      problema: atual.problema,
+      produtos: atual.produtos.length,
+      servicos: atual.servicos.length,
+    },
+  });
+}
+
+/**
+ * Cria uma OS nova a partir de outra (cabeçalho, itens e diagnóstico). Funciona mesmo com a
+ * origem finalizada / com pedido gerado — a origem nunca é alterada, só lida. A OS nova nasce
+ * aberta, com número e DAV próprios (gerados pelo `criar` do repositório) e sem fotos/histórico.
+ */
+export async function duplicarOS(
+  id: string,
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<OperationalOSDTO | AdminOSDTO> {
+  const origem = await getOSOrThrow(id);
+
+  const criada = await osRepository.criar({
+    clienteCodigo: origem.clienteCodigo,
+    equipamentoCodigo: origem.equipamentoCodigo,
+    problema: origem.problema,
+    prioridade: origem.prioridade,
+    responsavelId: origem.responsavelId,
+    tecnicoId: origem.tecnicoId,
+    status: 'ABERTA',
+    produtos: [],
+    servicos: [],
+    historico: [historicoEntry(`OS criada por duplicação da OS #${origem.numero}`, usuario)],
+    dataAbertura: new Date().toISOString(),
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
+  });
+
+  const temItens = origem.produtos.length > 0 || origem.servicos.length > 0;
+  const temDiagnostico =
+    origem.diagnostico !== undefined ||
+    origem.observacoes !== undefined ||
+    origem.solucao !== undefined ||
+    origem.kmAtual !== undefined ||
+    origem.kmFinal !== undefined;
+
+  let nova = criada;
+  if (temItens || temDiagnostico) {
+    nova = await osRepository.atualizar(criada.id, {
+      ...(temItens ? { produtos: origem.produtos, servicos: origem.servicos } : {}),
+      ...(temItens ? { faturamento: calcularFaturamento(origem.produtos, origem.servicos) } : {}),
+      diagnostico: origem.diagnostico,
+      observacoes: origem.observacoes,
+      solucao: origem.solucao,
+      kmAtual: origem.kmAtual,
+      kmFinal: origem.kmFinal,
+      cherpUsuarioChave: usuario.cherpUsuarioChave,
+    });
+  }
+
+  await auditOS('OS_DUPLICATED', nova.id, usuario, ctx, {
+    origemId: origem.id,
+    numeroOrigem: origem.numero,
+    numeroNovo: nova.numero,
+    produtos: origem.produtos.length,
+    servicos: origem.servicos.length,
+  });
+
+  return toOSDTO(nova, usuario.permissions);
+}
+
 interface AtualizarOSInput {
   diagnostico?: string;
   observacoes?: string;

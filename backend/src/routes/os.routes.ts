@@ -10,6 +10,8 @@ import {
   atualizarServicoItemHandler,
   buscarImagemHandler,
   criarOSHandler,
+  duplicarOSHandler,
+  excluirOSHandler,
   getOSByIdHandler,
   getOSPdfHandler,
   listarImagensHandler,
@@ -29,6 +31,7 @@ import {
   atualizarItemSchema,
   atualizarOSSchema,
   criarOSSchema,
+  excluirOSSchema,
   listarOSQuerySchema,
   osIdParamSchema,
   osImagemParamSchema,
@@ -48,6 +51,21 @@ osRouter.get('/:id', validate(osIdParamSchema, 'params'), asyncHandler(getOSById
 osRouter.get('/:id/pdf', validate(osIdParamSchema, 'params'), asyncHandler(getOSPdfHandler));
 
 osRouter.post('/', requirePermission('OS_CREATE'), validate(criarOSSchema), asyncHandler(criarOSHandler));
+
+osRouter.post(
+  '/:id/duplicar',
+  requirePermission('OS_CREATE'),
+  validate(osIdParamSchema, 'params'),
+  asyncHandler(duplicarOSHandler),
+);
+
+osRouter.delete(
+  '/:id',
+  requirePermission('OS_DELETE'),
+  validate(osIdParamSchema, 'params'),
+  validate(excluirOSSchema),
+  asyncHandler(excluirOSHandler),
+);
 
 osRouter.put(
   '/:id',

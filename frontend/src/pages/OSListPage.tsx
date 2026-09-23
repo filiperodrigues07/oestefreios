@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { baixarOSPdf, listarOS, type OSSortBy } from '../api/os.api.js';
+import { baixarOSPdf, duplicarOS, excluirOS, listarOS, type OSSortBy } from '../api/os.api.js';
+import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import { baixarRelatorioOS } from '../api/relatorios.api.js';
 import { CurrencyCell } from '../components/ui/CurrencyCell.js';
 import {
@@ -14,6 +15,7 @@ import { readStoredFilters, writeStoredFilters } from '../utils/filterStorage.js
 import {
   ActionIcon,
   Button,
+  ConfirmDialog,
   EditButton,
   EmptyState,
   ErrorState,
@@ -25,7 +27,9 @@ import {
   PageHeader,
   Pagination,
   PrintButton,
+  ReasonDialog,
   RefreshButton,
+  RowActionButton,
   ResultsSummary,
   SearchInput,
   ResponsiveFilters,
@@ -34,6 +38,7 @@ import {
   Badge,
   PriorityBadge,
   Table,
+  useToast,
   type TableColumn,
 } from '../components/ui/index.js';
 import type { OrdemServicoDTO, OSPrioridade } from '../types/os.types.js';
@@ -79,6 +84,41 @@ export function OSListPage() {
   const navigate = useNavigate();
   const canSeeFinancial = hasPermission('FINANCIAL_VIEW');
   const podeEditar = hasPermission('OS_EDIT');
+  const podeDuplicar = hasPermission('OS_CREATE');
+  const podeExcluir = hasPermission('OS_DELETE');
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const [duplicando, setDuplicando] = useState<OrdemServicoDTO | null>(null);
+  const [excluindo, setExcluindo] = useState<OrdemServicoDTO | null>(null);
+
+  // Mesma regra do backend (assertNaoFinalizada): só OS aberta pode ser excluída.
+  const osExcluivel = (os: OrdemServicoDTO) =>
+    podeExcluir && (os.situacaoDocumento === undefined || os.situacaoDocumento === 0) && !os.dataConclusao && !os.travadoLocal;
+
+  const duplicarMutation = useMutation({
+    mutationFn: (os: OrdemServicoDTO) => duplicarOS(os.id),
+    onSuccess: async (nova) => {
+      setDuplicando(null);
+      await queryClient.invalidateQueries({ queryKey: ['os-list'] });
+      showToast(`OS duplicada como #${nova.numero}.`, 'success');
+      navigate(`/os/${nova.id}`);
+    },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível duplicar a OS. Tente novamente.'),
+  });
+
+  const excluirMutation = useMutation({
+    mutationFn: ({ os, motivo }: { os: OrdemServicoDTO; motivo: string }) => excluirOS(os.id, motivo),
+    onSuccess: async (_data, { os }) => {
+      setExcluindo(null);
+      queryClient.removeQueries({ queryKey: ['os', os.id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['os-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-operacional'] }),
+      ]);
+      showToast(`OS #${os.numero} excluída.`, 'success');
+    },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível excluir a OS. Tente novamente.'),
+  });
 
   // Filtros salvos na URL (compartilhável, funciona com voltar do navegador) e em sessionStorage
   // (sobrevive a navegar pra outra tela pelo menu, que troca de rota sem manter query string).
@@ -270,7 +310,7 @@ export function OSListPage() {
       key: 'acoes',
       header: 'Ações',
       align: 'right' as const,
-      width: podeEditar ? '92px' : '48px',
+      width: `${48 + (podeEditar ? 44 : 0) + (podeDuplicar ? 44 : 0) + (podeExcluir ? 44 : 0)}px`,
       render: (os: OrdemServicoDTO) => (
         <div style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
           <PrintButton
@@ -278,6 +318,12 @@ export function OSListPage() {
             onImprimir={() => baixarOSPdf(os.id, os.numero)}
           />
           {podeEditar && <EditButton to={`/os/${os.id}`} label={`Editar OS #${os.numero}`} />}
+          {podeDuplicar && (
+            <RowActionButton icon="copy" label={`Duplicar OS #${os.numero}`} onClick={() => setDuplicando(os)} />
+          )}
+          {osExcluivel(os) && (
+            <RowActionButton icon="delete" tone="danger" label={`Excluir OS #${os.numero}`} onClick={() => setExcluindo(os)} />
+          )}
         </div>
       ),
     },
@@ -476,6 +522,12 @@ export function OSListPage() {
                         {podeEditar && (
                           <EditButton to={`/os/${os.id}`} label={`Editar OS #${os.numero}`} />
                         )}
+                        {podeDuplicar && (
+                          <RowActionButton icon="copy" label={`Duplicar OS #${os.numero}`} onClick={() => setDuplicando(os)} />
+                        )}
+                        {osExcluivel(os) && (
+                          <RowActionButton icon="delete" tone="danger" label={`Excluir OS #${os.numero}`} onClick={() => setExcluindo(os)} />
+                        )}
                       </>
                     }
                   />
@@ -495,6 +547,26 @@ export function OSListPage() {
         )}
       </section>
       {hasPermission('OS_CREATE') && <MobileFab to="/os/nova" label="Nova OS" />}
+
+      <ConfirmDialog
+        open={duplicando !== null}
+        title={`Duplicar OS #${duplicando?.numero ?? ''}?`}
+        description="Será criada uma OS nova e aberta, com número e DAV próprios, copiando cliente, veículo, problema, prioridade, produtos, serviços e diagnóstico. A OS original não é alterada."
+        confirmLabel="Duplicar"
+        loading={duplicarMutation.isPending}
+        onCancel={() => setDuplicando(null)}
+        onConfirm={() => duplicando && duplicarMutation.mutate(duplicando)}
+      />
+      <ReasonDialog
+        open={excluindo !== null}
+        title={`Excluir OS #${excluindo?.numero ?? ''}?`}
+        description="A OS inteira será removida do sistema e do CHERP. Só OS em aberto pode ser excluída."
+        reasonLabel="Motivo da exclusão"
+        confirmLabel="Excluir OS"
+        loading={excluirMutation.isPending}
+        onCancel={() => setExcluindo(null)}
+        onConfirm={(motivo) => excluindo && excluirMutation.mutate({ os: excluindo, motivo })}
+      />
     </div>
   );
 }

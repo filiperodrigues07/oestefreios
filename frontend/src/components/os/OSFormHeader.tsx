@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { baixarOSPdf } from '../../api/os.api.js';
-import { ActionIcon, Button, LinkButton, PriorityBadge, RefreshButton, useToast } from '../ui/index.js';
+import { ActionIcon, Button, ConfirmDialog, LinkButton, PriorityBadge, ReasonDialog, RefreshButton, useToast } from '../ui/index.js';
 import { OS_PRIORITY_CONFIG, OS_STATUS_CONFIG } from '../../constants/osStatus.js';
 import { ALLOWED_TRANSITIONS, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
 import { FinalizarOSButton } from './FinalizarOSButton.js';
@@ -24,6 +24,13 @@ interface OSFormHeaderProps {
   onFinalizar: () => void;
   finalizando: boolean;
   updating: boolean;
+  canDuplicate: boolean;
+  onDuplicar: () => void;
+  duplicando: boolean;
+  /** Já considera permissão OS_DELETE e OS aberta (finalizada/com pedido não pode ser excluída). */
+  canDelete: boolean;
+  onExcluir: (motivo: string) => void;
+  excluindo: boolean;
 }
 
 export function OSFormHeader({
@@ -42,9 +49,17 @@ export function OSFormHeader({
   onFinalizar,
   finalizando,
   updating,
+  canDuplicate,
+  onDuplicar,
+  duplicando,
+  canDelete,
+  onExcluir,
+  excluindo,
 }: OSFormHeaderProps) {
   const [nextStatus, setNextStatus] = useState(status);
   const [imprimindo, setImprimindo] = useState(false);
+  const [confirmandoDuplicar, setConfirmandoDuplicar] = useState(false);
+  const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
   const { showToast } = useToast();
   const navigate = useNavigate();
   const transitions = [status, ...ALLOWED_TRANSITIONS[status]];
@@ -85,6 +100,8 @@ export function OSFormHeader({
         <RefreshButton onClick={onRefresh} loading={refreshing} label="Recarregar dados" />
         {canChangeStatus && <Button type="button" size="sm" disabled={updating || nextStatus === status} onClick={() => onStatusChange(nextStatus)} title="Gravar a situação selecionada no CHERP"><ActionIcon name="save" />Salvar situação</Button>}
         {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} />}
+        {canDuplicate && <Button type="button" variant="secondary" size="sm" onClick={() => setConfirmandoDuplicar(true)} loading={duplicando} title="Criar uma OS nova com os mesmos dados"><ActionIcon name="copy" />Duplicar</Button>}
+        {canDelete && <Button type="button" variant="destructive" size="sm" onClick={() => setConfirmandoExcluir(true)} loading={excluindo}><ActionIcon name="delete" />Excluir</Button>}
       </div>
     </div>
     <div className={styles.summaryGrid}>
@@ -99,5 +116,27 @@ export function OSFormHeader({
         </div>
       </div>
     </div>
+    <ConfirmDialog
+      open={confirmandoDuplicar}
+      title={`Duplicar OS #${numero}?`}
+      description="Será criada uma OS nova e aberta, com número e DAV próprios, copiando cliente, veículo, problema, prioridade, produtos, serviços e diagnóstico. A OS atual não é alterada."
+      confirmLabel="Duplicar"
+      loading={duplicando}
+      onCancel={() => setConfirmandoDuplicar(false)}
+      onConfirm={() => {
+        setConfirmandoDuplicar(false);
+        onDuplicar();
+      }}
+    />
+    <ReasonDialog
+      open={confirmandoExcluir}
+      title={`Excluir OS #${numero}?`}
+      description="A OS inteira será removida do sistema e do CHERP. Só OS em aberto pode ser excluída."
+      reasonLabel="Motivo da exclusão"
+      confirmLabel="Excluir OS"
+      loading={excluindo}
+      onCancel={() => setConfirmandoExcluir(false)}
+      onConfirm={(motivo) => onExcluir(motivo)}
+    />
   </header>;
 }

@@ -38,6 +38,11 @@ export const atualizarOSSchema = z
   })
   .refine((data) => Object.keys(data).length > 0, { message: 'Nenhum campo para atualizar.' });
 
+/** Motivo fica como digitado (sem `toUppercase`) — é texto de auditoria, não dado do CHERP. */
+export const excluirOSSchema = z.object({
+  motivo: z.string().trim().min(5, 'Informe o motivo da exclusão (mínimo 5 caracteres).').max(500),
+});
+
 export const alterarStatusSchema = z.object({
   status: z.enum(OS_STATUS_VALUES),
 });

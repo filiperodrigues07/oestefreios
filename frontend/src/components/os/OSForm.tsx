@@ -9,6 +9,8 @@ import {
   atualizarProdutoItemOS,
   atualizarServicoItemOS,
   criarOS,
+  duplicarOS,
+  excluirOS,
   getOS,
   removerProdutoOS,
   removerServicoOS,
@@ -193,6 +195,7 @@ function OSFormCreate() {
 
 /** Edição: OS já é uma linha real no CHERP — toda seção grava/consulta de verdade a partir daqui. */
 function OSFormEdit({ id }: { id: string }) {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -384,6 +387,31 @@ function OSFormEdit({ id }: { id: string }) {
       handleMutationError(err, showToast, 'Não foi possível remover. Tente novamente.'),
   });
 
+  const duplicarMutation = useMutation({
+    mutationFn: () => duplicarOS(id),
+    onSuccess: async (nova) => {
+      await queryClient.invalidateQueries({ queryKey: ['os-list'] });
+      showToast(`OS duplicada como #${nova.numero}.`, 'success');
+      navigate(`/os/${nova.id}`);
+    },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível duplicar a OS. Tente novamente.'),
+  });
+
+  const excluirMutation = useMutation({
+    mutationFn: (motivo: string) => excluirOS(id, motivo),
+    onSuccess: async () => {
+      // A OS deixou de existir — remove do cache em vez de invalidar (refetch daria 404).
+      queryClient.removeQueries({ queryKey: ['os', id] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['os-list'] }),
+        queryClient.invalidateQueries({ queryKey: ['dashboard-operacional'] }),
+      ]);
+      showToast('OS excluída.', 'success');
+      navigate('/os', { replace: true });
+    },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível excluir a OS. Tente novamente.'),
+  });
+
   if (isLoading) {
     return (
       <div className={`${styles.page} ${styles.detailPage}`}>
@@ -441,6 +469,12 @@ function OSFormEdit({ id }: { id: string }) {
         onFinalizar={() => statusMutation.mutate('CONCLUIDA')}
         finalizando={statusMutation.isPending}
         updating={statusMutation.isPending || prioridadeMutation.isPending}
+        canDuplicate={hasPermission('OS_CREATE')}
+        onDuplicar={() => duplicarMutation.mutate()}
+        duplicando={duplicarMutation.isPending}
+        canDelete={hasPermission('OS_DELETE') && !osFinalizada}
+        onExcluir={(motivo) => excluirMutation.mutate(motivo)}
+        excluindo={excluirMutation.isPending}
       />
 
       {/* Resumo fixo — some quem é o cliente/veículo mesmo fora da aba "Dados". */}

@@ -228,9 +228,16 @@ export class OSRepositoryMock implements IOSRepository {
   }
 
   async criar(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico> {
-    const novo: OrdemServico = { ...os, id: randomUUID(), numero: nextNumero++ };
+    // O CHERP real gera o NRODAV (ATUALIZARNUMERODAV) a cada OS nova, nunca herda de outra.
+    const numero = nextNumero++;
+    const novo: OrdemServico = { ...os, id: randomUUID(), numero, nroDav: String(numero).padStart(13, '0') };
     OS_LIST.push(novo);
     return novo;
+  }
+
+  async excluir(id: string): Promise<void> {
+    const idx = OS_LIST.findIndex((os) => os.id === id);
+    if (idx !== -1) OS_LIST.splice(idx, 1);
   }
 
   async atualizar(id: string, patch: Partial<OrdemServico>): Promise<OrdemServico> {
