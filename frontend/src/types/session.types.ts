@@ -8,4 +8,12 @@ export interface ActiveSessionDTO {
   browser: string;
   createdAt: string;
   expiresAt: string;
+  lastSeenAt: string | null;
+}
+
+export interface LicenseSummaryDTO {
+  limite: number;
+  emUso: number;
+  idleMinutes: number;
+  usuarios: { id: string; name: string; email: string; lastSeenAt: string }[];
 }

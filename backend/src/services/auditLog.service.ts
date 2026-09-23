@@ -22,7 +22,7 @@ const EVENT_LABELS: Record<string, string> = {
   VEICULO_CREATED: 'Veículo criado', VEICULO_UPDATED: 'Veículo atualizado',
   SETTINGS_FIREBIRD_UPDATED: 'Firebird atualizado', SETTINGS_SMTP_UPDATED: 'E-mail atualizado',
   SETTINGS_GERAL_UPDATED: 'Configurações gerais atualizadas',
-  SESSION_FORCE_LOGOUT: 'Sessão encerrada', SESSION_FORCE_LOGOUT_ALL: 'Todas as sessões encerradas',
+  SESSION_REPLACED: 'Sessão anterior derrubada por novo login', SESSION_FORCE_LOGOUT: 'Sessão encerrada', SESSION_FORCE_LOGOUT_ALL: 'Todas as sessões encerradas',
 };
 
 /** Remove campos financeiros de um objeto de diff arbitrário — mesma regra de DTO do resto do app, aplicada à auditoria. */

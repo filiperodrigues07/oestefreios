@@ -99,6 +99,13 @@
       "when": 1790120000000,
       "tag": "0013_vehicle_lookup_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1790197159101,
+      "tag": "0014_license_last_seen",
+      "breakpoints": true
     }
   ]
 }

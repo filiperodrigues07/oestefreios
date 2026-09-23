@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { baixarOSPdf } from '../../api/os.api.js';
-import { ActionIcon, Button, ConfirmDialog, LinkButton, PriorityBadge, ReasonDialog, RefreshButton, useToast } from '../ui/index.js';
+import { ActionIcon, Button, ConfirmDialog, LinkButton, PriorityBadge, ReasonDialog, useToast } from '../ui/index.js';
 import { OS_PRIORITY_CONFIG, OS_STATUS_CONFIG } from '../../constants/osStatus.js';
 import { ALLOWED_TRANSITIONS, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
 import { FinalizarOSButton } from './FinalizarOSButton.js';
+import { OSMoreActions, type MoreActionItem } from './OSMoreActions.js';
 import { OSFieldInfo } from './OSFieldInfo.js';
 import styles from './OSFormHeader.module.css';
 
@@ -80,6 +81,13 @@ export function OSFormHeader({
     }
   }
 
+  const moreItems: MoreActionItem[] = [
+    { key: 'print', label: imprimindo ? 'Gerando PDF...' : 'Imprimir', icon: 'print', disabled: imprimindo, onSelect: handleImprimir },
+    { key: 'refresh', label: 'Recarregar dados', icon: 'update', disabled: refreshing, onSelect: onRefresh },
+    ...(canDuplicate ? [{ key: 'duplicate', label: 'Duplicar OS', icon: 'copy' as const, disabled: duplicando, onSelect: () => setConfirmandoDuplicar(true) }] : []),
+    ...(canDelete ? [{ key: 'delete', label: 'Excluir OS', icon: 'delete' as const, danger: true, disabled: excluindo, onSelect: () => setConfirmandoExcluir(true) }] : []),
+  ];
+
   return <header className={styles.header}>
     <div className={styles.breadcrumb}><LinkButton to="/os" variant="ghost" size="sm">‹ Ordem de Serviço</LinkButton><span>›</span><strong>OS #{numero}</strong></div>
     <div className={styles.row}>
@@ -96,12 +104,9 @@ export function OSFormHeader({
       </div>
       <div className={styles.actions}>
         <Button type="button" variant="secondary" size="sm" onClick={handleVoltar}><ActionIcon name="back" />Voltar</Button>
-        <Button type="button" variant="secondary" size="sm" onClick={handleImprimir} loading={imprimindo}><ActionIcon name="print" />{imprimindo ? 'Gerando PDF...' : 'Imprimir'}</Button>
-        <RefreshButton onClick={onRefresh} loading={refreshing} label="Recarregar dados" />
         {canChangeStatus && <Button type="button" size="sm" disabled={updating || nextStatus === status} onClick={() => onStatusChange(nextStatus)} title="Gravar a situação selecionada no CHERP"><ActionIcon name="save" />Salvar situação</Button>}
         {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} />}
-        {canDuplicate && <Button type="button" variant="secondary" size="sm" onClick={() => setConfirmandoDuplicar(true)} loading={duplicando} title="Criar uma OS nova com os mesmos dados"><ActionIcon name="copy" />Duplicar</Button>}
-        {canDelete && <Button type="button" variant="destructive" size="sm" onClick={() => setConfirmandoExcluir(true)} loading={excluindo}><ActionIcon name="delete" />Excluir</Button>}
+        <OSMoreActions items={moreItems} loading={imprimindo || refreshing || duplicando || excluindo} />
       </div>
     </div>
     <div className={styles.summaryGrid}>

@@ -9,6 +9,7 @@ import { userRepository } from '../repositories/postgres/UserRepository.js';
 import type { AuthenticatedUser } from '../types/auth.types.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
+import { liberar } from './license.service.js';
 
 export async function listActiveSessions(): Promise<ActiveSessionDTO[]> {
   const rows = await db.select({ token: refreshTokens, user: users }).from(refreshTokens)
@@ -22,6 +23,7 @@ export async function listActiveSessions(): Promise<ActiveSessionDTO[]> {
       os: [parsed.os.name, parsed.os.version].filter(Boolean).join(' ') || 'Desconhecido',
       browser: [parsed.browser.name, parsed.browser.version].filter(Boolean).join(' ') || 'Desconhecido',
       createdAt: token.createdAt.toISOString(), expiresAt: token.expiresAt.toISOString(),
+      lastSeenAt: user.lastSeenAt?.toISOString() ?? null,
     };
   });
 }
@@ -37,6 +39,7 @@ export async function forceLogoutSession(sessionId: string, actor: Authenticated
   if (!token) throw new NotFoundError('Sessão ativa não encontrada.', 'SESSION_NOT_FOUND');
   await refreshTokenRepository.revokeFamily(token.familyId);
   await userRepository.bumpSessionVersion(token.userId);
+  await liberar(token.userId);
   await audit('SESSION_FORCE_LOGOUT', token.userId, actor, ctx, token.id);
 }
 
@@ -44,5 +47,6 @@ export async function forceLogoutAllForUser(userId: string, actor: Authenticated
   if (!await userRepository.findRowById(userId)) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
   await refreshTokenRepository.revokeAllForUser(userId);
   await userRepository.bumpSessionVersion(userId);
+  await liberar(userId);
   await audit('SESSION_FORCE_LOGOUT_ALL', userId, actor, ctx);
 }

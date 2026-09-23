@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { createUser, deleteUser, exportUsersExcel, listCherpUsers, listRoles, listUsers, reenviarConvite, updateUser } from '../api/users.api.js';
 import {
   ActionIcon,
+  Avatar,
   Badge,
   Button,
   Card,
@@ -150,7 +151,17 @@ export function UsuariosPage() {
   }
 
   const columns: TableColumn<UserSummaryDTO>[] = [
-    { key: 'name', header: 'Nome', render: (u) => u.name, sortable: true },
+    {
+      key: 'name',
+      header: 'Nome',
+      sortable: true,
+      render: (u) => (
+        <div className={styles.nameCell}>
+          <Avatar name={u.name} photoUrl={u.photoUrl ?? undefined} size={32} />
+          <span>{u.name}</span>
+        </div>
+      ),
+    },
     { key: 'email', header: 'E-mail', render: (u) => u.email, mono: true, sortable: true },
     {
       key: 'roleName',

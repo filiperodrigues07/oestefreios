@@ -12,6 +12,19 @@
   padding: 25px;
 }
 
+.license {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-6);
+  border-radius: 12px;
+  border: 1px solid var(--color-success);
+  background: var(--color-success-surface);
+  font-size: 13px;
+}
+
+.licenseWarn { border-color: var(--color-warning); background: var(--color-warning-surface); }
+.licenseFull { border-color: var(--color-danger); background: var(--color-danger-surface); }
+
 .heading p {
   font-size: 13px;
   margin: 3px 0 0;

@@ -22,7 +22,7 @@ export class ApiError extends Error {
 let refreshInFlight: Promise<boolean> | null = null;
 
 function redirectTo(path: string): void {
-  if (typeof window !== 'undefined' && window.location.pathname !== path) {
+  if (typeof window !== 'undefined' && window.location.pathname !== path.split('?')[0]) {
     window.location.assign(path);
   }
 }
@@ -33,18 +33,22 @@ function handleRejectedSession(code: string): void {
     return;
   }
 
-  if (code === 'SESSION_REVOKED') {
+  if (code === 'SESSION_REVOKED' || code === 'LICENSE_LIMIT_REACHED') {
+    const motivo = code === 'LICENSE_LIMIT_REACHED' ? 'licenca' : 'sessao-encerrada';
     useAuthStore.getState().clearSession();
-    void clearOfflineQueue().finally(() => redirectTo('/login'));
+    void clearOfflineQueue().finally(() => redirectTo(`/login?motivo=${motivo}`));
   }
 }
 
 async function doRefresh(): Promise<boolean> {
   try {
     const res = await fetch(`${API_BASE}/auth/refresh`, { method: 'POST', credentials: 'include' });
-    if (!res.ok) return false;
-    const body = (await res.json()) as ApiResponse<LoginResponse>;
-    if (!body.success) return false;
+    const body = (await res.json().catch(() => null)) as ApiResponse<LoginResponse> | null;
+    if (body && !body.success && body.error.code === 'LICENSE_LIMIT_REACHED') {
+      handleRejectedSession(body.error.code);
+      return false;
+    }
+    if (!res.ok || !body || !body.success) return false;
     useAuthStore.getState().setSession(body.data.accessToken, body.data.user);
     return true;
   } catch {

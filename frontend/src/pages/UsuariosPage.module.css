@@ -26,6 +26,8 @@
 .loadingList { display: flex; flex-direction: column; gap: var(--space-2); }
 
 .roleCell { display: flex; align-items: center; gap: var(--space-2); }
+.nameCell { display: flex; align-items: center; gap: var(--space-3); min-width: 0; }
+.nameCell span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .modalFooter { display: flex; gap: var(--space-2); justify-content: flex-end; width: 100%; }
 
