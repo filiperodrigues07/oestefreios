@@ -150,15 +150,14 @@
 }
 
 .financialSummary {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 330px;
-  gap: 20px;
   margin-top: 16px;
   border: 1px solid var(--color-border);
   border-radius: 11px;
   background: var(--color-surface-elevated);
   padding: 18px;
 }
+.summaryHeading { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-4); }
+.summaryIcon { display:grid; width:40px; height:40px; flex-shrink:0; place-items:center; border-radius:var(--radius-md); color:var(--color-primary-on-surface); background:var(--color-primary-surface); }
 .financialSummary h2 {
   margin: 0;
   font-size: var(--font-size-md);
@@ -168,40 +167,21 @@
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
 }
-.financialSummary > div:last-child {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-}
-.summaryRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: var(--font-size-md);
-}
-.summaryRow span {
-  color: var(--color-text-secondary);
-}
-.summaryRow strong {
+.summaryMetrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--space-3); }
+.summaryMetric { display:flex; min-width:0; flex-direction:column; gap:var(--space-2); padding:var(--space-3); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-surface); }
+.summaryMetric > span { color:var(--color-text-secondary); font-size:var(--font-size-xs); font-weight:600; text-transform:uppercase; letter-spacing:.03em; }
+.summaryMetric strong {
+  width:100%;
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   color: var(--color-text-primary);
+  font-size:var(--font-size-lg);
 }
 .summaryTotal {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-radius: 8px;
+  border-color:var(--color-primary);
   background: var(--color-primary-surface);
-  color: var(--color-text-primary);
-  padding: 10px 14px;
-  font-size: var(--font-size-lg);
-  font-weight: 700;
 }
-.summaryTotal strong {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-}
+.summaryTotal strong { color:var(--color-primary-on-surface); font-size:var(--font-size-xl); }
 
 @media (max-width: 720px) {
   .page {
@@ -226,6 +206,7 @@
     margin-top: var(--space-3);
     padding: var(--space-3);
   }
+  .summaryMetrics { grid-template-columns:1fr; }
   .contextBar {
     gap: 8px;
     margin: 12px 0;

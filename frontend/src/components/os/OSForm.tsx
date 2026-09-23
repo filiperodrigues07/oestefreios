@@ -34,6 +34,8 @@ import {
   Tabs,
   useToast,
 } from '../ui/index.js';
+import { CurrencyCell } from '../ui/CurrencyCell.js';
+import { NavIcon } from '../layout/NavIcon.js';
 import { ClienteVeiculoSection } from './ClienteVeiculoSection.js';
 import { DiagnosticoSection, type DiagnosticoPatch } from './DiagnosticoSection.js';
 import { FinalizarOSButton } from './FinalizarOSButton.js';
@@ -506,28 +508,25 @@ function OSFormEdit({ id }: { id: string }) {
 
             {mostrarPreco && (
               <section className={styles.financialSummary}>
-                <div>
-                  <h2>▦ Resumo financeiro</h2>
-                  <p>Totais calculados no Firebird pelos itens ativos.</p>
+                <div className={styles.summaryHeading}>
+                  <span className={styles.summaryIcon}><NavIcon name="chart" /></span>
+                  <div>
+                    <h2>Resumo financeiro</h2>
+                    <p>Totais calculados no Firebird pelos itens ativos.</p>
+                  </div>
                 </div>
-                <div>
-                  <div className={styles.summaryRow}>
+                <div className={styles.summaryMetrics}>
+                  <div className={styles.summaryMetric}>
                     <span>Total produtos</span>
-                    <strong>
-                      R${' '}
-                      {os.produtos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
-                    </strong>
+                    <strong><CurrencyCell amount={os.produtos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)} /></strong>
                   </div>
-                  <div className={styles.summaryRow}>
+                  <div className={styles.summaryMetric}>
                     <span>Total serviços</span>
-                    <strong>
-                      R${' '}
-                      {os.servicos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)}
-                    </strong>
+                    <strong><CurrencyCell amount={os.servicos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)} /></strong>
                   </div>
-                  <div className={styles.summaryTotal}>
+                  <div className={`${styles.summaryMetric} ${styles.summaryTotal}`}>
                     <span>Total geral</span>
-                    <strong>R$ {(os.faturamento ?? 0).toFixed(2)}</strong>
+                    <strong><CurrencyCell amount={(os.faturamento ?? 0).toFixed(2)} /></strong>
                   </div>
                 </div>
               </section>

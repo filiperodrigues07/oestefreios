@@ -2,6 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { Input } from '../ui/Input.js';
+import { CurrencyCell } from '../ui/CurrencyCell.js';
 import {
   SearchCombobox,
   type SearchComboboxHandle,
@@ -303,65 +304,72 @@ export function ItemGrid({
 
           {selecionado && (
             <div className={styles.addQty}>
-              <span className={styles.addQtyUnidade}>{selecionado?.unidade ?? '—'}</span>
-              <input
-                ref={qtdRef}
-                type="text"
-                inputMode="decimal"
-                className={styles.qtyInput}
-                value={quantidade}
-                disabled={!selecionado || addMutation.isPending}
-                onChange={(e) => setQuantidade(e.target.value)}
-                onKeyDown={handleQuantidadeKeyDown}
-                aria-label="Quantidade"
-              />
-              {mostrarPreco && selecionado && podeEditarPreco && (
+              <div className={styles.addField}>
+                <span className={styles.addFieldLabel}>Unidade</span>
+                <span className={`${styles.readonlyField} ${styles.mono}`}>{selecionado.unidade || '—'}</span>
+              </div>
+              <label className={styles.addField}>
+                <span className={styles.addFieldLabel}>Quantidade</span>
                 <input
+                  ref={qtdRef}
                   type="text"
                   inputMode="decimal"
-                  className={`${styles.priceInput} ${styles.mono}`}
-                  value={precoEditado}
+                  className={styles.qtyInput}
+                  value={quantidade}
                   disabled={addMutation.isPending}
-                  onChange={(e) => setPrecoEditado(e.target.value)}
+                  onChange={(e) => setQuantidade(e.target.value)}
                   onKeyDown={handleQuantidadeKeyDown}
-                  aria-label="Preço unitário"
                 />
+              </label>
+              {mostrarPreco && selecionado && podeEditarPreco && (
+                <label className={`${styles.addField} ${styles.moneyField}`}>
+                  <span className={styles.addFieldLabel}>Valor unitário</span>
+                  <span className={styles.moneyInput}>
+                    <span>R$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      className={`${styles.priceInput} ${styles.mono}`}
+                      value={precoEditado}
+                      disabled={addMutation.isPending}
+                      onChange={(e) => setPrecoEditado(e.target.value)}
+                      onKeyDown={handleQuantidadeKeyDown}
+                    />
+                  </span>
+                </label>
               )}
               {mostrarPreco && selecionado && !podeEditarPreco && (
-                <span className={`${styles.addQtyPreco} ${styles.mono}`}>
-                  {selecionado.precoUnitario !== undefined
-                    ? `R$ ${selecionado.precoUnitario.toFixed(2)}`
-                    : '—'}
-                </span>
+                <div className={`${styles.addField} ${styles.moneyField}`}>
+                  <span className={styles.addFieldLabel}>Valor unitário</span>
+                  <span className={`${styles.readonlyField} ${styles.mono}`}>{selecionado.precoUnitario !== undefined ? <CurrencyCell amount={selecionado.precoUnitario.toFixed(2)} /> : '—'}</span>
+                </div>
               )}
               {mostrarPreco && selecionado && totalPrevia !== undefined && (
-                <span className={`${styles.addQtyPreco} ${styles.mono}`}>
-                  Total R$ {totalPrevia.toFixed(2)}
-                </span>
+                <div className={`${styles.addField} ${styles.moneyField}`}>
+                  <span className={styles.addFieldLabel}>Total</span>
+                  <span className={`${styles.readonlyField} ${styles.totalField} ${styles.mono}`}><CurrencyCell amount={totalPrevia.toFixed(2)} /></span>
+                </div>
               )}
               <div className={styles.addActions}>
-                <button
-                  type="button"
-                  className={styles.confirmButton}
-                  onClick={handleConfirmarAdicao}
-                  disabled={
-                    !quantidadeValida ||
-                    (podeEditarPreco && !precoEditadoValido) ||
-                    addMutation.isPending
-                  }
-                  aria-label="Confirmar item (Enter)"
-                >
-                  ✓
-                </button>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={cancelarSelecao}
-                  aria-label="Cancelar seleção (Esc)"
-                >
-                  ✕
-                </button>
-                <span className={styles.shortcutHint}>Enter confirma · Esc cancela</span>
+                <span className={styles.addFieldLabel}>Ações</span>
+                <div className={styles.actionButtons}>
+                  <button
+                    type="button"
+                    className={styles.addButton}
+                    onClick={handleConfirmarAdicao}
+                    disabled={
+                      !quantidadeValida ||
+                      (podeEditarPreco && !precoEditadoValido) ||
+                      addMutation.isPending
+                    }
+                  >
+                    <span aria-hidden="true">✓</span> Adicionar
+                  </button>
+                  <button type="button" className={styles.cancelAddButton} onClick={cancelarSelecao}>
+                    Cancelar
+                  </button>
+                </div>
+                <span className={styles.shortcutHint}>Enter adiciona · Esc cancela</span>
               </div>
             </div>
           )}
@@ -460,7 +468,7 @@ export function ItemGrid({
                           aria-label="Editar preço unitário"
                         />
                       ) : item.precoUnitario !== undefined ? (
-                        `R$ ${item.precoUnitario.toFixed(2)}`
+                        <CurrencyCell amount={item.precoUnitario.toFixed(2)} />
                       ) : (
                         '—'
                       )}
@@ -468,7 +476,7 @@ export function ItemGrid({
                   )}
                   {mostrarPreco && (
                     <td className={`${styles.center} ${styles.mono}`}>
-                      {item.total !== undefined ? `R$ ${item.total.toFixed(2)}` : '—'}
+                      {item.total !== undefined ? <CurrencyCell amount={item.total.toFixed(2)} /> : '—'}
                     </td>
                   )}
                   {podeEditar && (

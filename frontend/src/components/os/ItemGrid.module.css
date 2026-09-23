@@ -159,20 +159,10 @@
 
   .addQty {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(88px, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     width: 100%;
     padding-top: var(--space-2);
     border-top: 1px solid var(--color-border);
-  }
-
-  .addQtyUnidade {
-    display: flex;
-    min-height: 44px;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    background: var(--color-surface);
   }
 
   .qtyInput,
@@ -181,22 +171,12 @@
     min-height: 44px;
   }
 
-  .addQtyPreco,
   .addActions {
     grid-column: 1 / -1;
   }
 
-  .addActions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: var(--space-2);
-  }
-
-  .addActions .confirmButton,
-  .addActions .cancelButton {
-    width: 100%;
-    height: 44px;
-  }
+  .actionButtons { display:grid; grid-template-columns:1fr 1fr; width:100%; }
+  .shortcutHint { text-align:center; }
 
   .cardList {
     padding: var(--space-2);
@@ -216,9 +196,6 @@
     height: 44px;
   }
 
-  .shortcutHint {
-    display: none;
-  }
 }
 
 .right {
@@ -291,23 +268,66 @@
 
 .addQty {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: var(--space-2);
   flex-wrap: wrap;
+  flex: 1 1 auto;
 }
 
-.addQtyUnidade {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  min-width: 32px;
+.addField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 78px;
 }
 
-.addQtyPreco {
-  font-size: var(--font-size-md);
-  font-weight: 600;
+.moneyField { width:132px; }
+
+.addFieldLabel {
   color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.readonlyField {
+  display: flex;
+  align-items: center;
+  min-height: 43px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-neutral-surface);
+  color: var(--color-text-secondary);
   white-space: nowrap;
 }
+
+.readonlyField > span { width:100%; }
+
+.totalField { color: var(--color-text-primary); font-weight: 700; }
+
+.moneyInput {
+  display: grid;
+  grid-template-columns:auto minmax(0,1fr);
+  align-items: center;
+  min-height: 43px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.moneyInput > span { padding-left:10px; color:var(--color-text-secondary); font-size:var(--font-size-sm); }
+.moneyInput .priceInput { width:100%; min-height:41px; border:0; background:transparent; }
+.addField .qtyInput { width:82px; min-height:43px; }
+
+.addActions { display:flex; flex-direction:column; align-items:flex-start; gap:var(--space-1); }
+.actionButtons { display:flex; gap:var(--space-2); }
+.addButton,.cancelAddButton { min-height:43px; padding:0 var(--space-3); border-radius:var(--radius-sm); font:inherit; font-size:var(--font-size-sm); font-weight:600; cursor:pointer; }
+.addButton { border:1px solid var(--color-primary); color:white; background:var(--color-primary); }
+.addButton:hover { background:var(--color-primary-hover); }
+.addButton:disabled { opacity:.5; cursor:not-allowed; }
+.cancelAddButton { border:1px solid var(--color-border); color:var(--color-text-secondary); background:transparent; }
+.cancelAddButton:hover { color:var(--color-text-primary); background:var(--color-neutral-surface); }
 
 .addComplemento {
   width: 100%;
