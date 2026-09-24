@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { getClienteByCodigo } from '../api/clientes.api.js';
 import { ClienteForm } from '../components/clientes/ClienteForm.js';
-import { Card, ErrorState, LinkButton, PageHeader, Skeleton, useToast } from '../components/ui/index.js';
+import { ActionIcon, Card, ErrorState, LinkButton, PageHeader, Skeleton, useToast } from '../components/ui/index.js';
 import styles from './ClienteFormPage.module.css';
 
 /** `/clientes/novo` e `/clientes/:codigo/editar` — tela própria (não modal), cadastro/edição de cliente. */
@@ -43,30 +43,32 @@ export function ClienteFormPage() {
 
   return (
     <div className={styles.page}>
+      <nav className={styles.breadcrumb} aria-label="Navegação">
+        <LinkButton to="/clientes" variant="ghost" size="sm" className={styles.back} aria-label="Voltar para a lista de clientes">
+          <ActionIcon name="back" />
+          Clientes
+        </LinkButton>
+        <span aria-hidden="true">›</span>
+        <strong aria-current="page">{modoEdicao || clienteCarregado ? 'Editar cliente' : 'Novo cliente'}</strong>
+      </nav>
+
       <PageHeader
         title={modoEdicao || clienteCarregado ? 'Editar cliente' : 'Novo cliente'}
         description={modoEdicao || clienteCarregado ? `Código ${codigo ?? clienteCarregado}` : 'Preencha os dados do novo cliente.'}
-        actions={
-          <LinkButton to="/clientes" variant="secondary">
-            Voltar
-          </LinkButton>
-        }
       />
 
-      <Card>
-        <ClienteForm
-          mode={modoEdicao ? 'edit' : 'create'}
-          codigo={codigo}
-          clienteInicial={cliente}
-          onExistingLoaded={(existente) => setClienteCarregado(existente.codigo)}
-          onSaved={() => {
-            queryClient.invalidateQueries({ queryKey: ['clientes'] });
-            showToast(modoEdicao || clienteCarregado ? 'Cliente atualizado.' : 'Cliente cadastrado.', 'success');
-            navigate('/clientes');
-          }}
-          onCancel={() => navigate('/clientes')}
-        />
-      </Card>
+      <ClienteForm
+        mode={modoEdicao ? 'edit' : 'create'}
+        codigo={codigo}
+        clienteInicial={cliente}
+        onExistingLoaded={(existente) => setClienteCarregado(existente.codigo)}
+        onSaved={() => {
+          queryClient.invalidateQueries({ queryKey: ['clientes'] });
+          showToast(modoEdicao || clienteCarregado ? 'Cliente atualizado.' : 'Cliente cadastrado.', 'success');
+          navigate('/clientes');
+        }}
+        onCancel={() => navigate('/clientes')}
+      />
     </div>
   );
 }

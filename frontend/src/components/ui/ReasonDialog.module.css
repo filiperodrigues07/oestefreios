@@ -51,3 +51,13 @@
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
+
+.error {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-danger);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-surface);
+  color: var(--color-danger-on-surface);
+  font-size: var(--font-size-sm);
+}

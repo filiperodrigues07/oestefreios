@@ -452,7 +452,7 @@ function OSFormEdit({ id }: { id: string }) {
   const descricaoVeiculo = equipamento?.descricao ?? os.equipamentoCodigo;
 
   return (
-    <div className={`${styles.page} ${styles.detailPage}`}>
+    <div className={`${styles.page} ${styles.detailPage}`} data-pull-refresh-blocked={diagnosticoDirty}>
       <OSFormHeader
         id={id}
         numero={os.numero}

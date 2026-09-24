@@ -1,4 +1,5 @@
-import type { Cliente, ClienteInput, PaginatedResult, SearchQuery } from '../../types/cherp.types.js';
+import type { Cliente, ClienteInput, PaginatedResult, SearchQuery, VinculosCadastro } from '../../types/cherp.types.js';
+import { temVinculos } from '../../utils/vinculos.js';
 import type { IClienteRepository } from '../interfaces/IClienteRepository.js';
 
 /**
@@ -60,5 +61,22 @@ export class ClienteRepositoryMock implements IClienteRepository {
     const atualizado: Cliente = { ...CLIENTES[idx]!, ...input, codigo };
     CLIENTES[idx] = atualizado;
     return atualizado;
+  }
+
+  async excluir(codigo: string): Promise<boolean> {
+    const idx = CLIENTES.findIndex((c) => c.codigo === codigo);
+    if (idx === -1) return false;
+    if (temVinculos(await this.contarVinculos(codigo))) return false;
+    CLIENTES.splice(idx, 1);
+    return true;
+  }
+
+  async contarVinculos(codigo: string): Promise<VinculosCadastro> {
+    // Import tardio: o mock de veículo já importa este arquivo.
+    const { EquipamentoRepositoryMock } = await import('./EquipamentoRepository.mock.js');
+    const { OSRepositoryMock } = await import('./OSRepository.mock.js');
+    const veiculos = await new EquipamentoRepositoryMock().buscarPorCliente(codigo);
+    const os = (await new OSRepositoryMock().listarCabecalhos()).filter((item) => item.clienteCodigo === codigo);
+    return { os: os.length, veiculos: veiculos.length, financeiro: 0, fiscal: 0, pedidos: 0, outros: 0 };
   }
 }

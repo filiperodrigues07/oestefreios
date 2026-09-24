@@ -101,9 +101,9 @@ export function OSFormHeader({
         </div>
       </div>
       <div className={styles.actions}>
-        <Button type="button" variant="secondary" size="sm" onClick={handleVoltar}><ActionIcon name="back" />Voltar</Button>
-        {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} />}
-        <Button type="button" variant="secondary" size="sm" onClick={handleImprimir} loading={imprimindo}><ActionIcon name="print" />{imprimindo ? 'Gerando PDF...' : 'Imprimir'}</Button>
+        <Button type="button" variant="secondary" size="sm" className={styles.backButton} onClick={handleVoltar}><ActionIcon name="back" />Voltar</Button>
+        {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <div className={styles.finalizeAction}><FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} /></div>}
+        <Button type="button" variant="secondary" size="sm" className={styles.printButton} onClick={handleImprimir} loading={imprimindo}><ActionIcon name="print" />Imprimir</Button>
         <OSMoreActions items={moreItems} loading={refreshing || duplicando || excluindo} />
       </div>
     </div>

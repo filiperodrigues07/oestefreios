@@ -9,6 +9,8 @@ export const PERMISSIONS = [
   'OS_EDIT',
   'OS_DELETE',
   'OS_CHANGE_STATUS',
+  'CLIENT_DELETE',
+  'VEHICLE_DELETE',
 
   'PRODUCT_VIEW',
   'PRODUCT_SEARCH',
@@ -55,6 +57,8 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   OS_CREATE: 'Criar OS',
   OS_EDIT: 'Editar OS',
   OS_DELETE: 'Excluir OS',
+  CLIENT_DELETE: 'Excluir clientes',
+  VEHICLE_DELETE: 'Excluir veículos',
   OS_CHANGE_STATUS: 'Alterar status da OS',
   PRODUCT_VIEW: 'Visualizar produtos',
   PRODUCT_SEARCH: 'Buscar produtos',
@@ -75,6 +79,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 /** Agrupamento por categoria pra matriz de permissões (item 5 da rodada de melhorias). */
 export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
   { label: 'Ordens de Serviço', permissions: ['OS_VIEW', 'OS_CREATE', 'OS_EDIT', 'OS_DELETE', 'OS_CHANGE_STATUS'] },
+  { label: 'Cadastros', permissions: ['CLIENT_DELETE', 'VEHICLE_DELETE'] },
   { label: 'Produtos', permissions: ['PRODUCT_VIEW', 'PRODUCT_SEARCH', 'PRODUCT_ADD_TO_OS'] },
   { label: 'Serviços', permissions: ['SERVICE_VIEW', 'SERVICE_SEARCH', 'SERVICE_ADD_TO_OS'] },
   { label: 'Financeiro', permissions: ['FINANCIAL_VIEW', 'FINANCIAL_EDIT'] },

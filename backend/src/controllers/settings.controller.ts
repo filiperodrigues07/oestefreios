@@ -38,6 +38,11 @@ export async function getFirebirdPasswordHandler(_req: Request, res: Response) {
   success(res, { password: await settingsService.getFirebirdPassword() });
 }
 
+export async function getSmtpPasswordHandler(_req: Request, res: Response) {
+  res.setHeader('Cache-Control', 'no-store');
+  success(res, { password: await settingsService.getSmtpPassword() });
+}
+
 export async function getFirebirdConnectionStatusHandler(_req: Request, res: Response) {
   res.setHeader('Cache-Control', 'no-store');
   success(res, await settingsService.getFirebirdConnectionStatus());

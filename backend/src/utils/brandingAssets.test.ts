@@ -23,13 +23,39 @@ describe('resolverLogoParaPdf', () => {
     }
 
     expect(logo.startsWith('data:image/png;base64,')).toBe(true);
-    const pdf = await renderToBuffer(createElement(Document, null,
-      createElement(Page, null, createElement(Image, { src: logo, style: { width: 42, height: 42 } }))));
+    const pdf = await renderToBuffer(
+      createElement(
+        Document,
+        null,
+        createElement(
+          Page,
+          null,
+          createElement(Image, { src: logo, style: { width: 42, height: 42 } }),
+        ),
+      ),
+    );
     expect(pdf.toString('latin1')).toContain('/Subtype /Image');
   });
 
   it('usa a marca padrão quando não há logo configurada', async () => {
     const logo = await resolverLogoParaPdf('');
     expect(logo.startsWith('data:image/png;base64,')).toBe(true);
+  });
+
+  it('não deixa o cabeçalho sem logo quando o arquivo configurado não existe', async () => {
+    const logo = await resolverLogoParaPdf('/api/uploads/branding/logo-ausente.png');
+    expect(logo.startsWith('data:image/png;base64,')).toBe(true);
+    const pdf = await renderToBuffer(
+      createElement(
+        Document,
+        null,
+        createElement(
+          Page,
+          null,
+          createElement(Image, { src: logo, style: { width: 42, height: 42 } }),
+        ),
+      ),
+    );
+    expect(pdf.toString('latin1')).toContain('/Subtype /Image');
   });
 });

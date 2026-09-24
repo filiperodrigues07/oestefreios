@@ -11,6 +11,7 @@ export { Modal } from './Modal.js';
 export { Drawer } from './Drawer.js';
 export { ConfirmDialog } from './ConfirmDialog.js';
 export { ReasonDialog } from './ReasonDialog.js';
+export { ExcluirCadastroDialog } from './ExcluirCadastroDialog.js';
 export { ToastProvider, useToast } from './ToastProvider.js';
 export { Skeleton } from './Skeleton.js';
 export { EmptyState } from './EmptyState.js';

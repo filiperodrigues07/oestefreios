@@ -6,6 +6,7 @@ import {
   getFirebirdConnectionStatusHandler,
   getGeralSettingsHandler,
   getIntegracoesSettingsHandler,
+  getSmtpPasswordHandler,
   getSmtpSettingsHandler,
   saveFirebirdSettingsHandler,
   saveGeralSettingsHandler,
@@ -43,6 +44,7 @@ settingsRouter.put('/firebird', validate(firebirdSettingsSchema), asyncHandler(s
 settingsRouter.post('/firebird/test', validate(firebirdSettingsSchema), asyncHandler(testFirebirdSettingsHandler));
 
 settingsRouter.get('/smtp', asyncHandler(getSmtpSettingsHandler));
+settingsRouter.get('/smtp/password', asyncHandler(getSmtpPasswordHandler));
 settingsRouter.put('/smtp', validate(smtpSettingsSchema), asyncHandler(saveSmtpSettingsHandler));
 settingsRouter.post('/smtp/test', validate(testEmailSchema), asyncHandler(testSmtpSettingsHandler));
 

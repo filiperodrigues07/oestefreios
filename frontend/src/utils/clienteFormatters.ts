@@ -41,3 +41,8 @@ export function formatarTelefone(valor: string): string {
   }
   return digitos.replace(/^(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2');
 }
+
+/** Padrão do CHERP: nome/endereço/cidade em maiúsculas (a API de CEP/CNPJ devolve "Capitalizado"). */
+export function maiuscula(valor: string | undefined): string {
+  return (valor ?? '').toLocaleUpperCase('pt-BR');
+}

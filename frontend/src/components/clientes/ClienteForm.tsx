@@ -4,7 +4,7 @@ import { atualizarCliente, consultarCep, consultarCnpj, consultarInscricaoEstadu
 import { ApiError } from '../../api/httpClient.js';
 import { Button, Checkbox, ConfirmDialog, Input, RequiredMark, Select, useToast } from '../ui/index.js';
 import type { ClienteDTO, ClienteInput, RegimeTributario, TipoPessoa } from '../../types/cherp.types.js';
-import { cpfValido, formatarCep, formatarDocumento, formatarTelefone } from '../../utils/clienteFormatters.js';
+import { cpfValido, formatarCep, maiuscula, formatarDocumento, formatarTelefone } from '../../utils/clienteFormatters.js';
 import styles from './ClienteForm.module.css';
 
 const REGIME_TRIBUTARIO_OPTIONS = [
@@ -118,12 +118,12 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
         ...f,
         nome: dados.razaoSocial || f.nome,
         nomeFantasia: dados.nomeFantasia || f.nomeFantasia,
-        endereco: dados.endereco || f.endereco,
+        endereco: maiuscula(dados.endereco) || f.endereco,
         numero: dados.numero || f.numero,
-        bairro: dados.bairro || f.bairro,
-        cidade: dados.cidade || f.cidade,
+        bairro: maiuscula(dados.bairro) || f.bairro,
+        cidade: maiuscula(dados.cidade) || f.cidade,
         uf: dados.uf || f.uf,
-        cep: dados.cep || f.cep,
+        cep: dados.cep ? formatarCep(dados.cep) : f.cep,
         telefone: dados.telefone ? formatarTelefone(dados.telefone) : f.telefone,
         email: dados.email || f.email,
         regimeTributario: dados.regimeTributario ?? f.regimeTributario,
@@ -159,10 +159,10 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
       setForm((f) => ({
         ...f,
         cep: dados.cep ? formatarCep(dados.cep) : f.cep,
-        endereco: dados.endereco || f.endereco,
-        bairro: dados.bairro || f.bairro,
-        cidade: dados.cidade,
-        uf: dados.uf,
+        endereco: maiuscula(dados.endereco) || f.endereco,
+        bairro: maiuscula(dados.bairro) || f.bairro,
+        cidade: maiuscula(dados.cidade),
+        uf: dados.uf.toUpperCase(),
       }));
     },
     onError: (err) => setCepErro(err instanceof Error ? err.message : 'Não foi possível consultar o CEP.'),
@@ -245,6 +245,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
   }
 
   function buscarCep() {
+    if (cepMutation.isPending) return;
     const digits = (form.cep ?? '').replace(/\D/g, '');
     if (digits.length !== 8) {
       setCepErro('CEP precisa ter 8 dígitos.');
@@ -294,166 +295,215 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
   // Criação e edição exigem os mesmos campos. Nome Fantasia, Inscrição Estadual/Identidade e Regime tributário só valem
   // pra pessoa jurídica (esse campo de identidade é a mesma coluna do CHERP usada pra RG na física).
   const ehPJ = form.tipoPessoa === 'PJ';
-  const podeSalvar =
-    form.nome.trim().length > 0 &&
-    form.documento.trim().length > 0 &&
-    (!ehPJ || (form.nomeFantasia ?? '').trim().length > 0) &&
-    (!ehPJ || (form.inscricaoEstadual ?? '').trim().length > 0) &&
-    (!ehPJ || form.regimeTributario !== undefined) &&
-    (form.cep ?? '').trim().length > 0 &&
-    (form.endereco ?? '').trim().length > 0 &&
-    (form.numero ?? '').trim().length > 0 &&
-    (form.bairro ?? '').trim().length > 0 &&
-    (form.cidade ?? '').trim().length > 0 &&
-    (form.uf ?? '').trim().length > 0 &&
-    (form.celular ?? '').trim().length > 0;
+  const vazio = (valor: string | undefined) => (valor ?? '').trim().length === 0;
+  const faltando: string[] = [
+    vazio(form.nome) && (ehPJ ? 'Razão social' : 'Nome completo'),
+    vazio(form.documento) && (ehPJ ? 'CNPJ' : 'CPF'),
+    ehPJ && vazio(form.nomeFantasia) && 'Nome fantasia',
+    ehPJ && vazio(form.inscricaoEstadual) && 'Inscrição estadual',
+    ehPJ && form.regimeTributario === undefined && 'Regime tributário',
+    vazio(form.cep) && 'CEP',
+    vazio(form.endereco) && 'Endereço',
+    vazio(form.numero) && 'Número',
+    vazio(form.bairro) && 'Bairro',
+    vazio(form.cidade) && 'Cidade',
+    vazio(form.uf) && 'UF',
+    vazio(form.celular) && 'Celular',
+  ].filter((rotulo): rotulo is string => typeof rotulo === 'string');
+  const podeSalvar = faltando.length === 0;
 
   return (
     <div className={styles.form}>
-      {modoEdicao && <Input label="Código" value={codigoEfetivo ?? ''} disabled className={styles.codigo} />}
+      <section className={styles.section} aria-labelledby="cliente-identificacao">
+        <h2 id="cliente-identificacao" className={styles.sectionTitle}>Identificação</h2>
+        <div className={styles.grid}>
+          {modoEdicao && (
+            <div className={styles.c3}>
+              <Input label="Código" value={codigoEfetivo ?? ''} disabled className={styles.codigo} />
+            </div>
+          )}
 
-      <div className={styles.sectionTitle}>Pessoa</div>
+          <div className={modoEdicao ? styles.c5 : styles.c8}>
+            <div className={styles.fieldLabel}>Tipo de pessoa</div>
+            <div className={styles.statusOptions} role="group" aria-label="Tipo de pessoa">
+              <Button type="button" variant={form.tipoPessoa === 'PJ' ? 'primary' : 'secondary'} size="sm" onClick={() => handleTipoPessoa('PJ')}>
+                Pessoa Jurídica
+              </Button>
+              <Button type="button" variant={form.tipoPessoa === 'PF' ? 'primary' : 'secondary'} size="sm" onClick={() => handleTipoPessoa('PF')}>
+                Pessoa Física
+              </Button>
+            </div>
+          </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)' }}>
-        <Button type="button" variant={form.tipoPessoa === 'PJ' ? 'primary' : 'secondary'} size="sm" onClick={() => handleTipoPessoa('PJ')}>
-          Pessoa Jurídica
-        </Button>
-        <Button type="button" variant={form.tipoPessoa === 'PF' ? 'primary' : 'secondary'} size="sm" onClick={() => handleTipoPessoa('PF')}>
-          Pessoa Física
-        </Button>
-      </div>
+          <div className={styles.c4}>
+            <div className={styles.fieldLabel}>Status</div>
+            <div className={styles.statusOptions} role="group" aria-label="Status do cliente">
+              <Button type="button" variant={form.ativo !== false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: true })}>Ativo</Button>
+              <Button type="button" variant={form.ativo === false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: false })}>Inativo</Button>
+            </div>
+          </div>
 
-      <div>
-        <div className={styles.fieldLabel}>Status</div>
-        <div className={styles.statusOptions} role="group" aria-label="Status do cliente">
-          <Button type="button" variant={form.ativo !== false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: true })}>Ativo</Button>
-          <Button type="button" variant={form.ativo === false ? 'primary' : 'secondary'} size="sm" onClick={() => setForm({ ...form, ativo: false })}>Inativo</Button>
+          <div className={styles.c6}>
+            <div className={styles.cnpjRow}>
+              <Input
+                label={<>{form.tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF'}<RequiredMark /></>}
+                required
+                value={form.documento}
+                inputMode="numeric"
+                maxLength={form.tipoPessoa === 'PJ' ? 18 : 14}
+                onChange={(e) => {
+                  const documento = formatarDocumento(e.target.value, form.tipoPessoa);
+                  documentoAtual.current = documento.replace(/\D/g, '');
+                  consultaSequencia.current++;
+                  setDocumentoErro(null);
+                  setConsultandoDocumento(false);
+                  setClienteEncontrado(null);
+                  setForm({ ...form, documento });
+                }}
+              />
+              <Button type="button" variant="secondary" loading={consultandoDocumento || cnpjMutation.isPending} onClick={() => void consultarDocumento()}>
+                Consultar {form.tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF'}
+              </Button>
+            </div>
+            {documentoErro && <span role="alert" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-danger)' }}>{documentoErro}</span>}
+          </div>
+
+          <div className={styles.c6}>
+            <Input
+              label={<>{form.tipoPessoa === 'PJ' ? 'Razão Social' : 'Nome completo'}<RequiredMark /></>}
+              required
+              uppercase
+              value={form.nome}
+              onChange={(e) => setForm({ ...form, nome: e.target.value })}
+            />
+          </div>
+
+          <div className={styles.c6}>
+            <Input
+              label={<>Nome Fantasia{ehPJ && <RequiredMark />}</>}
+              required={ehPJ}
+              uppercase
+              value={form.nomeFantasia}
+              onChange={(e) => setForm({ ...form, nomeFantasia: e.target.value })}
+            />
+          </div>
+
+          {form.tipoPessoa === 'PJ' && (
+            <div className={styles.c6}>
+              <Select
+                label={<>Regime tributário<RequiredMark /></>}
+                required
+                placeholder="Selecione"
+                options={REGIME_TRIBUTARIO_OPTIONS}
+                value={form.regimeTributario !== undefined ? String(form.regimeTributario) : ''}
+                onChange={(e) => setForm({ ...form, regimeTributario: e.target.value === '' ? undefined : (Number(e.target.value) as RegimeTributario) })}
+              />
+            </div>
+          )}
+
+          <div className={styles.c4}>
+            <Input
+              label={<>{form.tipoPessoa === 'PJ' ? 'Inscrição estadual' : 'Identidade (RG)'}{ehPJ && <RequiredMark />}</>}
+              required={ehPJ}
+              uppercase
+              value={form.inscricaoEstadual}
+              onChange={(e) => setForm({ ...form, inscricaoEstadual: e.target.value })}
+            />
+          </div>
+          <div className={styles.c4}>
+            <Input label="Inscrição municipal" uppercase value={form.inscricaoMunicipal} onChange={(e) => setForm({ ...form, inscricaoMunicipal: e.target.value })} />
+          </div>
+          <div className={styles.c4}>
+            <Input label="Redução MVA" type="number" inputMode="numeric" min="0" value={form.reducaoMva ?? ''} onChange={(e) => setForm({ ...form, reducaoMva: e.target.value === '' ? undefined : Number(e.target.value) })} />
+          </div>
+
+          <div className={styles.c12}>
+            <div className={styles.fieldLabel}>Tipo de cadastro</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
+              <Checkbox label="Cliente" checked disabled />
+              <Checkbox label="Fornecedor" checked={form.fornecedor ?? false} onChange={(e) => setForm({ ...form, fornecedor: e.target.checked })} />
+              <Checkbox label="Transportador" checked={form.transportador ?? false} onChange={(e) => setForm({ ...form, transportador: e.target.checked })} />
+              <Checkbox label="Representante" checked={form.representante ?? false} onChange={(e) => setForm({ ...form, representante: e.target.checked })} />
+            </div>
+          </div>
+
+          {form.representante && (
+            <div className={styles.c6}>
+              <Input label="CORE (representante)" uppercase value={form.coreRepresentante} onChange={(e) => setForm({ ...form, coreRepresentante: e.target.value })} />
+            </div>
+          )}
         </div>
-      </div>
+      </section>
 
-      <div>
-        <div className={styles.cnpjRow}>
-          <Input
-            label={<>{form.tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF'}<RequiredMark /></>}
-            required
-            value={form.documento}
-            inputMode="numeric"
-            maxLength={form.tipoPessoa === 'PJ' ? 18 : 14}
-            onChange={(e) => {
-              const documento = formatarDocumento(e.target.value, form.tipoPessoa);
-              documentoAtual.current = documento.replace(/\D/g, '');
-              consultaSequencia.current++;
-              setDocumentoErro(null);
-              setConsultandoDocumento(false);
-              setClienteEncontrado(null);
-              setForm({ ...form, documento });
-            }}
-          />
-          <Button type="button" variant="secondary" loading={consultandoDocumento || cnpjMutation.isPending} onClick={() => void consultarDocumento()}>
-            Consultar {form.tipoPessoa === 'PJ' ? 'CNPJ' : 'CPF'}
-          </Button>
+      <section className={styles.section} aria-labelledby="cliente-endereco">
+        <h2 id="cliente-endereco" className={styles.sectionTitle}>Endereço</h2>
+        <div className={styles.grid}>
+          <div className={styles.c4}>
+            <div className={styles.cepRow}>
+              <Input
+                label={<>CEP<RequiredMark /></>}
+                required
+                value={form.cep ?? ''}
+                inputMode="numeric"
+                maxLength={9}
+                onChange={(e) => setForm({ ...form, cep: formatarCep(e.target.value) })}
+                onBlur={() => { if ((form.cep ?? '').replace(/\D/g, '').length === 8) buscarCep(); }}
+                error={cepErro ?? undefined}
+              />
+              <Button type="button" variant="secondary" loading={cepMutation.isPending} onClick={buscarCep}>Consultar CEP</Button>
+            </div>
+          </div>
+          <div className={styles.c6}>
+            <Input label={<>Endereço<RequiredMark /></>} required uppercase value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
+          </div>
+          <div className={styles.c2}>
+            <Input label={<>Número<RequiredMark /></>} required uppercase value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
+          </div>
+          <div className={styles.c3}>
+            <Input label={<>Bairro<RequiredMark /></>} required uppercase value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
+          </div>
+          <div className={styles.c3}>
+            <Input label="Complemento" uppercase value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
+          </div>
+          <div className={styles.c4}>
+            <Input label={<>Cidade<RequiredMark /></>} required uppercase value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
+          </div>
+          <div className={styles.c2}>
+            <Select
+              label={<>UF<RequiredMark /></>}
+              required
+              options={UF_OPTIONS}
+              placeholder="—"
+              value={form.uf}
+              onChange={(e) => setForm({ ...form, uf: e.target.value })}
+            />
+          </div>
         </div>
-        {documentoErro && <span role="alert" style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-danger)' }}>{documentoErro}</span>}
-      </div>
+      </section>
 
-      <div className={styles.twoColumns}>
-        <Input
-          label={<>{form.tipoPessoa === 'PJ' ? 'Razão Social' : 'Nome completo'}<RequiredMark /></>}
-          required
-          uppercase
-          value={form.nome}
-          onChange={(e) => setForm({ ...form, nome: e.target.value })}
-        />
-        <Input
-          label={<>Nome Fantasia{ehPJ && <RequiredMark />}</>}
-          required={ehPJ}
-          uppercase
-          value={form.nomeFantasia}
-          onChange={(e) => setForm({ ...form, nomeFantasia: e.target.value })}
-        />
-      </div>
-
-      <div>
-        <div style={{ fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}>Tipo</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-3)' }}>
-          <Checkbox label="Cliente" checked disabled />
-          <Checkbox label="Fornecedor" checked={form.fornecedor ?? false} onChange={(e) => setForm({ ...form, fornecedor: e.target.checked })} />
-          <Checkbox label="Transportador" checked={form.transportador ?? false} onChange={(e) => setForm({ ...form, transportador: e.target.checked })} />
-          <Checkbox label="Representante" checked={form.representante ?? false} onChange={(e) => setForm({ ...form, representante: e.target.checked })} />
+      <section className={styles.section} aria-labelledby="cliente-contato">
+        <h2 id="cliente-contato" className={styles.sectionTitle}>Contato</h2>
+        <div className={styles.grid}>
+          <div className={styles.c6}>
+            <Input label={<>Celular / WhatsApp<RequiredMark /></>} required value={form.celular} inputMode="tel" maxLength={15} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
+          </div>
+          <div className={styles.c6}>
+            <Input label="Telefone fixo" value={form.telefone} inputMode="tel" maxLength={15} onChange={(e) => setForm({ ...form, telefone: formatarTelefone(e.target.value) })} />
+          </div>
+          <div className={styles.c6}>
+            <Input label="E-mail comercial" type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          </div>
+          <div className={styles.c6}>
+            <Input label="E-mail financeiro" type="email" autoComplete="off" value={form.emailFinanceiro} onChange={(e) => setForm({ ...form, emailFinanceiro: e.target.value })} />
+          </div>
+          <div className={styles.c6}>
+            <Input label="E-mail NFe/NFSe" type="email" autoComplete="off" value={form.emailNfe} onChange={(e) => setForm({ ...form, emailNfe: e.target.value })} />
+          </div>
+          <div className={styles.c6}>
+            <Input label="Site" type="url" value={form.homePage} onChange={(e) => setForm({ ...form, homePage: e.target.value })} />
+          </div>
         </div>
-      </div>
-
-      {form.tipoPessoa === 'PJ' && (
-        <Select
-          label={<>Regime tributário<RequiredMark /></>}
-          required
-          placeholder="Selecione"
-          options={REGIME_TRIBUTARIO_OPTIONS}
-          value={form.regimeTributario !== undefined ? String(form.regimeTributario) : ''}
-          onChange={(e) => setForm({ ...form, regimeTributario: e.target.value === '' ? undefined : (Number(e.target.value) as RegimeTributario) })}
-        />
-      )}
-
-      <div className={styles.threeColumns}>
-        <Input
-          label={<>{form.tipoPessoa === 'PJ' ? 'Inscrição estadual' : 'Identidade (RG)'}{ehPJ && <RequiredMark />}</>}
-          required={ehPJ}
-          uppercase
-          value={form.inscricaoEstadual}
-          onChange={(e) => setForm({ ...form, inscricaoEstadual: e.target.value })}
-        />
-        <Input label="Inscrição municipal" uppercase value={form.inscricaoMunicipal} onChange={(e) => setForm({ ...form, inscricaoMunicipal: e.target.value })} />
-        <Input label="Redução MVA" type="number" inputMode="numeric" min="0" value={form.reducaoMva ?? ''} onChange={(e) => setForm({ ...form, reducaoMva: e.target.value === '' ? undefined : Number(e.target.value) })} />
-      </div>
-
-      <div className={styles.addressHeader}>Endereço</div>
-      <div className={styles.cepRow}>
-        <Input
-          label={<>CEP<RequiredMark /></>}
-          required
-          value={form.cep ?? ''}
-          inputMode="numeric"
-          maxLength={9}
-          onChange={(e) => setForm({ ...form, cep: formatarCep(e.target.value) })}
-          onBlur={() => { if ((form.cep ?? '').replace(/\D/g, '').length === 8) buscarCep(); }}
-          error={cepErro ?? undefined}
-        />
-        <Button type="button" variant="secondary" loading={cepMutation.isPending} onClick={buscarCep}>Consultar CEP</Button>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
-        <Input label={<>Endereço<RequiredMark /></>} required uppercase value={form.endereco} onChange={(e) => setForm({ ...form, endereco: e.target.value })} />
-        <Input label={<>Número<RequiredMark /></>} required uppercase value={form.numero} onChange={(e) => setForm({ ...form, numero: e.target.value })} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
-        <Input label={<>Bairro<RequiredMark /></>} required uppercase value={form.bairro} onChange={(e) => setForm({ ...form, bairro: e.target.value })} />
-        <Input label="Complemento" uppercase value={form.complemento} onChange={(e) => setForm({ ...form, complemento: e.target.value })} />
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
-        <Input label={<>Cidade<RequiredMark /></>} required uppercase value={form.cidade} onChange={(e) => setForm({ ...form, cidade: e.target.value })} />
-        <Select
-          label={<>UF<RequiredMark /></>}
-          required
-          options={UF_OPTIONS}
-          placeholder="—"
-          value={form.uf}
-          onChange={(e) => setForm({ ...form, uf: e.target.value })}
-        />
-      </div>
-
-      <div className={styles.twoColumns}>
-        <Input label={<>Celular / WhatsApp<RequiredMark /></>} required value={form.celular} inputMode="tel" maxLength={15} onChange={(e) => setForm({ ...form, celular: formatarTelefone(e.target.value) })} />
-        <Input label="Telefone fixo" value={form.telefone} inputMode="tel" maxLength={15} onChange={(e) => setForm({ ...form, telefone: formatarTelefone(e.target.value) })} />
-      </div>
-
-      <div className={styles.addressHeader}>E-mails e contato</div>
-      <div className={styles.twoColumns}>
-        <Input label="E-mail comercial" type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-        <Input label="E-mail financeiro" type="email" autoComplete="off" value={form.emailFinanceiro} onChange={(e) => setForm({ ...form, emailFinanceiro: e.target.value })} />
-        <Input label="E-mail NFe/NFSe" type="email" autoComplete="off" value={form.emailNfe} onChange={(e) => setForm({ ...form, emailNfe: e.target.value })} />
-        <Input label="Site" type="url" value={form.homePage} onChange={(e) => setForm({ ...form, homePage: e.target.value })} />
-      </div>
-
-      {form.representante && <Input label="CORE (representante)" uppercase value={form.coreRepresentante} onChange={(e) => setForm({ ...form, coreRepresentante: e.target.value })} />}
+      </section>
 
       {carregandoDuplicado && (
         <p style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
@@ -487,12 +537,26 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
       })()}
 
       <div className={styles.actions}>
-        <Button type="button" variant="secondary" onClick={onCancel}>
-          {cancelLabel}
-        </Button>
-        <Button onClick={salvarCliente} loading={saveMutation.isPending} disabled={!podeSalvar}>
-          {modoEdicao ? 'Salvar' : 'Cadastrar'}
-        </Button>
+        <div className={styles.pendencias} role="status" aria-live="polite">
+          {faltando.length > 0 && (
+            <>
+              <span className={styles.pendCurto} title={faltando.join(', ')}>
+                <strong>{faltando.length}</strong> {faltando.length === 1 ? 'campo obrigatório pendente' : 'campos obrigatórios pendentes'}
+              </span>
+              <span className={styles.pendLongo}>
+                Falta preencher: <strong>{faltando.join(', ')}</strong>
+              </span>
+            </>
+          )}
+        </div>
+        <div className={styles.actionButtons}>
+          <Button type="button" variant="secondary" onClick={onCancel}>
+            {cancelLabel}
+          </Button>
+          <Button onClick={salvarCliente} loading={saveMutation.isPending} disabled={!podeSalvar}>
+            {modoEdicao ? 'Salvar' : 'Cadastrar'}
+          </Button>
+        </div>
       </div>
 
       <ConfirmDialog

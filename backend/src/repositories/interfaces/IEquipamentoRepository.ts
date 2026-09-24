@@ -1,4 +1,4 @@
-import type { Equipamento, EquipamentoInput, PaginatedResult, SearchQuery } from '../../types/cherp.types.js';
+import type { Equipamento, EquipamentoInput, PaginatedResult, SearchQuery, VinculosCadastro } from '../../types/cherp.types.js';
 
 export interface IEquipamentoRepository {
   buscarPorCodigo(codigo: string): Promise<Equipamento | null>;
@@ -8,4 +8,7 @@ export interface IEquipamentoRepository {
   buscar(query: SearchQuery): Promise<PaginatedResult<Equipamento>>;
   criar(input: EquipamentoInput): Promise<Equipamento>;
   atualizar(codigo: string, input: EquipamentoInput): Promise<Equipamento>;
+  /** Exclusão lógica (ATIVO = 0). Devolve false, sem alterar nada, se houver OS vinculada ou o cadastro já não existir. */
+  excluir(codigo: string): Promise<boolean>;
+  contarVinculos(codigo: string): Promise<VinculosCadastro>;
 }

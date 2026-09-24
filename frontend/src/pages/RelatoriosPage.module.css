@@ -216,4 +216,8 @@
   .filtros > * {
     min-width: 0;
   }
+
+  .atalhos button {
+    min-height: 44px;
+  }
 }

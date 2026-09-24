@@ -1,6 +1,12 @@
 import { z } from 'zod';
 import { toUppercase } from './textTransform.js';
 
+/** O CHERP guarda CEP como "NNNNN-NNN"; CEP só com dígitos (ex.: vindo da consulta de CNPJ) aparece truncado lá. */
+export function normalizarCep(valor: string): string {
+  const digitos = valor.replace(/\D/g, '');
+  return digitos.length === 8 ? `${digitos.slice(0, 5)}-${digitos.slice(5)}` : valor;
+}
+
 // Base compartilhada; criação e edição usam clienteCreateSchema para exigir os mesmos campos.
 export const clienteInputSchema = z.object({
   ativo: z.boolean().default(true),
@@ -24,7 +30,7 @@ export const clienteInputSchema = z.object({
   complemento: z.string().trim().transform(toUppercase).optional(),
   cidade: z.string().trim().transform(toUppercase).optional(),
   uf: z.string().trim().length(2, 'UF inválida.').transform(toUppercase).optional(),
-  cep: z.string().trim().optional(),
+  cep: z.string().trim().transform(normalizarCep).optional(),
   fornecedor: z.boolean().default(false),
   transportador: z.boolean().default(false),
   representante: z.boolean().default(false),
@@ -45,7 +51,7 @@ export const clienteCreateSchema = clienteInputSchema
     bairro: z.string().trim().min(1, 'Bairro é obrigatório.').transform(toUppercase),
     cidade: z.string().trim().min(1, 'Cidade é obrigatória.').transform(toUppercase),
     uf: z.string().trim().length(2, 'UF inválida.').transform(toUppercase),
-    cep: z.string().trim().min(1, 'CEP é obrigatório.'),
+    cep: z.string().trim().min(1, 'CEP é obrigatório.').transform(normalizarCep),
   })
   .superRefine((data, ctx) => {
     if (data.tipoPessoa === 'PF' && !cpfValido(data.documento)) {

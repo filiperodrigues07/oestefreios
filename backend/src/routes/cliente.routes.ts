@@ -5,6 +5,7 @@ import {
   consultarCnpjHandler,
   consultarInscricaoEstadualHandler,
   criarClienteHandler,
+  excluirClienteHandler,
   getClienteByCodigoHandler,
   getClienteByDocumentoHandler,
   searchClientesHandler,
@@ -13,6 +14,7 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { excluirCadastroSchema } from '../validators/cadastro.validator.js';
 import { cepParamSchema, clienteCreateSchema, cnpjParamSchema, documentoParamSchema } from '../validators/cliente.validator.js';
 import { codigoParamSchema, searchQuerySchema } from '../validators/search.validator.js';
 
@@ -36,4 +38,12 @@ clienteRouter.put(
   validate(codigoParamSchema, 'params'),
   validate(clienteCreateSchema),
   asyncHandler(atualizarClienteHandler),
+);
+
+clienteRouter.delete(
+  '/:codigo',
+  requirePermission('CLIENT_DELETE'),
+  validate(codigoParamSchema, 'params'),
+  validate(excluirCadastroSchema),
+  asyncHandler(excluirClienteHandler),
 );

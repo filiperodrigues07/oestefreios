@@ -1,7 +1,32 @@
 .page {
-  width: min(100%, 720px);
+  width: min(100%, 1120px);
   margin: 0 auto;
   padding: var(--space-6);
+}
+
+/* Voltar como breadcrumb com seta — mesmo padrão da tela de OS. */
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.breadcrumb strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.back {
+  min-height: 44px;
+  margin-left: calc(var(--space-3) * -1);
+  color: var(--color-text-secondary);
+}
+
+.back:hover {
+  color: var(--color-text-primary);
 }
 
 @media (max-width: 899px) {

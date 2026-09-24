@@ -2,7 +2,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { getClienteByCodigo } from '../api/clientes.api.js';
-import { listarEquipamentos, type EquipamentoSortBy } from '../api/equipamentos.api.js';
+import { excluirEquipamento, listarEquipamentos, type EquipamentoSortBy } from '../api/equipamentos.api.js';
 import { baixarRelatorioVeiculos } from '../api/relatorios.api.js';
 import { ClienteSearch } from '../components/search/ClienteSearch.js';
 import { VeiculoFormModal } from '../components/veiculos/VeiculoFormModal.js';
@@ -17,14 +17,17 @@ import {
   PageHeader,
   MobileRecordCard,
   MobileFab,
+  ExcluirCadastroDialog,
   Pagination,
   ResponsiveFilters,
   ResultsSummary,
+  RowActionButton,
   SearchInput,
   Select,
   Skeleton,
   Table,
   type TableColumn,
+  useToast,
 } from '../components/ui/index.js';
 import { hasPermission } from '../store/authStore.js';
 import type { ClienteDTO, EquipamentoDTO } from '../types/cherp.types.js';
@@ -36,6 +39,9 @@ export function VeiculosPage() {
   const initialBusca = searchParams.get('busca') ?? filtrosSalvos.get('busca') ?? '';
   const initialClienteCodigo = searchParams.get('clienteCodigo') ?? filtrosSalvos.get('clienteCodigo') ?? '';
   const queryClient = useQueryClient();
+  const { showToast } = useToast();
+  const podeExcluir = hasPermission('VEHICLE_DELETE');
+  const [excluindo, setExcluindo] = useState<EquipamentoDTO | null>(null);
   const [busca, setBusca] = useState(initialBusca);
   const [buscaAtiva, setBuscaAtiva] = useState(initialBusca);
   const [cliente, setCliente] = useState<ClienteDTO | null>(null);
@@ -113,19 +119,28 @@ export function VeiculosPage() {
       key: 'acoes',
       header: 'Ações',
       align: 'right',
-      render: (v) =>
-        hasPermission('OS_EDIT') ? (
-          <Button
-            variant="secondary"
-            size="sm"
-            className={styles.editButton}
-            onClick={() => setModal({ veiculo: v })}
-            aria-label={`Editar veículo ${v.identificacao || v.codigo}`}
-            title={`Editar veículo ${v.identificacao || v.codigo}`}
-          >
-            <ActionIcon name="edit" />
-          </Button>
-        ) : null,
+      render: (v) => (
+        <span style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
+          {hasPermission('OS_EDIT') && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className={styles.editButton}
+              onClick={(event) => {
+                event.stopPropagation();
+                setModal({ veiculo: v });
+              }}
+              aria-label={`Editar veículo ${v.identificacao || v.codigo}`}
+              title={`Editar veículo ${v.identificacao || v.codigo}`}
+            >
+              <ActionIcon name="edit" />
+            </Button>
+          )}
+          {podeExcluir && (
+            <RowActionButton icon="delete" tone="danger" label={`Excluir veículo ${v.identificacao || v.codigo}`} onClick={() => setExcluindo(v)} />
+          )}
+        </span>
+      ),
     },
   ];
 
@@ -228,6 +243,7 @@ export function VeiculosPage() {
                 sortOrder={sortOrder}
                 onSortChange={handleSortChange}
                 columnPrefsKey="veiculos"
+                onRowClick={hasPermission('OS_EDIT') ? (v) => setModal({ veiculo: v }) : undefined}
                 renderMobileCard={(veiculo) => (
                   <MobileRecordCard
                     eyebrow={veiculo.identificacao || `Veículo ${veiculo.codigo}`}
@@ -238,10 +254,17 @@ export function VeiculosPage() {
                       { label: 'Ano modelo', value: veiculo.anoModelo || '—', mono: true },
                     ]}
                     actions={
-                      hasPermission('OS_EDIT') ? (
-                        <Button variant="secondary" size="sm" className={styles.editButton} onClick={() => setModal({ veiculo })} aria-label={`Editar veículo ${veiculo.identificacao || veiculo.codigo}`} title={`Editar veículo ${veiculo.identificacao || veiculo.codigo}`}>
-                          <ActionIcon name="edit" />
-                        </Button>
+                      hasPermission('OS_EDIT') || podeExcluir ? (
+                        <>
+                          {hasPermission('OS_EDIT') && (
+                            <Button variant="secondary" size="sm" className={styles.editButton} onClick={() => setModal({ veiculo })} aria-label={`Editar veículo ${veiculo.identificacao || veiculo.codigo}`} title={`Editar veículo ${veiculo.identificacao || veiculo.codigo}`}>
+                              <ActionIcon name="edit" />
+                            </Button>
+                          )}
+                          {podeExcluir && (
+                            <RowActionButton icon="delete" tone="danger" label={`Excluir veículo ${veiculo.identificacao || veiculo.codigo}`} onClick={() => setExcluindo(veiculo)} />
+                          )}
+                        </>
                       ) : undefined
                     }
                   />
@@ -270,6 +293,21 @@ export function VeiculosPage() {
           onClose={() => setModal(null)}
           onCreated={() => {
             setModal(null);
+            void queryClient.invalidateQueries({
+              predicate: (query) => String(query.queryKey[0]).startsWith('equipamento'),
+            });
+          }}
+        />
+      )}
+      {excluindo && (
+        <ExcluirCadastroDialog
+          tipo="veículo"
+          nome={excluindo.identificacao || excluindo.descricao}
+          onExcluir={(motivo) => excluirEquipamento(excluindo.codigo, motivo)}
+          onClose={() => setExcluindo(null)}
+          onExcluido={() => {
+            showToast('Veículo excluído.', 'success');
+            setExcluindo(null);
             void queryClient.invalidateQueries({
               predicate: (query) => String(query.queryKey[0]).startsWith('equipamento'),
             });

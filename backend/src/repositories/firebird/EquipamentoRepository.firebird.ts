@@ -4,8 +4,9 @@ import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { NotFoundError } from '../../errors/NotFoundError.js';
 import { NotImplementedError } from '../../errors/NotImplementedError.js';
 import { ValidationError } from '../../errors/ValidationError.js';
-import type { Equipamento, EquipamentoInput, PaginatedResult, SearchQuery } from '../../types/cherp.types.js';
+import type { Equipamento, EquipamentoInput, PaginatedResult, SearchQuery, VinculosCadastro } from '../../types/cherp.types.js';
 import type { IEquipamentoRepository } from '../interfaces/IEquipamentoRepository.js';
+import { condicaoSemVinculos, contarVinculosTabelas, ORIGENS_VEICULO, vinculosVazios } from './vinculosCadastro.js';
 
 /**
  * Ver ProdutoRepository.firebird.ts para o padrão geral e para a explicação do
@@ -232,7 +233,7 @@ export class EquipamentoRepositoryFirebird implements IEquipamentoRepository {
     await firebirdQuery(
       `UPDATE EQUIPAMENTOS SET
          CHAVECLIFOR = ?, DESCRICAO = ?, IDENTIFICACAO = ?, MARCA = ?, ANOFAB = ?, ANOMOD = ?, CORPREDOMINANTE = ?, CHASSI = ?
-       WHERE CODIGO = ?`,
+       WHERE CODIGO = ? AND ATIVO = 1`,
       [
         chaveCliente,
         toLatin1Param(descricao),
@@ -249,5 +250,22 @@ export class EquipamentoRepositoryFirebird implements IEquipamentoRepository {
     const atualizado = await this.buscarPorCodigo(codigo);
     if (!atualizado) throw new NotFoundError('Veículo não encontrado.', 'EQUIPAMENTO_NOT_FOUND');
     return atualizado;
+  }
+
+  async excluir(codigo: string): Promise<boolean> {
+    await firebirdQuery(
+      `UPDATE EQUIPAMENTOS E SET ATIVO = 0
+       WHERE E.CODIGO = ? AND E.ATIVO = 1
+         AND ${condicaoSemVinculos(ORIGENS_VEICULO, 'E')}`,
+      [codigo],
+    );
+    const rows = await firebirdQuery<{ ATIVO: number }>(`SELECT ATIVO FROM EQUIPAMENTOS WHERE CODIGO = ?`, [codigo]);
+    return rows.length > 0 && Number(rows[0]!.ATIVO) === 0;
+  }
+
+  async contarVinculos(codigo: string): Promise<VinculosCadastro> {
+    const rows = await firebirdQuery<{ CHAVE: number }>(`SELECT CHAVE FROM EQUIPAMENTOS WHERE CODIGO = ? AND ATIVO = 1`, [codigo]);
+    if (!rows[0]) return vinculosVazios();
+    return contarVinculosTabelas(ORIGENS_VEICULO, rows[0].CHAVE);
   }
 }

@@ -34,3 +34,10 @@ export async function atualizarEquipamentoHandler(req: Request, res: Response) {
   const equipamento = await equipamentoService.atualizarEquipamento(codigo, req.body, req.user!, requestContext(req));
   success(res, equipamento, 'Veículo atualizado com sucesso.');
 }
+
+export async function excluirEquipamentoHandler(req: Request, res: Response) {
+  const { codigo } = req.params as { codigo: string };
+  const { motivo } = req.body as { motivo: string };
+  await equipamentoService.excluirEquipamento(codigo, motivo, req.user!, requestContext(req));
+  success(res, null, 'Veículo excluído.');
+}

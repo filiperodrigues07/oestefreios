@@ -249,7 +249,7 @@ export function ItemGrid({
       : undefined;
 
   return (
-    <div className={styles.wrapper}>
+    <div className={styles.wrapper} data-pull-refresh-blocked={Boolean(selecionado || editandoCodigo)}>
       {/* Controles de adicionar — no topo, pra lista de itens crescer abaixo conforme lança */}
       {podeEditar && (
         <div className={styles.addControls}>
@@ -602,7 +602,7 @@ export function ItemGrid({
                 )}
               </div>
               {podeEditar && (
-                <div style={{ display: 'flex', gap: 'var(--space-1)' }}>
+                <div className={styles.itemCardActions}>
                   {emEdicao ? (
                     <>
                       <button

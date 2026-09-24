@@ -2,6 +2,7 @@ import { Router } from 'express';
 import {
   atualizarEquipamentoHandler,
   criarEquipamentoHandler,
+  excluirEquipamentoHandler,
   getEquipamentoByCodigoHandler,
   searchEquipamentosHandler,
 } from '../controllers/equipamento.controller.js';
@@ -9,6 +10,7 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { excluirCadastroSchema } from '../validators/cadastro.validator.js';
 import { equipamentoInputSchema } from '../validators/equipamento.validator.js';
 import { codigoParamSchema, searchQuerySchema } from '../validators/search.validator.js';
 import { getVehicleLookupQuotaHandler, lookupVehiclePlateHandler } from '../controllers/vehicleLookup.controller.js';
@@ -35,4 +37,12 @@ equipamentoRouter.put(
   validate(codigoParamSchema, 'params'),
   validate(equipamentoInputSchema),
   asyncHandler(atualizarEquipamentoHandler),
+);
+
+equipamentoRouter.delete(
+  '/:codigo',
+  requirePermission('VEHICLE_DELETE'),
+  validate(codigoParamSchema, 'params'),
+  validate(excluirCadastroSchema),
+  asyncHandler(excluirEquipamentoHandler),
 );
