@@ -5,7 +5,7 @@ import { exportarExcel } from '../services/reportExport.service.js';
 import { getGeralSettings } from '../services/settings.service.js';
 
 export async function listAuditLogsHandler(req: Request, res: Response) {
-  const filter = req.query as unknown as auditLogService.AuditLogFilter & { formato: 'json' | 'excel' };
+  const filter = { ...(req.query as unknown as auditLogService.AuditLogFilter & { formato: 'json' | 'excel' }), ocultarEventosDoProprietario: !req.user!.isSuperAdmin };
   if (filter.formato === 'excel') {
     const relatorio = await auditLogService.exportAuditLogs(filter);
     const geral = await getGeralSettings();

@@ -7,11 +7,13 @@ import { recordAudit } from './auditLog.service.js';
 import { readCategory, writeCategory } from './settings.service.js';
 
 /**
- * Mensalidade do cliente. Guardada em `settings` (categoria `billing`, jsonb) — só quem tem
- * SYSTEM_SETTINGS lê/edita. Sem vencimento configurado = EM_DIA (nunca trava um sistema recém-instalado).
+ * Mensalidade do cliente. Guardada em `settings` (categoria `billing`, jsonb) — só o proprietário
+ * (super admin) lê/edita. Sem vencimento configurado = EM_DIA (nunca trava um sistema recém-instalado).
+ * O controle manual (suspender/liberar) tem precedência sobre a data.
  */
 
 export type EstadoAssinatura = 'EM_DIA' | 'A_VENCER' | 'VENCIDA' | 'SOMENTE_LEITURA';
+export type ModoAssinatura = 'AUTO' | 'SUSPENSO' | 'LIBERADO';
 
 export interface PagamentoAssinatura {
   id: string;
@@ -31,6 +33,16 @@ export interface BillingSettings {
   diaVencimento: number;
   carenciaDias: number;
   avisoDias: number;
+  /** Nota interna do proprietário — nunca sai daqui para o cliente. */
+  observacaoInterna: string;
+  /** Texto mostrado ao cliente no banner de somente leitura (vazio = mensagem padrão). */
+  mensagemCliente: string;
+  modo: ModoAssinatura;
+  /** Só em LIBERADO: até quando a liberação vale (null = sem prazo). */
+  liberadoAte: string | null;
+  controleMotivo: string;
+  controlePor: string;
+  controleEm: string | null;
   pagamentos: PagamentoAssinatura[];
 }
 
@@ -38,6 +50,8 @@ export interface BillingStatus {
   estado: EstadoAssinatura;
   diasParaVencer: number | null;
   mensagem: string;
+  /** DATA = calculado pelo vencimento; MANUAL = suspensão/liberação do proprietário. */
+  origem: 'DATA' | 'MANUAL';
 }
 
 const BILLING_PADRAO: BillingSettings = {
@@ -48,10 +62,17 @@ const BILLING_PADRAO: BillingSettings = {
   diaVencimento: 10,
   carenciaDias: 5,
   avisoDias: 7,
+  observacaoInterna: '',
+  mensagemCliente: '',
+  modo: 'AUTO',
+  liberadoAte: null,
+  controleMotivo: '',
+  controlePor: '',
+  controleEm: null,
   pagamentos: [],
 };
 
-const MENSAGEM_SOMENTE_LEITURA = 'Mensalidade em atraso — o sistema está somente para consulta. Fale com o suporte.';
+const MENSAGEM_SOMENTE_LEITURA = 'Sistema em modo consulta — não é possível salvar alterações no momento. Fale com o suporte.';
 
 function paraUtc(dataIso: string): number {
   const [ano, mes, dia] = dataIso.split('-').map(Number) as [number, number, number];
@@ -78,6 +99,22 @@ export function calcularEstadoAssinatura(input: {
   return { estado: 'SOMENTE_LEITURA', diasParaVencer: dias };
 }
 
+/**
+ * Precedência do controle manual sobre o cálculo por data (pura, testável):
+ * SUSPENSO → somente leitura já; LIBERADO (dentro do prazo) → em dia mesmo vencido; LIBERADO vencido volta ao automático.
+ */
+export function aplicarControleManual(
+  base: { estado: EstadoAssinatura; diasParaVencer: number | null },
+  controle: { modo: ModoAssinatura; liberadoAte: string | null },
+  hoje: string,
+): { estado: EstadoAssinatura; diasParaVencer: number | null; origem: 'DATA' | 'MANUAL' } {
+  if (controle.modo === 'SUSPENSO') return { estado: 'SOMENTE_LEITURA', diasParaVencer: base.diasParaVencer, origem: 'MANUAL' };
+  if (controle.modo === 'LIBERADO' && (!controle.liberadoAte || paraUtc(hoje) <= paraUtc(controle.liberadoAte))) {
+    return { estado: 'EM_DIA', diasParaVencer: base.diasParaVencer, origem: 'MANUAL' };
+  }
+  return { ...base, origem: 'DATA' };
+}
+
 /** Soma um mês respeitando o dia de vencimento e o fim de mês (dia 31 em fevereiro cai no dia 28/29). */
 export function proximoVencimento(base: string, diaVencimento: number): string {
   const [ano, mes] = base.split('-').map(Number) as [number, number];
@@ -88,10 +125,10 @@ export function proximoVencimento(base: string, diaVencimento: number): string {
   return `${proximoAno}-${String(proximoMes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
 }
 
-function mensagemPara(estado: EstadoAssinatura, dias: number | null): string {
+function mensagemPara(estado: EstadoAssinatura, dias: number | null, mensagemCliente: string): string {
   if (estado === 'A_VENCER') return dias === 0 ? 'A mensalidade vence hoje.' : `A mensalidade vence em ${dias} dia(s).`;
   if (estado === 'VENCIDA') return `Mensalidade vencida há ${Math.abs(dias ?? 0)} dia(s). Regularize para evitar o bloqueio de alterações.`;
-  if (estado === 'SOMENTE_LEITURA') return MENSAGEM_SOMENTE_LEITURA;
+  if (estado === 'SOMENTE_LEITURA') return mensagemCliente.trim() || MENSAGEM_SOMENTE_LEITURA;
   return '';
 }
 
@@ -100,13 +137,15 @@ export async function getBilling(): Promise<BillingSettings> {
 }
 
 function statusDe(dados: BillingSettings, agora = new Date()): BillingStatus {
-  const { estado, diasParaVencer } = calcularEstadoAssinatura({
+  const hoje = hojeIso(agora);
+  const base = calcularEstadoAssinatura({
     vencimento: dados.vencimentoAtual,
-    hoje: hojeIso(agora),
+    hoje,
     carenciaDias: dados.carenciaDias,
     avisoDias: dados.avisoDias,
   });
-  return { estado, diasParaVencer, mensagem: mensagemPara(estado, diasParaVencer) };
+  const { estado, diasParaVencer, origem } = aplicarControleManual(base, { modo: dados.modo, liberadoAte: dados.liberadoAte }, hoje);
+  return { estado, diasParaVencer, origem, mensagem: mensagemPara(estado, diasParaVencer, dados.mensagemCliente) };
 }
 
 let cache: { status: BillingStatus; em: number } | null = null;
@@ -124,27 +163,71 @@ export async function getBillingStatus(): Promise<BillingStatus> {
   return status;
 }
 
+/**
+ * Visão do status para quem NÃO é o proprietário: só existe "modo consulta" ou nada. Aviso de vencimento,
+ * carência e origem são assunto do proprietário — o cliente não os vê.
+ */
+export function statusParaCliente(status: BillingStatus): Omit<BillingStatus, 'origem'> {
+  if (status.estado === 'SOMENTE_LEITURA') return { estado: 'SOMENTE_LEITURA', diasParaVencer: null, mensagem: status.mensagem };
+  return { estado: 'EM_DIA', diasParaVencer: null, mensagem: '' };
+}
+
 export async function getBillingCompleto(): Promise<BillingSettings & BillingStatus> {
   const dados = await getBilling();
   return { ...dados, ...statusDe(dados) };
 }
 
-export function erroSomenteLeitura(): AppError {
-  return new AppError('SUBSCRIPTION_READ_ONLY', MENSAGEM_SOMENTE_LEITURA, 403);
+export function erroSomenteLeitura(mensagem?: string): AppError {
+  return new AppError('SUBSCRIPTION_READ_ONLY', mensagem ?? MENSAGEM_SOMENTE_LEITURA, 403);
 }
 
 function auditBilling(event: string, usuario: AuthenticatedUser, ctx: RequestContext, changes: unknown) {
   return recordAudit({ userId: usuario.id, userName: usuario.name, event, entityType: 'BILLING', entityId: event, changes, ...ctx });
 }
 
-export type BillingUpdateInput = Omit<BillingSettings, 'pagamentos'>;
+export type BillingUpdateInput = Pick<
+  BillingSettings,
+  'cliente' | 'plano' | 'valorMensal' | 'vencimentoAtual' | 'diaVencimento' | 'carenciaDias' | 'avisoDias' | 'observacaoInterna' | 'mensagemCliente'
+>;
 
 export async function atualizarBilling(input: BillingUpdateInput, usuario: AuthenticatedUser, ctx: RequestContext) {
   const atual = await getBilling();
-  await writeCategory('billing', { ...input, pagamentos: atual.pagamentos });
+  await writeCategory('billing', { ...atual, ...input });
   invalidarCacheBilling();
   const { pagamentos: _ignorado, ...antes } = atual;
   await auditBilling('BILLING_UPDATED', usuario, ctx, { before: antes, after: input });
+  return getBillingCompleto();
+}
+
+export interface ControleAssinaturaInput {
+  acao: 'SUSPENDER' | 'LIBERAR' | 'AUTOMATICO';
+  motivo: string;
+  liberadoAte?: string | null;
+  mensagemCliente?: string;
+}
+
+/** Suspende, libera (com prazo opcional) ou devolve ao cálculo por data. Sempre com motivo, sempre auditado. */
+export async function controlarAssinatura(input: ControleAssinaturaInput, usuario: AuthenticatedUser, ctx: RequestContext) {
+  const atual = await getBilling();
+  const modo: ModoAssinatura = input.acao === 'SUSPENDER' ? 'SUSPENSO' : input.acao === 'LIBERAR' ? 'LIBERADO' : 'AUTO';
+  const proximo: BillingSettings = {
+    ...atual,
+    modo,
+    liberadoAte: modo === 'LIBERADO' ? (input.liberadoAte ?? null) : null,
+    mensagemCliente: input.mensagemCliente !== undefined ? input.mensagemCliente : atual.mensagemCliente,
+    controleMotivo: input.motivo,
+    controlePor: usuario.name,
+    controleEm: new Date().toISOString(),
+  };
+  await writeCategory('billing', proximo);
+  invalidarCacheBilling();
+  await auditBilling('BILLING_CONTROL', usuario, ctx, {
+    acao: input.acao,
+    motivo: input.motivo,
+    modoAnterior: atual.modo,
+    modo,
+    liberadoAte: proximo.liberadoAte,
+  });
   return getBillingCompleto();
 }
 

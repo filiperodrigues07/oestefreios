@@ -34,7 +34,8 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     // Mensalidade vencida além da carência: consulta liberada, escrita bloqueada (só o proprietário e /auth/* passam).
     const escrita = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
     if (escrita && !req.originalUrl.startsWith('/api/auth/') && !isento) {
-      if ((await getBillingStatus()).estado === 'SOMENTE_LEITURA') throw erroSomenteLeitura();
+      const assinatura = await getBillingStatus();
+      if (assinatura.estado === 'SOMENTE_LEITURA') throw erroSomenteLeitura(assinatura.mensagem);
     }
     const passwordChangeAllowed = ['/api/auth/change-password', '/api/auth/logout', '/api/auth/me'].includes(req.originalUrl.split('?')[0]!);
     if (payload.mustChangePassword && !passwordChangeAllowed) {

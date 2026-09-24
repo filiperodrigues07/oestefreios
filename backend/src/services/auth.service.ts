@@ -89,7 +89,7 @@ export async function login(email: string, password: string, ctx: RequestContext
 
   // Sessão única por usuário: novo login derruba o dispositivo anterior.
   let sessionVersion = user.sessionVersion;
-  if (sessaoUnicaAtiva() && (await refreshTokenRepository.countActiveForUser(user.id)) > 0) {
+  if ((await sessaoUnicaAtiva()) && (await refreshTokenRepository.countActiveForUser(user.id)) > 0) {
     await refreshTokenRepository.revokeAllForUser(user.id);
     await userRepository.bumpSessionVersion(user.id);
     // Releitura: o JWT novo precisa nascer já com a versão incrementada, senão cai na 1ª request.

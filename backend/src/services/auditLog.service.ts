@@ -23,6 +23,7 @@ const EVENT_LABELS: Record<string, string> = {
   SETTINGS_FIREBIRD_UPDATED: 'Firebird atualizado', SETTINGS_SMTP_UPDATED: 'E-mail atualizado',
   SETTINGS_GERAL_UPDATED: 'Configurações gerais atualizadas',
   CLIENTE_DELETED: 'Cliente excluído', VEICULO_DELETED: 'Veículo excluído',
+  LICENSE_UPDATED: 'Limite de licenças alterado', BILLING_CONTROL: 'Controle manual da assinatura',
   BILLING_UPDATED: 'Dados da assinatura atualizados', BILLING_PAYMENT_ADDED: 'Pagamento da mensalidade registrado', BILLING_PAYMENT_REMOVED: 'Pagamento da mensalidade removido',
   SESSION_REPLACED: 'Sessão anterior derrubada por novo login', SESSION_FORCE_LOGOUT: 'Sessão encerrada', SESSION_FORCE_LOGOUT_ALL: 'Todas as sessões encerradas',
 };
@@ -65,7 +66,12 @@ export async function recordAudit(input: RecordAuditInput): Promise<void> {
   });
 }
 
+/** Eventos do proprietário (cobrança, licença): só ele os vê na auditoria. */
+const EVENTOS_DO_PROPRIETARIO_PREFIXOS = ['BILLING_', 'LICENSE_', 'SUPERADMIN_'];
+
 export interface AuditLogFilter {
+  /** Preenchido pelo controller a partir de req.user — nunca vem da query. */
+  ocultarEventosDoProprietario?: boolean;
   entityType?: string;
   event?: string;
   categoria?: string;
@@ -80,6 +86,9 @@ export interface AuditLogFilter {
 
 function auditWhere(filter: AuditLogFilter) {
   const conditions = [];
+  if (filter.ocultarEventosDoProprietario) {
+    for (const prefixo of EVENTOS_DO_PROPRIETARIO_PREFIXOS) conditions.push(sql`${auditLogs.event} NOT LIKE ${prefixo + '%'}`);
+  }
   if (filter.entityType) conditions.push(eq(auditLogs.entityType, filter.entityType));
   if (filter.event) conditions.push(eq(auditLogs.event, filter.event));
   if (filter.categoria === 'AUTH') conditions.push(inArray(auditLogs.event, ['LOGIN_SUCCESS', 'LOGIN_FAILURE', 'LOGOUT', 'TOKEN_REUSE_DETECTED', 'PASSWORD_CHANGED', 'PASSWORD_RESET_REQUESTED', 'PASSWORD_RESET_COMPLETED', 'PROFILE_UPDATED', 'PROFILE_PHOTO_UPDATED']));

@@ -5,6 +5,7 @@ import { hashPassword } from '../auth/password.js';
 import { app } from '../app.js';
 import { env } from '../config/env.js';
 import { pool } from '../database/postgres/client.js';
+import { soltarBilling, travarBilling } from './billingLock.js';
 import { calcularEstadoAssinatura, proximoVencimento } from '../services/billing.service.js';
 
 const base = { carenciaDias: 5, avisoDias: 7 };
@@ -49,6 +50,7 @@ describe('API de mensalidade', () => {
   }
 
   beforeAll(async () => {
+    await travarBilling();
     const antes = await pool.query("SELECT data FROM settings WHERE category = 'billing'");
     original = antes.rows[0]?.data ?? null;
     const role = await pool.query<{ id: string }>("SELECT id FROM roles WHERE name = 'Mecânico'");
@@ -62,6 +64,7 @@ describe('API de mensalidade', () => {
   });
 
   afterAll(async () => {
+    await soltarBilling();
     if (original) await pool.query("UPDATE settings SET data = $1 WHERE category = 'billing'", [original]);
     else await pool.query("DELETE FROM settings WHERE category = 'billing'");
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);

@@ -7,9 +7,14 @@ export async function getBillingHandler(_req: Request, res: Response) {
   success(res, await billingService.getBillingCompleto());
 }
 
-/** Qualquer usuário logado: só o estado e a mensagem, sem valor nem histórico. */
-export async function getBillingStatusHandler(_req: Request, res: Response) {
-  success(res, await billingService.getBillingStatus());
+/** Qualquer usuário logado. O proprietário vê o estado real; os demais só veem "modo consulta" (ou nada). */
+export async function getBillingStatusHandler(req: Request, res: Response) {
+  const status = await billingService.getBillingStatus();
+  success(res, req.user!.isSuperAdmin ? status : billingService.statusParaCliente(status));
+}
+
+export async function controlBillingHandler(req: Request, res: Response) {
+  success(res, await billingService.controlarAssinatura(req.body, req.user!, requestContext(req)), 'Controle da assinatura atualizado.');
 }
 
 export async function updateBillingHandler(req: Request, res: Response) {

@@ -1,6 +1,7 @@
 import { and, desc, eq, gt, isNull, ne, sql } from 'drizzle-orm';
 import { UAParser } from 'ua-parser-js';
 import { env } from '../config/env.js';
+import { readCategory, writeCategory } from './settings.service.js';
 import { db } from '../database/postgres/client.js';
 import { refreshTokens, roles, users } from '../database/postgres/schema.js';
 import { UnauthorizedError } from '../errors/UnauthorizedError.js';
@@ -29,17 +30,70 @@ export function usuarioIsentoDeLimite(isSuperAdmin: boolean): boolean {
   return isSuperAdmin;
 }
 
-/** Lidos de process.env a cada chamada (não do `env` parseado no boot) pra testes poderem ligar/desligar. */
-export function limiteLicenca(): number {
-  return Number(process.env.LICENSE_MAX_SESSIONS ?? env.LICENSE_MAX_SESSIONS);
+export interface LicencaConfig {
+  /** 0 = sem limite. */
+  limite: number;
+  idleMinutes: number;
+  sessaoUnica: boolean;
 }
 
-export function sessaoUnicaAtiva(): boolean {
-  return process.env.SINGLE_SESSION_PER_USER !== 'false';
+export interface LicencaConfigDetalhada extends LicencaConfig {
+  /** De onde vem cada valor: 'painel' (salvo pelo proprietário) ou 'env' (padrão do servidor). */
+  origem: { limite: 'painel' | 'env'; idleMinutes: 'painel' | 'env'; sessaoUnica: 'painel' | 'env' };
 }
 
-function corteOnline(agora = Date.now()): Date {
-  return new Date(agora - env.LICENSE_IDLE_MINUTES * 60_000);
+const CACHE_LICENCA_MS = 60_000;
+let cacheLicenca: { salvo: Partial<LicencaConfig>; em: number } | null = null;
+
+export function invalidarCacheLicenca(): void {
+  cacheLicenca = null;
+}
+
+async function licencaSalva(): Promise<Partial<LicencaConfig>> {
+  if (cacheLicenca && Date.now() - cacheLicenca.em < CACHE_LICENCA_MS) return cacheLicenca.salvo;
+  const salvo = await readCategory<Partial<LicencaConfig>>('licenca', {});
+  cacheLicenca = { salvo, em: Date.now() };
+  return salvo;
+}
+
+/**
+ * Valor salvo pelo proprietário no painel; sem ele, cai no .env (lido de process.env a cada chamada,
+ * não do `env` parseado no boot, pra testes poderem ligar/desligar). O cache guarda só a linha do banco.
+ */
+export async function getLicencaConfigDetalhada(): Promise<LicencaConfigDetalhada> {
+  const salvo = await licencaSalva();
+  const limite = salvo.limite;
+  const idle = salvo.idleMinutes;
+  const unica = salvo.sessaoUnica;
+  return {
+    limite: limite ?? Number(process.env.LICENSE_MAX_SESSIONS ?? env.LICENSE_MAX_SESSIONS),
+    idleMinutes: idle ?? Number(process.env.LICENSE_IDLE_MINUTES ?? env.LICENSE_IDLE_MINUTES),
+    sessaoUnica: unica ?? process.env.SINGLE_SESSION_PER_USER !== 'false',
+    origem: {
+      limite: limite === undefined ? 'env' : 'painel',
+      idleMinutes: idle === undefined ? 'env' : 'painel',
+      sessaoUnica: unica === undefined ? 'env' : 'painel',
+    },
+  };
+}
+
+export async function getLicencaConfig(): Promise<LicencaConfig> {
+  const { origem: _origem, ...config } = await getLicencaConfigDetalhada();
+  return config;
+}
+
+export async function salvarLicencaConfig(config: LicencaConfig): Promise<LicencaConfigDetalhada> {
+  await writeCategory('licenca', config);
+  invalidarCacheLicenca();
+  return getLicencaConfigDetalhada();
+}
+
+export async function sessaoUnicaAtiva(): Promise<boolean> {
+  return (await getLicencaConfig()).sessaoUnica;
+}
+
+function corteOnline(idleMinutes: number, agora = Date.now()): Date {
+  return new Date(agora - idleMinutes * 60_000);
 }
 
 function erroLimite(limite: number): UnauthorizedError {
@@ -51,18 +105,19 @@ function erroLimite(limite: number): UnauthorizedError {
 
 /** Ocupa (ou renova) a vaga do usuário; lança `LICENSE_LIMIT_REACHED` se as vagas acabaram. */
 export async function adquirirVaga(userId: string, isento: boolean): Promise<void> {
+  const cfg = await getLicencaConfig();
   await db.transaction(async (tx) => {
     // Serializa logins simultâneos — sem isso dois logins no limite passariam juntos.
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('license-seats'))`);
-    const corte = corteOnline();
+    const corte = corteOnline(cfg.idleMinutes);
     const [atual] = await tx.select({ lastSeenAt: users.lastSeenAt }).from(users).where(eq(users.id, userId));
     const jaOnline = Boolean(atual?.lastSeenAt && atual.lastSeenAt > corte);
     const [linha] = await tx
       .select({ total: sql<number>`count(*)::int` })
       .from(users)
       .where(and(eq(users.isActive, true), gt(users.lastSeenAt, corte), ne(users.id, userId)));
-    const decisao = decidirVaga({ online: linha?.total ?? 0, limite: limiteLicenca(), isento, jaOnline });
-    if (decisao === 'bloquear') throw erroLimite(limiteLicenca());
+    const decisao = decidirVaga({ online: linha?.total ?? 0, limite: cfg.limite, isento, jaOnline });
+    if (decisao === 'bloquear') throw erroLimite(cfg.limite);
     await tx.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, userId));
   });
 }
@@ -76,7 +131,8 @@ export async function garantirPresenca(userId: string, lastSeenAt: Date | null, 
   if (lastSeenAt) {
     const idade = agora - lastSeenAt.getTime();
     if (idade < PRESENCE_TOUCH_MS) return;
-    if (idade < env.LICENSE_IDLE_MINUTES * 60_000) {
+    const { idleMinutes } = await getLicencaConfig();
+    if (idade < idleMinutes * 60_000) {
       await db.update(users).set({ lastSeenAt: new Date(agora) }).where(eq(users.id, userId));
       return;
     }
@@ -110,16 +166,17 @@ export interface ResumoLicenca {
 }
 
 /** online = atividade recente; ocioso = ainda ocupa vaga mas parado; offline = sem vaga. */
-export function statusDePresenca(lastSeenAt: Date | null, agora = Date.now()): StatusPresenca {
+export function statusDePresenca(lastSeenAt: Date | null, agora = Date.now(), idleMinutes = env.LICENSE_IDLE_MINUTES): StatusPresenca {
   if (!lastSeenAt) return 'offline';
   const idade = agora - lastSeenAt.getTime();
   if (idade < ONLINE_RECENTE_MS) return 'online';
-  return idade < env.LICENSE_IDLE_MINUTES * 60_000 ? 'ocioso' : 'offline';
+  return idade < idleMinutes * 60_000 ? 'ocioso' : 'offline';
 }
 
 const ORDEM_STATUS: Record<StatusPresenca, number> = { online: 0, ocioso: 1, offline: 2 };
 
 export async function getResumoLicenca(): Promise<ResumoLicenca> {
+  const cfg = await getLicencaConfig();
   const [linhas, tokens] = await Promise.all([
     db
       .select({
@@ -144,7 +201,7 @@ export async function getResumoLicenca(): Promise<ResumoLicenca> {
 
   const agora = Date.now();
   const lista: UsuarioLicenca[] = linhas.map((row) => {
-    const status = statusDePresenca(row.lastSeenAt, agora);
+    const status = statusDePresenca(row.lastSeenAt, agora, cfg.idleMinutes);
     const token = sessaoPorUsuario.get(row.id);
     const ua = new UAParser(token?.userAgent ?? '').getResult();
     return {
@@ -168,9 +225,9 @@ export async function getResumoLicenca(): Promise<ResumoLicenca> {
   });
   lista.sort((a, b) => ORDEM_STATUS[a.status] - ORDEM_STATUS[b.status] || a.name.localeCompare(b.name, 'pt-BR'));
   return {
-    limite: limiteLicenca(),
+    limite: cfg.limite,
     emUso: lista.filter((u) => u.status !== 'offline').length,
-    idleMinutes: env.LICENSE_IDLE_MINUTES,
+    idleMinutes: cfg.idleMinutes,
     usuarios: lista,
   };
 }

@@ -5,6 +5,7 @@ import { hashPassword } from '../auth/password.js';
 import { app } from '../app.js';
 import { env } from '../config/env.js';
 import { pool } from '../database/postgres/client.js';
+import { soltarBilling, travarBilling } from './billingLock.js';
 
 const senha = 'Teste@123456';
 
@@ -37,6 +38,7 @@ describe('super admin (proprietário)', () => {
   const todas = ['SYSTEM_SETTINGS', 'USER_VIEW', 'USER_EDIT', 'USER_DELETE', 'USER_CREATE', 'OS_VIEW', 'OS_CREATE', 'OS_EDIT'];
 
   beforeAll(async () => {
+    await travarBilling();
     const antes = await pool.query("SELECT data FROM settings WHERE category = 'billing'");
     billingOriginal = antes.rows[0]?.data ?? null;
     dono = await criarConta('dono', 'Administrador', todas, true);
@@ -45,6 +47,7 @@ describe('super admin (proprietário)', () => {
   });
 
   afterAll(async () => {
+    await soltarBilling();
     if (billingOriginal) await pool.query("UPDATE settings SET data = $1 WHERE category = 'billing'", [billingOriginal]);
     else await pool.query("DELETE FROM settings WHERE category = 'billing'");
     await pool.query('DELETE FROM users WHERE id = ANY($1)', [[dono.id, adminDoCliente.id, gerente.id]]);

@@ -12,6 +12,7 @@ import { relatorioRouter } from './relatorio.routes.js';
 import { servicoRouter } from './servico.routes.js';
 import { settingsRouter } from './settings.routes.js';
 import { sessionRouter, sessionUserRouter } from './session.routes.js';
+import { superAdminRouter } from './superadmin.routes.js';
 import { userRouter } from './user.routes.js';
 
 export const apiRouter = Router();
@@ -29,5 +30,6 @@ apiRouter.use('/audit-logs', auditLogRouter);
 apiRouter.use('/settings', settingsRouter);
 apiRouter.use('/sessions', sessionRouter);
 apiRouter.use('/billing', billingRouter);
+apiRouter.use('/superadmin', superAdminRouter);
 apiRouter.use('/users', sessionUserRouter);
 apiRouter.use('/usuarios', userRouter);
