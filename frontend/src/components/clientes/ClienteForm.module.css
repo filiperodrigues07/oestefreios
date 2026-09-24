@@ -1,87 +1,111 @@
+/*
+ * Layout por container query (não por largura de janela): o mesmo formulário aparece na página larga
+ * (/clientes/novo), no modal estreito do cadastro rápido dentro da OS e no celular — cada um pega a
+ * grade que cabe no seu próprio contêiner.
+ */
 .form {
+  container-type: inline-size;
+  container-name: cliente-form;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
 }
 
-.actions { display: flex; gap: var(--space-2); }
-
-:global([role="dialog"]) .actions {
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
-  margin-top: var(--space-2);
-  padding: var(--space-3) 0;
-  border-top: 1px solid var(--color-border);
-  background: var(--color-surface-elevated);
-}
-
-.cnpjRow {
+.section {
   display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-2);
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
 }
 
-.cnpjRow > *:first-child {
-  flex: 1;
-  min-width: 180px;
-}
-
-.cepRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: var(--space-2);
-}
-
-.cepRow > *:first-child {
-  flex: 1;
-  min-width: 140px;
-}
-
-.sectionTitle,
-.addressHeader {
-  padding-bottom: var(--space-2);
+.sectionTitle {
+  margin: 0;
+  padding-bottom: var(--space-3);
   border-bottom: 1px solid var(--color-border);
   color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-md);
   font-weight: 700;
 }
 
-.addressHeader {
-  margin-top: var(--space-1);
-}
-
-.twoColumns,
-.threeColumns {
+/* Grade de 12 colunas: 1 coluna no contêiner estreito, 2 no médio, composição completa no largo. */
+.grid {
   display: grid;
-  align-items: end;
-  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4) var(--space-3);
+  align-items: start;
 }
 
-/* Flex + wrap, não grid — os dois grupos (Pessoa Jurídica/Física e Status) têm largura própria
-   pelo conteúdo (botões, não input que encolhe), então precisam poder quebrar linha sozinhos
-   quando o espaço aperta (modal é bem mais estreito que a página cheia), sem depender do
-   viewport (a media query de largura de tela não ajuda aqui, quem aperta é o container). */
+.c2,
+.c3,
+.c4,
+.c5,
+.c6,
+.c8,
+.c12 {
+  min-width: 0;
+}
+
+@container cliente-form (min-width: 560px) {
+  .grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .c2,
+  .c3,
+  .c4,
+  .c5,
+  .c6,
+  .c8 {
+    grid-column: span 6;
+  }
+
+  .c12 {
+    grid-column: 1 / -1;
+  }
+}
+
+@container cliente-form (min-width: 900px) {
+  .c2 { grid-column: span 2; }
+  .c3 { grid-column: span 3; }
+  .c4 { grid-column: span 4; }
+  .c5 { grid-column: span 5; }
+  .c6 { grid-column: span 6; }
+  .c8 { grid-column: span 8; }
+}
+
 .fieldLabel {
   margin-bottom: var(--space-1);
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-weight: 500;
 }
 
 .statusOptions {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
 }
 
-.twoColumns {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+.cnpjRow,
+.cepRow {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
 }
 
-.threeColumns {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+.cnpjRow > *:first-child,
+.cepRow > *:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.cnpjRow > button,
+.cepRow > button {
+  flex-shrink: 0;
+  min-height: 44px;
 }
 
 .codigo {
@@ -114,10 +138,98 @@
   margin-top: var(--space-1);
 }
 
+/* Barra de ações sempre visível: Salvar/Cancelar não somem no fim de um formulário longo. */
+.actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-elevated);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.pendencias {
+  min-width: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.pendencias strong {
+  color: var(--color-warning-on-surface);
+  font-weight: 600;
+}
+
+.pendCurto {
+  display: none;
+}
+
+.actionButtons {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-2);
+}
+
+/* Modal (cadastro rápido dentro da OS): sem cartão dentro de cartão e barra colada no fundo do diálogo. */
+:global([role="dialog"]) .section {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+:global([role="dialog"]) .pendLongo {
+  display: none;
+}
+
+:global([role="dialog"]) .pendCurto {
+  display: inline;
+}
+
+:global([role="dialog"]) .actions {
+  bottom: 0;
+  margin-top: var(--space-2);
+  padding: var(--space-3) 0;
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  border-radius: 0;
+  box-shadow: none;
+}
+
 @media (max-width: 899px) {
-  .actions > * { flex: 1; }
-  .twoColumns,
-  .threeColumns {
-    grid-template-columns: 1fr;
+  .section {
+    padding: var(--space-4);
+  }
+
+  /* Acima da navegação inferior fixa do app. */
+  .actions {
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .actionButtons > * {
+    flex: 1;
+  }
+
+  /* Barra compacta no celular: só a contagem; a lista completa fica no title e no desktop. */
+  .pendLongo {
+    display: none;
+  }
+
+  .pendCurto {
+    display: inline;
+  }
+}
+
+@media (max-width: 899px) {
+  :global([role="dialog"]) .actions {
+    bottom: 0;
   }
 }
