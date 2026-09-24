@@ -13,6 +13,9 @@ import { ErrorScreen } from '../components/ui/ErrorScreen.js';
 const AlterarSenhaPage = lazy(() =>
   import('../pages/AlterarSenhaPage.js').then((m) => ({ default: m.AlterarSenhaPage })),
 );
+const ProprietarioPage = lazy(() =>
+  import('../pages/ProprietarioPage.js').then((m) => ({ default: m.ProprietarioPage })),
+);
 const ClienteFormPage = lazy(() =>
   import('../pages/ClienteFormPage.js').then((m) => ({ default: m.ClienteFormPage })),
 );
@@ -106,6 +109,7 @@ export const router = createBrowserRouter([
       { path: '/auditoria', element: <Navigate to="/configuracoes?tab=auditoria" replace /> },
       { path: '/configuracoes', element: <ProtectedRoute requiredPermission="SYSTEM_SETTINGS"><AppShell>{lazyPage(<ConfiguracoesPage />)}</AppShell></ProtectedRoute> },
       { path: '/usuarios', element: withShell(<UsuariosPage />) },
+      { path: '/proprietario', element: <ProtectedRoute requireSuperAdmin><AppShell>{lazyPage(<ProprietarioPage />)}</AppShell></ProtectedRoute> },
       { path: '*', element: <ErrorScreen error={{ status: 404 }} title="Página não encontrada" /> },
     ],
   },

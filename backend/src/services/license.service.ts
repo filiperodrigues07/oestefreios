@@ -153,6 +153,7 @@ export interface UsuarioLicenca {
   email: string;
   roleName: string;
   photoUrl: string | null;
+  isSuperAdmin: boolean;
   status: StatusPresenca;
   lastSeenAt: string | null;
   sessao: { id: string; ip: string | null; os: string; browser: string; loginAt: string } | null;
@@ -185,6 +186,7 @@ export async function getResumoLicenca(): Promise<ResumoLicenca> {
         email: users.email,
         photoUrl: users.photoUrl,
         roleName: roles.name,
+        isSuperAdmin: users.isSuperAdmin,
         lastSeenAt: users.lastSeenAt,
       })
       .from(users)
@@ -210,6 +212,7 @@ export async function getResumoLicenca(): Promise<ResumoLicenca> {
       email: row.email,
       roleName: row.roleName,
       photoUrl: row.photoUrl,
+      isSuperAdmin: row.isSuperAdmin,
       status,
       lastSeenAt: row.lastSeenAt?.toISOString() ?? null,
       sessao: token

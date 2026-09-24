@@ -41,6 +41,7 @@ const EVENT_LABELS: Record<string, string> = {
   SETTINGS_GERAL_UPDATED: 'Configurações gerais atualizadas',
   SETTINGS_INTEGRACOES_UPDATED: 'Integrações atualizadas',
   CLIENTE_DELETED: 'Cliente excluído', VEICULO_DELETED: 'Veículo excluído',
+  LICENSE_UPDATED: 'Limite de licenças alterado', BILLING_CONTROL: 'Controle manual da assinatura',
   BILLING_UPDATED: 'Dados da assinatura atualizados', BILLING_PAYMENT_ADDED: 'Pagamento da mensalidade registrado', BILLING_PAYMENT_REMOVED: 'Pagamento da mensalidade removido',
   SESSION_REPLACED: 'Sessão anterior derrubada por novo login', SESSION_FORCE_LOGOUT: 'Sessão encerrada', SESSION_FORCE_LOGOUT_ALL: 'Todas as sessões encerradas',
   USER_CREATED: 'Usuário criado', USER_UPDATED: 'Usuário atualizado', USER_DELETED: 'Usuário excluído',

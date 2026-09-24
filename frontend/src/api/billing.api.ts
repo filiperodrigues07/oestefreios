@@ -1,5 +1,5 @@
 import { apiFetch } from './httpClient.js';
-import type { BillingDTO, BillingStatusDTO, BillingUpdateInput, NovoPagamentoInput } from '../types/billing.types.js';
+import type { BillingDTO, BillingStatusDTO, BillingUpdateInput, ControleAssinaturaInput, NovoPagamentoInput } from '../types/billing.types.js';
 
 export function getBilling(): Promise<BillingDTO> {
   return apiFetch('/billing');
@@ -19,4 +19,8 @@ export function addPagamento(input: NovoPagamentoInput): Promise<BillingDTO> {
 
 export function removePagamento(id: string): Promise<BillingDTO> {
   return apiFetch(`/billing/pagamentos/${id}`, { method: 'DELETE', queueOffline: false });
+}
+
+export function controlarAssinatura(input: ControleAssinaturaInput): Promise<BillingDTO> {
+  return apiFetch('/billing/controle', { method: 'POST', body: input, queueOffline: false });
 }

@@ -37,7 +37,6 @@ import {
 } from '../components/ui/index.js';
 import { NavIcon } from '../components/layout/NavIcon.js';
 import { AuditoriaTab } from './configuracoes/AuditoriaTab.js';
-import { SobreTab } from './configuracoes/SobreTab.js';
 import styles from './ConfiguracoesPage.module.css';
 
 const CHARSET_OPTIONS = [
@@ -92,7 +91,7 @@ function SettingsIcon({
 export function ConfiguracoesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTab = searchParams.get('tab');
-  const tab = ['firebird', 'smtp', 'geral', 'integracoes', 'auditoria', 'sobre'].includes(selectedTab ?? '')
+  const tab = ['firebird', 'smtp', 'geral', 'integracoes', 'auditoria'].includes(selectedTab ?? '')
     ? selectedTab!
     : 'firebird';
   const setTab = (value: string) => setSearchParams({ tab: value });
@@ -116,7 +115,6 @@ export function ConfiguracoesPage() {
           { key: 'geral', label: 'Empresa', icon: <NavIcon name="users" /> },
           { key: 'integracoes', label: 'Integrações', icon: <SettingsIcon name="link" /> },
           { key: 'auditoria', label: 'Auditoria', icon: <NavIcon name="shield" /> },
-          { key: 'sobre', label: 'Sobre', icon: <NavIcon name="users" /> },
         ].map((item) => (
           <button
             type="button"
@@ -144,7 +142,6 @@ export function ConfiguracoesPage() {
         {tab === 'geral' && <GeralTab />}
         {tab === 'integracoes' && <IntegracoesTab />}
         {tab === 'auditoria' && <AuditoriaTab />}
-        {tab === 'sobre' && <SobreTab />}
       </div>
     </div>
   );
