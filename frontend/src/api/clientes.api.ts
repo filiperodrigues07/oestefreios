@@ -93,3 +93,8 @@ export interface InscricaoEstadualLookupResult {
 export function consultarInscricaoEstadual(cnpj: string): Promise<InscricaoEstadualLookupResult[]> {
   return apiFetch<InscricaoEstadualLookupResult[]>(`/clientes/inscricao-estadual/${cnpj}`);
 }
+
+export function excluirCliente(codigo: string, motivo: string): Promise<null> {
+  // queueOffline: false — excluir enfileirado offline poderia rodar depois, num cadastro já reaproveitado.
+  return apiFetch<null>(`/clientes/${codigo}`, { method: 'DELETE', body: { motivo }, queueOffline: false });
+}

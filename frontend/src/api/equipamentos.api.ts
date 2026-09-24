@@ -107,3 +107,7 @@ export function getVehicleLookupQuota(): Promise<VehicleLookupQuota> {
 export function lookupVehiclePlate(plate: string): Promise<VehicleLookupResponse> {
   return apiFetch('/equipamentos/lookup', { method: 'POST', body: { plate }, queueOffline: false });
 }
+
+export function excluirEquipamento(codigo: string, motivo: string): Promise<null> {
+  return apiFetch<null>(`/equipamentos/${codigo}`, { method: 'DELETE', body: { motivo }, queueOffline: false });
+}

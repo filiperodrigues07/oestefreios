@@ -14,6 +14,8 @@ interface ReasonDialogProps {
   minLength?: number;
   maxLength?: number;
   loading?: boolean;
+  /** Erro da última tentativa (ex.: cadastro com vínculos) — aparece dentro do diálogo, que continua aberto. */
+  error?: string | null;
   onConfirm: (reason: string) => void;
   onCancel: () => void;
 }
@@ -33,6 +35,7 @@ function ReasonDialogContent({
   minLength = 5,
   maxLength = 500,
   loading,
+  error,
   onConfirm,
   onCancel,
 }: ReasonDialogProps) {
@@ -82,6 +85,11 @@ function ReasonDialogContent({
           {valid ? 'Este motivo ficará registrado na auditoria.' : `Informe pelo menos ${minLength} caracteres.`}
           <span className={styles.counter}>{reason.length}/{maxLength}</span>
         </p>
+        {error && (
+          <p role="alert" className={styles.error}>
+            {error}
+          </p>
+        )}
       </div>
     </Modal>
   );

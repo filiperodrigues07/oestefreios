@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
-import { searchClientes, type ClienteSortBy } from '../api/clientes.api.js';
+import { excluirCliente, searchClientes, type ClienteSortBy } from '../api/clientes.api.js';
 import { baixarRelatorioClientes } from '../api/relatorios.api.js';
 import {
   ActionIcon,
@@ -10,6 +10,7 @@ import {
   EditButton,
   EmptyState,
   ErrorState,
+  ExcluirCadastroDialog,
   ExportButtons,
   LinkButton,
   MobileRecordCard,
@@ -19,10 +20,12 @@ import {
   SearchInput,
   ResponsiveFilters,
   ResultsSummary,
+  RowActionButton,
   Select,
   Skeleton,
   Table,
   type TableColumn,
+  useToast,
 } from '../components/ui/index.js';
 import { hasPermission } from '../store/authStore.js';
 import type { ClienteDTO, TipoPessoa } from '../types/cherp.types.js';
@@ -91,6 +94,10 @@ export function ClientesPage() {
 
   const podeCriar = hasPermission('OS_CREATE');
   const podeEditar = hasPermission('OS_EDIT');
+  const podeExcluir = hasPermission('CLIENT_DELETE');
+  const [excluindo, setExcluindo] = useState<ClienteDTO | null>(null);
+  const queryClient = useQueryClient();
+  const { showToast } = useToast();
 
   // Filtros salvos na URL (compartilhável, funciona com voltar do navegador) e em sessionStorage
   // (sobrevive a navegar pra outra tela pelo menu, que troca de rota sem manter query string).
@@ -189,11 +196,13 @@ export function ClientesPage() {
       key: 'acoes',
       header: 'Ações',
       align: 'right',
-      width: '56px',
-      render: (c) =>
-        podeEditar ? (
-          <EditButton to={`/clientes/${c.codigo}/editar`} label={`Editar ${c.nome}`} />
-        ) : null,
+      width: podeEditar && podeExcluir ? '104px' : '56px',
+      render: (c) => (
+        <span style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
+          {podeEditar && <EditButton to={`/clientes/${c.codigo}/editar`} label={`Editar ${c.nome}`} />}
+          {podeExcluir && <RowActionButton icon="delete" tone="danger" label={`Excluir ${c.nome}`} onClick={() => setExcluindo(c)} />}
+        </span>
+      ),
     },
   ];
 
@@ -327,11 +336,18 @@ export function ClientesPage() {
                   },
                 ]}
                 actions={
-                  podeEditar ? (
-                    <EditButton
-                      to={`/clientes/${cliente.codigo}/editar`}
-                      label={`Editar ${cliente.nome}`}
-                    />
+                  podeEditar || podeExcluir ? (
+                    <>
+                      {podeEditar && (
+                        <EditButton
+                          to={`/clientes/${cliente.codigo}/editar`}
+                          label={`Editar ${cliente.nome}`}
+                        />
+                      )}
+                      {podeExcluir && (
+                        <RowActionButton icon="delete" tone="danger" label={`Excluir ${cliente.nome}`} onClick={() => setExcluindo(cliente)} />
+                      )}
+                    </>
                   ) : undefined
                 }
               />
@@ -347,6 +363,19 @@ export function ClientesPage() {
             />
           </div>
         </>
+      )}
+      {excluindo && (
+        <ExcluirCadastroDialog
+          tipo="cliente"
+          nome={excluindo.nome}
+          onExcluir={(motivo) => excluirCliente(excluindo.codigo, motivo)}
+          onClose={() => setExcluindo(null)}
+          onExcluido={() => {
+            showToast(`Cliente ${excluindo.nome} excluído.`, 'success');
+            setExcluindo(null);
+            void queryClient.invalidateQueries({ queryKey: ['clientes'] });
+          }}
+        />
       )}
       {podeCriar && <MobileFab to="/clientes/novo" label="Novo cliente" />}
     </div>
