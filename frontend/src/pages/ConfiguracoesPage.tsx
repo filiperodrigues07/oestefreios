@@ -60,7 +60,7 @@ interface TestFeedback {
 function SettingsIcon({
   name,
 }: {
-  name: 'database' | 'mail' | 'help' | 'refresh' | 'save' | 'link' | 'plug' | 'book' | 'clock' | 'server' | 'check';
+  name: 'database' | 'mail' | 'help' | 'refresh' | 'save' | 'link' | 'network' | 'plug' | 'book' | 'clock' | 'server' | 'check';
 }) {
   const paths = {
     database: 'M4 6c0-4 16-4 16 0s-16 4-16 0Zm0 0v6c0 4 16 4 16 0V6M4 12v6c0 4 16 4 16 0v-6',
@@ -69,6 +69,7 @@ function SettingsIcon({
     refresh: 'M20 4v6h-6M4 20v-6h6M20 10a8 8 0 0 0-14-5M4 14a8 8 0 0 0 14 5',
     save: 'M4 3h13l4 4v14H3V3h1Zm3 0v7h10V3M7 21v-8h10v8M13 5v3',
     link: 'M10 14l4-4M8 16l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M16 8l1-1a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0',
+    network: 'M12 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM6 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM18 20a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM12 8v4M12 12l-6 4M12 12l6 4',
     plug: 'M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0V8ZM12 18v4',
     book: 'M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h14M8 7h8',
     clock: 'M12 6v6l4 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
@@ -113,7 +114,7 @@ export function ConfiguracoesPage() {
           },
           { key: 'smtp', label: 'E-mail', icon: <SettingsIcon name="mail" /> },
           { key: 'geral', label: 'Empresa', icon: <NavIcon name="users" /> },
-          { key: 'integracoes', label: 'Integrações', icon: <SettingsIcon name="link" /> },
+          { key: 'integracoes', label: 'Integrações', icon: <SettingsIcon name="network" /> },
           { key: 'auditoria', label: 'Auditoria', icon: <NavIcon name="shield" /> },
         ].map((item) => (
           <button
@@ -700,7 +701,7 @@ function IntegracoesTab() {
       </section>
       <section className={`${styles.connectionCard} ${styles.singleCard}`}>
         <div className={styles.cardHeadingSimple}>
-          <span className={styles.integrationIcon}><SettingsIcon name="link" /></span>
+          <span className={styles.integrationIcon}><SettingsIcon name="network" /></span>
           <div><h2>Inscrição Estadual por CNPJ</h2><p>Complementa automaticamente o cadastro de clientes.</p></div>
           <Badge tone={form.sintegraApiKey ? 'success' : 'neutral'}>{form.sintegraApiKey ? 'Configurada' : 'Não configurada'}</Badge>
           <Tooltip content="Preenche a Inscrição Estadual automaticamente junto da consulta de CNPJ no cadastro de cliente (via SINTEGRA Brasil). Sem chave configurada, o campo continua editável manualmente.">
