@@ -245,7 +245,7 @@
     position: sticky;
     top: 0;
     display: flex;
-    width: clamp(224px, 18vw, 256px);
+    width: clamp(248px, 19.5vw, 284px);
     height: 100vh;
     height: 100dvh;
     flex-shrink: 0;

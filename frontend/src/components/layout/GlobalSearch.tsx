@@ -16,7 +16,7 @@ function destino(result: DashboardSearchResult): string {
 }
 
 /** Mostra ⌘ K no Mac e Ctrl K no resto — o atalho em si já aceita os dois. */
-const ATALHO = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘ K' : 'Ctrl K';
+const ATALHO = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘ + K' : 'Ctrl + K';
 
 export function GlobalSearch({ onNavigate, className, placeholder, shortcut = true }: { onNavigate?: () => void; className?: string; placeholder?: string; shortcut?: boolean }) {
   const navigate = useNavigate();
