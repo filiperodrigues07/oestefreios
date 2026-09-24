@@ -7,8 +7,20 @@ import { env } from '../config/env.js';
 import { pool } from '../database/postgres/client.js';
 import { soltarBilling, travarBilling } from './billingLock.js';
 import { calcularEstadoAssinatura, proximoVencimento } from '../services/billing.service.js';
+import { billingUpdateSchema, controleAssinaturaSchema, novaCobrancaSchema, novoPagamentoSchema } from '../validators/billing.validator.js';
 
 const base = { carenciaDias: 5, avisoDias: 7 };
+
+describe('validação de datas da mensalidade', () => {
+  it('rejeita datas inexistentes e mês fora do calendário', () => {
+    const dados = { cliente: 'Teste', plano: 'Mensal', valorMensal: 300, vencimentoAtual: '2026-02-29', diaVencimento: 10, ...base };
+    expect(billingUpdateSchema.safeParse(dados).success).toBe(false);
+    expect(billingUpdateSchema.safeParse({ ...dados, vencimentoAtual: '2028-02-29' }).success).toBe(true);
+    expect(controleAssinaturaSchema.safeParse({ acao: 'LIBERAR', motivo: 'teste manual', liberadoAte: '2026-04-31' }).success).toBe(false);
+    expect(novoPagamentoSchema.safeParse({ data: '2026-09-24', referencia: '2026-13', valor: 300, forma: 'PIX' }).success).toBe(false);
+    expect(novaCobrancaSchema.safeParse({ referencia: '2026-00', vencimento: '2026-10-10', valor: 300 }).success).toBe(false);
+  });
+});
 
 describe('calcularEstadoAssinatura', () => {
   it('sem vencimento = em dia', () => {

@@ -1,48 +1,67 @@
 .page {
   display: grid;
-  gap: 21px;
-  max-width: 1200px;
+  gap: var(--space-6);
+  min-width: 0;
 }
 
-.heading,
-.sessionCard {
-  border: 1px solid #163451;
-  border-radius: 15px;
-  background: linear-gradient(120deg, #09162b, #05172a);
-  padding: 25px;
+.heading {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(115deg, var(--color-primary-surface), var(--color-surface) 72%);
+  padding: var(--space-6);
+}
+
+.heading h2 {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: clamp(20px, 2vw, 25px);
+  letter-spacing: -0.025em;
 }
 
 .license {
   display: grid;
-  gap: var(--space-1);
+  gap: var(--space-2);
   padding: var(--space-4) var(--space-6);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--color-success);
   background: var(--color-success-surface);
-  font-size: 13px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
 }
 
-.licenseWarn { border-color: var(--color-warning); background: var(--color-warning-surface); }
-.licenseFull { border-color: var(--color-danger); background: var(--color-danger-surface); }
+.license strong {
+  font-size: var(--font-size-lg);
+  font-variant-numeric: tabular-nums;
+}
+.license > span {
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+}
+
+.licenseWarn {
+  border-color: var(--color-warning);
+  background: var(--color-warning-surface);
+}
+.licenseFull {
+  border-color: var(--color-danger);
+  background: var(--color-danger-surface);
+}
 
 .heading p {
-  font-size: 13px;
-  margin: 3px 0 0;
-}
-
-.sessionCard {
-  display: grid;
-  gap: 8px;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+  margin: var(--space-1) 0 0;
 }
 
 @media (max-width: 720px) {
   .page {
-    gap: 16px;
+    gap: var(--space-4);
   }
 
   .heading,
-  .sessionCard {
-    padding: 20px;
+  .license {
+    padding: var(--space-4);
   }
 }
 
@@ -59,12 +78,18 @@
   background: var(--color-success);
 }
 
-.licenseWarn .meter span { background: var(--color-warning); }
-.licenseFull .meter span { background: var(--color-danger); }
+.licenseWarn .meter span {
+  background: var(--color-warning);
+}
+.licenseFull .meter span {
+  background: var(--color-danger);
+}
 
 .usersCard {
   display: grid;
   gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-6);
 }
 
 .filter {
@@ -73,6 +98,11 @@
   gap: var(--space-2);
   font-size: var(--font-size-sm);
   cursor: pointer;
+}
+.filter input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
 }
 
 .userList {
@@ -84,11 +114,15 @@
 
 .userRow {
   display: grid;
-  grid-template-columns: minmax(200px, 1.4fr) minmax(130px, 0.8fr) minmax(200px, 1.4fr) auto;
+  grid-template-columns: minmax(180px, 1.3fr) minmax(105px, 0.75fr) minmax(180px, 1.3fr) auto;
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-3) 0;
   border-top: 1px solid var(--color-border);
+}
+
+.userRow:hover {
+  background: var(--color-neutral-surface);
 }
 
 .userRow:first-child {
@@ -102,6 +136,10 @@
   min-width: 0;
 }
 
+.userMain > :first-child {
+  flex: none;
+}
+
 .userText,
 .userStatus,
 .userDevice {
@@ -110,6 +148,20 @@
   gap: var(--space-1);
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.userText strong {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+.userText span {
+  overflow-wrap: anywhere;
+}
+.userAction {
+  min-width: 0;
 }
 
 .userStatus {
@@ -131,19 +183,65 @@
   background: var(--color-text-secondary);
 }
 
-.online { background: var(--color-success); }
-.ocioso { background: var(--color-warning); }
+.online {
+  background: var(--color-success);
+}
+.ocioso {
+  background: var(--color-warning);
+}
 
-@media (max-width: 720px) {
+@media (max-width: 1000px) {
+  .userRow {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-3);
+  }
+  .userMain {
+    grid-column: 1;
+  }
+  .userStatus {
+    grid-column: 2;
+    grid-row: 1;
+    align-items: flex-end;
+  }
+  .userDevice {
+    grid-column: 1;
+  }
+  .userAction {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: end;
+  }
+}
+
+@media (max-width: 540px) {
+  .usersCard {
+    padding: var(--space-4);
+  }
   .userRow {
     grid-template-columns: 1fr;
-    gap: var(--space-2);
+  }
+  .userMain,
+  .userStatus,
+  .userDevice,
+  .userAction {
+    grid-column: 1;
+    grid-row: auto;
+  }
+  .userStatus {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .userAction button {
+    width: 100%;
   }
 }
 
 .configCard {
   display: grid;
   gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-6);
 }
 
 .configHead {
@@ -176,6 +274,8 @@
   justify-content: space-between;
   gap: var(--space-3);
   flex-wrap: wrap;
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
 }
 
 .ownerBadge {
@@ -185,5 +285,11 @@
 @media (max-width: 720px) {
   .configForm {
     grid-template-columns: 1fr;
+  }
+  .configCard {
+    padding: var(--space-4);
+  }
+  .configFooter button {
+    width: 100%;
   }
 }

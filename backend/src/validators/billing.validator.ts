@@ -1,6 +1,12 @@
 import { z } from 'zod';
 
-const dataIso = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD.');
+const dataIso = z.string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'Use o formato AAAA-MM-DD.')
+  .refine((value) => {
+    const data = new Date(`${value}T00:00:00.000Z`);
+    return !Number.isNaN(data.getTime()) && data.toISOString().slice(0, 10) === value;
+  }, 'Informe uma data válida.');
+const mesIso = z.string().trim().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Use um mês válido em AAAA-MM.');
 
 export const billingUpdateSchema = z.object({
   cliente: z.string().trim().max(120),
@@ -29,7 +35,7 @@ export const licencaConfigSchema = z.object({
 
 export const novoPagamentoSchema = z.object({
   data: dataIso,
-  referencia: z.string().trim().regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM.'),
+  referencia: mesIso,
   valor: z.coerce.number().min(0).max(1_000_000),
   forma: z.enum(['PIX', 'BOLETO', 'DINHEIRO', 'OUTRO']),
   observacao: z.string().trim().max(300).default(''),
@@ -37,7 +43,7 @@ export const novoPagamentoSchema = z.object({
 });
 
 export const novaCobrancaSchema = z.object({
-  referencia: z.string().trim().regex(/^\d{4}-\d{2}$/, 'Use o formato AAAA-MM.'),
+  referencia: mesIso,
   vencimento: dataIso,
   valor: z.coerce.number().min(0).max(1_000_000),
   observacao: z.string().trim().max(300).default(''),

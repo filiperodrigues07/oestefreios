@@ -163,5 +163,7 @@ describe('controle do proprietário (API)', () => {
     const doCliente = await request(app).get('/api/audit-logs?limit=100').set(auth(adminDoCliente));
     expect(doCliente.status).toBe(200);
     expect(JSON.stringify(doCliente.body)).not.toMatch(/BILLING_|LICENSE_UPDATED/);
+    expect(doCliente.body.data.items.some((item: { userId: string | null }) => item.userId === dono.id)).toBe(false);
+    expect(doDono.body.data.items.some((item: { userId: string | null }) => item.userId === dono.id)).toBe(true);
   });
 });

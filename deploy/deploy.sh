@@ -23,6 +23,9 @@ echo "==> rodando migrations"
 # precisa rodar de dentro de backend/ — o dotenv carrega o .env relativo ao cwd atual.
 (cd backend && node dist/database/postgres/migrate.js)
 
+# Boletos são privados e ficam fora de /api/uploads. O caminho precisa existir antes do systemd subir.
+install -d -m 700 "$APP_DIR/backend/storage/cobrancas"
+
 echo "==> reiniciando backend"
 sudo systemctl restart oeste-freios-backend
 

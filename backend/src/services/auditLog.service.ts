@@ -1,6 +1,6 @@
 import { and, desc, eq, gte, ilike, inArray, lte, or, sql } from 'drizzle-orm';
 import { db } from '../database/postgres/client.js';
-import { auditLogs } from '../database/postgres/schema.js';
+import { auditLogs, users } from '../database/postgres/schema.js';
 import type { AuditLogDTO } from '../dto/auditLog.dto.js';
 import type { Permission } from '../types/auth.types.js';
 import type { RelatorioResultado } from '../dto/relatorio.dto.js';
@@ -89,6 +89,10 @@ function auditWhere(filter: AuditLogFilter) {
   const conditions = [];
   if (filter.ocultarEventosDoProprietario) {
     for (const prefixo of EVENTOS_DO_PROPRIETARIO_PREFIXOS) conditions.push(sql`${auditLogs.event} NOT LIKE ${prefixo + '%'}`);
+    conditions.push(sql`NOT EXISTS (
+      SELECT 1 FROM ${users}
+      WHERE ${users.id} = ${auditLogs.userId} AND ${users.isSuperAdmin} = true
+    )`);
   }
   if (filter.entityType) conditions.push(eq(auditLogs.entityType, filter.entityType));
   if (filter.event) conditions.push(eq(auditLogs.event, filter.event));

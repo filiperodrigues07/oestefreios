@@ -148,4 +148,54 @@ describe('cobranças por boleto (API)', () => {
     expect(existsSync(resolve(process.cwd(), 'storage', 'cobrancas', `${cobranca.id}.pdf`))).toBe(false);
     expect((await request(app).get(`/api/billing/cobrancas/${cobranca.id}/arquivo`).set(auth(donoToken))).status).toBe(404);
   });
+
+  it('não aceita boleto inexistente, quitado ou de outra referência no pagamento', async () => {
+    const criar = await request(app).post('/api/billing/cobrancas').set(auth(donoToken)).field(campos).attach('arquivo', pdf, { filename: 'boleto.pdf', contentType: 'application/pdf' });
+    expect(criar.status).toBe(201);
+    const id = criar.body.data.id as string;
+    const basePagamento = { data: '2026-10-05', referencia: '2026-09', valor: 300, forma: 'BOLETO', observacao: '' };
+    const antes = await request(app).get('/api/billing').set(auth(donoToken));
+    for (const dados of [
+      { ...basePagamento, cobrancaId: randomUUID() },
+      { ...basePagamento, cobrancaId: id, referencia: '2026-10' },
+      { ...basePagamento, cobrancaId: id, valor: 0 },
+    ]) {
+      expect((await request(app).post('/api/billing/pagamentos').set(auth(donoToken)).send(dados)).status).toBe(400);
+    }
+    const depoisInvalidos = await request(app).get('/api/billing').set(auth(donoToken));
+    expect(depoisInvalidos.body.data.vencimentoAtual).toBe(antes.body.data.vencimentoAtual);
+    expect(depoisInvalidos.body.data.pagamentos).toEqual(antes.body.data.pagamentos);
+    expect((await request(app).post('/api/billing/pagamentos').set(auth(donoToken)).send({ ...basePagamento, cobrancaId: id })).status).toBe(200);
+    expect((await request(app).post('/api/billing/pagamentos').set(auth(donoToken)).send({ ...basePagamento, cobrancaId: id })).status).toBe(400);
+    expect((await request(app).delete(`/api/billing/cobrancas/${id}`).set(auth(donoToken))).status).toBe(200);
+  });
+
+  it('preserva pagamento feito enquanto o SMTP envia o boleto', async () => {
+    const criar = await request(app).post('/api/billing/cobrancas').set(auth(donoToken)).field(campos).attach('arquivo', pdf, { filename: 'boleto.pdf', contentType: 'application/pdf' });
+    expect(criar.status).toBe(201);
+    const id = criar.body.data.id as string;
+    const config = {
+      emails: ['financeiro@cliente.com.br'], copiaOculta: '',
+      smtp: { host: 'smtp.teste.local', port: 587, seguranca: 'starttls', user: '', password: '', fromEmail: 'dono@teste.local', fromName: 'Teste' },
+    };
+    expect((await request(app).put('/api/billing/cobranca-config').set(auth(donoToken)).send(config)).status).toBe(200);
+    let avisarEnvio!: () => void;
+    let liberarEnvio!: () => void;
+    const iniciouEnvio = new Promise<void>((resolve) => { avisarEnvio = resolve; });
+    const podeConcluirEnvio = new Promise<void>((resolve) => { liberarEnvio = resolve; });
+    sendMail.mockImplementationOnce(async () => { avisarEnvio(); await podeConcluirEnvio; return { messageId: 'x' }; });
+    const envio = request(app).post(`/api/billing/cobrancas/${id}/enviar`).set(auth(donoToken)).send({ para: ['financeiro@cliente.com.br'] }).then((res) => res);
+    try {
+      await iniciouEnvio;
+      const pagamento = await request(app).post('/api/billing/pagamentos').set(auth(donoToken)).send({ data: '2026-10-05', referencia: '2026-09', valor: 300, forma: 'BOLETO', observacao: '', cobrancaId: id });
+      expect(pagamento.status).toBe(200);
+    } finally {
+      liberarEnvio();
+    }
+    expect((await envio).status).toBe(200);
+    const atual = await request(app).get('/api/billing').set(auth(donoToken));
+    const boleto = (atual.body.data.cobrancas as { id: string; pagoEm: string | null; envios: number }[]).find((item) => item.id === id);
+    expect(boleto).toMatchObject({ pagoEm: '2026-10-05', envios: 1 });
+    expect((await request(app).delete(`/api/billing/cobrancas/${id}`).set(auth(donoToken))).status).toBe(200);
+  });
 });

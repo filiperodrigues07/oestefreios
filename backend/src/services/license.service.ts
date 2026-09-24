@@ -170,8 +170,9 @@ export interface ResumoLicenca {
 export function statusDePresenca(lastSeenAt: Date | null, agora = Date.now(), idleMinutes = env.LICENSE_IDLE_MINUTES): StatusPresenca {
   if (!lastSeenAt) return 'offline';
   const idade = agora - lastSeenAt.getTime();
+  if (idade >= idleMinutes * 60_000) return 'offline';
   if (idade < ONLINE_RECENTE_MS) return 'online';
-  return idade < idleMinutes * 60_000 ? 'ocioso' : 'offline';
+  return 'ocioso';
 }
 
 const ORDEM_STATUS: Record<StatusPresenca, number> = { online: 0, ocioso: 1, offline: 2 };

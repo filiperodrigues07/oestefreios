@@ -1,6 +1,6 @@
 .section {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-6);
 }
 
 .head {
@@ -14,6 +14,11 @@
 .head h2,
 .history h3 {
   margin: 0;
+}
+
+.head h2 {
+  font-size: clamp(20px, 2vw, 25px);
+  letter-spacing: -0.025em;
 }
 
 .head p,
@@ -32,14 +37,37 @@
 .summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-4);
+  gap: 0;
+  padding: var(--space-6);
+  background: linear-gradient(130deg, var(--color-surface-elevated), var(--color-surface));
 }
 
 .summary > div {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
   align-items: flex-start;
+  min-width: 0;
+  padding: var(--space-2) var(--space-4);
+  border-left: 1px solid var(--color-border);
+}
+
+.summary > div:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.summary > div:last-child {
+  padding-right: 0;
+}
+.summary strong {
+  font-size: clamp(17px, 1.8vw, 22px);
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.summary small {
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .summary small,
@@ -51,11 +79,13 @@
 .label {
   color: var(--color-text-secondary);
   font-size: var(--font-size-sm);
+  font-weight: 600;
 }
 
 .history {
   display: grid;
   gap: var(--space-3);
+  padding: var(--space-6);
 }
 
 .payList {
@@ -81,6 +111,7 @@
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .form {
@@ -88,11 +119,31 @@
   gap: var(--space-3);
 }
 
-@media (max-width: 720px) {
+@media (max-width: 1000px) {
   .summary {
     grid-template-columns: 1fr 1fr;
   }
 
+  .summary > div {
+    padding: var(--space-3);
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+  .summary > div:nth-child(-n + 2) {
+    border-top: 0;
+  }
+  .summary > div:nth-child(2n) {
+    border-left: 1px solid var(--color-border);
+  }
+  .summary > div:first-child {
+    padding-left: var(--space-3);
+  }
+  .summary > div:last-child {
+    padding-right: var(--space-3);
+  }
+}
+
+@media (max-width: 720px) {
   .payList li {
     flex-direction: column;
     align-items: stretch;
@@ -102,6 +153,8 @@
 .control {
   display: grid;
   gap: var(--space-3);
+  padding: var(--space-6);
+  border-color: color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
 }
 
 .controlHead {
@@ -114,6 +167,11 @@
 
 .controlHead h3 {
   margin: 0;
+}
+.modeBadge {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .meta {
@@ -136,10 +194,52 @@
   color: var(--color-danger-on-surface);
   font-size: var(--font-size-sm);
   font-weight: 600;
+  line-height: 1.5;
 }
 
 .controlActions {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-3);
+}
+
+@media (max-width: 600px) {
+  .section {
+    gap: var(--space-4);
+  }
+  .headActions,
+  .controlActions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+  .headActions button,
+  .controlActions button {
+    width: 100%;
+    white-space: normal;
+  }
+  .summary,
+  .control,
+  .history {
+    padding: var(--space-4);
+  }
+  .payList li button {
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+  .summary > div,
+  .summary > div:nth-child(2n) {
+    border-left: 0;
+    border-top: 1px solid var(--color-border);
+  }
+  .summary > div:first-child {
+    border-top: 0;
+  }
 }

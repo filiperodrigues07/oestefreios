@@ -14,6 +14,7 @@ describe('statusDePresenca', () => {
     expect(statusDePresenca(new Date(agora - 60_000), agora)).toBe('online');
     expect(statusDePresenca(new Date(agora - 10 * 60_000), agora)).toBe('ocioso');
     expect(statusDePresenca(new Date(agora - 2 * 3600_000), agora)).toBe('offline');
+    expect(statusDePresenca(new Date(agora - 2 * 60_000), agora, 1)).toBe('offline');
   });
 });
 

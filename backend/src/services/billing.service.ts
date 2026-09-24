@@ -1,11 +1,15 @@
 import { randomUUID } from 'node:crypto';
+import { eq, sql } from 'drizzle-orm';
+import { db } from '../database/postgres/client.js';
+import { settings } from '../database/postgres/schema.js';
 import { AppError } from '../errors/AppError.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
+import { ValidationError } from '../errors/ValidationError.js';
 import type { AuthenticatedUser } from '../types/auth.types.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
 import type { Cobranca } from './cobranca.service.js';
-import { readCategory, writeCategory } from './settings.service.js';
+import { readCategory } from './settings.service.js';
 
 /**
  * Mensalidade do cliente. Guardada em `settings` (categoria `billing`, jsonb) — só o proprietário
@@ -140,6 +144,23 @@ export async function getBilling(): Promise<BillingSettings> {
   return readCategory('billing', BILLING_PADRAO);
 }
 
+/** Toda escrita da assinatura usa o mesmo bloqueio transacional, inclusive boletos. */
+export async function alterarBilling(
+  alterar: (atual: BillingSettings) => BillingSettings,
+): Promise<{ antes: BillingSettings; depois: BillingSettings }> {
+  const resultado = await db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('settings:billing'))`);
+    const [row] = await tx.select({ data: settings.data }).from(settings).where(eq(settings.category, 'billing'));
+    const antes: BillingSettings = { ...BILLING_PADRAO, ...(row?.data as Partial<BillingSettings> | undefined) };
+    const depois = alterar(antes);
+    await tx.insert(settings).values({ category: 'billing', data: depois, updatedAt: new Date() })
+      .onConflictDoUpdate({ target: settings.category, set: { data: depois, updatedAt: new Date() } });
+    return { antes, depois };
+  });
+  invalidarCacheBilling();
+  return resultado;
+}
+
 function statusDe(dados: BillingSettings, agora = new Date()): BillingStatus {
   const hoje = hojeIso(agora);
   const base = calcularEstadoAssinatura({
@@ -195,9 +216,7 @@ export type BillingUpdateInput = Pick<
 >;
 
 export async function atualizarBilling(input: BillingUpdateInput, usuario: AuthenticatedUser, ctx: RequestContext) {
-  const atual = await getBilling();
-  await writeCategory('billing', { ...atual, ...input });
-  invalidarCacheBilling();
+  const { antes: atual } = await alterarBilling((antes) => ({ ...antes, ...input }));
   const { pagamentos: _ignorado, ...antes } = atual;
   await auditBilling('BILLING_UPDATED', usuario, ctx, { before: antes, after: input });
   return getBillingCompleto();
@@ -212,19 +231,16 @@ export interface ControleAssinaturaInput {
 
 /** Suspende, libera (com prazo opcional) ou devolve ao cálculo por data. Sempre com motivo, sempre auditado. */
 export async function controlarAssinatura(input: ControleAssinaturaInput, usuario: AuthenticatedUser, ctx: RequestContext) {
-  const atual = await getBilling();
   const modo: ModoAssinatura = input.acao === 'SUSPENDER' ? 'SUSPENSO' : input.acao === 'LIBERAR' ? 'LIBERADO' : 'AUTO';
-  const proximo: BillingSettings = {
-    ...atual,
+  const { antes: atual, depois: proximo } = await alterarBilling((antes) => ({
+    ...antes,
     modo,
     liberadoAte: modo === 'LIBERADO' ? (input.liberadoAte ?? null) : null,
-    mensagemCliente: input.mensagemCliente !== undefined ? input.mensagemCliente : atual.mensagemCliente,
+    mensagemCliente: input.mensagemCliente !== undefined ? input.mensagemCliente : antes.mensagemCliente,
     controleMotivo: input.motivo,
     controlePor: usuario.name,
     controleEm: new Date().toISOString(),
-  };
-  await writeCategory('billing', proximo);
-  invalidarCacheBilling();
+  }));
   await auditBilling('BILLING_CONTROL', usuario, ctx, {
     acao: input.acao,
     motivo: input.motivo,
@@ -247,24 +263,34 @@ export interface NovoPagamentoInput {
 
 /** Registra o pagamento e avança o vencimento em 1 mês (a partir do vencimento atual, ou da data paga se não houver). */
 export async function registrarPagamento(input: NovoPagamentoInput, usuario: AuthenticatedUser, ctx: RequestContext) {
-  const atual = await getBilling();
   const { cobrancaId, ...dadosPagamento } = input;
   const pagamento: PagamentoAssinatura = { id: randomUUID(), ...dadosPagamento, registradoPor: usuario.name };
-  const vencimentoAtual = proximoVencimento(atual.vencimentoAtual ?? input.data, atual.diaVencimento);
-  const cobrancas = atual.cobrancas.map((item) => (item.id === cobrancaId ? { ...item, pagoEm: input.data } : item));
-  await writeCategory('billing', { ...atual, vencimentoAtual, cobrancas, pagamentos: [pagamento, ...atual.pagamentos] });
-  invalidarCacheBilling();
+  const { antes: atual, depois } = await alterarBilling((antes) => {
+    if (cobrancaId) {
+      const cobranca = antes.cobrancas.find((item) => item.id === cobrancaId);
+      if (!cobranca) throw new ValidationError('Boleto não encontrado para este pagamento.');
+      if (cobranca.pagoEm) throw new ValidationError('Este boleto já está pago.');
+      if (cobranca.referencia !== input.referencia) throw new ValidationError('A referência do pagamento não corresponde ao boleto.');
+      if (Math.round(cobranca.valor * 100) !== Math.round(input.valor * 100)) {
+        throw new ValidationError('O valor do pagamento deve corresponder ao valor integral do boleto.');
+      }
+    }
+    const vencimentoAtual = proximoVencimento(antes.vencimentoAtual ?? input.data, antes.diaVencimento);
+    const cobrancas = antes.cobrancas.map((item) => (item.id === cobrancaId ? { ...item, pagoEm: input.data } : item));
+    return { ...antes, vencimentoAtual, cobrancas, pagamentos: [pagamento, ...antes.pagamentos] };
+  });
+  const vencimentoAtual = depois.vencimentoAtual;
   await auditBilling('BILLING_PAYMENT_ADDED', usuario, ctx, { pagamento, vencimentoAnterior: atual.vencimentoAtual, vencimentoAtual });
   return getBillingCompleto();
 }
 
 /** Só corrige o histórico; o vencimento se ajusta manualmente em "Editar dados". */
 export async function removerPagamento(id: string, usuario: AuthenticatedUser, ctx: RequestContext) {
-  const atual = await getBilling();
-  const removido = atual.pagamentos.find((item) => item.id === id);
-  if (!removido) throw new NotFoundError('Pagamento não encontrado.', 'BILLING_PAYMENT_NOT_FOUND');
-  await writeCategory('billing', { ...atual, pagamentos: atual.pagamentos.filter((item) => item.id !== id) });
-  invalidarCacheBilling();
+  const { antes: atual } = await alterarBilling((antes) => {
+    if (!antes.pagamentos.some((item) => item.id === id)) throw new NotFoundError('Pagamento não encontrado.', 'BILLING_PAYMENT_NOT_FOUND');
+    return { ...antes, pagamentos: antes.pagamentos.filter((item) => item.id !== id) };
+  });
+  const removido = atual.pagamentos.find((item) => item.id === id)!;
   await auditBilling('BILLING_PAYMENT_REMOVED', usuario, ctx, { pagamento: removido });
   return getBillingCompleto();
 }

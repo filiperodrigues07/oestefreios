@@ -8,7 +8,7 @@ import type { AuthenticatedUser } from '../types/auth.types.js';
 import { logger } from '../utils/logger.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
-import { getBilling, invalidarCacheBilling, type BillingSettings } from './billing.service.js';
+import { alterarBilling, getBilling, type BillingSettings } from './billing.service.js';
 import {
   buildTransport,
   decryptSecret,
@@ -139,11 +139,6 @@ function auditCobranca(event: string, usuario: AuthenticatedUser, ctx: RequestCo
   return recordAudit({ userId: usuario.id, userName: usuario.name, event, entityType: 'BILLING', entityId: event, changes, ...ctx });
 }
 
-async function gravarCobrancas(atual: BillingSettings, cobrancas: Cobranca[]): Promise<void> {
-  await writeCategory('billing', { ...atual, cobrancas });
-  invalidarCacheBilling();
-}
-
 export interface NovaCobrancaInput {
   referencia: string;
   vencimento: string;
@@ -160,7 +155,6 @@ export async function criarCobranca(
   if (arquivo.buffer.length > PDF_MAX_BYTES) throw new ValidationError('O PDF do boleto pode ter no máximo 5 MB.');
   if (!ehPdf(arquivo.buffer)) throw new ValidationError('Anexe o boleto em PDF (o arquivo enviado não é um PDF válido).');
 
-  const atual = await getBilling();
   const cobranca: Cobranca = {
     id: randomUUID(),
     ...input,
@@ -176,7 +170,7 @@ export async function criarCobranca(
   await mkdir(pastaCobrancas(), { recursive: true });
   await writeFile(caminhoDoArquivo(cobranca.id), arquivo.buffer);
   try {
-    await gravarCobrancas(atual, [cobranca, ...atual.cobrancas]);
+    await alterarBilling((atual) => ({ ...atual, cobrancas: [cobranca, ...atual.cobrancas] }));
   } catch (err) {
     await rm(caminhoDoArquivo(cobranca.id), { force: true });
     throw err;
@@ -201,9 +195,11 @@ export async function arquivoDaCobranca(id: string): Promise<{ nome: string; buf
 }
 
 export async function removerCobranca(id: string, usuario: AuthenticatedUser, ctx: RequestContext): Promise<void> {
-  const atual = await getBilling();
-  const cobranca = acharCobranca(atual, id);
-  await gravarCobrancas(atual, atual.cobrancas.filter((item) => item.id !== id));
+  const { antes } = await alterarBilling((atual) => {
+    acharCobranca(atual, id);
+    return { ...atual, cobrancas: atual.cobrancas.filter((item) => item.id !== id) };
+  });
+  const cobranca = acharCobranca(antes, id);
   await rm(caminhoDoArquivo(id), { force: true });
   await auditCobranca('BILLING_COBRANCA_REMOVED', usuario, ctx, { cobranca });
 }
@@ -265,8 +261,12 @@ export async function enviarCobranca(id: string, input: EnviarCobrancaInput, usu
     throw new AppError('COBRANCA_EMAIL_FAILED', 'Não foi possível enviar o e-mail. Confira o SMTP de cobrança e tente de novo.', 502);
   }
 
-  const atualizada: Cobranca = { ...cobranca, enviadoEm: new Date().toISOString(), enviadoPara: destinatarios, envios: cobranca.envios + 1 };
-  await gravarCobrancas(atual, atual.cobrancas.map((item) => (item.id === id ? atualizada : item)));
+  const { depois } = await alterarBilling((recente) => {
+    const existente = acharCobranca(recente, id);
+    const atualizada: Cobranca = { ...existente, enviadoEm: new Date().toISOString(), enviadoPara: destinatarios, envios: existente.envios + 1 };
+    return { ...recente, cobrancas: recente.cobrancas.map((item) => (item.id === id ? atualizada : item)) };
+  });
+  const atualizada = acharCobranca(depois, id);
   await auditCobranca('BILLING_COBRANCA_SENT', usuario, ctx, { cobrancaId: id, referencia: cobranca.referencia, para: destinatarios, bcc: Boolean(config.copiaOculta) });
   return atualizada;
 }
