@@ -95,28 +95,45 @@ export function ExportButtons({ onExportarExcel, onExportarPdf, size = 'sm' }: E
         <ActionIcon name="chevronDown" size={14} />
       </Button>
       {aberto && (
-        <div className={styles.menu} role="menu" onKeyDown={handleMenuKeyDown}>
+        <>
           <button
-            ref={(el) => { itemRefs.current[0] = el; }}
             type="button"
-            role="menuitem"
-            className={styles.item}
-            onClick={() => executar('excel', onExportarExcel)}
+            className={styles.backdrop}
+            aria-label="Fechar opções de exportação"
+            onClick={fechar}
+          />
+          <div
+            className={styles.menu}
+            role="menu"
+            aria-label="Formato de exportação"
+            onKeyDown={handleMenuKeyDown}
           >
-            <ActionIcon name="excel" />
-            Excel
-          </button>
-          <button
-            ref={(el) => { itemRefs.current[1] = el; }}
-            type="button"
-            role="menuitem"
-            className={styles.item}
-            onClick={() => executar('pdf', onExportarPdf)}
-          >
-            <ActionIcon name="pdf" />
-            PDF
-          </button>
-        </div>
+            <button
+              ref={(el) => {
+                itemRefs.current[0] = el;
+              }}
+              type="button"
+              role="menuitem"
+              className={styles.item}
+              onClick={() => executar('excel', onExportarExcel)}
+            >
+              <ActionIcon name="excel" />
+              Excel
+            </button>
+            <button
+              ref={(el) => {
+                itemRefs.current[1] = el;
+              }}
+              type="button"
+              role="menuitem"
+              className={styles.item}
+              onClick={() => executar('pdf', onExportarPdf)}
+            >
+              <ActionIcon name="pdf" />
+              PDF
+            </button>
+          </div>
+        </>
       )}
     </div>
   );

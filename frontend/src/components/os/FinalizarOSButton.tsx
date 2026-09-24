@@ -18,14 +18,14 @@ export function FinalizarOSButton({ onConfirm, loading }: FinalizarOSButtonProps
     <>
       <Button variant="primary" size="sm" onClick={() => setConfirmando(true)}>
         <ActionIcon name="ready" />
-        Marcar como pronta
+        Finalizar OS
       </Button>
 
       <ConfirmDialog
         open={confirmando}
-        title="Marcar OS como pronta?"
-        description="A situação de atendimento do CHERP será atualizada para Pronta. A OS permanece disponível no CHERP para o faturamento."
-        confirmLabel="Marcar como pronta"
+        title="Finalizar OS?"
+        description="A OS será finalizada no app e a situação de atendimento do CHERP será atualizada para Pronta. Ela permanecerá disponível no CHERP para faturamento."
+        confirmLabel="Finalizar OS"
         loading={loading}
         onCancel={() => setConfirmando(false)}
         onConfirm={() => {

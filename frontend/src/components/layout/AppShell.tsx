@@ -1,9 +1,11 @@
-import { useQuery } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useIsMutating, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router';
 import { getBranding } from '../../api/settings.api.js';
 import { getDashboardOperacional } from '../../api/dashboard.api.js';
 import { calendarDateValue } from '../../utils/calendarDate.js';
+import { useMobileGestures } from '../../hooks/useMobileGestures.js';
+import { PageRefreshProvider } from '../../hooks/usePageRefresh.js';
 import { hasPermission, useAuthStore } from '../../store/authStore.js';
 import { useSidebarStore } from '../../store/sidebarStore.js';
 import { useThemeStore } from '../../store/themeStore.js';
@@ -77,6 +79,39 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [notificacoesLidas, setNotificacoesLidas] = useState<string[]>([]);
   const notificationWrapperRef = useRef<HTMLDivElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const pendingMutations = useIsMutating();
+  const pageRefreshRef = useRef<(() => Promise<unknown>) | null>(null);
+  const registerPageRefresh = useCallback((handler: (() => Promise<unknown>) | null) => {
+    pageRefreshRef.current = handler;
+  }, []);
+  const refreshCurrentPage = useCallback(async () => {
+    if (pageRefreshRef.current) await pageRefreshRef.current();
+    else await queryClient.refetchQueries({ type: 'active' }, { throwOnError: true });
+  }, [queryClient]);
+  const openMobileMenu = useCallback(() => setMobileMenuOpen(true), [setMobileMenuOpen]);
+  const closeMobileMenu = useCallback(() => setMobileMenuOpen(false), [setMobileMenuOpen]);
+  const refreshEnabled = !mobileSearchOpen && !profileOpen && pendingMutations === 0
+    && location.pathname !== '/os/nova'
+    && location.pathname !== '/clientes/novo'
+    && !/^\/clientes\/[^/]+\/editar$/.test(location.pathname)
+    && location.pathname !== '/configuracoes';
+  const pullState = useMobileGestures({
+    menuOpen: mobileMenuOpen,
+    refreshEnabled,
+    onOpenMenu: openMobileMenu,
+    onCloseMenu: closeMobileMenu,
+    onRefresh: refreshCurrentPage,
+  });
+  const pullLabel = {
+    idle: '',
+    pulling: 'Puxe para atualizar',
+    ready: 'Solte para atualizar',
+    loading: 'Atualizando dados...',
+    done: 'Dados atualizados',
+    error: 'Falha ao atualizar',
+    offline: 'Sem conexão',
+  }[pullState];
   const notificationPeriod = useMemo(() => {
     const fim = new Date();
     fim.setHours(23, 59, 59, 999);
@@ -389,10 +424,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
           </button>
         </header>
+        {pullState !== 'idle' && <div className={styles.pullRefreshIndicator} role="status">{pullLabel}</div>}
         <OfflineBanner />
         <SubscriptionBanner />
         <InstallBanner />
-        {children}
+        <PageRefreshProvider register={registerPageRefresh}>{children}</PageRefreshProvider>
         <div className={styles.mainFooter}>
           <Footer />
         </div>

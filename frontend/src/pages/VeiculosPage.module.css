@@ -42,4 +42,5 @@
     min-width: 0;
   }
   .clientFilter { width: 100%; min-width: 0; flex: 0 0 auto; }
+  .editButton { width: 44px; min-width: 44px; height: 44px; }
 }

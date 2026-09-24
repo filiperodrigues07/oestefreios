@@ -99,6 +99,9 @@
     mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 20px), transparent 100%);
   }
   .tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     min-height: 44px;
     padding: var(--space-2) var(--space-1);
     font-size: var(--font-size-sm);
@@ -109,5 +112,9 @@
   }
   .mobileLabel {
     display: inline-flex;
+  }
+  .mobileLabel svg {
+    display: block;
+    flex-shrink: 0;
   }
 }

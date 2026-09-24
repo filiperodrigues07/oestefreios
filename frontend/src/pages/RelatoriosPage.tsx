@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { usePageRefresh } from '../hooks/usePageRefresh.js';
 import {
   baixarRelatorioClientes,
   baixarRelatorioOS,
@@ -166,6 +167,7 @@ function RelatorioOSTab() {
     mutationFn: (formato: 'excel' | 'pdf') => baixarRelatorioOS(filtro(), formato),
     onError: (err) => showToast(err instanceof Error ? err.message : 'Não foi possível exportar.', 'danger'),
   });
+  usePageRefresh(() => gerarMutation.mutateAsync());
 
   return (
     <div className={styles.tab}>
@@ -217,6 +219,7 @@ function RelatorioClientesTab() {
     mutationFn: (formato: 'excel' | 'pdf') => baixarRelatorioClientes(filtro(), formato),
     onError: (err) => showToast(err instanceof Error ? err.message : 'Não foi possível exportar.', 'danger'),
   });
+  usePageRefresh(() => gerarMutation.mutateAsync());
 
   return (
     <div className={styles.tab}>
@@ -260,6 +263,7 @@ function RelatorioProdutosServicosTab() {
     mutationFn: (formato: 'excel' | 'pdf') => baixarRelatorioProdutosServicos(filtro(), formato),
     onError: (err) => showToast(err instanceof Error ? err.message : 'Não foi possível exportar.', 'danger'),
   });
+  usePageRefresh(() => gerarMutation.mutateAsync());
 
   return (
     <div className={styles.tab}>

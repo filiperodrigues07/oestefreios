@@ -30,6 +30,24 @@
 }
 
 @media (max-width: 560px) {
+  .header { position: relative; }
+  .breadcrumb { min-height: 44px; padding-right: 140px; flex-wrap: wrap; align-content: center; }
   .titleBlock time { display: inline; margin: 0; }
-  .actions > * { min-width: 120px; }
+  .actions {
+    display: grid;
+    grid-template-columns: minmax(0, .75fr) minmax(0, 1fr) minmax(0, 1.3fr);
+    gap: 8px;
+  }
+  .actions > * { min-width: 0; }
+  .finalizeAction { position: absolute; top: 0; right: 0; z-index: 1; }
+  .finalizeAction button { min-height: 44px; padding-inline: 10px; }
+  .backButton, .printButton { width: 100%; min-width: 0; padding-inline: 8px; gap: 4px; }
+  .backButton { padding-inline: 6px; }
+  .actions > :last-child { width: 100%; }
+  .actions > :last-child > button { width: 100%; min-width: 0; padding-inline: 6px; gap: 4px; }
+}
+
+@media (max-width: 360px) {
+  .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .actions > :last-child { grid-column: 1 / -1; }
 }
