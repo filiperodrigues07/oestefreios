@@ -44,6 +44,8 @@ export interface AuthUser {
   permissions: Permission[];
   mustChangePassword: boolean;
   cherpUsuarioChave?: number;
+  /** Só para montar o menu do proprietário; a autorização real é sempre no servidor. */
+  isSuperAdmin: boolean;
 }
 
 export interface LoginResponse {

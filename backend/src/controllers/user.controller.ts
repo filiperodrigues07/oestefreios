@@ -4,8 +4,8 @@ import * as userService from '../services/user.service.js';
 import { success } from '../utils/apiResponse.js';
 import { requestContext } from '../utils/requestContext.js';
 
-export async function listUsersHandler(_req: Request, res: Response) {
-  const users = await userService.listUsers();
+export async function listUsersHandler(req: Request, res: Response) {
+  const users = await userService.listUsers(req.user!);
   success(res, users);
 }
 
@@ -16,7 +16,7 @@ export async function exportUsersExcelHandler(req: Request, res: Response) {
   const roleId = param('roleId');
   const status = param('status');
   const vinculo = param('vinculo');
-  const users = (await userService.listUsers()).filter((user) => {
+  const users = (await userService.listUsers(req.user!)).filter((user) => {
     if (search && ![user.name, user.email, user.roleName, String(user.cherpUsuarioChave ?? '')].some((value) => value.toLocaleLowerCase('pt-BR').includes(search))) return false;
     if (roleId && user.roleId !== roleId) return false;
     if (status === 'ativo' && !user.isActive) return false;
@@ -69,7 +69,7 @@ export async function listCherpUsersHandler(_req: Request, res: Response) {
 
 export async function getUserHandler(req: Request, res: Response) {
   const { id } = req.params as { id: string };
-  const user = await userService.getUserById(id);
+  const user = await userService.getUserById(id, req.user!);
   success(res, user);
 }
 

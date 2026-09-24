@@ -5,9 +5,22 @@ import { hashPassword } from '../auth/password.js';
 import { app } from '../app.js';
 import { env } from '../config/env.js';
 import { pool } from '../database/postgres/client.js';
+import { soltarBilling, travarBilling } from './billingLock.js';
 import { calcularEstadoAssinatura, proximoVencimento } from '../services/billing.service.js';
+import { billingUpdateSchema, controleAssinaturaSchema, novaCobrancaSchema, novoPagamentoSchema } from '../validators/billing.validator.js';
 
 const base = { carenciaDias: 5, avisoDias: 7 };
+
+describe('validação de datas da mensalidade', () => {
+  it('rejeita datas inexistentes e mês fora do calendário', () => {
+    const dados = { cliente: 'Teste', plano: 'Mensal', valorMensal: 300, vencimentoAtual: '2026-02-29', diaVencimento: 10, ...base };
+    expect(billingUpdateSchema.safeParse(dados).success).toBe(false);
+    expect(billingUpdateSchema.safeParse({ ...dados, vencimentoAtual: '2028-02-29' }).success).toBe(true);
+    expect(controleAssinaturaSchema.safeParse({ acao: 'LIBERAR', motivo: 'teste manual', liberadoAte: '2026-04-31' }).success).toBe(false);
+    expect(novoPagamentoSchema.safeParse({ data: '2026-09-24', referencia: '2026-13', valor: 300, forma: 'PIX' }).success).toBe(false);
+    expect(novaCobrancaSchema.safeParse({ referencia: '2026-00', vencimento: '2026-10-10', valor: 300 }).success).toBe(false);
+  });
+});
 
 describe('calcularEstadoAssinatura', () => {
   it('sem vencimento = em dia', () => {
@@ -49,6 +62,7 @@ describe('API de mensalidade', () => {
   }
 
   beforeAll(async () => {
+    await travarBilling();
     const antes = await pool.query("SELECT data FROM settings WHERE category = 'billing'");
     original = antes.rows[0]?.data ?? null;
     const role = await pool.query<{ id: string }>("SELECT id FROM roles WHERE name = 'Mecânico'");
@@ -62,6 +76,7 @@ describe('API de mensalidade', () => {
   });
 
   afterAll(async () => {
+    await soltarBilling();
     if (original) await pool.query("UPDATE settings SET data = $1 WHERE category = 'billing'", [original]);
     else await pool.query("DELETE FROM settings WHERE category = 'billing'");
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);
@@ -69,8 +84,8 @@ describe('API de mensalidade', () => {
   });
 
   it('só SYSTEM_SETTINGS lê e edita; status é aberto a qualquer logado e não expõe valores', async () => {
-    expect((await request(app).get('/api/billing').set('Authorization', `Bearer ${userToken}`)).status).toBe(403);
-    expect((await request(app).put('/api/billing').set('Authorization', `Bearer ${userToken}`).send({})).status).toBe(403);
+    expect((await request(app).get('/api/billing').set('Authorization', `Bearer ${userToken}`)).status).toBe(404);
+    expect((await request(app).put('/api/billing').set('Authorization', `Bearer ${userToken}`).send({})).status).toBe(404);
     const status = await request(app).get('/api/billing/status').set('Authorization', `Bearer ${userToken}`);
     expect(status.status).toBe(200);
     expect(Object.keys(status.body.data).sort()).toEqual(['diasParaVencer', 'estado', 'mensagem']);

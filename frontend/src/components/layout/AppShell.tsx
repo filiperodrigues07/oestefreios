@@ -38,6 +38,7 @@ function tituloDaPagina(pathname: string): string {
   if (pathname === '/auditoria') return 'Auditoria';
   if (pathname === '/usuarios') return 'Usuários';
   if (pathname === '/configuracoes') return 'Configurações';
+  if (pathname === '/proprietario') return 'Painel do proprietário';
   return 'Oeste Freios';
 }
 
@@ -65,8 +66,9 @@ function descricaoNotificacao(os: DashboardAtencaoDTO): string {
 export function AppShell({ children }: { children: ReactNode }) {
   const location = useLocation();
   const tituloPagina = tituloDaPagina(location.pathname);
+  const ehProprietario = useAuthStore((s) => s.user?.isSuperAdmin ?? false);
   const items = NAV_ITEMS.filter(
-    (item) => !item.anyPermission || item.anyPermission.some(hasPermission),
+    (item) => (!item.superAdminOnly || ehProprietario) && (!item.anyPermission || item.anyPermission.some(hasPermission)),
   );
   const collapsed = useSidebarStore((s) => s.collapsed);
   const toggleSidebar = useSidebarStore((s) => s.toggle);
@@ -224,7 +226,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     {
       label: 'Sistema',
       items: sidebarNavItems.filter((item) =>
-        ['/auditoria', '/usuarios', '/configuracoes'].includes(item.to),
+        ['/auditoria', '/usuarios', '/configuracoes', '/proprietario'].includes(item.to),
       ),
     },
   ].filter((section) => section.items.length > 0);

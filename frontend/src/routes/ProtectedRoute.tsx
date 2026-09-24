@@ -5,7 +5,16 @@ import { hasPermission } from '../store/authStore.js';
 import type { Permission } from '../types/auth.types.js';
 import { ErrorScreen } from '../components/ui/ErrorScreen.js';
 
-export function ProtectedRoute({ children, requiredPermission }: { children: ReactNode; requiredPermission?: Permission }) {
+export function ProtectedRoute({
+  children,
+  requiredPermission,
+  requireSuperAdmin,
+}: {
+  children: ReactNode;
+  requiredPermission?: Permission;
+  /** Área do proprietário: para os demais a página simplesmente não existe (404). */
+  requireSuperAdmin?: boolean;
+}) {
   const status = useAuthStore((s) => s.status);
 
   if (status === 'idle') {
@@ -19,6 +28,10 @@ export function ProtectedRoute({ children, requiredPermission }: { children: Rea
   const mustChangePassword = useAuthStore.getState().user?.mustChangePassword;
   if (mustChangePassword && window.location.pathname !== '/alterar-senha') {
     return <Navigate to="/alterar-senha" replace />;
+  }
+
+  if (requireSuperAdmin && !useAuthStore.getState().user?.isSuperAdmin) {
+    return <ErrorScreen error={{ status: 404 }} title="Página não encontrada" />;
   }
 
   if (requiredPermission && !hasPermission(requiredPermission)) {

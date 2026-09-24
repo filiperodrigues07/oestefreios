@@ -14,6 +14,7 @@ describe('statusDePresenca', () => {
     expect(statusDePresenca(new Date(agora - 60_000), agora)).toBe('online');
     expect(statusDePresenca(new Date(agora - 10 * 60_000), agora)).toBe('ocioso');
     expect(statusDePresenca(new Date(agora - 2 * 3600_000), agora)).toBe('offline');
+    expect(statusDePresenca(new Date(agora - 2 * 60_000), agora, 1)).toBe('offline');
   });
 });
 
@@ -36,10 +37,9 @@ describe('decidirVaga (regra pura da licença)', () => {
     expect(decidirVaga({ online: 50, limite: 0, isento: false, jaOnline: false })).toBe('ocupar');
   });
 
-  it('isenta Administrador e quem tem SYSTEM_SETTINGS', () => {
-    expect(usuarioIsentoDeLimite('Administrador', [])).toBe(true);
-    expect(usuarioIsentoDeLimite('Gerente', ['SYSTEM_SETTINGS'])).toBe(true);
-    expect(usuarioIsentoDeLimite('Mecânico', ['OS_VIEW'])).toBe(false);
+  it('só o proprietário (super admin) é isento', () => {
+    expect(usuarioIsentoDeLimite(true)).toBe(true);
+    expect(usuarioIsentoDeLimite(false)).toBe(false);
   });
 });
 
@@ -121,9 +121,9 @@ describe('sessão única por usuário e presença', () => {
     expect(linha.status).toBe('offline');
   });
 
-  it('só quem tem SYSTEM_SETTINGS vê o painel de licença', async () => {
+  it('só o proprietário vê o painel de licença (os demais recebem 404)', async () => {
     const login = await request(app).post('/api/auth/login').send({ email, password });
     const denied = await request(app).get('/api/sessions/license').set('Authorization', `Bearer ${login.body.data.accessToken}`);
-    expect(denied.status).toBe(403);
+    expect(denied.status).toBe(404);
   });
 });

@@ -16,10 +16,10 @@ ExecStart=/usr/bin/node dist/server.js
 Restart=on-failure
 RestartSec=3
 
-# Só o necessário: sem acesso ao resto do filesystem além da própria app e uploads.
+# Escrita restrita aos uploads e aos boletos privados.
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/opt/oeste-freios/backend/uploads
+ReadWritePaths=/opt/oeste-freios/backend/uploads /opt/oeste-freios/backend/storage/cobrancas
 ProtectHome=true
 
 StandardOutput=journal

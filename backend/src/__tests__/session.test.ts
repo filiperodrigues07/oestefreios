@@ -31,9 +31,9 @@ describe('sessões ativas', () => {
     expect(JSON.stringify(response.body)).not.toMatch(/tokenHash|passwordHash|refreshToken/);
   });
 
-  it('nega acesso sem SYSTEM_SETTINGS', async () => {
+  it('sessões só para o proprietário (404 para os demais); auditoria segue em SYSTEM_SETTINGS', async () => {
     const response = await request(app).get('/api/sessions').set('Authorization', `Bearer ${operationalToken}`);
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(404);
     const audit = await request(app).get('/api/audit-logs').set('Authorization', `Bearer ${operationalToken}`);
     expect(audit.status).toBe(403);
   });

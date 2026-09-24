@@ -18,6 +18,8 @@ export interface NavItem {
     | 'truck';
   /** Item só aparece se o usuário tiver ao menos uma dessas permissões. Omitido = sempre visível a quem está logado. */
   anyPermission?: Permission[];
+  /** Só o proprietário (super admin) vê este item. */
+  superAdminOnly?: boolean;
 }
 
 /** IA mínima com telas reais (seção 29 do briefing: "Início | OS | Produtos | Perfil"). */
@@ -47,4 +49,5 @@ export const NAV_ITEMS: NavItem[] = [
     icon: 'gear',
     anyPermission: ['SYSTEM_SETTINGS'],
   },
+  { to: '/proprietario', label: 'Proprietário', icon: 'shield', superAdminOnly: true },
 ];

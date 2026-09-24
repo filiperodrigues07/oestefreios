@@ -18,18 +18,24 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
 
   try {
     const payload = verifyAccessToken(token);
+    // Proprietário lido do banco a cada request (não do JWT): revogar vale na hora.
+    let isSuperAdmin = false;
     if (payload.sessionVersion !== undefined) {
       const session = await userRepository.getSessionState(payload.sub);
       if (!session?.isActive || session.sessionVersion !== payload.sessionVersion) {
         throw new UnauthorizedError('Sessão revogada. Faça login novamente.', 'SESSION_REVOKED');
       }
+      isSuperAdmin = session.isSuperAdmin;
+      const isento = usuarioIsentoDeLimite(isSuperAdmin);
       // Presença da licença simultânea (renova a cada ~1 min; se a presença expirou, disputa vaga de novo).
-      await garantirPresenca(payload.sub, session.lastSeenAt, usuarioIsentoDeLimite(payload.roleName, payload.permissions));
+      await garantirPresenca(payload.sub, session.lastSeenAt, isento);
     }
-    // Mensalidade vencida além da carência: consulta liberada, escrita bloqueada (admin e /auth/* passam).
+    const isento = usuarioIsentoDeLimite(isSuperAdmin);
+    // Mensalidade vencida além da carência: consulta liberada, escrita bloqueada (só o proprietário e /auth/* passam).
     const escrita = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
-    if (escrita && !req.originalUrl.startsWith('/api/auth/') && !usuarioIsentoDeLimite(payload.roleName, payload.permissions)) {
-      if ((await getBillingStatus()).estado === 'SOMENTE_LEITURA') throw erroSomenteLeitura();
+    if (escrita && !req.originalUrl.startsWith('/api/auth/') && !isento) {
+      const assinatura = await getBillingStatus();
+      if (assinatura.estado === 'SOMENTE_LEITURA') throw erroSomenteLeitura(assinatura.mensagem);
     }
     const passwordChangeAllowed = ['/api/auth/change-password', '/api/auth/logout', '/api/auth/me'].includes(req.originalUrl.split('?')[0]!);
     if (payload.mustChangePassword && !passwordChangeAllowed) {
@@ -44,6 +50,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
       permissions: payload.permissions,
       mustChangePassword: payload.mustChangePassword ?? false,
       cherpUsuarioChave: payload.cherpUsuarioChave,
+      isSuperAdmin,
     };
     next();
   } catch (error) {

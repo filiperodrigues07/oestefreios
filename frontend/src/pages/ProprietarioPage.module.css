@@ -1,0 +1,117 @@
+.page {
+  width: min(100%, 1180px);
+  margin: 0 auto;
+  padding: var(--space-6);
+}
+
+.page [role='tab'] svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  overflow: hidden;
+  margin-bottom: var(--space-6);
+  padding: var(--space-6);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  border-radius: var(--radius-lg);
+  background: linear-gradient(115deg, var(--color-primary-surface), var(--color-surface) 68%);
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  width: 180px;
+  height: 180px;
+  top: -110px;
+  right: -55px;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.heroIcon {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  flex: none;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+  border-radius: 15px;
+  background: var(--color-primary-surface);
+  color: var(--color-primary-on-surface);
+}
+
+.heroCopy {
+  min-width: 0;
+  flex: 1;
+}
+.eyebrow {
+  color: var(--color-primary-on-surface);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.hero h1 {
+  margin: var(--space-1) 0;
+  color: var(--color-text-primary);
+  font-size: clamp(24px, 3vw, 32px);
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+}
+.hero p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-md);
+  line-height: 1.5;
+}
+.accessBadge {
+  position: relative;
+  flex: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-surface);
+  color: var(--color-text-secondary);
+  padding: 7px 11px;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+@media (max-width: 899px) {
+  .page {
+    padding: var(--space-4) var(--space-3);
+  }
+  .hero {
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: var(--space-4);
+    margin-bottom: var(--space-4);
+  }
+  .heroIcon {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-md);
+  }
+  .heroCopy {
+    flex-basis: calc(100% - 60px);
+  }
+  .accessBadge {
+    margin-left: 60px;
+  }
+}
+
+@media (max-width: 380px) {
+  .hero h1 {
+    font-size: 23px;
+  }
+  .accessBadge {
+    margin-left: 0;
+  }
+}
