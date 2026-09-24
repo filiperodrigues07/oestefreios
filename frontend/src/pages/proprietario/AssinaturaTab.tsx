@@ -3,8 +3,12 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { useSearchParams } from 'react-router';
 import { addPagamento, controlarAssinatura, getBilling, removePagamento, updateBilling } from '../../api/billing.api.js';
 import { Badge, Button, Card, ConfirmDialog, ErrorState, Input, Modal, Select, Skeleton, useToast, type BadgeTone } from '../../components/ui/index.js';
-import type { BillingDTO, BillingUpdateInput, ControleAssinaturaInput, EstadoAssinatura, ModoAssinatura, NovoPagamentoInput } from '../../types/billing.types.js';
+import type { BillingDTO, BillingUpdateInput, CobrancaDTO, ControleAssinaturaInput, EstadoAssinatura, ModoAssinatura, NovoPagamentoInput } from '../../types/billing.types.js';
+import { CobrancasCard } from './CobrancasCard.js';
+import { dataBr, hojeLocal, moeda } from './formatos.js';
 import styles from './AssinaturaTab.module.css';
+
+export { dataBr, moeda };
 
 export const ESTADO_LABEL: Record<EstadoAssinatura, string> = {
   EM_DIA: 'Em dia',
@@ -22,19 +26,6 @@ const FORMAS = [
   { value: 'OUTRO', label: 'Outro' },
 ];
 
-export const moeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
-
-export function dataBr(iso: string | null): string {
-  if (!iso) return '—';
-  const [ano, mes, dia] = iso.slice(0, 10).split('-');
-  return `${dia}/${mes}/${ano}`;
-}
-
-function hojeLocal(): string {
-  const agora = new Date();
-  return `${agora.getFullYear()}-${String(agora.getMonth() + 1).padStart(2, '0')}-${String(agora.getDate()).padStart(2, '0')}`;
-}
-
 export function descricaoDias(dias: number | null): string {
   if (dias === null) return 'Vencimento não configurado.';
   if (dias === 0) return 'Vence hoje.';
@@ -50,15 +41,16 @@ function invalidarBilling(queryClient: ReturnType<typeof useQueryClient>) {
   void queryClient.invalidateQueries({ queryKey: ['audit-logs'] });
 }
 
-function PagamentoModal({ billing, onClose }: { billing: BillingDTO; onClose: () => void }) {
+function PagamentoModal({ billing, cobranca, onClose }: { billing: BillingDTO; cobranca?: CobrancaDTO; onClose: () => void }) {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [form, setForm] = useState<NovoPagamentoInput>({
     data: hojeLocal(),
-    referencia: (billing.vencimentoAtual ?? hojeLocal()).slice(0, 7),
-    valor: billing.valorMensal,
-    forma: 'PIX',
+    referencia: cobranca?.referencia ?? (billing.vencimentoAtual ?? hojeLocal()).slice(0, 7),
+    valor: cobranca?.valor ?? billing.valorMensal,
+    forma: cobranca ? 'BOLETO' : 'PIX',
     observacao: '',
+    ...(cobranca ? { cobrancaId: cobranca.id } : {}),
   });
   const mutation = useMutation({
     mutationFn: addPagamento,
@@ -181,7 +173,7 @@ function ControleModal({ acao, billing, onClose }: { acao: ControleAssinaturaInp
   </Modal>;
 }
 
-type Dialogo = { tipo: 'pagamento' } | { tipo: 'editar' } | { tipo: 'controle'; acao: ControleAssinaturaInput['acao'] } | null;
+type Dialogo = { tipo: 'pagamento'; cobranca?: CobrancaDTO } | { tipo: 'editar' } | { tipo: 'controle'; acao: ControleAssinaturaInput['acao'] } | null;
 
 export function AssinaturaTab() {
   const queryClient = useQueryClient();
@@ -254,6 +246,8 @@ export function AssinaturaTab() {
         {data.observacaoInterna && <p className={styles.meta}>Observação interna: {data.observacaoInterna}</p>}
       </Card>
 
+      <CobrancasCard billing={data} onPagar={(cobranca) => setDialogo({ tipo: 'pagamento', cobranca })} />
+
       <Card elevated className={styles.history}>
         <h3>Histórico de pagamentos</h3>
         {data.pagamentos.length === 0
@@ -267,7 +261,7 @@ export function AssinaturaTab() {
           </li>)}</ul>}
       </Card>
     </>}
-    {dialogo?.tipo === 'pagamento' && data && <PagamentoModal billing={data} onClose={() => setDialogo(null)} />}
+    {dialogo?.tipo === 'pagamento' && data && <PagamentoModal billing={data} cobranca={dialogo.cobranca} onClose={() => setDialogo(null)} />}
     {dialogo?.tipo === 'editar' && data && <EditarModal billing={data} onClose={() => setDialogo(null)} />}
     {dialogo?.tipo === 'controle' && data && <ControleModal acao={dialogo.acao} billing={data} onClose={() => setDialogo(null)} />}
     <ConfirmDialog open={remover !== null} title="Remover pagamento" danger

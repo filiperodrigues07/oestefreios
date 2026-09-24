@@ -4,6 +4,7 @@ import { NotFoundError } from '../errors/NotFoundError.js';
 import type { AuthenticatedUser } from '../types/auth.types.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
+import type { Cobranca } from './cobranca.service.js';
 import { readCategory, writeCategory } from './settings.service.js';
 
 /**
@@ -43,6 +44,8 @@ export interface BillingSettings {
   controleMotivo: string;
   controlePor: string;
   controleEm: string | null;
+  /** Boletos (Banco Inter) anexados por mês — ver cobranca.service.ts. */
+  cobrancas: Cobranca[];
   pagamentos: PagamentoAssinatura[];
 }
 
@@ -69,6 +72,7 @@ const BILLING_PADRAO: BillingSettings = {
   controleMotivo: '',
   controlePor: '',
   controleEm: null,
+  cobrancas: [],
   pagamentos: [],
 };
 
@@ -237,14 +241,18 @@ export interface NovoPagamentoInput {
   valor: number;
   forma: string;
   observacao: string;
+  /** Quando o pagamento vem de um boleto anexado: marca aquela cobrança como paga. */
+  cobrancaId?: string;
 }
 
 /** Registra o pagamento e avança o vencimento em 1 mês (a partir do vencimento atual, ou da data paga se não houver). */
 export async function registrarPagamento(input: NovoPagamentoInput, usuario: AuthenticatedUser, ctx: RequestContext) {
   const atual = await getBilling();
-  const pagamento: PagamentoAssinatura = { id: randomUUID(), ...input, registradoPor: usuario.name };
+  const { cobrancaId, ...dadosPagamento } = input;
+  const pagamento: PagamentoAssinatura = { id: randomUUID(), ...dadosPagamento, registradoPor: usuario.name };
   const vencimentoAtual = proximoVencimento(atual.vencimentoAtual ?? input.data, atual.diaVencimento);
-  await writeCategory('billing', { ...atual, vencimentoAtual, pagamentos: [pagamento, ...atual.pagamentos] });
+  const cobrancas = atual.cobrancas.map((item) => (item.id === cobrancaId ? { ...item, pagoEm: input.data } : item));
+  await writeCategory('billing', { ...atual, vencimentoAtual, cobrancas, pagamentos: [pagamento, ...atual.pagamentos] });
   invalidarCacheBilling();
   await auditBilling('BILLING_PAYMENT_ADDED', usuario, ctx, { pagamento, vencimentoAnterior: atual.vencimentoAtual, vencimentoAtual });
   return getBillingCompleto();

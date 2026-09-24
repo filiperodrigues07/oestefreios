@@ -25,3 +25,6 @@ skills-lock.json
 
 # Backup/rollback de lotes de dados em produção — ficam só na máquina, não no repositório.
 backend/scripts/*-produto-nao-lancar-*
+
+# Boletos de cobranca (PDF privado, fora do /api/uploads publico)
+backend/storage/

@@ -35,6 +35,7 @@ export interface BillingDTO extends BillingStatusDTO {
   controleMotivo: string;
   controlePor: string;
   controleEm: string | null;
+  cobrancas: CobrancaDTO[];
   pagamentos: PagamentoAssinaturaDTO[];
 }
 
@@ -56,4 +57,37 @@ export interface NovoPagamentoInput {
   valor: number;
   forma: 'PIX' | 'BOLETO' | 'DINHEIRO' | 'OUTRO';
   observacao: string;
+  cobrancaId?: string;
+}
+
+export interface CobrancaDTO {
+  id: string;
+  referencia: string;
+  vencimento: string;
+  valor: number;
+  observacao: string;
+  arquivoNome: string;
+  arquivoTamanho: number;
+  criadoEm: string;
+  criadoPor: string;
+  enviadoEm: string | null;
+  enviadoPara: string[];
+  envios: number;
+  pagoEm: string | null;
+}
+
+export interface CobrancaSmtpDTO {
+  host: string;
+  port: number;
+  seguranca: 'nenhuma' | 'starttls' | 'ssl';
+  user: string;
+  password: string;
+  fromEmail: string;
+  fromName: string;
+}
+
+export interface CobrancaConfigDTO {
+  emails: string[];
+  copiaOculta: string;
+  smtp: CobrancaSmtpDTO;
 }

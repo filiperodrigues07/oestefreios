@@ -17,14 +17,14 @@ function auditSettings(event: string, usuario: AuthenticatedUser, ctx: RequestCo
   return recordAudit({ userId: usuario.id, userName: usuario.name, event, entityType: 'SETTINGS', entityId: event, changes, ...ctx });
 }
 
-const SENHA_MASCARADA = '••••••••';
+export const SENHA_MASCARADA = '••••••••';
 const ENCRYPTED_PREFIX = 'enc:v1:';
 
 function settingsKey(): Buffer {
   return createHash('sha256').update(env.SETTINGS_ENCRYPTION_KEY ?? env.JWT_REFRESH_SECRET).digest();
 }
 
-function encryptSecret(value: string): string {
+export function encryptSecret(value: string): string {
   if (!value || value.startsWith(ENCRYPTED_PREFIX)) return value;
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', settingsKey(), iv);
@@ -32,7 +32,7 @@ function encryptSecret(value: string): string {
   return `${ENCRYPTED_PREFIX}${iv.toString('base64')}:${cipher.getAuthTag().toString('base64')}:${encrypted.toString('base64')}`;
 }
 
-function decryptSecret(value: string): string {
+export function decryptSecret(value: string): string {
   if (!value.startsWith(ENCRYPTED_PREFIX)) return value;
   const [ivRaw, tagRaw, encryptedRaw] = value.slice(ENCRYPTED_PREFIX.length).split(':');
   if (!ivRaw || !tagRaw || !encryptedRaw) throw new Error('Credencial criptografada inválida.');
@@ -251,13 +251,18 @@ export async function isSmtpConfigured(): Promise<boolean> {
   return Boolean(smtp.host && smtp.fromEmail);
 }
 
-function buildTransport(smtp: SmtpSettings) {
+export function buildTransport(smtp: SmtpSettings) {
   return nodemailer.createTransport({
     host: smtp.host,
     port: smtp.port,
     secure: smtp.seguranca === 'ssl',
     requireTLS: smtp.seguranca === 'starttls',
     auth: smtp.user ? { user: smtp.user, pass: smtp.password } : undefined,
+    // Sem isso um SMTP errado deixa a tela esperando ~2 min; falha rápido com mensagem clara.
+    dnsTimeout: 10_000,
+    connectionTimeout: 15_000,
+    greetingTimeout: 15_000,
+    socketTimeout: 60_000,
   });
 }
 
