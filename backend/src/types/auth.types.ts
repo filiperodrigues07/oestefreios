@@ -55,4 +55,6 @@ export interface AuthenticatedUser {
   permissions: Permission[];
   mustChangePassword: boolean;
   cherpUsuarioChave?: number;
+  /** Lido do banco a cada request (nunca do JWT) — ver auth.middleware e requireSuperAdmin. */
+  isSuperAdmin?: boolean;
 }

@@ -16,6 +16,7 @@ export interface UserWithRole {
   mustChangePassword: boolean;
   sessionVersion: number;
   cherpUsuarioChave: number | null;
+  isSuperAdmin: boolean;
 }
 
 export interface UserRow {
@@ -28,6 +29,7 @@ export interface UserRow {
   roleName: string;
   mustChangePassword: boolean;
   cherpUsuarioChave: number | null;
+  isSuperAdmin: boolean;
   createdAt: Date;
 }
 
@@ -65,6 +67,7 @@ const USER_ROW_SELECT = {
   isActive: users.isActive,
   mustChangePassword: users.mustChangePassword,
   cherpUsuarioChave: users.cherpUsuarioChave,
+  isSuperAdmin: users.isSuperAdmin,
   roleId: roles.id,
   roleName: roles.name,
   createdAt: users.createdAt,
@@ -83,6 +86,7 @@ export class UserRepository {
         mustChangePassword: users.mustChangePassword,
         sessionVersion: users.sessionVersion,
         cherpUsuarioChave: users.cherpUsuarioChave,
+        isSuperAdmin: users.isSuperAdmin,
         roleId: roles.id,
         roleName: roles.name,
       })
@@ -108,6 +112,7 @@ export class UserRepository {
         mustChangePassword: users.mustChangePassword,
         sessionVersion: users.sessionVersion,
         cherpUsuarioChave: users.cherpUsuarioChave,
+        isSuperAdmin: users.isSuperAdmin,
         roleId: roles.id,
         roleName: roles.name,
       })
@@ -125,9 +130,15 @@ export class UserRepository {
     await db.update(users).set({ passwordHash, mustChangePassword: false, sessionVersion: sql`${users.sessionVersion} + 1`, updatedAt: new Date() }).where(eq(users.id, userId));
   }
 
-  async getSessionState(id: string): Promise<{ isActive: boolean; sessionVersion: number; lastSeenAt: Date | null } | null> {
-    const [row] = await db.select({ isActive: users.isActive, sessionVersion: users.sessionVersion, lastSeenAt: users.lastSeenAt }).from(users).where(eq(users.id, id));
+  async getSessionState(id: string): Promise<{ isActive: boolean; sessionVersion: number; lastSeenAt: Date | null; isSuperAdmin: boolean } | null> {
+    const [row] = await db.select({ isActive: users.isActive, sessionVersion: users.sessionVersion, lastSeenAt: users.lastSeenAt, isSuperAdmin: users.isSuperAdmin }).from(users).where(eq(users.id, id));
     return row ?? null;
+  }
+
+  /** Quantos proprietários ativos existem fora `exceptId` — trava a remoção do último. */
+  async countActiveSuperAdmins(exceptId?: string): Promise<number> {
+    const rows = await db.select({ id: users.id }).from(users).where(sql`${users.isSuperAdmin} = true AND ${users.isActive} = true${exceptId ? sql` AND ${users.id} <> ${exceptId}` : sql``}`);
+    return rows.length;
   }
 
   async bumpSessionVersion(id: string): Promise<void> {

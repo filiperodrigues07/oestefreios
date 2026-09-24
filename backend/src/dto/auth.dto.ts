@@ -13,5 +13,7 @@ export interface LoginResponseDTO {
     permissions: Permission[];
     mustChangePassword: boolean;
     cherpUsuarioChave?: number;
+    /** Só para a UI montar o menu do proprietário; a autorização de verdade é sempre no servidor. */
+    isSuperAdmin: boolean;
   };
 }

@@ -51,6 +51,17 @@ function auditUser(event: string, actor: AuthenticatedUser, targetId: string, ct
   });
 }
 
+/** O proprietário é invisível para os demais: some da lista e das ações (404, não 403). */
+function escondidoPara(row: { isSuperAdmin: boolean }, actor?: AuthenticatedUser): boolean {
+  return row.isSuperAdmin && !actor?.isSuperAdmin;
+}
+
+async function garantirQueRestaProprietario(row: { id: string; isSuperAdmin: boolean }): Promise<void> {
+  if (row.isSuperAdmin && (await userRepository.countActiveSuperAdmins(row.id)) === 0) {
+    throw new ValidationError('Não é possível remover ou inativar o último proprietário do sistema.');
+  }
+}
+
 async function toSummaryDTO(row: UserRow): Promise<UserSummaryDTO> {
   const [permissions, preset] = await Promise.all([
     userRepository.getUserPermissions(row.id),
@@ -79,8 +90,8 @@ function setsEqual(a: Permission[], b: Permission[]): boolean {
   return a.every((p) => setB.has(p));
 }
 
-export async function listUsers(): Promise<UserSummaryDTO[]> {
-  const rows = await userRepository.list();
+export async function listUsers(actor?: AuthenticatedUser): Promise<UserSummaryDTO[]> {
+  const rows = (await userRepository.list()).filter((row) => !escondidoPara(row, actor));
   const [permissionsByUser, permissionsByRole] = await Promise.all([
     userRepository.getPermissionsForUsers(rows.map((row) => row.id)),
     userRepository.getPermissionsForRoles([...new Set(rows.map((row) => row.roleId))]),
@@ -120,9 +131,9 @@ export async function listCherpUsers() {
   return cherpUsuarioRepository.listarAtivos();
 }
 
-export async function getUserById(id: string): Promise<UserSummaryDTO> {
+export async function getUserById(id: string, actor?: AuthenticatedUser): Promise<UserSummaryDTO> {
   const row = await userRepository.findRowById(id);
-  if (!row) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
+  if (!row || escondidoPara(row, actor)) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
   return toSummaryDTO(row);
 }
 
@@ -205,7 +216,8 @@ export async function updateUser(
   ctx: RequestContext,
 ): Promise<UserSummaryDTO> {
   const before = await userRepository.findRowById(id);
-  if (!before) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
+  if (!before || escondidoPara(before, actor)) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
+  if (input.isActive === false) await garantirQueRestaProprietario(before);
 
   if (input.email && input.email !== before.email) {
     input.email = input.email.trim().toLocaleLowerCase('pt-BR');
@@ -253,7 +265,8 @@ export async function deleteUser(id: string, actor: AuthenticatedUser, ctx: Requ
     throw new ValidationError('Não é possível excluir o próprio usuário.');
   }
   const row = await userRepository.findRowById(id);
-  if (!row) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
+  if (!row || escondidoPara(row, actor)) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
+  await garantirQueRestaProprietario(row);
 
   await userRepository.delete(id);
   await auditUser('USER_DELETED', actor, id, ctx, { name: row.name, email: row.email });
@@ -261,7 +274,7 @@ export async function deleteUser(id: string, actor: AuthenticatedUser, ctx: Requ
 
 export async function reenviarConvite(id: string, actor: AuthenticatedUser, ctx: RequestContext): Promise<void> {
   const row = await userRepository.findRowById(id);
-  if (!row) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
+  if (!row || escondidoPara(row, actor)) throw new NotFoundError('Usuário não encontrado.', 'USER_NOT_FOUND');
 
   await sendInviteEmail(row.id, row.name, row.email);
   await auditUser('USER_INVITE_RESENT', actor, id, ctx);

@@ -44,6 +44,7 @@ function toLoginResponse(user: UserWithRole, accessToken: string): LoginResponse
       permissions: user.permissions,
       mustChangePassword: user.mustChangePassword,
       cherpUsuarioChave: user.cherpUsuarioChave ?? undefined,
+      isSuperAdmin: user.isSuperAdmin,
     },
   };
 }
@@ -84,7 +85,7 @@ export async function login(email: string, password: string, ctx: RequestContext
   }
 
   // Licença simultânea: ocupa a vaga (ou falha com LICENSE_LIMIT_REACHED se as vagas acabaram).
-  await adquirirVaga(user.id, usuarioIsentoDeLimite(user.roleName, user.permissions));
+  await adquirirVaga(user.id, usuarioIsentoDeLimite(user.isSuperAdmin));
 
   // Sessão única por usuário: novo login derruba o dispositivo anterior.
   let sessionVersion = user.sessionVersion;
@@ -139,7 +140,7 @@ export async function refresh(currentRefreshToken: string, ctx: RequestContext) 
   // Licença simultânea: presença expirada (ficou ocioso / F5 depois de muito tempo) disputa vaga de novo.
   const sessao = await userRepository.getSessionState(user.id);
   try {
-    await garantirPresenca(user.id, sessao?.lastSeenAt ?? null, usuarioIsentoDeLimite(user.roleName, user.permissions));
+    await garantirPresenca(user.id, sessao?.lastSeenAt ?? null, usuarioIsentoDeLimite(user.isSuperAdmin));
   } catch (err) {
     await refreshTokenRepository.revokeFamily(stored.familyId);
     throw err;

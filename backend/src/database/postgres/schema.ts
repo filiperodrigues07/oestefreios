@@ -43,6 +43,8 @@ export const users = pgTable('users', {
   /** Última atividade autenticada — base da licença simultânea (online = atividade dentro de LICENSE_IDLE_MINUTES). */
   lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   cherpUsuarioChave: integer('cherp_usuario_chave'),
+  /** Proprietário do sistema (fora da matriz de permissões): só script/seed concede — nunca a API. Ver requireSuperAdmin. */
+  isSuperAdmin: boolean('is_super_admin').notNull().default(false),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [

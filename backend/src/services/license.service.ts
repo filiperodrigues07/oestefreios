@@ -4,7 +4,6 @@ import { env } from '../config/env.js';
 import { db } from '../database/postgres/client.js';
 import { refreshTokens, roles, users } from '../database/postgres/schema.js';
 import { UnauthorizedError } from '../errors/UnauthorizedError.js';
-import type { Permission } from '../types/auth.types.js';
 
 /**
  * Licença simultânea por presença: "online" = atividade autenticada nos últimos
@@ -25,9 +24,9 @@ export function decidirVaga(input: { online: number; limite: number; isento: boo
   return input.online >= input.limite ? 'bloquear' : 'ocupar';
 }
 
-/** Administrador nunca fica de fora — senão a licença lotada trancaria quem pode liberar vaga. */
-export function usuarioIsentoDeLimite(roleName: string, permissions: Permission[]): boolean {
-  return roleName === 'Administrador' || permissions.includes('SYSTEM_SETTINGS');
+/** Só o proprietário (super admin) nunca fica de fora — senão a licença lotada o trancaria, e ninguém mais é isento (nem outro Administrador). */
+export function usuarioIsentoDeLimite(isSuperAdmin: boolean): boolean {
+  return isSuperAdmin;
 }
 
 /** Lidos de process.env a cada chamada (não do `env` parseado no boot) pra testes poderem ligar/desligar. */

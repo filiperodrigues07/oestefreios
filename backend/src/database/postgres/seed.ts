@@ -110,8 +110,9 @@ async function main() {
       email: env.DEV_ADMIN_EMAIL,
       passwordHash,
       roleId: adminRole!.id,
+      isSuperAdmin: true,
     })
-    .onConflictDoUpdate({ target: users.email, set: { passwordHash, roleId: adminRole!.id } })
+    .onConflictDoUpdate({ target: users.email, set: { passwordHash, roleId: adminRole!.id, isSuperAdmin: true } })
     .returning({ id: users.id });
   await syncUserPermissions(adminUser!.id, adminRoleDef.permissions);
 

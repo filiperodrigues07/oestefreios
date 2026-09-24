@@ -8,7 +8,7 @@ import {
   updateBillingHandler,
 } from '../controllers/billing.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
-import { requirePermission } from '../middlewares/requirePermission.js';
+import { requireSuperAdmin } from '../middlewares/requireSuperAdmin.js';
 import { validate } from '../middlewares/validate.js';
 import { billingUpdateSchema, novoPagamentoSchema } from '../validators/billing.validator.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -16,7 +16,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 export const billingRouter = Router();
 billingRouter.use(authenticate);
 billingRouter.get('/status', asyncHandler(getBillingStatusHandler));
-billingRouter.use(requirePermission('SYSTEM_SETTINGS'));
+billingRouter.use(requireSuperAdmin);
 billingRouter.get('/', asyncHandler(getBillingHandler));
 billingRouter.put('/', validate(billingUpdateSchema), asyncHandler(updateBillingHandler));
 billingRouter.post('/pagamentos', validate(novoPagamentoSchema), asyncHandler(addPaymentHandler));

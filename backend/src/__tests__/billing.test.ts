@@ -69,8 +69,8 @@ describe('API de mensalidade', () => {
   });
 
   it('só SYSTEM_SETTINGS lê e edita; status é aberto a qualquer logado e não expõe valores', async () => {
-    expect((await request(app).get('/api/billing').set('Authorization', `Bearer ${userToken}`)).status).toBe(403);
-    expect((await request(app).put('/api/billing').set('Authorization', `Bearer ${userToken}`).send({})).status).toBe(403);
+    expect((await request(app).get('/api/billing').set('Authorization', `Bearer ${userToken}`)).status).toBe(404);
+    expect((await request(app).put('/api/billing').set('Authorization', `Bearer ${userToken}`).send({})).status).toBe(404);
     const status = await request(app).get('/api/billing/status').set('Authorization', `Bearer ${userToken}`);
     expect(status.status).toBe(200);
     expect(Object.keys(status.body.data).sort()).toEqual(['diasParaVencer', 'estado', 'mensagem']);
