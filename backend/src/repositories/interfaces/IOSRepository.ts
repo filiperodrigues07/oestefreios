@@ -66,6 +66,8 @@ export interface IOSRepository {
   buscarParaDashboard(termo: string): Promise<OrdemServico[]>;
   criar(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico>;
   atualizar(id: string, patch: Partial<OrdemServico>): Promise<OrdemServico>;
+  /** Exclusão lógica (ATIVO = 0) — o CHERP nunca apaga linha de verdade; a OS some das listagens. */
+  excluir(id: string): Promise<void>;
   /** Edita quantidade/preço de um item já lançado (UPDATE isolado — não passa pelo diff de sincronizarItens). */
   atualizarItemProduto(id: string, produtoCodigo: string, patch: OSItemPatch): Promise<OrdemServico>;
   atualizarItemServico(id: string, servicoCodigo: string, patch: OSItemPatch): Promise<OrdemServico>;

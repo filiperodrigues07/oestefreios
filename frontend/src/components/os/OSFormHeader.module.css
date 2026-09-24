@@ -22,6 +22,13 @@
 .priorityControl option[value='ALTA'] { background: color-mix(in srgb, var(--os-priority-high) 15%, var(--color-surface)); color: var(--os-priority-high-text); }
 .priorityDot { position: absolute; top: 50%; left: 14px; z-index: 1; width: 7px; height: 7px; border-radius: 50%; background: var(--priority-color); transform: translateY(-50%); pointer-events: none; }
 
+.row { flex-wrap: wrap; }
+.actions { flex-wrap: wrap; justify-content: flex-end; }
+
+@media (max-width: 950px) {
+  .actions { justify-content: flex-start; }
+}
+
 @media (max-width: 560px) {
   .titleBlock time { display: inline; margin: 0; }
   .actions > * { min-width: 120px; }

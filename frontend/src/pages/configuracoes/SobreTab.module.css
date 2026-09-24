@@ -12,6 +12,19 @@
   padding: 25px;
 }
 
+.license {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-6);
+  border-radius: 12px;
+  border: 1px solid var(--color-success);
+  background: var(--color-success-surface);
+  font-size: 13px;
+}
+
+.licenseWarn { border-color: var(--color-warning); background: var(--color-warning-surface); }
+.licenseFull { border-color: var(--color-danger); background: var(--color-danger-surface); }
+
 .heading p {
   font-size: 13px;
   margin: 3px 0 0;
@@ -30,5 +43,100 @@
   .heading,
   .sessionCard {
     padding: 20px;
+  }
+}
+
+.license .meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-neutral-surface);
+  overflow: hidden;
+}
+
+.meter span {
+  display: block;
+  height: 100%;
+  background: var(--color-success);
+}
+
+.licenseWarn .meter span { background: var(--color-warning); }
+.licenseFull .meter span { background: var(--color-danger); }
+
+.usersCard {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.filter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.userList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+
+.userRow {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.4fr) minmax(130px, 0.8fr) minmax(200px, 1.4fr) auto;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  border-top: 1px solid var(--color-border);
+}
+
+.userRow:first-child {
+  border-top: 0;
+}
+
+.userMain {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.userText,
+.userStatus,
+.userDevice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.userStatus {
+  align-items: flex-start;
+}
+
+.userText span,
+.muted {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--space-2);
+  border-radius: 50%;
+  background: var(--color-text-secondary);
+}
+
+.online { background: var(--color-success); }
+.ocioso { background: var(--color-warning); }
+
+@media (max-width: 720px) {
+  .userRow {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
   }
 }

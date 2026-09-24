@@ -1,7 +1,10 @@
 import type { NextFunction, Request, Response } from 'express';
 import { verifyAccessToken } from '../auth/jwt.js';
+import { AppError } from '../errors/AppError.js';
 import { UnauthorizedError } from '../errors/UnauthorizedError.js';
 import { userRepository } from '../repositories/postgres/UserRepository.js';
+import { erroSomenteLeitura, getBillingStatus } from '../services/billing.service.js';
+import { garantirPresenca, usuarioIsentoDeLimite } from '../services/license.service.js';
 
 /** Exige um Bearer JWT válido; popula req.user com o payload embutido no token. */
 export async function authenticate(req: Request, _res: Response, next: NextFunction) {
@@ -20,6 +23,13 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
       if (!session?.isActive || session.sessionVersion !== payload.sessionVersion) {
         throw new UnauthorizedError('Sessão revogada. Faça login novamente.', 'SESSION_REVOKED');
       }
+      // Presença da licença simultânea (renova a cada ~1 min; se a presença expirou, disputa vaga de novo).
+      await garantirPresenca(payload.sub, session.lastSeenAt, usuarioIsentoDeLimite(payload.roleName, payload.permissions));
+    }
+    // Mensalidade vencida além da carência: consulta liberada, escrita bloqueada (admin e /auth/* passam).
+    const escrita = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+    if (escrita && !req.originalUrl.startsWith('/api/auth/') && !usuarioIsentoDeLimite(payload.roleName, payload.permissions)) {
+      if ((await getBillingStatus()).estado === 'SOMENTE_LEITURA') throw erroSomenteLeitura();
     }
     const passwordChangeAllowed = ['/api/auth/change-password', '/api/auth/logout', '/api/auth/me'].includes(req.originalUrl.split('?')[0]!);
     if (payload.mustChangePassword && !passwordChangeAllowed) {
@@ -37,7 +47,7 @@ export async function authenticate(req: Request, _res: Response, next: NextFunct
     };
     next();
   } catch (error) {
-    if (error instanceof UnauthorizedError) throw error;
+    if (error instanceof AppError) throw error;
     throw new UnauthorizedError('Token de acesso expirado ou inválido.', 'TOKEN_EXPIRED');
   }
 }

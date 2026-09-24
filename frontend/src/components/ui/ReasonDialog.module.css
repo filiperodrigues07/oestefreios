@@ -1,0 +1,53 @@
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.description {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.required {
+  color: var(--color-danger);
+}
+
+.textarea {
+  width: 100%;
+  min-height: 92px;
+  padding: 9px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-input);
+  resize: vertical;
+}
+
+.textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-surface);
+}
+
+.hint {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.counter {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}

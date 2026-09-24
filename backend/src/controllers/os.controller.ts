@@ -57,6 +57,19 @@ export async function atualizarOSHandler(req: Request, res: Response) {
   success(res, os, 'Alterações salvas.');
 }
 
+export async function duplicarOSHandler(req: Request, res: Response) {
+  const { id } = req.params as { id: string };
+  const os = await osService.duplicarOS(id, req.user!, requestContext(req));
+  success(res, os, 'OS duplicada com sucesso.', 201);
+}
+
+export async function excluirOSHandler(req: Request, res: Response) {
+  const { id } = req.params as { id: string };
+  const { motivo } = req.body as { motivo: string };
+  await osService.excluirOS(id, motivo, req.user!, requestContext(req));
+  success(res, null, 'OS excluída.');
+}
+
 export async function alterarStatusHandler(req: Request, res: Response) {
   const { id } = req.params as { id: string };
   const { status } = req.body as { status: Parameters<typeof osService.alterarStatusOS>[1] };

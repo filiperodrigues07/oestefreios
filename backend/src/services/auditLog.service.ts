@@ -12,6 +12,7 @@ const EVENT_LABELS: Record<string, string> = {
   PASSWORD_RESET_COMPLETED: 'Senha redefinida', PASSWORD_CHANGED: 'Senha alterada',
   PROFILE_UPDATED: 'Perfil atualizado', PROFILE_PHOTO_UPDATED: 'Foto de perfil atualizada',
   OS_CREATED: 'OS criada', OS_UPDATED: 'OS atualizada', OS_STATUS_CHANGED: 'Status da OS alterado',
+  OS_DELETED: 'OS excluída', OS_DUPLICATED: 'OS duplicada',
   OS_PRODUCT_ADDED: 'Produto adicionado à OS', OS_PRODUCT_REMOVED: 'Produto removido da OS',
   OS_PRODUCT_UPDATED: 'Produto atualizado na OS', OS_SERVICE_ADDED: 'Serviço adicionado à OS',
   OS_SERVICE_REMOVED: 'Serviço removido da OS', OS_SERVICE_UPDATED: 'Serviço atualizado na OS',
@@ -21,7 +22,8 @@ const EVENT_LABELS: Record<string, string> = {
   VEICULO_CREATED: 'Veículo criado', VEICULO_UPDATED: 'Veículo atualizado',
   SETTINGS_FIREBIRD_UPDATED: 'Firebird atualizado', SETTINGS_SMTP_UPDATED: 'E-mail atualizado',
   SETTINGS_GERAL_UPDATED: 'Configurações gerais atualizadas',
-  SESSION_FORCE_LOGOUT: 'Sessão encerrada', SESSION_FORCE_LOGOUT_ALL: 'Todas as sessões encerradas',
+  BILLING_UPDATED: 'Dados da assinatura atualizados', BILLING_PAYMENT_ADDED: 'Pagamento da mensalidade registrado', BILLING_PAYMENT_REMOVED: 'Pagamento da mensalidade removido',
+  SESSION_REPLACED: 'Sessão anterior derrubada por novo login', SESSION_FORCE_LOGOUT: 'Sessão encerrada', SESSION_FORCE_LOGOUT_ALL: 'Todas as sessões encerradas',
 };
 
 /** Remove campos financeiros de um objeto de diff arbitrário — mesma regra de DTO do resto do app, aplicada à auditoria. */

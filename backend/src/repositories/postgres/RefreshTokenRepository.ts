@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, gt, isNull } from 'drizzle-orm';
 import { db } from '../../database/postgres/client.js';
 import { refreshTokens } from '../../database/postgres/schema.js';
 
@@ -69,6 +69,15 @@ export class RefreshTokenRepository {
       .update(refreshTokens)
       .set({ revokedAt: new Date() })
       .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt)));
+  }
+
+  /** Quantas sessões (famílias de refresh) válidas o usuário tem — o login usa pra saber se vai derrubar uma. */
+  async countActiveForUser(userId: string): Promise<number> {
+    const rows = await db
+      .selectDistinct({ familyId: refreshTokens.familyId })
+      .from(refreshTokens)
+      .where(and(eq(refreshTokens.userId, userId), isNull(refreshTokens.revokedAt), gt(refreshTokens.expiresAt, new Date())));
+    return rows.length;
   }
 }
 

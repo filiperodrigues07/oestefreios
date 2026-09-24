@@ -1065,6 +1065,10 @@ export class OSRepositoryFirebird implements IOSRepository {
     return { buffer: row.IMG, nomeArquivo: row.NOMEARQUIVO };
   }
 
+  async excluir(id: string): Promise<void> {
+    await firebirdQuery(`UPDATE ORDEMSERVICO SET ATIVO = 0 WHERE IDENTIFICADOR = ? AND ATIVO = 1`, [id]);
+  }
+
   async removerImagem(id: string, identificador: string): Promise<void> {
     const chaveOS = await this.resolveChaveOS(id);
     await firebirdQuery(`UPDATE ORDEMSERVICOIMG SET ATIVO = 0 WHERE CHAVEOS = ? AND IDENTIFICADOR = ? AND ATIVO = 1`, [

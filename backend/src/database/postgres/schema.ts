@@ -40,10 +40,15 @@ export const users = pgTable('users', {
   isActive: boolean('is_active').notNull().default(true),
   mustChangePassword: boolean('must_change_password').notNull().default(false),
   sessionVersion: integer('session_version').notNull().default(0),
+  /** Última atividade autenticada — base da licença simultânea (online = atividade dentro de LICENSE_IDLE_MINUTES). */
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
   cherpUsuarioChave: integer('cherp_usuario_chave'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
-}, (table) => [uniqueIndex('users_cherp_usuario_chave_unique').on(table.cherpUsuarioChave)]);
+}, (table) => [
+  uniqueIndex('users_cherp_usuario_chave_unique').on(table.cherpUsuarioChave),
+  index('users_last_seen_at_idx').on(table.lastSeenAt),
+]);
 
 /**
  * Permissões efetivas por usuário — fonte de verdade a partir da Fase G (redesenho de

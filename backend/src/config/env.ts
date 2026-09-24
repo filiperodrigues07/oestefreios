@@ -34,6 +34,10 @@ const envSchema = z.object({
   DADOS_API_BASE_URL: z.url().default('https://api.dadosapi.com'),
   VEHICLE_LOOKUP_MONTHLY_LIMIT: z.coerce.number().int().nonnegative().default(50),
   VEHICLE_LOOKUP_CACHE_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  /** Licença simultânea: máx. de usuários diferentes online ao mesmo tempo (0 = sem limite). */
+  LICENSE_MAX_SESSIONS: z.coerce.number().int().nonnegative().default(5),
+  /** Minutos sem atividade autenticada até a sessão deixar de ocupar vaga. */
+  LICENSE_IDLE_MINUTES: z.coerce.number().int().positive().default(15),
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV === 'production' && !value.SETTINGS_ENCRYPTION_KEY) {
     ctx.addIssue({ code: 'custom', path: ['SETTINGS_ENCRYPTION_KEY'], message: 'Obrigatória em produção.' });

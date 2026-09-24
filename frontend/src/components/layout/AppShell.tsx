@@ -15,6 +15,7 @@ import { InstallBanner } from './InstallBanner.js';
 import { NavIcon } from './NavIcon.js';
 import { NAV_ITEMS } from './navItems.js';
 import { OfflineBanner } from './OfflineBanner.js';
+import { SubscriptionBanner } from './SubscriptionBanner.js';
 import { ProfileModal } from './ProfileModal.js';
 import { SidebarProfile } from './SidebarProfile.js';
 import { GlobalSearch } from './GlobalSearch.js';
@@ -389,6 +390,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </header>
         <OfflineBanner />
+        <SubscriptionBanner />
         <InstallBanner />
         {children}
         <div className={styles.mainFooter}>

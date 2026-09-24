@@ -14,6 +14,7 @@ import { logger } from '../utils/logger.js';
 import { parseDurationMs } from '../utils/parseDuration.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
+import { adquirirVaga, garantirPresenca, liberar, sessaoUnicaAtiva, usuarioIsentoDeLimite } from './license.service.js';
 import { isSmtpConfigured, sendEmail } from './settings.service.js';
 
 function toJwtPayload(user: UserWithRole): JwtPayload {
@@ -82,7 +83,20 @@ export async function login(email: string, password: string, ctx: RequestContext
     throw genericError();
   }
 
-  const accessToken = signAccessToken(toJwtPayload(user));
+  // Licença simultânea: ocupa a vaga (ou falha com LICENSE_LIMIT_REACHED se as vagas acabaram).
+  await adquirirVaga(user.id, usuarioIsentoDeLimite(user.roleName, user.permissions));
+
+  // Sessão única por usuário: novo login derruba o dispositivo anterior.
+  let sessionVersion = user.sessionVersion;
+  if (sessaoUnicaAtiva() && (await refreshTokenRepository.countActiveForUser(user.id)) > 0) {
+    await refreshTokenRepository.revokeAllForUser(user.id);
+    await userRepository.bumpSessionVersion(user.id);
+    // Releitura: o JWT novo precisa nascer já com a versão incrementada, senão cai na 1ª request.
+    sessionVersion = (await userRepository.getSessionState(user.id))?.sessionVersion ?? sessionVersion + 1;
+    await audit('SESSION_REPLACED', user.id, ctx, user.name);
+  }
+
+  const accessToken = signAccessToken(toJwtPayload({ ...user, sessionVersion }));
   const { refreshToken } = await issueRefreshToken(user.id, undefined, ctx);
 
   await audit('LOGIN_SUCCESS', user.id, ctx, user.name);
@@ -122,6 +136,15 @@ export async function refresh(currentRefreshToken: string, ctx: RequestContext) 
     throw new UnauthorizedError('Sessão expirada. Faça login novamente.', 'REFRESH_TOKEN_INVALID');
   }
 
+  // Licença simultânea: presença expirada (ficou ocioso / F5 depois de muito tempo) disputa vaga de novo.
+  const sessao = await userRepository.getSessionState(user.id);
+  try {
+    await garantirPresenca(user.id, sessao?.lastSeenAt ?? null, usuarioIsentoDeLimite(user.roleName, user.permissions));
+  } catch (err) {
+    await refreshTokenRepository.revokeFamily(stored.familyId);
+    throw err;
+  }
+
   const { refreshToken: newRefreshToken } = await issueRefreshToken(user.id, stored.familyId, ctx);
   const newRow = await refreshTokenRepository.findByToken(newRefreshToken);
   await refreshTokenRepository.revoke(stored.id, newRow?.id);
@@ -136,6 +159,7 @@ export async function logout(currentRefreshToken: string | undefined, ctx: Reque
   const stored = await refreshTokenRepository.findByToken(currentRefreshToken);
   if (stored && !stored.revokedAt) {
     await refreshTokenRepository.revoke(stored.id);
+    await liberar(stored.userId);
     await audit('LOGOUT', stored.userId, ctx);
   }
 }

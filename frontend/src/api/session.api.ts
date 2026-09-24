@@ -1,5 +1,5 @@
 import { apiFetch } from './httpClient.js';
-import type { ActiveSessionDTO } from '../types/session.types.js';
+import type { ActiveSessionDTO, LicenseSummaryDTO } from '../types/session.types.js';
 
 export function listActiveSessions(): Promise<ActiveSessionDTO[]> {
   return apiFetch('/sessions');
@@ -11,4 +11,8 @@ export function forceLogoutSession(id: string): Promise<void> {
 
 export function forceLogoutAllForUser(userId: string): Promise<void> {
   return apiFetch(`/users/${userId}/sessions`, { method: 'DELETE' });
+}
+
+export function getLicenca(): Promise<LicenseSummaryDTO> {
+  return apiFetch('/sessions/license');
 }

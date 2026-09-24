@@ -41,3 +41,10 @@
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
+
+@media (max-width: 600px) {
+  .menu {
+    left: 0;
+    right: auto;
+  }
+}

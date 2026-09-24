@@ -125,8 +125,8 @@ export class UserRepository {
     await db.update(users).set({ passwordHash, mustChangePassword: false, sessionVersion: sql`${users.sessionVersion} + 1`, updatedAt: new Date() }).where(eq(users.id, userId));
   }
 
-  async getSessionState(id: string): Promise<{ isActive: boolean; sessionVersion: number } | null> {
-    const [row] = await db.select({ isActive: users.isActive, sessionVersion: users.sessionVersion }).from(users).where(eq(users.id, id));
+  async getSessionState(id: string): Promise<{ isActive: boolean; sessionVersion: number; lastSeenAt: Date | null } | null> {
+    const [row] = await db.select({ isActive: users.isActive, sessionVersion: users.sessionVersion, lastSeenAt: users.lastSeenAt }).from(users).where(eq(users.id, id));
     return row ?? null;
   }
 

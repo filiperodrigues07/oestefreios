@@ -8,4 +8,6 @@ export interface ActiveSessionDTO {
   browser: string;
   createdAt: string;
   expiresAt: string;
+  /** Última atividade autenticada do usuário (base da licença simultânea); null = fora da licença. */
+  lastSeenAt: string | null;
 }

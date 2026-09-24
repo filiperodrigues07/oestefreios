@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useState, type CSSProperties, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { login } from '../api/auth.api.js';
 import { Footer } from '../components/layout/Footer.js';
 import { Button, Card, Input, PasswordInput } from '../components/ui/index.js';
@@ -10,7 +10,14 @@ import styles from './LoginPage.module.css';
 import clientLogo from '../../../img/logo-clean.webp';
 import truckHero from '../assets/login-truck-hero.webp';
 
+const AVISOS_LOGIN: Record<string, string> = {
+  'sessao-encerrada': 'Sua sessão foi encerrada. Isso acontece quando a conta entra em outro dispositivo ou um administrador encerra o acesso. Entre novamente.',
+  licenca: 'Limite de licenças em uso. Tente novamente em alguns minutos ou peça a um administrador para liberar uma vaga.',
+};
+
 export function LoginPage() {
+  const [searchParams] = useSearchParams();
+  const aviso = AVISOS_LOGIN[searchParams.get('motivo') ?? ''];
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [capsLock, setCapsLock] = useState(false);
@@ -78,6 +85,10 @@ export function LoginPage() {
             />
             {capsLock && <p role="status" aria-live="polite" className={styles.capsLock}>Caps Lock ativado</p>}
             </div>
+
+            {aviso && !mutation.isError && (
+              <p role="status" className={styles.warning}>{aviso}</p>
+            )}
 
             {!online && (
               <p role="alert" className={styles.warning}>

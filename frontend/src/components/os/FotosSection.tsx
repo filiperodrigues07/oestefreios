@@ -7,7 +7,7 @@ import {
   listarImagensOS,
   type OSImagemDTO,
 } from '../../api/osImagens.api.js';
-import { Button, ConfirmDialog, EmptyState, ErrorState, Skeleton, useToast } from '../ui/index.js';
+import { ActionIcon, Button, ConfirmDialog, EmptyState, ErrorState, Skeleton, useToast } from '../ui/index.js';
 import styles from './FotosSection.module.css';
 
 interface FotosSectionProps {
@@ -120,7 +120,8 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
             }}
           />
           <Button size="sm" variant="secondary" loading={enviando} onClick={() => cameraInputRef.current?.click()}>
-            📷 Tirar foto
+            <ActionIcon name="camera" />
+            Tirar foto
           </Button>
           <Button size="sm" variant="secondary" loading={enviando} onClick={() => arquivoInputRef.current?.click()}>
             Enviar arquivo

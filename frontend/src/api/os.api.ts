@@ -61,6 +61,15 @@ export function criarOS(input: CriarOSInput): Promise<OrdemServicoDTO> {
   });
 }
 
+/** Duplicar/excluir nunca entram na fila offline: gerar número/DAV ou sumir com uma OS exige rede de verdade. */
+export function duplicarOS(id: string): Promise<OrdemServicoDTO> {
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/duplicar`, { method: 'POST', queueOffline: false });
+}
+
+export function excluirOS(id: string, motivo: string): Promise<null> {
+  return apiFetch<null>(`/os/${id}`, { method: 'DELETE', body: { motivo }, queueOffline: false });
+}
+
 export interface AtualizarOSInput {
   diagnostico?: string;
   observacoes?: string;

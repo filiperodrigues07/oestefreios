@@ -106,13 +106,13 @@ const INTEGRACOES_PADRAO: IntegracoesSettings = {
   dadosApiToken: env.DADOS_API_TOKEN ?? '',
 };
 
-async function readCategory<T>(category: string, fallback: T): Promise<T> {
+export async function readCategory<T>(category: string, fallback: T): Promise<T> {
   const [row] = await db.select().from(settings).where(eq(settings.category, category));
   if (!row) return fallback;
   return { ...fallback, ...(row.data as Partial<T>) };
 }
 
-async function writeCategory<T extends object>(category: string, data: T): Promise<void> {
+export async function writeCategory<T extends object>(category: string, data: T): Promise<void> {
   await db
     .insert(settings)
     .values({ category, data, updatedAt: new Date() })

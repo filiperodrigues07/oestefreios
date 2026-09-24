@@ -4,6 +4,7 @@ export interface UserSummaryDTO {
   id: string;
   name: string;
   email: string;
+  photoUrl: string | null;
   isActive: boolean;
   roleId: string;
   roleName: string;
