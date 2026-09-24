@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { excluirCliente, searchClientes, type ClienteSortBy } from '../api/clientes.api.js';
 import { baixarRelatorioClientes } from '../api/relatorios.api.js';
 import {
@@ -95,6 +95,7 @@ export function ClientesPage() {
   const podeCriar = hasPermission('OS_CREATE');
   const podeEditar = hasPermission('OS_EDIT');
   const podeExcluir = hasPermission('CLIENT_DELETE');
+  const navigate = useNavigate();
   const [excluindo, setExcluindo] = useState<ClienteDTO | null>(null);
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -174,7 +175,7 @@ export function ClientesPage() {
       header: 'CNPJ/CPF',
       render: (c) => c.documento ?? '—',
       mono: true,
-      width: '140px',
+      width: '168px',
       sortable: true,
     },
     {
@@ -182,7 +183,7 @@ export function ClientesPage() {
       header: 'Telefone',
       render: (c) => c.telefone ?? '—',
       mono: true,
-      width: '128px',
+      width: '148px',
       sortable: true,
     },
     {
@@ -317,6 +318,7 @@ export function ClientesPage() {
             sortOrder={sortOrder}
             onSortChange={handleSortChange}
             columnPrefsKey="clientes"
+            onRowClick={podeEditar ? (c) => navigate(`/clientes/${c.codigo}/editar`) : undefined}
             renderMobileCard={(cliente) => (
               <MobileRecordCard
                 eyebrow={`Cliente ${cliente.codigo}`}

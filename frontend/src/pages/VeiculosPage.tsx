@@ -243,6 +243,7 @@ export function VeiculosPage() {
                 sortOrder={sortOrder}
                 onSortChange={handleSortChange}
                 columnPrefsKey="veiculos"
+                onRowClick={hasPermission('OS_EDIT') ? (v) => setModal({ veiculo: v }) : undefined}
                 renderMobileCard={(veiculo) => (
                   <MobileRecordCard
                     eyebrow={veiculo.identificacao || `Veículo ${veiculo.codigo}`}
