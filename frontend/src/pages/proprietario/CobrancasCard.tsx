@@ -16,6 +16,7 @@ import {
   Badge,
   Button,
   Card,
+  CurrencyInput,
   ConfirmDialog,
   Input,
   Modal,
@@ -137,15 +138,7 @@ function NovaCobrancaModal({ billing, onClose }: { billing: BillingDTO; onClose:
           value={vencimento}
           onChange={(e) => setVencimento(e.target.value)}
         />
-        <Input
-          label="Valor (R$)"
-          type="number"
-          step="0.01"
-          min="0"
-          required
-          value={valor}
-          onChange={(e) => setValor(e.target.value)}
-        />
+        <CurrencyInput label="Valor (R$)" required value={Number(valor)} onValueChange={(v) => setValor(String(v))} />
         <Input
           label="Observação (opcional)"
           maxLength={300}

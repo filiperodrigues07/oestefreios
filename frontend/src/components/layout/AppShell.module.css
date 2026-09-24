@@ -245,7 +245,7 @@
     position: sticky;
     top: 0;
     display: flex;
-    width: clamp(224px, 18vw, 256px);
+    width: clamp(248px, 19.5vw, 284px);
     height: 100vh;
     height: 100dvh;
     flex-shrink: 0;
@@ -629,7 +629,7 @@
   .sidebarSearch .sidebarSearchField { width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box; height: 38px; border-radius: 12px; border-color: rgba(172, 191, 224, .11); background: rgba(255,255,255,.035); color: #cbd5e1; }
   .sidebarSearchField :global(input) { font-size: 12px; padding-left: 7px; }
   .sidebarSearchField :global(input::placeholder) { color: #b7c2d2; }
-  .sidebarSearchField :global(kbd) { display: none; }
+  .sidebarSearchField :global(kbd) { flex: none; margin-right: 6px; padding: 3px 6px; font-size: 10px; font-family: inherit; letter-spacing: .02em; }
   .sidebarSearchField :global(.results) { min-width: 320px; }
   .collapsedSearch { display: grid; width: 100%; height: 42px; place-items: center; border: 0; border-radius: 10px; background: transparent; color: #b9c9e4; cursor: pointer; }
   .collapsedSearch:hover { background: rgba(255,255,255,.08); }

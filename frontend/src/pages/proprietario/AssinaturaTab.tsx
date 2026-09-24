@@ -12,6 +12,7 @@ import {
   Badge,
   Button,
   Card,
+  CurrencyInput,
   ConfirmDialog,
   ErrorState,
   Input,
@@ -149,15 +150,12 @@ export function PagamentoModal({
           value={form.referencia}
           onChange={(e) => setForm({ ...form, referencia: e.target.value })}
         />
-        <Input
+        <CurrencyInput
           label="Valor (R$)"
-          type="number"
-          step="0.01"
-          min="0"
           required
           readOnly={Boolean(cobranca)}
           value={form.valor}
-          onChange={(e) => setForm({ ...form, valor: Number(e.target.value) })}
+          onValueChange={(valor) => setForm({ ...form, valor })}
         />
         <Select
           label="Forma"
@@ -243,14 +241,11 @@ function EditarModal({ billing, onClose }: { billing: BillingDTO; onClose: () =>
           value={form.plano}
           onChange={(e) => setForm({ ...form, plano: e.target.value })}
         />
-        <Input
+        <CurrencyInput
           label="Valor mensal (R$)"
-          type="number"
-          step="0.01"
-          min="0"
           required
           value={form.valorMensal}
-          onChange={(e) => setForm({ ...form, valorMensal: Number(e.target.value) })}
+          onValueChange={(valorMensal) => setForm({ ...form, valorMensal })}
         />
         <Input
           label="Próximo vencimento"

@@ -15,6 +15,9 @@ function destino(result: DashboardSearchResult): string {
   return `/produtos?tipo=${result.tipo === 'SERVICO' ? 'servicos' : 'produtos'}&busca=${encodeURIComponent(result.id)}`;
 }
 
+/** Mostra ⌘ K no Mac e Ctrl K no resto — o atalho em si já aceita os dois. */
+const ATALHO = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/i.test(navigator.platform) ? '⌘ + K' : 'Ctrl + K';
+
 export function GlobalSearch({ onNavigate, className, placeholder, shortcut = true }: { onNavigate?: () => void; className?: string; placeholder?: string; shortcut?: boolean }) {
   const navigate = useNavigate();
   const listId = useId();
@@ -89,10 +92,10 @@ export function GlobalSearch({ onNavigate, className, placeholder, shortcut = tr
         onChange={(event) => { setValue(event.target.value); setOpen(true); }}
         onFocus={() => setOpen(true)} onKeyDown={handleKeyDown}
         placeholder={placeholder ?? 'Buscar OS, cliente, placa, produto ou serviço...'} aria-label="Busca global"
-        role="combobox" aria-expanded={showing} aria-controls={showing ? listId : undefined}
+        aria-keyshortcuts="Control+K Meta+K" role="combobox" aria-expanded={showing} aria-controls={showing ? listId : undefined}
         aria-activedescendant={activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} />
       {value && <button className={styles.clear} type="button" onClick={() => { setValue(''); inputRef.current?.focus(); }} aria-label="Limpar busca">×</button>}
-      <kbd>Ctrl + K</kbd>
+      {!value && <kbd aria-hidden="true">{ATALHO}</kbd>}
       {showing && <div className={styles.results} id={listId} role="listbox">
         {isFetching && <p>Buscando...</p>}
         {isError && <p>Não foi possível realizar a busca. Tente novamente.</p>}
