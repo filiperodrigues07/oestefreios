@@ -89,3 +89,20 @@
   z-index: 1;
   color: #88a8d3;
 }
+
+[data-theme='light'] .card {
+  border-color: var(--color-border);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme='light'] .title { color: var(--color-text-primary); }
+[data-theme='light'] .copy { color: var(--color-text-secondary); }
+[data-theme='light'] .rules {
+  border-color: var(--color-border);
+  background: var(--color-primary-surface);
+  color: var(--color-text-secondary);
+}
+[data-theme='light'] .link { color: var(--color-primary-on-surface); }
+[data-theme='light'] .page > :last-child a:hover { color: #67c5ff; }
+[data-theme='light'] .page > :last-child a:focus-visible { outline-color: #67c5ff; }

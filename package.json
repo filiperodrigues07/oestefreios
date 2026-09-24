@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
-    "test": "npm run test -w backend"
+    "test": "npm run test -w backend && npm run test:frontend",
+    "test:frontend": "vitest run frontend/src"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

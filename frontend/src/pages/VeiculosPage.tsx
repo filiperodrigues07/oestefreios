@@ -44,7 +44,7 @@ export function VeiculosPage() {
   const [excluindo, setExcluindo] = useState<EquipamentoDTO | null>(null);
   const [busca, setBusca] = useState(initialBusca);
   const [buscaAtiva, setBuscaAtiva] = useState(initialBusca);
-  const [cliente, setCliente] = useState<ClienteDTO | null>(null);
+  const [clienteEscolhido, setClienteEscolhido] = useState<{ selecionado: boolean; cliente: ClienteDTO | null }>({ selecionado: false, cliente: null });
   const [anoFabricacao, setAnoFabricacao] = useState(() => searchParams.get('anoFabricacao') ?? filtrosSalvos.get('anoFabricacao') ?? '');
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
@@ -59,9 +59,8 @@ export function VeiculosPage() {
     queryFn: () => getClienteByCodigo(initialClienteCodigo),
     enabled: Boolean(initialClienteCodigo),
   });
-  useEffect(() => {
-    if (clienteDaUrl) setCliente(clienteDaUrl);
-  }, [clienteDaUrl]);
+  const cliente = clienteEscolhido.selecionado ? clienteEscolhido.cliente : clienteDaUrl ?? null;
+  const setCliente = (next: ClienteDTO | null) => setClienteEscolhido({ selecionado: true, cliente: next });
 
   // Filtros salvos na URL (compartilhável, funciona com voltar do navegador) e em sessionStorage
   // (sobrevive a navegar pra outra tela pelo menu, que troca de rota sem manter query string).

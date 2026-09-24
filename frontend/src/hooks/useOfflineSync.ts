@@ -1,8 +1,14 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { apiFetch } from '../api/httpClient.js';
 import { useToast } from '../components/ui/ToastProvider.js';
-import { getAllOperations, markOperationFailed, removeOperation } from '../pwa/offlineQueue.js';
+import {
+  getAllOperations,
+  markOperationFailed,
+  operationBelongsToUser,
+  removeOperation,
+} from '../pwa/offlineQueue.js';
+import { useAuthStore } from '../store/authStore.js';
 
 /**
  * Ao reconectar, tenta sincronizar a fila de mutações pendentes (seção 26).
@@ -12,46 +18,76 @@ import { getAllOperations, markOperationFailed, removeOperation } from '../pwa/o
 export function useOfflineSync() {
   const { showToast } = useToast();
   const queryClient = useQueryClient();
+  const userId = useAuthStore((state) => state.user?.id);
+  const flushingUsersRef = useRef(new Set<string>());
 
   useEffect(() => {
     async function flush() {
-      const pending = await getAllOperations();
-      if (pending.length === 0) return;
+      if (!userId || flushingUsersRef.current.has(userId)) return;
+      flushingUsersRef.current.add(userId);
+      try {
+        const pending = await getAllOperations();
+        if (pending.length === 0) return;
 
-      let sincronizadas = 0;
-      let falhas = 0;
+        let sincronizadas = 0;
+        let falhas = 0;
+        let antigas = 0;
 
-      for (const op of pending) {
-        try {
-          await apiFetch(op.path, { method: op.method, body: op.body });
-          await removeOperation(op.id);
-          sincronizadas++;
-        } catch {
-          await markOperationFailed(op.id);
-          falhas++;
+        for (const op of pending) {
+          if (useAuthStore.getState().user?.id !== userId) break;
+          if (!op.ownerUserId) {
+            antigas++;
+            continue;
+          }
+          if (!operationBelongsToUser(op, userId)) continue;
+          try {
+            await apiFetch(op.path, {
+              method: op.method,
+              body: op.body,
+              queueOffline: false,
+              expectedUserId: userId,
+            });
+            await removeOperation(op.id);
+            sincronizadas++;
+          } catch {
+            await markOperationFailed(op.id);
+            falhas++;
+          }
         }
-      }
 
-      if (sincronizadas > 0) {
-        showToast(
-          `${sincronizadas} alteração${sincronizadas > 1 ? 'ões' : ''} pendente${sincronizadas > 1 ? 's' : ''} sincronizada${sincronizadas > 1 ? 's' : ''} com o servidor.`,
-          'success',
-        );
-        await queryClient.invalidateQueries();
-      }
-      if (falhas > 0) {
-        showToast(
-          `${falhas} alteração${falhas > 1 ? 'ões' : ''} não pôde${falhas > 1 ? 'ram' : ''} ser sincronizada${falhas > 1 ? 's' : ''}. Revise e tente de novo.`,
-          'danger',
-        );
+        if (sincronizadas > 0) {
+          showToast(
+            `${sincronizadas} alteração${sincronizadas > 1 ? 'ões' : ''} pendente${sincronizadas > 1 ? 's' : ''} sincronizada${sincronizadas > 1 ? 's' : ''} com o servidor.`,
+            'success',
+          );
+          await queryClient.invalidateQueries();
+        }
+        if (falhas > 0) {
+          showToast(
+            `${falhas} alteração${falhas > 1 ? 'ões' : ''} não pôde${falhas > 1 ? 'ram' : ''} ser sincronizada${falhas > 1 ? 's' : ''}. Revise e tente de novo.`,
+            'danger',
+          );
+        }
+        if (antigas > 0) {
+          showToast(
+            `${antigas} alteração${antigas > 1 ? 'ões' : ''} offline antiga${antigas > 1 ? 's' : ''} não pode${antigas > 1 ? 'm' : ''} ser sincronizada${antigas > 1 ? 's' : ''} com segurança. Confira os dados no servidor e refaça a alteração, se necessário.`,
+            'warning',
+          );
+        }
+      } finally {
+        flushingUsersRef.current.delete(userId);
       }
     }
 
-    window.addEventListener('online', flush);
-    // também tenta uma vez ao montar, caso já esteja online com fila pendente de uma sessão anterior
-    if (navigator.onLine) flush();
+    const triggerFlush = () => {
+      void flush().catch(() =>
+        showToast('Não foi possível ler a fila offline. Tente novamente ao reconectar.', 'danger'),
+      );
+    };
+    window.addEventListener('online', triggerFlush);
+    // Só tenta depois da autenticação; um registro de outra conta nunca é reenviado.
+    if (navigator.onLine && userId) triggerFlush();
 
-    return () => window.removeEventListener('online', flush);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => window.removeEventListener('online', triggerFlush);
+  }, [userId, queryClient, showToast]);
 }

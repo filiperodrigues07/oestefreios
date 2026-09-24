@@ -189,3 +189,19 @@
   color: var(--color-warning);
   font-size: var(--font-size-xs);
 }
+
+[data-theme='light'] .card {
+  border-color: var(--color-border);
+  background: var(--color-surface-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+[data-theme='light'] .heading h1 { color: var(--color-text-primary); }
+[data-theme='light'] .heading p,
+[data-theme='light'] .secure { color: var(--color-text-secondary); }
+[data-theme='light'] .resetLink { color: var(--color-primary-on-surface); }
+[data-theme='light'] .secure::before,
+[data-theme='light'] .secure::after { background: var(--color-border); }
+[data-theme='light'] .capsLock { color: var(--color-warning-on-surface); }
+[data-theme='light'] .page > :last-child a:hover { color: #67c5ff; }
+[data-theme='light'] .page > :last-child a:focus-visible { outline-color: #67c5ff; }

@@ -50,6 +50,12 @@ if (env.NODE_ENV !== 'production') {
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(openApiDocument));
 }
 
+// Respostas da API podem conter dados de clientes; não deixar o cache HTTP do navegador persistir.
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 app.use('/api', apiRouter);
 
 app.use(notFoundHandler);

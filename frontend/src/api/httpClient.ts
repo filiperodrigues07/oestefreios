@@ -1,5 +1,6 @@
 import { clearOfflineQueue, enqueueOperation } from '../pwa/offlineQueue.js';
 import { OfflineQueuedError } from '../pwa/OfflineQueuedError.js';
+import { clearLegacyApiCache } from '../pwa/apiCache.js';
 import { useAuthStore } from '../store/authStore.js';
 import type { ApiResponse } from '../types/cherp.types.js';
 import type { LoginResponse } from '../types/auth.types.js';
@@ -36,7 +37,9 @@ function handleRejectedSession(code: string): void {
   if (code === 'SESSION_REVOKED' || code === 'LICENSE_LIMIT_REACHED') {
     const motivo = code === 'LICENSE_LIMIT_REACHED' ? 'licenca' : 'sessao-encerrada';
     useAuthStore.getState().clearSession();
-    void clearOfflineQueue().finally(() => redirectTo(`/login?motivo=${motivo}`));
+    void Promise.allSettled([clearOfflineQueue(), clearLegacyApiCache()]).finally(() =>
+      redirectTo(`/login?motivo=${motivo}`),
+    );
   }
 }
 
@@ -81,13 +84,23 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
    * conexão (seção 26). Sem isso, a fila usa uma descrição genérica "MÉTODO /rota".
    */
   offlineDescription?: string;
+  /** Impede que o replay de uma alteração offline use a sessão de outra conta. */
+  expectedUserId?: string;
 }
 
 /** Cliente HTTP com renovação automática de access token expirado (uma tentativa, sem loop). */
-export async function apiFetch<T>(path: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  options: RequestOptions = {},
+  isRetry = false,
+): Promise<T> {
   const { accessToken } = useAuthStore.getState();
-  const { offlineDescription, queueOffline = true, ...requestOptions } = options;
+  const { offlineDescription, queueOffline = true, expectedUserId, ...requestOptions } = options;
   const method = (requestOptions.method ?? 'GET').toUpperCase();
+
+  if (expectedUserId && useAuthStore.getState().user?.id !== expectedUserId) {
+    throw new ApiError('OFFLINE_OWNER_CHANGED', 'A conta atual não corresponde à alteração offline.');
+  }
 
   let res: Response;
   try {
@@ -106,8 +119,10 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
     const isAuthRoute = path.startsWith('/auth');
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-    if (isMutation && !isAuthRoute && isOffline && queueOffline) {
+    const ownerUserId = useAuthStore.getState().user?.id;
+    if (isMutation && !isAuthRoute && isOffline && queueOffline && accessToken && ownerUserId) {
       const queueId = await enqueueOperation({
+        ownerUserId,
         method: method as 'POST' | 'PUT' | 'PATCH' | 'DELETE',
         path,
         body: requestOptions.body,
@@ -122,7 +137,13 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
 
   const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
 
-  if (res.status === 401 && !isRetry && body && !body.success && body.error.code === 'SESSION_REVOKED') {
+  if (
+    res.status === 401 &&
+    !isRetry &&
+    body &&
+    !body.success &&
+    body.error.code === 'SESSION_REVOKED'
+  ) {
     const refreshed = await refreshOnce();
     if (refreshed) return apiFetch<T>(path, options, true);
   }
@@ -131,7 +152,13 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
     handleRejectedSession(body.error.code);
   }
 
-  if (res.status === 401 && !isRetry && body && !body.success && body.error.code === 'TOKEN_EXPIRED') {
+  if (
+    res.status === 401 &&
+    !isRetry &&
+    body &&
+    !body.success &&
+    body.error.code === 'TOKEN_EXPIRED'
+  ) {
     const refreshed = await refreshOnce();
     if (refreshed) {
       return apiFetch<T>(path, options, true);
@@ -141,7 +168,8 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
 
   if (!body || !body.success) {
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
-    const message = body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
+    const message =
+      body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
     const details = body && !body.success ? body.error.details : undefined;
     throw new ApiError(code, message, res.status, details);
   }
@@ -161,7 +189,10 @@ export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob>
   });
 
   if (res.status === 401 && !isRetry) {
-    const body = (await res.clone().json().catch(() => null)) as ApiResponse<unknown> | null;
+    const body = (await res
+      .clone()
+      .json()
+      .catch(() => null)) as ApiResponse<unknown> | null;
     const code = body && !body.success ? body.error.code : '';
     if (code === 'SESSION_REVOKED') {
       const refreshed = await refreshOnce();
@@ -178,7 +209,8 @@ export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob>
 
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiResponse<unknown> | null;
-    const message = body && !body.success ? body.error.message : 'Não foi possível gerar o arquivo.';
+    const message =
+      body && !body.success ? body.error.message : 'Não foi possível gerar o arquivo.';
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
     throw new ApiError(code, message, res.status);
   }
@@ -190,7 +222,11 @@ export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob>
  * Envia `multipart/form-data` (upload de imagem) — `apiFetch` sempre serializa o body como JSON,
  * então não serve pra isso. Sem `Content-Type` manual: o browser define o boundary certo sozinho.
  */
-export async function apiFetchMultipart<T>(path: string, formData: FormData, isRetry = false): Promise<T> {
+export async function apiFetchMultipart<T>(
+  path: string,
+  formData: FormData,
+  isRetry = false,
+): Promise<T> {
   const { accessToken } = useAuthStore.getState();
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
@@ -212,7 +248,8 @@ export async function apiFetchMultipart<T>(path: string, formData: FormData, isR
 
   if (!body || !body.success) {
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
-    const message = body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
+    const message =
+      body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
     const details = body && !body.success ? body.error.details : undefined;
     throw new ApiError(code, message, res.status, details);
   }

@@ -6,13 +6,16 @@ import { Footer } from '../components/layout/Footer.js';
 import { Button, Card, Input, PasswordInput } from '../components/ui/index.js';
 import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { useAuthStore } from '../store/authStore.js';
+import { queryClient } from '../api/queryClient.js';
 import styles from './LoginPage.module.css';
 import clientLogo from '../../../img/logo-clean.webp';
 import truckHero from '../assets/login-truck-hero.webp';
 
 const AVISOS_LOGIN: Record<string, string> = {
-  'sessao-encerrada': 'Sua sessão foi encerrada. Isso acontece quando a conta entra em outro dispositivo ou um administrador encerra o acesso. Entre novamente.',
-  licenca: 'Limite de licenças em uso. Tente novamente em alguns minutos ou peça a um administrador para liberar uma vaga.',
+  'sessao-encerrada':
+    'Sua sessão foi encerrada. Isso acontece quando a conta entra em outro dispositivo ou um administrador encerra o acesso. Entre novamente.',
+  licenca:
+    'Limite de licenças em uso. Tente novamente em alguns minutos ou peça a um administrador para liberar uma vaga.',
 };
 
 export function LoginPage() {
@@ -28,6 +31,7 @@ export function LoginPage() {
   const mutation = useMutation({
     mutationFn: () => login(email, password),
     onSuccess: (data) => {
+      queryClient.clear();
       setSession(data.accessToken, data.user);
       navigate(data.user.mustChangePassword ? '/alterar-senha' : '/', { replace: true });
     },
@@ -58,9 +62,7 @@ export function LoginPage() {
                 <img className={styles.mobileBrandLogo} src={clientLogo} alt="Oeste Freios" />
               </div>
               <h1>Entrar</h1>
-              <p>
-                Controle de Ordens de Serviço — Oeste Freios
-              </p>
+              <p>Controle de Ordens de Serviço — Oeste Freios</p>
             </div>
 
             <Input
@@ -73,26 +75,33 @@ export function LoginPage() {
             />
 
             <div>
-            <PasswordInput
-              label="Senha"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => setCapsLock(e.getModifierState('CapsLock'))}
-              onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
-              onBlur={() => setCapsLock(false)}
-              autoComplete="current-password"
-            />
-            {capsLock && <p role="status" aria-live="polite" className={styles.capsLock}>Caps Lock ativado</p>}
+              <PasswordInput
+                label="Senha"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+                onKeyUp={(e) => setCapsLock(e.getModifierState('CapsLock'))}
+                onBlur={() => setCapsLock(false)}
+                autoComplete="current-password"
+              />
+              {capsLock && (
+                <p role="status" aria-live="polite" className={styles.capsLock}>
+                  Caps Lock ativado
+                </p>
+              )}
             </div>
 
             {aviso && !mutation.isError && (
-              <p role="status" className={styles.warning}>{aviso}</p>
+              <p role="status" className={styles.warning}>
+                {aviso}
+              </p>
             )}
 
             {!online && (
               <p role="alert" className={styles.warning}>
-                Você está offline. Por segurança, a sessão não fica salva no aparelho — conecte-se à internet para entrar.
+                Você está offline. Por segurança, a sessão não fica salva no aparelho — conecte-se à
+                internet para entrar.
               </p>
             )}
 

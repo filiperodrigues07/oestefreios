@@ -18,6 +18,12 @@ export interface PendingOperation {
   description: string;
   createdAt: string;
   status: 'pending' | 'failed';
+  /** Ausente apenas em registros legados, que nunca podem ser reenviados automaticamente. */
+  ownerUserId?: string;
+}
+
+export function operationBelongsToUser(op: PendingOperation, userId: string): boolean {
+  return Boolean(userId && op.ownerUserId === userId);
 }
 
 function openDb(): Promise<IDBDatabase> {
@@ -34,7 +40,10 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
-async function withStore<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
+async function withStore<T>(
+  mode: IDBTransactionMode,
+  fn: (store: IDBObjectStore) => IDBRequest<T>,
+): Promise<T> {
   const db = await openDb();
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, mode);
@@ -46,8 +55,17 @@ async function withStore<T>(mode: IDBTransactionMode, fn: (store: IDBObjectStore
   });
 }
 
-export async function enqueueOperation(op: Omit<PendingOperation, 'id' | 'createdAt' | 'status'>): Promise<number> {
-  const full: Omit<PendingOperation, 'id'> = { ...op, createdAt: new Date().toISOString(), status: 'pending' };
+export async function enqueueOperation(
+  op: Omit<PendingOperation, 'id' | 'createdAt' | 'status' | 'ownerUserId'> & {
+    ownerUserId: string;
+  },
+): Promise<number> {
+  if (!op.ownerUserId) throw new Error('Usuário necessário para guardar uma alteração offline.');
+  const full: Omit<PendingOperation, 'id'> = {
+    ...op,
+    createdAt: new Date().toISOString(),
+    status: 'pending',
+  };
   return withStore('readwrite', (store) => store.add(full) as IDBRequest<number>);
 }
 

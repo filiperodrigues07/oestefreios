@@ -46,6 +46,16 @@ function chaveNotificacao(os: DashboardAtencaoDTO): string {
   return `${os.id}:${os.status}:${os.prioridade}:${os.dias}`;
 }
 
+function lerNotificacoesLidas(userId: string): string[] {
+  try {
+    const value = localStorage.getItem(`notifications-read:${userId}`);
+    const parsed: unknown = value ? JSON.parse(value) : [];
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
 function descricaoNotificacao(os: DashboardAtencaoDTO): string {
   if (os.prioridade === 'URGENTE') return 'Prioridade urgente: precisa de ação imediata.';
   if (os.prioridade === 'ALTA') return 'Prioridade alta: acompanhe esta OS.';
@@ -78,7 +88,12 @@ export function AppShell({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [notificacoesLidas, setNotificacoesLidas] = useState<string[]>([]);
+  const [readState, setReadState] = useState<{ userId: string; values: string[] } | null>(null);
+  const currentUserId = user?.id;
+  const notificacoesLidas = useMemo(() => {
+    if (!currentUserId) return [];
+    return readState?.userId === currentUserId ? readState.values : lerNotificacoesLidas(currentUserId);
+  }, [currentUserId, readState]);
   const notificationWrapperRef = useRef<HTMLDivElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
   const queryClient = useQueryClient();
@@ -174,16 +189,6 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [collapsed, toggleSidebar]);
 
   useEffect(() => {
-    if (!user?.id) return;
-    try {
-      const value = localStorage.getItem(`notifications-read:${user.id}`);
-      setNotificacoesLidas(value ? JSON.parse(value) : []);
-    } catch {
-      setNotificacoesLidas([]);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
     function fecharAoClicarFora(event: PointerEvent) {
       if (
         notificationWrapperRef.current &&
@@ -205,7 +210,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   function marcarTodasComoLidas() {
     if (!user?.id) return;
     const proximas = [...new Set([...notificacoesLidas, ...notificacoes.map(chaveNotificacao)])];
-    setNotificacoesLidas(proximas);
+    setReadState({ userId: user.id, values: proximas });
     localStorage.setItem(`notifications-read:${user.id}`, JSON.stringify(proximas));
   }
 

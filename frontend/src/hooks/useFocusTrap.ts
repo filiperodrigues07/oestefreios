@@ -14,7 +14,9 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, onEscape?: 
   // não colocar na dependência do efeito evita reabrir o trap (e reforçar foco no 1º elemento) a
   // cada tecla digitada dentro do modal, que antes chutava o foco pro botão de fechar.
   const onEscapeRef = useRef(onEscape);
-  onEscapeRef.current = onEscape;
+  useEffect(() => {
+    onEscapeRef.current = onEscape;
+  }, [onEscape]);
 
   useEffect(() => {
     if (!active) return;

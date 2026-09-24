@@ -114,14 +114,14 @@ Paleta categórica dos gráficos validada contra as superfícies reais do app (`
 ## PWA offline (Fase 8)
 
 - **Ícones e manifest reais**: PNG 192/512 + maskable + apple-touch-icon (gerados a partir do SVG), não só o `icon.svg` que a Fase 1 deixou.
-- **Estratégia de cache** (seção 25): assets do build ficam cache-first via precache do Workbox; `GET /api/*` usa `NetworkFirst` com timeout de 4s — tenta a rede, cai pro cache só quando não responde. Mutação (`POST/PUT/PATCH/DELETE`) nunca é cacheada.
+- **Estratégia de cache**: assets do build ficam disponíveis offline via precache do Workbox. Respostas de `GET /api/*` não são armazenadas no aparelho, para evitar exposição de dados de clientes após troca de usuário ou logout. Sem conexão, os dados da API não ficam disponíveis.
 - **Indicador de conexão**: banner fixo "Você está offline" (`useOnlineStatus` + `OfflineBanner`) sempre que a conexão cai, e a tela de login explica por que não dá pra entrar offline (o token só vive em memória — decisão de segurança da Fase 2 — então um reload a frio sem internet não tem sessão pra restaurar; isso é intencional, não um bug).
 - **Atualização automática**: `registerType:'autoUpdate'` já troca a versão sozinho; um toast avisa quando o app fica pronto para uso offline.
 - **Fila de sincronização** (seção 26): mutação que falha por falta de conexão de verdade vai pro IndexedDB (`frontend/src/pwa/offlineQueue.ts`) em vez de tentar e fingir sucesso — a UI mostra "a alteração foi guardada e será sincronizada quando a internet voltar" (nunca um toast de sucesso genérico). Ao reconectar, a fila sincroniza sozinha e avisa quantas alterações foram sincronizadas ou falharam.
 
 **Pegadinha real que apareceu testando**: o TanStack Query tem um `networkMode` padrão que *pausa* mutações inteiras quando `navigator.onLine` é falso, sem nunca chamar a função da mutação — isso deixava a fila offline morta silenciosamente, porque o `apiFetch` nunca era invocado pra detectar a falha. Corrigido com `mutations: { networkMode: 'always' }` em `frontend/src/api/queryClient.ts`, pra ser o próprio `httpClient.ts` quem decide o que fazer com a falha de rede.
 
-Validado contra o build de produção real (`vite preview`, com o service worker de verdade, não o dev server): manifest com ícones PNG, SW ativo, banner offline, dado de uma OS já visitada continua na tela sem internet, mutação abortada de propósito vai pra fila (nunca atualiza o status na tela até sincronizar de verdade), e ao reconectar sincroniza sozinha com toast de confirmação.
+O fluxo offline inclui manifest com ícones PNG, service worker para assets, banner de conexão e fila de mutações. Ao reconectar, a fila sincroniza as operações do usuário correspondente; respostas da API não são preservadas para leitura offline.
 
 ## Auditoria e testes de autorização (Fase 9)
 

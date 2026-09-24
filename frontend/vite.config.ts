@@ -21,7 +21,12 @@ export default defineConfig({
         icons: [
           { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          {
+            src: 'icon-maskable-512.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
         ],
       },
       workbox: {
@@ -30,21 +35,9 @@ export default defineConfig({
         // SPA: qualquer navegação sem match de arquivo cai no index.html cacheado (permite abrir o app offline).
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
-        runtimeCaching: [
-          {
-            // Dados da API: network-first (seção 25 do briefing) — tenta a rede,
-            // com timeout curto, e cai pro cache só quando não tem resposta.
-            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/api/'),
-            method: 'GET', // nunca cachear POST/PUT/PATCH/DELETE — mutação exige rede de verdade, nunca cache
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-data',
-              networkTimeoutSeconds: 4,
-              cacheableResponse: { statuses: [0, 200] },
-              expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 },
-            },
-          },
-        ],
+        // Respostas de /api/ incluem dados autenticados. O shell da PWA continua
+        // disponível offline, mas respostas da API não são persistidas no aparelho.
+        runtimeCaching: [],
       },
       devOptions: {
         // localhost é um contexto seguro: habilita o service worker também no Vite

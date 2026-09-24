@@ -35,6 +35,40 @@
 
 .mobileOnly { display: none; }
 
+[data-theme='light'] .quickPeriods .periodActive {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme='light'] .kpi {
+  background: linear-gradient(130deg, var(--color-primary-surface), var(--color-surface-elevated) 72%);
+}
+
+[data-theme='light'] .kpiIcon,
+[data-theme='light'] .kpi b {
+  color: var(--color-primary-on-surface);
+}
+
+[data-theme='light'] .kpiWaiting .kpiIcon {
+  color: var(--color-warning-on-surface);
+  background: var(--color-warning-surface);
+}
+
+[data-theme='light'] .kpiDone .kpiIcon {
+  color: var(--color-success-on-surface);
+  background: var(--color-success-surface);
+}
+
+[data-theme='light'] .chartTooltip {
+  background: var(--color-surface-elevated);
+}
+
+[data-theme='light'] .openLine { stroke: var(--color-primary); }
+[data-theme='light'] .openDot { fill: var(--color-primary); }
+[data-theme='light'] .doneLine { stroke: var(--color-success-on-surface); }
+[data-theme='light'] .doneDot { fill: var(--color-success-on-surface); }
+
 @media (max-width: 780px) {
   .quickPeriods button, .secondaryButton, .panel header select, .retry { min-height: 44px; }
   .dateRange input { min-height: 44px; font-size: 16px; }

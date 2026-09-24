@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import {
@@ -55,6 +55,17 @@ const SEGURANCA_OPTIONS = [
 interface TestFeedback {
   ok: boolean;
   message: string;
+}
+
+/** Mantém o rascunho local sincronizado quando uma nova versão chega da API. */
+function useSettingsForm<T>(data: T | undefined) {
+  const [form, setForm] = useState<T | null>(() => data ?? null);
+  const [lastData, setLastData] = useState(data);
+  if (data !== lastData) {
+    setLastData(data);
+    if (data !== undefined) setForm(data);
+  }
+  return [form, setForm] as const;
 }
 
 function SettingsIcon({
@@ -160,15 +171,11 @@ function FirebirdTab() {
     queryFn: getFirebirdConnectionStatus,
     staleTime: 30_000,
   });
-  const [form, setForm] = useState<FirebirdSettings | null>(null);
+  const [form, setForm] = useSettingsForm<FirebirdSettings>(data);
   const [testResult, setTestResult] = useState<TestFeedback | null>(null);
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
   const [checkedForm, setCheckedForm] = useState<FirebirdSettings | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
-
-  useEffect(() => {
-    if (data) setForm(data);
-  }, [data]);
 
   const saveMutation = useMutation({
     mutationFn: saveFirebirdSettings,
@@ -418,13 +425,9 @@ function SmtpTab() {
     queryKey: ['settings', 'smtp'],
     queryFn: getSmtpSettings,
   });
-  const [form, setForm] = useState<SmtpSettings | null>(null);
+  const [form, setForm] = useSettingsForm<SmtpSettings>(data);
   const [destino, setDestino] = useState('');
   const [testResult, setTestResult] = useState<TestFeedback | null>(null);
-
-  useEffect(() => {
-    if (data) setForm(data);
-  }, [data]);
 
   const saveMutation = useMutation({
     mutationFn: saveSmtpSettings,
@@ -512,12 +515,8 @@ function GeralTab() {
     queryKey: ['settings', 'geral'],
     queryFn: getGeralSettings,
   });
-  const [form, setForm] = useState<GeralSettings | null>(null);
+  const [form, setForm] = useSettingsForm<GeralSettings>(data);
   const logoInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (data) setForm(data);
-  }, [data]);
 
   const saveMutation = useMutation({
     mutationFn: saveGeralSettings,
@@ -637,11 +636,7 @@ function IntegracoesTab() {
     queryKey: ['settings', 'integracoes'],
     queryFn: getIntegracoesSettings,
   });
-  const [form, setForm] = useState<IntegracoesSettings | null>(null);
-
-  useEffect(() => {
-    if (data) setForm(data);
-  }, [data]);
+  const [form, setForm] = useSettingsForm<IntegracoesSettings>(data);
 
   const saveMutation = useMutation({
     mutationFn: saveIntegracoesSettings,

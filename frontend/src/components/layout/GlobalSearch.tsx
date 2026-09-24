@@ -60,8 +60,6 @@ export function GlobalSearch({ onNavigate, className, placeholder, shortcut = tr
     staleTime: 15_000,
   });
 
-  useEffect(() => setActiveIndex(-1), [data, debounced]);
-
   function select(result: DashboardSearchResult) {
     setOpen(false);
     setValue('');
@@ -89,7 +87,7 @@ export function GlobalSearch({ onNavigate, className, placeholder, shortcut = tr
     <div className={`${styles.wrapper} ${className ?? ''}`} ref={wrapperRef}>
       <span className={styles.icon} aria-hidden="true">⌕</span>
       <input ref={inputRef} value={value}
-        onChange={(event) => { setValue(event.target.value); setOpen(true); }}
+        onChange={(event) => { setValue(event.target.value); setActiveIndex(-1); setOpen(true); }}
         onFocus={() => setOpen(true)} onKeyDown={handleKeyDown}
         placeholder={placeholder ?? 'Buscar OS, cliente, placa, produto ou serviço...'} aria-label="Busca global"
         aria-keyshortcuts="Control+K Meta+K" role="combobox" aria-expanded={showing} aria-controls={showing ? listId : undefined}
