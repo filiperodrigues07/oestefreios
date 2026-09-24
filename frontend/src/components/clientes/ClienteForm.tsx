@@ -4,7 +4,7 @@ import { atualizarCliente, consultarCep, consultarCnpj, consultarInscricaoEstadu
 import { ApiError } from '../../api/httpClient.js';
 import { Button, Checkbox, ConfirmDialog, Input, RequiredMark, Select, useToast } from '../ui/index.js';
 import type { ClienteDTO, ClienteInput, RegimeTributario, TipoPessoa } from '../../types/cherp.types.js';
-import { cpfValido, formatarCep, formatarDocumento, formatarTelefone } from '../../utils/clienteFormatters.js';
+import { cpfValido, formatarCep, maiuscula, formatarDocumento, formatarTelefone } from '../../utils/clienteFormatters.js';
 import styles from './ClienteForm.module.css';
 
 const REGIME_TRIBUTARIO_OPTIONS = [
@@ -118,12 +118,12 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
         ...f,
         nome: dados.razaoSocial || f.nome,
         nomeFantasia: dados.nomeFantasia || f.nomeFantasia,
-        endereco: dados.endereco || f.endereco,
+        endereco: maiuscula(dados.endereco) || f.endereco,
         numero: dados.numero || f.numero,
-        bairro: dados.bairro || f.bairro,
-        cidade: dados.cidade || f.cidade,
+        bairro: maiuscula(dados.bairro) || f.bairro,
+        cidade: maiuscula(dados.cidade) || f.cidade,
         uf: dados.uf || f.uf,
-        cep: dados.cep || f.cep,
+        cep: dados.cep ? formatarCep(dados.cep) : f.cep,
         telefone: dados.telefone ? formatarTelefone(dados.telefone) : f.telefone,
         email: dados.email || f.email,
         regimeTributario: dados.regimeTributario ?? f.regimeTributario,
@@ -159,10 +159,10 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
       setForm((f) => ({
         ...f,
         cep: dados.cep ? formatarCep(dados.cep) : f.cep,
-        endereco: dados.endereco || f.endereco,
-        bairro: dados.bairro || f.bairro,
-        cidade: dados.cidade,
-        uf: dados.uf,
+        endereco: maiuscula(dados.endereco) || f.endereco,
+        bairro: maiuscula(dados.bairro) || f.bairro,
+        cidade: maiuscula(dados.cidade),
+        uf: dados.uf.toUpperCase(),
       }));
     },
     onError: (err) => setCepErro(err instanceof Error ? err.message : 'Não foi possível consultar o CEP.'),
@@ -245,6 +245,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
   }
 
   function buscarCep() {
+    if (cepMutation.isPending) return;
     const digits = (form.cep ?? '').replace(/\D/g, '');
     if (digits.length !== 8) {
       setCepErro('CEP precisa ter 8 dígitos.');

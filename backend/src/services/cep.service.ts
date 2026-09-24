@@ -42,8 +42,9 @@ export async function lookupCep(cepDigits: string): Promise<CepLookupResult> {
   const data = (await response.json()) as BrasilApiCepResponse;
   if (!data.city || !data.state) throw new ValidationError('CEP retornou um endereço incompleto.');
 
+  const digitos = (data.cep ?? cepDigits).replace(/\D/g, '');
   return {
-    cep: data.cep ?? cepDigits,
+    cep: digitos.length === 8 ? `${digitos.slice(0, 5)}-${digitos.slice(5)}` : cepDigits,
     endereco: data.street || undefined,
     bairro: data.neighborhood || undefined,
     cidade: data.city,
