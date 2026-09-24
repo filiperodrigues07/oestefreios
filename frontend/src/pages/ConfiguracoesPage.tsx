@@ -8,6 +8,7 @@ import {
   getFirebirdConnectionStatus,
   getGeralSettings,
   getIntegracoesSettings,
+  getSmtpPassword,
   getSmtpSettings,
   getIntegrationSecret,
   saveFirebirdSettings,
@@ -60,7 +61,7 @@ interface TestFeedback {
 function SettingsIcon({
   name,
 }: {
-  name: 'database' | 'mail' | 'help' | 'refresh' | 'save' | 'link' | 'clock' | 'server' | 'check';
+  name: 'database' | 'mail' | 'help' | 'refresh' | 'save' | 'link' | 'plug' | 'book' | 'clock' | 'server' | 'check';
 }) {
   const paths = {
     database: 'M4 6c0-4 16-4 16 0s-16 4-16 0Zm0 0v6c0 4 16 4 16 0V6M4 12v6c0 4 16 4 16 0v-6',
@@ -69,6 +70,8 @@ function SettingsIcon({
     refresh: 'M20 4v6h-6M4 20v-6h6M20 10a8 8 0 0 0-14-5M4 14a8 8 0 0 0 14 5',
     save: 'M4 3h13l4 4v14H3V3h1Zm3 0v7h10V3M7 21v-8h10v8M13 5v3',
     link: 'M10 14l4-4M8 16l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0M16 8l1-1a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0',
+    plug: 'M9 2v6M15 2v6M6 8h12v4a6 6 0 0 1-12 0V8ZM12 18v4',
+    book: 'M4 19V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2Zm0 0a2 2 0 0 0 2 2h14M8 7h8',
     clock: 'M12 6v6l4 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
     server: 'M5 4h14v16H5zM8 8h8M8 12h2m4 0h2M8 16h2m4 0h2',
     check: 'M5 12l4 4L19 6',
@@ -266,6 +269,7 @@ function FirebirdTab() {
           <div>
             <PasswordInput
               label="Senha"
+              copyable
               placeholder={form.password === '••••••••' ? '••••••••' : ''}
               value={form.password === '••••••••' ? '' : form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -293,7 +297,7 @@ function FirebirdTab() {
             onClick={() => testMutation.mutate(form)}
             loading={testMutation.isPending}
           >
-            <SettingsIcon name="link" />
+            <SettingsIcon name="plug" />
             Testar conexão
           </Button>
           <Button onClick={() => saveMutation.mutate(form)} loading={saveMutation.isPending}>
@@ -385,7 +389,7 @@ function FirebirdTab() {
             <h2>Precisa de ajuda?</h2>
             <p>Consulte nossa base de conhecimento ou entre em contato com o suporte.</p>
             <Button variant="secondary" onClick={() => setHelpOpen(true)}>
-              <SettingsIcon name="refresh" />
+              <SettingsIcon name="book" />
               Ver documentação
             </Button>
           </div>
@@ -480,7 +484,11 @@ function SmtpTab() {
         <div className={styles.sectionIntro}><span>2</span><div><h3>Conta e remetente</h3><p>Credenciais de autenticação e nome exibido nos e-mails.</p></div></div>
         <div className={styles.fields}>
           <Input label="Usuário da conta" value={form.user} onChange={(e) => setForm({ ...form, user: e.target.value })} />
-          <PasswordInput label="Senha ou senha de aplicativo" placeholder={form.password === '••••••••' ? 'Deixe em branco para manter a atual' : ''} value={form.password === '••••••••' ? '' : form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <PasswordInput label="Senha ou senha de aplicativo" copyable onReveal={async () => {
+            const result = await getSmtpPassword();
+            setForm((current) => current ? { ...current, password: result.password } : current);
+            return result.password;
+          }} placeholder={form.password === '••••••••' ? 'Deixe em branco para manter a atual' : ''} value={form.password === '••••••••' ? '' : form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           <Input label="E-mail remetente" type="email" value={form.fromEmail} onChange={(e) => setForm({ ...form, fromEmail: e.target.value })} />
           <Input label="Nome do remetente" value={form.fromName} onChange={(e) => setForm({ ...form, fromName: e.target.value })} />
         </div>
@@ -673,6 +681,7 @@ function IntegracoesTab() {
           <div className={styles.fullRow}>
             <PasswordInput
               label="Chave da API DadosAPI"
+              copyable
               value={form.dadosApiToken === '••••••••' ? '' : form.dadosApiToken}
               onChange={(e) => setForm({ ...form, dadosApiToken: e.target.value })}
               placeholder={form.dadosApiToken ? undefined : 'Nenhuma chave configurada'}
@@ -705,6 +714,7 @@ function IntegracoesTab() {
           <div className={styles.fullRow}>
             <PasswordInput
               label="Chave da API SINTEGRA Brasil"
+              copyable
               value={form.sintegraApiKey === '••••••••' ? '' : form.sintegraApiKey}
               onChange={(e) => setForm({ ...form, sintegraApiKey: e.target.value })}
               placeholder={form.sintegraApiKey ? undefined : 'Nenhuma chave configurada'}

@@ -459,7 +459,7 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
             />
             {form.definirSenha ? (
               <div className={styles.passwordFields}>
-                <PasswordInput label="Senha inicial" value={form.password} maxLength={128} autoComplete="new-password" onChange={(e) => setForm({ ...form, password: e.target.value })} />
+                <PasswordInput label="Senha inicial" copyable value={form.password} maxLength={128} autoComplete="new-password" onChange={(e) => setForm({ ...form, password: e.target.value })} />
                 <PasswordInput label="Confirmar senha" value={form.passwordConfirmation} maxLength={128} autoComplete="new-password" onChange={(e) => setForm({ ...form, passwordConfirmation: e.target.value })} />
                 <div aria-live="polite" className={styles.passwordRules}>
                   {PASSWORD_RULES.map((rule) => <span key={rule.label} data-ok={rule.test(form.password)}>{rule.test(form.password) ? '✓' : '○'} {rule.label}</span>)}

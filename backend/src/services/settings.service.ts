@@ -227,6 +227,11 @@ export async function getSmtpSettings(): Promise<SmtpSettings> {
   return { ...data, password: decryptSecret(data.password) };
 }
 
+/** Revelação explícita (botão do olho/copiar), restrita pela rota a SYSTEM_SETTINGS. */
+export async function getSmtpPassword(): Promise<string> {
+  return (await getSmtpSettings()).password;
+}
+
 export async function getSmtpSettingsMasked(): Promise<SmtpSettings> {
   const data = await getSmtpSettings();
   return { ...data, password: data.password ? SENHA_MASCARADA : '' };

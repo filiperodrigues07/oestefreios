@@ -42,6 +42,7 @@ export const testFirebirdSettings = (data: FirebirdSettings) =>
   apiFetch<TestResult>('/settings/firebird/test', { method: 'POST', body: data });
 
 export const getSmtpSettings = () => apiFetch<SmtpSettings>('/settings/smtp');
+export const getSmtpPassword = () => apiFetch<{ password: string }>('/settings/smtp/password');
 export const saveSmtpSettings = (data: SmtpSettings) => apiFetch<SmtpSettings>('/settings/smtp', { method: 'PUT', body: data });
 export const testSmtpSettings = (smtp: SmtpSettings, destino: string) =>
   apiFetch<TestResult>('/settings/smtp/test', { method: 'POST', body: { smtp, destino } });
