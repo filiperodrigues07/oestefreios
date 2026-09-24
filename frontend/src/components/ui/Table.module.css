@@ -59,11 +59,44 @@
   table-layout: fixed;
   min-width: 0;
 }
-.fixed .th,
-.fixed .td {
+.fixed .th {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Dados curtos só cortam (com reticências) se a pessoa estreitar a coluna de propósito. */
+.fixed .td.nowrap {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Texto livre (nome, descrição) continua quebrando linha em vez de esconder informação. */
+.fixed .td:not(.nowrap) {
+  overflow-wrap: anywhere;
+}
+
+/* Padrão: nada é cortado — código, documento, telefone e ações aparecem inteiros. */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* Coluna de ações: sempre visível à direita, mesmo com a tabela rolando de lado. */
+.lockedCell {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--color-surface);
+  box-shadow: -1px 0 0 var(--color-border);
+}
+
+.th.lockedCell {
+  z-index: 3;
+  background: var(--color-surface-elevated);
+}
+
+.rowClickable:hover .lockedCell {
+  background: var(--color-surface-elevated);
 }
 
 .th {

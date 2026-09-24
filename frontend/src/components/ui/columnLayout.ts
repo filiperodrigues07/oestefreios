@@ -6,7 +6,7 @@ export interface ColumnPrefs {
   widths: Record<string, number>;
 }
 
-const PREFS_VERSION = 'v2';
+const PREFS_VERSION = 'v3';
 
 export function clampWidth(px: number): number {
   return Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, Math.round(px)));

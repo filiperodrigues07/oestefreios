@@ -22,6 +22,8 @@ export interface TableColumn<T> {
   sortable?: boolean;
   /** Largura fixa (ex. "132px") — evita a coluna "pular" de tamanho conforme o conteúdo de cada linha. */
   width?: string;
+  /** Coluna travada (ex.: Ações): fica sempre no fim, visível ao rolar, sem redimensionar nem reordenar. Padrão: colunas de ações. */
+  locked?: boolean;
 }
 
 interface TableProps<T> {
@@ -45,6 +47,16 @@ const STEP_LARGE = 32;
 
 /** Cliques que pertencem a um controle dentro da linha (botão, link, campo) não abrem o cadastro. */
 const INTERACTIVE = 'a, button, input, select, textarea, label, [data-row-action]';
+
+/** Colunas de ações não mexem: ficam no fim, coladas à direita, com a largura que a tela declara. */
+function travada<T>(col: TableColumn<T>): boolean {
+  return col.locked ?? (col.key === 'acoes' || col.key === 'actions' || col.header === '' || col.header === 'Ações');
+}
+
+/** Dados curtos (código, documento, telefone, ações) nunca quebram linha: aparecem inteiros por padrão. */
+function semQuebra<T>(col: TableColumn<T>): boolean {
+  return Boolean(col.mono || col.width || travada(col));
+}
 
 function larguraPadrao(width?: string): number | undefined {
   const parsed = width ? parseInt(width, 10) : NaN;
@@ -93,7 +105,10 @@ export function Table<T>({
     setPrefs(columnPrefsKey ? (loadPrefs(columnPrefsKey) ?? EMPTY_PREFS) : EMPTY_PREFS);
   }, [columnPrefsKey]);
 
-  const displayColumns = useMemo(() => applyOrder(columns, prefs.order), [columns, prefs.order]);
+  const displayColumns = useMemo(() => {
+    const moveis = columns.filter((col) => !travada(col));
+    return [...applyOrder(moveis, prefs.order), ...columns.filter((col) => travada(col))];
+  }, [columns, prefs.order]);
   const widths = prefs.widths;
   const fixed = Boolean(columnPrefsKey) && displayColumns.some((col) => widths[col.key] !== undefined);
   const larguraDaColuna = (col: TableColumn<T>): number | undefined =>
@@ -235,8 +250,11 @@ export function Table<T>({
     ].filter((el): el is HTMLElement => el !== null);
     let maior = MIN_COLUMN_WIDTH;
     for (const celula of celulas) {
+      const antes = celula.style.whiteSpace;
+      celula.style.whiteSpace = 'nowrap';
       const padding = parseFloat(getComputedStyle(celula).paddingRight) || 0;
       maior = Math.max(maior, celula.scrollWidth + padding + 2);
+      celula.style.whiteSpace = antes;
     }
     colEl.style.width = anterior;
     definirLargura(col, maior);
@@ -279,7 +297,7 @@ export function Table<T>({
   function aoSoltarColuna(targetKey: string) {
     setDragOverKey(null);
     if (!columnPrefsKey || !dragKey.current || dragKey.current === targetKey) return;
-    const atual = displayColumns.map((c) => c.key);
+    const atual = displayColumns.filter((c) => !travada(c)).map((c) => c.key);
     const de = atual.indexOf(dragKey.current);
     const para = atual.indexOf(targetKey);
     dragKey.current = null;
@@ -380,14 +398,15 @@ export function Table<T>({
               {displayColumns.map((col, indice) => {
                 const isSorted = sortBy === col.key;
                 const clickable = col.sortable && onSortChange;
+                const bloqueada = travada(col);
                 return (
                   <th
                     key={col.key}
                     data-col={col.key}
-                    draggable={Boolean(columnPrefsKey)}
+                    draggable={Boolean(columnPrefsKey) && !bloqueada}
                     onDragStart={(event) => aoComecarArrastarColuna(event, col.key)}
                     onDragOver={(event) => {
-                      if (!columnPrefsKey || !dragKey.current) return;
+                      if (!columnPrefsKey || !dragKey.current || bloqueada) return;
                       event.preventDefault();
                       setDragOverKey(col.key);
                     }}
@@ -398,8 +417,10 @@ export function Table<T>({
                       styles.th,
                       col.align === 'right' ? styles.alignRight : '',
                       clickable ? styles.sortable : '',
-                      columnPrefsKey ? styles.thDraggable : '',
+                      columnPrefsKey && !bloqueada ? styles.thDraggable : '',
                       dragOverKey === col.key ? styles.thDragOver : '',
+                      bloqueada ? styles.lockedCell : '',
+                      semQuebra(col) ? styles.nowrap : '',
                     ]
                       .filter(Boolean)
                       .join(' ')}
@@ -416,7 +437,7 @@ export function Table<T>({
                     ) : (
                       <span className={styles.thContent}>{col.header}</span>
                     )}
-                    {columnPrefsKey && (
+                    {columnPrefsKey && !bloqueada && (
                       <span
                         className={styles.resizeHandle}
                         role="separator"
@@ -463,7 +484,13 @@ export function Table<T>({
                     <td
                       key={col.key}
                       title={fixed && (typeof conteudo === 'string' || typeof conteudo === 'number') ? String(conteudo) : undefined}
-                      className={[styles.td, col.align === 'right' ? styles.alignRight : '', col.mono ? styles.mono : '']
+                      className={[
+                        styles.td,
+                        col.align === 'right' ? styles.alignRight : '',
+                        col.mono ? styles.mono : '',
+                        travada(col) ? styles.lockedCell : '',
+                        semQuebra(col) ? styles.nowrap : '',
+                      ]
                         .filter(Boolean)
                         .join(' ')}
                     >
