@@ -5,6 +5,7 @@ export { Button, LinkButton } from './Button.js';
 export { ActionIcon } from './ActionIcon.js';
 export { Card, CardButton } from './Card.js';
 export { Input } from './Input.js';
+export { CurrencyInput } from './CurrencyInput.js';
 export { Select } from './Select.js';
 export { SearchCombobox, type SearchComboboxItem } from './SearchCombobox.js';
 export { Modal } from './Modal.js';
