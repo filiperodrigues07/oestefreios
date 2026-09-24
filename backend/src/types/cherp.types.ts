@@ -240,3 +240,13 @@ export interface SearchQuery {
   sortBy?: 'codigo' | 'descricao' | 'nome' | 'documento' | 'telefone' | 'cidade' | 'categoria' | 'tipo' | 'identificacao' | 'ano' | 'cliente';
   sortOrder?: 'asc' | 'desc';
 }
+
+/** O que impede excluir um cliente/veiculo: registros ligados a ele (ver repositories/firebird/vinculosCadastro.ts). */
+export interface VinculosCadastro {
+  os: number;
+  veiculos: number;
+  financeiro: number;
+  fiscal: number;
+  pedidos: number;
+  outros: number;
+}

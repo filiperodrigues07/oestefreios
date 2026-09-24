@@ -7,6 +7,7 @@ import { lookupCep } from './cep.service.js';
 import { consultarInscricaoEstadual as lookupInscricaoEstadual, type InscricaoEstadualLookupResult } from './inscricaoEstadual.service.js';
 import type { AuthenticatedUser } from '../types/auth.types.js';
 import type { RequestContext } from '../utils/requestContext.js';
+import { descreverVinculos, temVinculos } from '../utils/vinculos.js';
 import { recordAudit } from './auditLog.service.js';
 
 function auditCliente(event: string, codigo: string, usuario: AuthenticatedUser, ctx: RequestContext, changes: unknown) {
@@ -52,6 +53,24 @@ export async function atualizarCliente(codigo: string, input: ClienteInput, usua
   const cliente = await clienteRepository.atualizar(codigo, input);
   await auditCliente('CLIENTE_UPDATED', codigo, usuario, ctx, { before, after: cliente });
   return cliente;
+}
+
+/**
+ * Exclusão lógica do cliente (ATIVO = 0) — some das telas mas o histórico do CHERP fica intacto.
+ * Bloqueia se houver OS, veículos ou movimentação no CHERP; o motivo e uma foto do cadastro vão pra auditoria.
+ */
+export async function excluirCliente(codigo: string, motivo: string, usuario: AuthenticatedUser, ctx: RequestContext = {}): Promise<void> {
+  const cliente = await getClienteByCodigo(codigo);
+  const excluido = await clienteRepository.excluir(codigo);
+  if (!excluido) {
+    const vinculos = await clienteRepository.contarVinculos(codigo);
+    if (temVinculos(vinculos)) throw new ConflictError(descreverVinculos(vinculos, 'cliente'), 'CLIENT_HAS_LINKS', vinculos);
+    throw new NotFoundError(`Cliente com código "${codigo}" não encontrado.`, 'CLIENT_NOT_FOUND');
+  }
+  await auditCliente('CLIENTE_DELETED', codigo, usuario, ctx, {
+    motivo,
+    before: { codigo: cliente.codigo, nome: cliente.nome, documento: cliente.documento, tipoPessoa: cliente.tipoPessoa, cidade: cliente.cidade, uf: cliente.uf },
+  });
 }
 
 export async function consultarCnpj(cnpj: string): Promise<CnpjLookupResult> {

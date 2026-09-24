@@ -25,6 +25,8 @@ function tokenFor(permissions: Permission[], overrides: Partial<{ roleName: stri
 const MECANICO_PERMISSIONS: Permission[] = [
   'OS_VIEW',
   'OS_CHANGE_STATUS',
+  'CLIENT_DELETE',
+  'VEHICLE_DELETE',
   'PRODUCT_VIEW',
   'PRODUCT_SEARCH',
   'PRODUCT_ADD_TO_OS',

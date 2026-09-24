@@ -59,3 +59,10 @@ export async function consultarInscricaoEstadualHandler(req: Request, res: Respo
   const dados = await clienteService.consultarInscricaoEstadual(cnpj);
   success(res, dados);
 }
+
+export async function excluirClienteHandler(req: Request, res: Response) {
+  const { codigo } = req.params as { codigo: string };
+  const { motivo } = req.body as { motivo: string };
+  await clienteService.excluirCliente(codigo, motivo, req.user!, requestContext(req));
+  success(res, null, 'Cliente excluído.');
+}

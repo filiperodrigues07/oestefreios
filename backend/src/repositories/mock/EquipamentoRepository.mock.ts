@@ -3,7 +3,9 @@ import type {
   EquipamentoInput,
   PaginatedResult,
   SearchQuery,
+  VinculosCadastro,
 } from '../../types/cherp.types.js';
+import { temVinculos } from '../../utils/vinculos.js';
 import type { IEquipamentoRepository } from '../interfaces/IEquipamentoRepository.js';
 import { ClienteRepositoryMock } from './ClienteRepository.mock.js';
 
@@ -120,5 +122,19 @@ export class EquipamentoRepositoryMock implements IEquipamentoRepository {
     };
     EQUIPAMENTOS[idx] = atualizado;
     return atualizado;
+  }
+
+  async excluir(codigo: string): Promise<boolean> {
+    const idx = EQUIPAMENTOS.findIndex((e) => e.codigo === codigo);
+    if (idx === -1) return false;
+    if (temVinculos(await this.contarVinculos(codigo))) return false;
+    EQUIPAMENTOS.splice(idx, 1);
+    return true;
+  }
+
+  async contarVinculos(codigo: string): Promise<VinculosCadastro> {
+    const { OSRepositoryMock } = await import('./OSRepository.mock.js');
+    const os = (await new OSRepositoryMock().listarCabecalhos()).filter((item) => item.equipamentoCodigo === codigo);
+    return { os: os.length, veiculos: 0, financeiro: 0, fiscal: 0, pedidos: 0, outros: 0 };
   }
 }

@@ -22,6 +22,7 @@ const EVENT_LABELS: Record<string, string> = {
   VEICULO_CREATED: 'Veículo criado', VEICULO_UPDATED: 'Veículo atualizado',
   SETTINGS_FIREBIRD_UPDATED: 'Firebird atualizado', SETTINGS_SMTP_UPDATED: 'E-mail atualizado',
   SETTINGS_GERAL_UPDATED: 'Configurações gerais atualizadas',
+  CLIENTE_DELETED: 'Cliente excluído', VEICULO_DELETED: 'Veículo excluído',
   BILLING_UPDATED: 'Dados da assinatura atualizados', BILLING_PAYMENT_ADDED: 'Pagamento da mensalidade registrado', BILLING_PAYMENT_REMOVED: 'Pagamento da mensalidade removido',
   SESSION_REPLACED: 'Sessão anterior derrubada por novo login', SESSION_FORCE_LOGOUT: 'Sessão encerrada', SESSION_FORCE_LOGOUT_ALL: 'Todas as sessões encerradas',
 };

@@ -5,8 +5,9 @@ import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { NotFoundError } from '../../errors/NotFoundError.js';
 import { NotImplementedError } from '../../errors/NotImplementedError.js';
 import { ValidationError } from '../../errors/ValidationError.js';
-import type { Cliente, ClienteInput, PaginatedResult, RegimeTributario, SearchQuery } from '../../types/cherp.types.js';
+import type { Cliente, ClienteInput, PaginatedResult, RegimeTributario, SearchQuery, VinculosCadastro } from '../../types/cherp.types.js';
 import type { IClienteRepository } from '../interfaces/IClienteRepository.js';
+import { condicaoSemVinculos, contarVinculosTabelas, ORIGENS_CLIENTE, vinculosVazios } from './vinculosCadastro.js';
 
 /**
  * Ver ProdutoRepository.firebird.ts para o padrão geral e para a explicação do
@@ -54,7 +55,7 @@ LEFT JOIN CIDADE CID ON CID.CHAVE = C.CHAVECIDADE`;
 
 const QUERY_BUSCAR_POR_CODIGO: string | null = `
   SELECT ${CLIFOR_SELECT}
-  WHERE C.CLIENTE = 'S' AND C.CODIGO = ?
+  WHERE C.ATIVO = 1 AND C.CLIENTE = 'S' AND C.CODIGO = ?
 `;
 
 const QUERY_BUSCAR_POR_NOME: string | null = `
@@ -64,7 +65,7 @@ const QUERY_BUSCAR_POR_NOME: string | null = `
 
 const QUERY_BUSCAR_POR_DOCUMENTO: string | null = `
   SELECT ${CLIFOR_SELECT}
-  WHERE C.CLIENTE = 'S'
+  WHERE C.ATIVO = 1 AND C.CLIENTE = 'S'
     AND REPLACE(REPLACE(REPLACE(REPLACE(C.CNPJCPF, '.', ''), '-', ''), '/', ''), ' ', '') = ?
 `;
 
@@ -329,7 +330,7 @@ export class ClienteRepositoryFirebird implements IClienteRepository {
          ENDERECO = ?, NUMERO = ?, BAIRRO = ?, COMPLEMENTO = ?, CHAVECIDADE = ?, CEP = ?, CELULAR = ?,
          TELEFONE = ?, EMAIL = ?, EMAILFINANCEIRO = ?, EMAILNFECTE = ?, HOMEPAGE = ?,
          FORNECEDOR = ?, TRANSPORTADOR = ?, REPRESENTANTE = ?, REGIMETRIBUTARIO = ?
-       WHERE CODIGO = ? AND CLIENTE = 'S'`,
+       WHERE CODIGO = ? AND CLIENTE = 'S' AND ATIVO = 1`,
       [
         input.ativo === false ? 1 : 0,
         pessoa,
@@ -363,5 +364,22 @@ export class ClienteRepositoryFirebird implements IClienteRepository {
     const atualizado = await this.buscarPorCodigo(codigo);
     if (!atualizado) throw new NotFoundError('Cliente não encontrado.', 'CLIENTE_NOT_FOUND');
     return atualizado;
+  }
+
+  async excluir(codigo: string): Promise<boolean> {
+    await firebirdQuery(
+      `UPDATE CLIFOR C SET ATIVO = 0
+       WHERE C.CODIGO = ? AND C.CLIENTE = 'S' AND C.ATIVO = 1
+         AND ${condicaoSemVinculos(ORIGENS_CLIENTE, 'C')}`,
+      [codigo],
+    );
+    const rows = await firebirdQuery<{ ATIVO: number }>(`SELECT ATIVO FROM CLIFOR WHERE CODIGO = ? AND CLIENTE = 'S'`, [codigo]);
+    return rows.length > 0 && Number(rows[0]!.ATIVO) === 0;
+  }
+
+  async contarVinculos(codigo: string): Promise<VinculosCadastro> {
+    const rows = await firebirdQuery<{ CHAVE: number }>(`SELECT CHAVE FROM CLIFOR WHERE CODIGO = ? AND CLIENTE = 'S' AND ATIVO = 1`, [codigo]);
+    if (!rows[0]) return vinculosVazios();
+    return contarVinculosTabelas(ORIGENS_CLIENTE, rows[0].CHAVE);
   }
 }
