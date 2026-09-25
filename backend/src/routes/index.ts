@@ -3,6 +3,7 @@ import { auditLogRouter } from './auditLog.routes.js';
 import { authRouter } from './auth.routes.js';
 import { billingRouter } from './billing.routes.js';
 import { clienteRouter } from './cliente.routes.js';
+import { clientErrorRouter } from './clientError.routes.js';
 import { dashboardRouter } from './dashboard.routes.js';
 import { equipamentoRouter } from './equipamento.routes.js';
 import { healthRouter } from './health.routes.js';
@@ -19,6 +20,7 @@ export const apiRouter = Router();
 
 apiRouter.use('/health', healthRouter);
 apiRouter.use('/auth', authRouter);
+apiRouter.use('/client-errors', clientErrorRouter);
 apiRouter.use('/produtos', produtoRouter);
 apiRouter.use('/servicos', servicoRouter);
 apiRouter.use('/clientes', clienteRouter);

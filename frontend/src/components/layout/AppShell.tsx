@@ -1,6 +1,9 @@
 import { useIsMutating, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { NavLink, useLocation } from 'react-router';
+import { NavLink, useLocation, useNavigate } from 'react-router';
+import { useAppShortcuts } from '../../hooks/useAppShortcuts.js';
+import { ShortcutsHelp } from './ShortcutsHelp.js';
+import { prefetchRoute } from '../../routes/prefetch.js';
 import { getBranding } from '../../api/settings.api.js';
 import { getDashboardOperacional } from '../../api/dashboard.api.js';
 import { calendarDateValue } from '../../utils/calendarDate.js';
@@ -96,6 +99,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   }, [currentUserId, readState]);
   const notificationWrapperRef = useRef<HTMLDivElement>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [atalhosOpen, setAtalhosOpen] = useState(false);
+  const navigate = useNavigate();
+  const podeCriarOS = hasPermission('OS_CREATE');
+  const focarBusca = useCallback(() => {
+    // Só o campo de busca visível (sidebar no desktop); no celular a busca fica atrás de um botão.
+    const campos = Array.from(document.querySelectorAll<HTMLInputElement>('[data-global-search]'));
+    campos.find((campo) => campo.getClientRects().length > 0)?.focus();
+  }, []);
+  const novaOS = useCallback(() => navigate('/os/nova'), [navigate]);
+  const mostrarAtalhos = useCallback(() => setAtalhosOpen(true), [setAtalhosOpen]);
+  useAppShortcuts({ focarBusca, novaOS: podeCriarOS ? novaOS : undefined, mostrarAjuda: mostrarAtalhos });
   const queryClient = useQueryClient();
   const pendingMutations = useIsMutating();
   const pageRefreshRef = useRef<(() => Promise<unknown>) | null>(null);
@@ -295,6 +309,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   }
                   title={collapsed ? item.label : undefined}
                   aria-label={collapsed ? item.label : undefined}
+                  onPointerEnter={() => prefetchRoute(item.to)}
+                  onFocus={() => prefetchRoute(item.to)}
                 >
                   <NavIcon name={item.icon} />
                   {!collapsed && <><span className={styles.sidebarItemLabel}>{item.label}</span>{item.to === '/' && <span className={styles.newBadge}>Novo</span>}<svg className={styles.activeChevron} width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></>}
@@ -450,6 +466,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className={({ isActive }) =>
               `${styles.bottomNavItem} ${isActive ? styles.bottomNavItemActive : ''}`
             }
+            onTouchStart={() => prefetchRoute(item.to)}
           >
             <NavIcon name={item.icon} />
             <span>{item.mobileLabel ?? item.label}</span>
@@ -563,6 +580,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </div>
       </Drawer>
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
+      <ShortcutsHelp open={atalhosOpen} onClose={() => setAtalhosOpen(false)} />
     </div>
   );
 }

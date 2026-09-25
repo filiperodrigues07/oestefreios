@@ -86,7 +86,7 @@ export function GlobalSearch({ onNavigate, className, placeholder, shortcut = tr
   return (
     <div className={`${styles.wrapper} ${className ?? ''}`} ref={wrapperRef}>
       <span className={styles.icon} aria-hidden="true">⌕</span>
-      <input ref={inputRef} value={value}
+      <input ref={inputRef} value={value} data-global-search
         onChange={(event) => { setValue(event.target.value); setActiveIndex(-1); setOpen(true); }}
         onFocus={() => setOpen(true)} onKeyDown={handleKeyDown}
         placeholder={placeholder ?? 'Buscar OS, cliente, placa, produto ou serviço...'} aria-label="Busca global"

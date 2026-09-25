@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { reportClientError } from '../../utils/reportClientError.js';
 import { ErrorScreen } from './ErrorScreen.js';
 
 interface ErrorBoundaryProps {
@@ -25,6 +26,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('Erro não tratado na árvore de componentes:', error, info.componentStack);
+    reportClientError('boundary', error, info.componentStack ?? undefined);
   }
 
   render() {

@@ -1,4 +1,4 @@
-import type { OrdemServico } from '../../types/cherp.types.js';
+import type { OrdemServico, OSItemProduto, OSItemServico } from '../../types/cherp.types.js';
 
 export interface OSListFilter {
   status?: string;
@@ -71,6 +71,9 @@ export interface IOSRepository {
   /** Edita quantidade/preço de um item já lançado (UPDATE isolado — não passa pelo diff de sincronizarItens). */
   atualizarItemProduto(id: string, produtoCodigo: string, patch: OSItemPatch): Promise<OrdemServico>;
   atualizarItemServico(id: string, servicoCodigo: string, patch: OSItemPatch): Promise<OrdemServico>;
+  /** Última linha removida (ATIVO = 0) de um item da OS — base do "Desfazer" depois de remover. */
+  buscarProdutoRemovido(id: string, produtoCodigo: string): Promise<OSItemProduto | null>;
+  buscarServicoRemovido(id: string, servicoCodigo: string): Promise<OSItemServico | null>;
   /** Fotos da OS — ORDEMSERVICOIMG, BLOB nativo do CHERP (não é armazenamento paralelo). */
   listarImagens(id: string): Promise<OSImagemMeta[]>;
   adicionarImagem(id: string, imagem: OSImagemNova): Promise<void>;

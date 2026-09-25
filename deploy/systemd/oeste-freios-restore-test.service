@@ -1,0 +1,13 @@
+## Copiar para /etc/systemd/system/ junto com oeste-freios-restore-test.timer.
+## Depois: systemctl daemon-reload && systemctl enable --now oeste-freios-restore-test.timer
+## Requer: ALTER USER oeste_freios CREATEDB;  (ou RESTORE_ADMIN_URL no .env — ver deploy/restore-test.sh)
+
+[Unit]
+Description=Oeste Freios - teste mensal de restauração do backup
+After=postgresql.service
+
+[Service]
+Type=oneshot
+User=oestefreios
+Group=oestefreios
+ExecStart=/bin/bash /opt/oeste-freios/deploy/restore-test.sh

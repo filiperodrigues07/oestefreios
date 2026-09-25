@@ -192,3 +192,62 @@
     box-shadow: none;
   }
 }
+
+/* Item da lista é botão de verdade (teclado/leitor de tela), sem visual de botão — mas com foco visível. */
+.entryButton {
+  all: unset;
+  display: block;
+  cursor: pointer;
+  border-radius: var(--radius-lg);
+}
+
+.entryButton:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.entryRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.entryTitle {
+  font-weight: 600;
+}
+
+.meta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+.metaNowrap {
+  composes: meta;
+  white-space: nowrap;
+}
+
+.detailStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.detailLabel {
+  composes: meta;
+  margin-bottom: var(--space-1);
+}
+
+.detailValue {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.diff {
+  background: var(--color-neutral-surface);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3);
+  font-size: var(--font-size-xs);
+  overflow-x: auto;
+  margin: 0;
+}

@@ -77,7 +77,7 @@ export async function updateMyProfilePhotoHandler(req: Request, res: Response) {
   const tempPath = `${finalPath}.${randomUUID()}.tmp`;
   await writeFile(tempPath, content, { flag: 'wx' });
   await rename(tempPath, finalPath);
-  const response = await authService.updateMyProfilePhoto(req.user!.id, `/api/uploads/avatars/${filename}`, requestContext(req));
+  const response = await authService.updateMyProfilePhoto(req.user!.id, `/api/uploads/avatars/${filename}?v=${Date.now()}`, requestContext(req));
   success(res, response, 'Foto de perfil atualizada com sucesso.');
 }
 

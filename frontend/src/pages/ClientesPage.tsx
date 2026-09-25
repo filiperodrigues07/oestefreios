@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { excluirCliente, searchClientes, type ClienteSortBy } from '../api/clientes.api.js';
@@ -113,7 +113,8 @@ export function ClientesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buscaAtiva, tipoPessoa, uf]);
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isPlaceholderData, isError, error, refetch } = useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ['clientes', buscaAtiva, page, limit, tipoPessoa, uf, sortBy, sortOrder],
     queryFn: () =>
       searchClientes(buscaAtiva, page, limit, {
@@ -303,14 +304,27 @@ export function ClientesPage() {
       {!isLoading && !isError && data && data.items.length === 0 && (
         <EmptyState
           title={filtrosAtivos > 0 || buscaAtiva ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado ainda'}
-          description={filtrosAtivos > 0 || buscaAtiva ? 'Não encontramos resultados com os filtros atuais.' : undefined}
-          action={filtrosAtivos > 0 || buscaAtiva ? <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button> : undefined}
+          description={
+            buscaAtiva
+              ? 'A busca procura por nome, código, CPF/CNPJ ou telefone. Confira a digitação ou limpe os filtros.'
+              : filtrosAtivos > 0
+                ? 'Não encontramos resultados com os filtros atuais.'
+                : undefined
+          }
+          action={
+            filtrosAtivos > 0 || buscaAtiva ? (
+              <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button>
+            ) : podeCriar ? (
+              <LinkButton to="/clientes/novo">Cadastrar cliente</LinkButton>
+            ) : undefined
+          }
         />
       )}
 
       {!isLoading && !isError && data && data.items.length > 0 && (
         <>
           <Table
+            stale={isPlaceholderData}
             columns={columns}
             data={data.items}
             rowKey={(c) => c.codigo}

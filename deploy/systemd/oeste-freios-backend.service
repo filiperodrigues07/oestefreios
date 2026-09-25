@@ -1,5 +1,7 @@
 ## Copiar para /etc/systemd/system/oeste-freios-backend.service
 ## Depois: systemctl daemon-reload && systemctl enable --now oeste-freios-backend
+## Layout de releases (deploy atômico): roda de /opt/oeste-freios-app/current. Ainda no layout antigo?
+## Rode deploy/migrar-para-releases.sh antes de trocar esta unit (ver DEPLOY.md "Deploy atômico").
 
 [Unit]
 Description=Oeste Freios - backend API
@@ -10,16 +12,17 @@ Wants=postgresql.service
 Type=simple
 User=oestefreios
 Group=oestefreios
-WorkingDirectory=/opt/oeste-freios/backend
-EnvironmentFile=/opt/oeste-freios/backend/.env
+WorkingDirectory=/opt/oeste-freios-app/current/backend
+EnvironmentFile=/opt/oeste-freios-app/shared/.env
 ExecStart=/usr/bin/node dist/server.js
-Restart=on-failure
+# always: reinicia até se o processo sair "limpo" por engano — API fora do ar nunca é o estado desejado.
+Restart=always
 RestartSec=3
 
 # Escrita restrita aos uploads e aos boletos privados.
 NoNewPrivileges=true
 ProtectSystem=strict
-ReadWritePaths=/opt/oeste-freios/backend/uploads /opt/oeste-freios/backend/storage/cobrancas
+ReadWritePaths=/opt/oeste-freios-app/shared/uploads /opt/oeste-freios-app/shared/storage/cobrancas
 ProtectHome=true
 PrivateTmp=true
 ProtectKernelTunables=true

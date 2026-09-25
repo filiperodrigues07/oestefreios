@@ -137,28 +137,52 @@
 .error { color: var(--color-danger); }
 
 .secure {
-  position: relative;
-  margin: var(--space-2) 0 0;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-1) 0 0;
   color: #88a8d3;
   font-size: var(--font-size-xs);
-  text-align: center;
 }
 
 .secure::before,
 .secure::after {
-  display: inline-block;
-  width: 28%;
   height: 1px;
-  margin: 0 var(--space-2) 0.25em;
   background: rgba(96, 165, 250, 0.24);
   content: '';
-  vertical-align: middle;
+}
+
+.secure span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  white-space: nowrap;
+}
+
+.secure svg {
+  width: 14px;
+  height: 14px;
 }
 
 .resetLink {
+  align-self: flex-end;
+  margin-top: calc(var(--space-2) * -1);
+  border-radius: var(--radius-sm);
   color: #67c5ff;
   font-size: var(--font-size-sm);
-  text-align: center;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color 160ms ease, background-color 160ms ease;
+}
+
+.resetLink:hover {
+  color: #a6e0ff;
+}
+
+.resetLink:focus-visible {
+  outline: 2px solid #38bdf8;
+  outline-offset: 3px;
 }
 
 .page > :last-child {

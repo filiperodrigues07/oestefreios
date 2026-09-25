@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useConfirmDiscard } from '../../hooks/useConfirmDiscard.js';
+import { sanitizarChassi, sanitizarPlaca, somenteDigitos } from '../../utils/veiculoFormatters.js';
 import { atualizarEquipamento, criarEquipamento, getEquipamentoByCodigo, getVehicleLookupQuota, lookupVehiclePlate, type VehicleLookupQuota, type VehicleLookupResult } from '../../api/equipamentos.api.js';
 import { ApiError } from '../../api/httpClient.js';
 import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
@@ -77,6 +79,8 @@ function VeiculoFormContent({
   const [form, setForm] = useState<Omit<EquipamentoInput, 'clienteCodigo'>>(() =>
     veiculo ? formFromEquipamento(veiculo) : { ...VAZIO, placa: placaInicial ?? '' },
   );
+  // Referência pra detectar edição pendente — atualizada quando um cadastro existente é carregado.
+  const [formOriginal, setFormOriginal] = useState(form);
   const [clienteEscolhido, setClienteEscolhido] = useState<ClienteDTO | null>(() =>
     veiculo?.clienteCodigo
       ? {
@@ -135,7 +139,9 @@ function VeiculoFormContent({
       setCarregandoDuplicado(true);
       try {
         const equipamentoExistente = await getEquipamentoByCodigo(duplicado.codigo);
-        setForm(formFromEquipamento(equipamentoExistente));
+        const carregado = formFromEquipamento(equipamentoExistente);
+        setForm(carregado);
+        setFormOriginal(carregado);
         setVeiculoEfetivo(equipamentoExistente);
         if (!clienteCodigo && equipamentoExistente.clienteCodigo) {
           setClienteEscolhido({
@@ -151,16 +157,22 @@ function VeiculoFormContent({
     },
   });
 
-  function handleClose() {
-    if (mutation.isPending) return;
+  function fecharSemConfirmar() {
     setForm({ ...VAZIO, placa: placaInicial ?? '' });
     setClienteEscolhido(null);
     onClose();
+  }
+  const descarte = useConfirmDiscard(JSON.stringify(form) !== JSON.stringify(formOriginal), fecharSemConfirmar);
+
+  function handleClose() {
+    if (mutation.isPending) return;
+    descarte.requestClose();
   }
 
   const podeSalvar = form.placa.trim().length > 0 && !!clienteFinal;
 
   return (
+    <>
     <Modal
       open={open}
       title={veiculoEfetivo ? 'Editar veículo' : 'Novo veículo'}
@@ -180,40 +192,27 @@ function VeiculoFormContent({
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      <div className={styles.form}>
         {!clienteCodigo && (
           <div>
             {clienteEscolhido ? (
-              <div
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
+              <div className={styles.clienteRow}>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 'var(--font-size-xs)',
-                      color: 'var(--color-text-secondary)',
-                    }}
-                  >
+                  <div className={styles.clienteLabel}>
                     Cliente
                   </div>
-                  <div style={{ fontWeight: 600 }}>{clienteEscolhido.nome}</div>
+                  <div className={styles.clienteNome}>{clienteEscolhido.nome}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setClienteEscolhido(null)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--color-primary)',
-                    cursor: 'pointer',
-                    fontSize: 'var(--font-size-sm)',
-                  }}
+                  className={styles.linkButton}
                 >
                   Trocar
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <div className={styles.stackSm}>
                 <ClienteSearch onSelect={setClienteEscolhido} />
                 <Button type="button" variant="secondary" size="sm" onClick={() => setNovoClienteAberto(true)}>
                   + Cadastrar novo cliente
@@ -235,14 +234,10 @@ function VeiculoFormContent({
 
         {!veiculoEfetivo && <PlateLookup quota={quotaQuery.data} loadingQuota={quotaQuery.isLoading} loading={lookupMutation.isPending}
           plate={form.placa} onPlateChange={(placa) => setForm({ ...form, placa })} onLookup={() => lookupMutation.mutate()} />}
-        {veiculoEfetivo && <Input label="Placa" required value={form.placa} onChange={(e) => setForm({ ...form, placa: e.target.value.toUpperCase() })} placeholder="AAA-9999 ou AAA9A99" />}
+        {veiculoEfetivo && <Input label="Placa" required value={form.placa} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={8} onChange={(e) => setForm({ ...form, placa: sanitizarPlaca(e.target.value) })} placeholder="AAA-9999 ou AAA9A99" />}
         {lookupMutation.isError && <p role="alert" className={styles.lookupError}>{lookupMutation.error instanceof Error ? lookupMutation.error.message : 'Não foi possível consultar a placa.'}</p>}
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: 'var(--space-3)',
-          }}
+          className={styles.grid160}
         >
           <Input
             label="Marca"
@@ -258,25 +253,21 @@ function VeiculoFormContent({
           />
         </div>
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-            gap: 'var(--space-3)',
-          }}
+          className={styles.grid120}
         >
           <Input
             label="Ano fab."
             inputMode="numeric"
             maxLength={4}
             value={form.anoFabricacao}
-            onChange={(e) => setForm({ ...form, anoFabricacao: e.target.value })}
+            onChange={(e) => setForm({ ...form, anoFabricacao: somenteDigitos(e.target.value, 4) })}
           />
           <Input
             label="Ano mod."
             inputMode="numeric"
             maxLength={4}
             value={form.anoModelo}
-            onChange={(e) => setForm({ ...form, anoModelo: e.target.value })}
+            onChange={(e) => setForm({ ...form, anoModelo: somenteDigitos(e.target.value, 4) })}
           />
           <Input
             label="Cor"
@@ -288,8 +279,10 @@ function VeiculoFormContent({
         <Input
           label="Chassi"
           uppercase
+          autoCorrect="off"
+          maxLength={17}
           value={form.chassi}
-          onChange={(e) => setForm({ ...form, chassi: e.target.value })}
+          onChange={(e) => setForm({ ...form, chassi: sanitizarChassi(e.target.value) })}
         />
         <div className={styles.extraGrid}>
           <Input label="Versão" uppercase value={form.versao} onChange={(e) => setForm({ ...form, versao: e.target.value })} />
@@ -303,7 +296,7 @@ function VeiculoFormContent({
         <ConfirmDialog open={!!pendingLookup} title="Usar dados encontrados?" description="A consulta encontrou informações diferentes das preenchidas. Deseja substituir os dados atuais?" confirmLabel="Substituir dados" cancelLabel="Manter dados atuais" onConfirm={() => { if (pendingLookup) applyLookup(pendingLookup); setPendingLookup(null); }} onCancel={() => setPendingLookup(null)} />
 
         {carregandoDuplicado && (
-          <p role="status" style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+          <p role="status" className={styles.statusText}>
             Carregando cadastro existente...
           </p>
         )}
@@ -319,34 +312,28 @@ function VeiculoFormContent({
             return (
               <div
                 role="alert"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--space-1)',
-                  border: '1px solid var(--color-warning)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-warning-surface)',
-                  padding: 'var(--space-3)',
-                }}
+                className={styles.duplicateBox}
               >
                 <strong>{isChassiDuplicado ? 'Chassi já cadastrado' : 'Placa já cadastrada'}</strong>
-                <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                <p className={styles.statusText}>
                   {err instanceof Error ? err.message : ''}
                 </p>
-                <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                <p className={styles.statusText}>
                   Os dados do cadastro existente foram carregados acima — revise e salve para atualizá-lo, ou cancele.
                 </p>
               </div>
             );
           }
           return (
-            <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+            <p role="alert" className={styles.errorText}>
               {err instanceof Error ? err.message : 'Erro ao salvar veículo.'}
             </p>
           );
         })()}
       </div>
     </Modal>
+    {descarte.dialog}
+    </>
   );
 }
 
@@ -356,7 +343,7 @@ function PlateLookup({ quota, loadingQuota, loading, plate, onPlateChange, onLoo
   return <section className={`${styles.lookup} ${styles[tone]}`} aria-label="Consulta automática pela placa">
     <strong>Consulta automática pela placa</strong>
     <div className={styles.lookupRow}>
-      <Input label="Placa" required value={plate} onChange={(e) => onPlateChange(e.target.value.toUpperCase())} placeholder="AAA-9999 ou AAA9A99" />
+      <Input label="Placa" required value={plate} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={8} enterKeyHint="search" onChange={(e) => onPlateChange(sanitizarPlaca(e.target.value))} placeholder="AAA-9999 ou AAA9A99" />
       <Button type="button" onClick={onLookup} loading={loading} disabled={loadingQuota || quota?.exhausted || !plate.trim()}>{loading ? 'Consultando veículo...' : 'Consultar placa'}</Button>
     </div>
     {quota && <div className={styles.quota}>

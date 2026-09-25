@@ -3,6 +3,7 @@ import { useState, type CSSProperties, type FormEvent } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router';
 import { login } from '../api/auth.api.js';
 import { Footer } from '../components/layout/Footer.js';
+import { NavIcon } from '../components/layout/NavIcon.js';
 import { Button, Card, Input, PasswordInput } from '../components/ui/index.js';
 import { useOnlineStatus } from '../hooks/useOnlineStatus.js';
 import { useAuthStore } from '../store/authStore.js';
@@ -92,6 +93,10 @@ export function LoginPage() {
               )}
             </div>
 
+            <Link to="/esqueci-senha" className={styles.resetLink}>
+              Esqueceu a senha?
+            </Link>
+
             {aviso && !mutation.isError && (
               <p role="status" className={styles.warning}>
                 {aviso}
@@ -115,11 +120,12 @@ export function LoginPage() {
               Entrar
             </Button>
 
-            <Link to="/esqueci-senha" className={styles.resetLink}>
-              Esqueci minha senha
-            </Link>
-
-            <p className={styles.secure}>Acesso seguro</p>
+            <p className={styles.secure}>
+              <span>
+                <NavIcon name="shield" />
+                Acesso seguro
+              </span>
+            </p>
           </form>
         </Card>
       </main>

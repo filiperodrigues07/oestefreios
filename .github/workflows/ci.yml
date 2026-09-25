@@ -48,3 +48,14 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # Só dependência de produção, severidade alta+: vulnerabilidade que chega ao usuário quebra o build.
+      - run: npm audit --omit=dev --audit-level=high
+      - run: npx playwright install --with-deps chromium
+      # Fluxo crítico da OS no navegador (backend mock + Postgres do serviço acima), ver e2e/.
+      - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

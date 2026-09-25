@@ -70,3 +70,4 @@ describe('pool Firebird', () => {
     expect(destroy).not.toHaveBeenCalled();
   });
 });
+

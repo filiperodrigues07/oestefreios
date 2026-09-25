@@ -41,8 +41,10 @@ app.use((req, _res, next) => {
   if (!req.timedout) next();
 });
 
-app.use((req, _res, next) => {
+app.use((req, res, next) => {
   req.requestId = randomUUID();
+  // Devolvido ao cliente: a tela de erro mostra o começo dele como "código para suporte" (grep no log).
+  res.setHeader('X-Request-Id', req.requestId);
   next();
 });
 

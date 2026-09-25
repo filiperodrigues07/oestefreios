@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { CatalogParams, CatalogSortBy } from '../../api/catalog.types.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
@@ -81,6 +81,7 @@ export function CatalogTable<T extends CatalogItemBase>({
   useEffect(() => { onFilterChange?.(filtro); }, [filtro, onFilterChange]);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [queryKey, filtro, page, limit, sortBy, sortOrder, extraParams?.tipoCodigo, extraParams?.tipoModo, extraParams?.tipoServicoCodigo, extraParams?.saldoModo],
     queryFn: () => fetchFn({ filtro, page, limit, sortBy, sortOrder, ...extraParams }),
   });

@@ -103,6 +103,18 @@ export async function removerProdutoHandler(req: Request, res: Response) {
   success(res, os, 'Produto removido.');
 }
 
+export async function restaurarProdutoHandler(req: Request, res: Response) {
+  const { id, produtoCodigo } = req.params as { id: string; produtoCodigo: string };
+  const os = await osService.restaurarItemOS(id, 'produto', produtoCodigo, req.user!, requestContext(req));
+  success(res, os, 'Produto restaurado.');
+}
+
+export async function restaurarServicoHandler(req: Request, res: Response) {
+  const { id, servicoCodigo } = req.params as { id: string; servicoCodigo: string };
+  const os = await osService.restaurarItemOS(id, 'servico', servicoCodigo, req.user!, requestContext(req));
+  success(res, os, 'Serviço restaurado.');
+}
+
 export async function atualizarProdutoItemHandler(req: Request, res: Response) {
   const { id, produtoCodigo } = req.params as { id: string; produtoCodigo: string };
   const { quantidade, precoUnitario, descricaoComplementar } = req.body as {

@@ -80,6 +80,14 @@ export interface AtualizarOSInput {
   dataPrevista?: string;
   kmAtual?: number;
   kmFinal?: number;
+  /** Valores vistos ao começar a editar — o backend responde 409 OS_CONFLICT se mudaram (ver os.service.ts). */
+  base?: {
+    diagnostico?: string;
+    observacoes?: string;
+    solucao?: string;
+    kmAtual?: number | null;
+    kmFinal?: number | null;
+  };
 }
 
 export function atualizarOS(id: string, input: AtualizarOSInput): Promise<OrdemServicoDTO> {
@@ -148,6 +156,15 @@ export function adicionarServicoOS(
       ...(descricaoComplementar ? { descricaoComplementar } : {}),
     },
     offlineDescription: `Adicionar serviço ${servicoCodigo} na OS ${id}`,
+  });
+}
+
+/** "Desfazer" depois de remover: o backend reinsere a última linha removida (preço vem do servidor). */
+export function restaurarItemOS(id: string, tipo: 'produto' | 'servico', codigo: string): Promise<OrdemServicoDTO> {
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/${tipo === 'produto' ? 'produtos' : 'servicos'}/${codigo}/restaurar`, {
+    method: 'POST',
+    // Desfazer só faz sentido na hora; replay offline minutos depois surpreenderia o usuário.
+    queueOffline: false,
   });
 }
 

@@ -1,5 +1,6 @@
 import { toOSDTO } from '../dto/mappers/os.mapper.js';
 import type { AdminOSDTO, OperationalOSDTO } from '../dto/os.dto.js';
+import { ConflictError } from '../errors/ConflictError.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { ValidationError } from '../errors/ValidationError.js';
 import {
@@ -232,6 +233,38 @@ interface AtualizarOSInput {
   dataPrevista?: string;
   kmAtual?: number;
   kmFinal?: number;
+  base?: OSBaseEdicao;
+}
+
+/** Campos de texto livre/KM editados na aba Diagnóstico — os que sofrem com edição simultânea. */
+export interface OSBaseEdicao {
+  diagnostico?: string;
+  observacoes?: string;
+  solucao?: string;
+  kmAtual?: number | null;
+  kmFinal?: number | null;
+}
+
+function normalizarCampo(valor: unknown): string {
+  if (valor === undefined || valor === null) return '';
+  return String(valor).trim().toLocaleUpperCase('pt-BR');
+}
+
+/**
+ * Concorrência otimista: compara o valor que o usuário viu ao começar a editar com o valor atual,
+ * só nos campos que ele está gravando. Mudança em outro campo (ou item) não gera conflito.
+ */
+function assertSemConflito(atual: OrdemServico, patch: AtualizarOSInput): void {
+  const { base } = patch;
+  if (!base) return;
+  const campos = (Object.keys(base) as (keyof OSBaseEdicao)[]).filter((k) => patch[k] !== undefined);
+  const conflitantes = campos.filter((k) => normalizarCampo(atual[k]) !== normalizarCampo(base[k]));
+  if (conflitantes.length === 0) return;
+  throw new ConflictError(
+    'Outro usuário alterou esta OS enquanto você editava. Seu texto foi mantido na tela.',
+    'OS_CONFLICT',
+    { campos: conflitantes, atual: Object.fromEntries(conflitantes.map((k) => [k, atual[k] ?? null])) },
+  );
 }
 
 export async function atualizarOS(
@@ -242,19 +275,22 @@ export async function atualizarOS(
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
   assertNaoFinalizada(atual);
+  assertSemConflito(atual, patch);
 
-  const camposAlterados = Object.keys(patch).filter(
-    (key) => patch[key as keyof AtualizarOSInput] !== undefined,
-  ) as (keyof AtualizarOSInput)[];
+  const campos: AtualizarOSInput = { ...patch };
+  delete campos.base;
+  const camposAlterados = Object.keys(campos).filter(
+    (key) => campos[key as keyof AtualizarOSInput] !== undefined,
+  ) as Exclude<keyof AtualizarOSInput, 'base'>[];
 
   const atualizado = await osRepository.atualizar(id, {
-    ...patch,
+    ...campos,
     cherpUsuarioChave: usuario.cherpUsuarioChave,
     historico: [...atual.historico, historicoEntry(`OS atualizada (${camposAlterados.join(', ')})`, usuario)],
   });
 
   const before = Object.fromEntries(camposAlterados.map((k) => [k, atual[k]]));
-  const after = Object.fromEntries(camposAlterados.map((k) => [k, patch[k]]));
+  const after = Object.fromEntries(camposAlterados.map((k) => [k, campos[k]]));
   await auditOS('OS_UPDATED', id, usuario, ctx, { before, after });
 
   return toOSDTO(atualizado, usuario.permissions);
@@ -435,6 +471,54 @@ export async function removerServicoOS(
 
   await auditOS('OS_SERVICE_REMOVED', id, usuario, ctx, { before: item });
 
+  return toOSDTO(atualizado, usuario.permissions);
+}
+
+/**
+ * "Desfazer" depois de remover um item: reinsere a última linha removida (mesma quantidade, preço,
+ * desconto e descrição complementar) pelo mesmo caminho de inserção de sempre — nunca reativa a linha
+ * antiga (ATIVO = 1) pra não depender de trigger do CHERP. O preço vem do servidor, nunca do cliente.
+ */
+export async function restaurarItemOS(
+  id: string,
+  tipo: 'produto' | 'servico',
+  codigo: string,
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<OperationalOSDTO | AdminOSDTO> {
+  const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
+
+  if (tipo === 'produto') {
+    if (atual.produtos.some((p) => p.produtoCodigo === codigo)) {
+      throw new ValidationError('Este produto já está na OS.');
+    }
+    const item = await osRepository.buscarProdutoRemovido(id, codigo);
+    if (!item) throw new NotFoundError('Não há produto removido para restaurar.', 'OS_ITEM_NOT_FOUND');
+    const produtos = [...atual.produtos, item];
+    const atualizado = await osRepository.atualizar(id, {
+      produtos,
+      faturamento: calcularFaturamento(produtos, atual.servicos),
+      historico: [...atual.historico, historicoEntry(`Produto restaurado: ${item.descricao}`, usuario)],
+      cherpUsuarioChave: usuario.cherpUsuarioChave,
+    });
+    await auditOS('OS_PRODUCT_RESTORED', id, usuario, ctx, { after: item });
+    return toOSDTO(atualizado, usuario.permissions);
+  }
+
+  if (atual.servicos.some((s) => s.servicoCodigo === codigo)) {
+    throw new ValidationError('Este serviço já está na OS.');
+  }
+  const item = await osRepository.buscarServicoRemovido(id, codigo);
+  if (!item) throw new NotFoundError('Não há serviço removido para restaurar.', 'OS_ITEM_NOT_FOUND');
+  const servicos = [...atual.servicos, item];
+  const atualizado = await osRepository.atualizar(id, {
+    servicos,
+    faturamento: calcularFaturamento(atual.produtos, servicos),
+    historico: [...atual.historico, historicoEntry(`Serviço restaurado: ${item.descricao}`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
+  });
+  await auditOS('OS_SERVICE_RESTORED', id, usuario, ctx, { after: item });
   return toOSDTO(atualizado, usuario.permissions);
 }
 

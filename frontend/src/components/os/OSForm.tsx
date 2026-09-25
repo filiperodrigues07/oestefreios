@@ -14,15 +14,19 @@ import {
   getOS,
   removerProdutoOS,
   removerServicoOS,
+  restaurarItemOS,
 } from '../../api/os.api.js';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
+import { ApiError } from '../../api/httpClient.js';
 import { getEquipamentoByCodigo } from '../../api/equipamentos.api.js';
 import { OS_PRIORIDADE_OPTIONS } from '../../constants/osStatus.js';
 import { handleMutationError } from '../../pwa/offlineErrorToast.js';
 import { OfflineQueuedError } from '../../pwa/OfflineQueuedError.js';
-import { hasPermission } from '../../store/authStore.js';
+import { hasPermission, useAuthStore } from '../../store/authStore.js';
+import { draftKey } from '../../utils/drafts.js';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
-import { type OSPrioridade, type OSStatus } from '../../types/os.types.js';
+import { type OrdemServicoDTO, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
 import {
   ActionIcon,
   Button,
@@ -72,6 +76,7 @@ function OSFormCreate() {
   const [equipamento, setEquipamento] = useState<EquipamentoDTO | null>(null);
   const [problema, setProblema] = useState('');
   const [prioridade, setPrioridade] = useState<OSPrioridade>('NORMAL');
+  const guard = useUnsavedChangesGuard(Boolean(cliente || equipamento || problema.trim()));
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -81,10 +86,14 @@ function OSFormCreate() {
         problema,
         prioridade,
       }),
-    onSuccess: (os) => navigate(`/os/${os.id}`, { replace: true }),
+    onSuccess: (os) => {
+      guard.liberar();
+      navigate(`/os/${os.id}`, { replace: true });
+    },
     onError: (err) => {
       if (err instanceof OfflineQueuedError) {
         showToast(err.message, 'warning');
+        guard.liberar();
         navigate('/os', { replace: true });
       }
     },
@@ -131,16 +140,11 @@ function OSFormCreate() {
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Problema relatado</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div className={styles.createStack}>
             <div>
               <label
                 htmlFor="problema"
-                style={{
-                  display: 'block',
-                  fontSize: 'var(--font-size-sm)',
-                  fontWeight: 500,
-                  marginBottom: 'var(--space-1)',
-                }}
+                className={styles.fieldLabel}
               >
                 Descrição
               </label>
@@ -148,6 +152,7 @@ function OSFormCreate() {
                 id="problema"
                 value={problema}
                 onChange={(e) => setProblema(e.target.value.toLocaleUpperCase('pt-BR'))}
+                autoCapitalize="characters"
                 rows={3}
                 className={styles.textarea}
               />
@@ -170,7 +175,7 @@ function OSFormCreate() {
             {mutation.isError && (
               <p
                 role="alert"
-                style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}
+                className={styles.formError}
               >
                 {mutation.error instanceof Error ? mutation.error.message : 'Erro ao criar OS.'}
               </p>
@@ -189,6 +194,7 @@ function OSFormCreate() {
           </div>
         </section>
       </Tabs>
+      {guard.dialog}
     </div>
   );
 }
@@ -205,6 +211,8 @@ function OSFormEdit({ id }: { id: string }) {
   );
   const [diagnosticoDirty, setDiagnosticoDirty] = useState(false);
   const [trocaPendente, setTrocaPendente] = useState<string | null>(null);
+  const guard = useUnsavedChangesGuard(diagnosticoDirty);
+  const userId = useAuthStore((s) => s.user?.id);
 
   function aplicarTroca(key: string) {
     setTab(key as OSTab);
@@ -254,11 +262,6 @@ function OSFormEdit({ id }: { id: string }) {
     enabled: !!os,
   });
 
-  const [removendo, setRemovendo] = useState<{
-    tipo: 'produto' | 'servico';
-    codigo: string;
-    descricao: string;
-  } | null>(null);
 
   function invalidate() {
     return Promise.all([
@@ -274,31 +277,53 @@ function OSFormEdit({ id }: { id: string }) {
       await invalidate();
       showToast('Alterações salvas.', 'success');
     },
-    onError: (err) =>
-      handleMutationError(
-        err,
-        showToast,
-        'Não foi possível salvar as alterações. Tente novamente.',
-      ),
+    onError: (err) => {
+      // Conflito tem diálogo próprio no DiagnosticoSection — toast aqui seria aviso duplicado.
+      if (err instanceof ApiError && err.code === 'OS_CONFLICT') return;
+      handleMutationError(err, showToast, 'Não foi possível salvar as alterações. Tente novamente.');
+    },
   });
+
+  /**
+   * Atualização otimista: o seletor muda na hora; se o backend recusar (transição inválida, sem
+   * conexão de verdade...), volta ao valor anterior. Enfileirado offline mantém o novo valor na tela.
+   */
+  async function aplicarOtimista(patch: Partial<OrdemServicoDTO>) {
+    await queryClient.cancelQueries({ queryKey: ['os', id] });
+    const anterior = queryClient.getQueryData<OrdemServicoDTO>(['os', id]);
+    if (anterior) queryClient.setQueryData<OrdemServicoDTO>(['os', id], { ...anterior, ...patch });
+    return { anterior };
+  }
+
+  function desfazerOtimista(err: unknown, contexto: { anterior?: OrdemServicoDTO } | undefined) {
+    if (err instanceof OfflineQueuedError) return;
+    if (contexto?.anterior) queryClient.setQueryData(['os', id], contexto.anterior);
+  }
 
   const statusMutation = useMutation({
     mutationFn: (status: OSStatus) => alterarStatusOS(id, status),
+    onMutate: (status) => aplicarOtimista({ status }),
     onSuccess: async () => {
       await invalidate();
       showToast('Status alterado.', 'success');
     },
-    onError: (err) => handleMutationError(err, showToast, 'Não foi possível alterar o status.'),
+    onError: (err, _status, contexto) => {
+      desfazerOtimista(err, contexto);
+      handleMutationError(err, showToast, 'Não foi possível alterar o status.');
+    },
   });
 
   const prioridadeMutation = useMutation({
     mutationFn: (prioridade: OSPrioridade) => atualizarOS(id, { prioridade }),
+    onMutate: (prioridade) => aplicarOtimista({ prioridade }),
     onSuccess: async () => {
       await invalidate();
       showToast('Prioridade atualizada.', 'success');
     },
-    onError: (err) =>
-      handleMutationError(err, showToast, 'Não foi possível atualizar a prioridade.'),
+    onError: (err, _prioridade, contexto) => {
+      desfazerOtimista(err, contexto);
+      handleMutationError(err, showToast, 'Não foi possível atualizar a prioridade.');
+    },
   });
 
   async function adicionarProduto(
@@ -373,15 +398,27 @@ function OSFormEdit({ id }: { id: string }) {
     }
   }
 
+  // Sem diálogo de confirmação: remove na hora e oferece "Desfazer" — confirmação o usuário clica sem ler,
+  // desfazer corrige o erro de verdade.
+  const restaurarMutation = useMutation({
+    mutationFn: (item: { tipo: 'produto' | 'servico'; codigo: string }) => restaurarItemOS(id, item.tipo, item.codigo),
+    onSuccess: (atualizado, item) => {
+      queryClient.setQueryData(['os', id], atualizado);
+      void queryClient.invalidateQueries({ queryKey: ['os-list'] });
+      showToast(`${item.tipo === 'produto' ? 'Produto' : 'Serviço'} restaurado.`, 'success');
+    },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível desfazer a remoção.'),
+  });
+
   const removerMutation = useMutation({
-    mutationFn: () =>
-      removendo!.tipo === 'produto'
-        ? removerProdutoOS(id, removendo!.codigo)
-        : removerServicoOS(id, removendo!.codigo),
-    onSuccess: async () => {
+    mutationFn: (item: { tipo: 'produto' | 'servico'; codigo: string; descricao: string }) =>
+      item.tipo === 'produto' ? removerProdutoOS(id, item.codigo) : removerServicoOS(id, item.codigo),
+    onSuccess: async (_os, item) => {
       await invalidate();
-      setRemovendo(null);
-      showToast('Removido.', 'success');
+      showToast(`"${item.descricao}" removido.`, 'success', {
+        actionLabel: 'Desfazer',
+        onAction: () => restaurarMutation.mutate(item),
+      });
     },
     onError: (err) =>
       handleMutationError(err, showToast, 'Não foi possível remover. Tente novamente.'),
@@ -407,6 +444,7 @@ function OSFormEdit({ id }: { id: string }) {
         queryClient.invalidateQueries({ queryKey: ['dashboard-operacional'] }),
       ]);
       showToast('OS excluída.', 'success');
+      guard.liberar();
       navigate('/os', { replace: true });
     },
     onError: (err) => handleMutationError(err, showToast, 'Não foi possível excluir a OS. Tente novamente.'),
@@ -416,7 +454,7 @@ function OSFormEdit({ id }: { id: string }) {
     return (
       <div className={`${styles.page} ${styles.detailPage}`}>
         <Skeleton height={32} width={240} />
-        <div style={{ marginTop: 'var(--space-4)' }}>
+        <div className={styles.skeletonGap}>
           <Skeleton height={120} />
         </div>
       </div>
@@ -510,7 +548,7 @@ function OSFormEdit({ id }: { id: string }) {
             />
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>Problema relatado</h2>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{os.problema || 'Não informado.'}</p>
+              <p className={styles.problemaTexto}>{os.problema || 'Não informado.'}</p>
             </section>
           </>
         )}
@@ -525,8 +563,22 @@ function OSFormEdit({ id }: { id: string }) {
               kmFinal={os.kmFinal}
               podeEditar={podeEditar}
               salvando={salvarMutation.isPending}
-              onSave={(patch) => salvarMutation.mutate(patch)}
+              onSave={(patch) =>
+                salvarMutation.mutateAsync(patch).then(
+                  () => 'ok' as const,
+                  async (err: unknown) => {
+                    if (err instanceof OfflineQueuedError) return 'queued' as const;
+                    if (err instanceof ApiError && err.code === 'OS_CONFLICT') {
+                      // Busca a versão atual pra "Usar a versão atual" mostrar o texto do outro usuário.
+                      await queryClient.invalidateQueries({ queryKey: ['os', id] });
+                      return 'conflict' as const;
+                    }
+                    return 'error' as const;
+                  },
+                )
+              }
               onDirtyChange={setDiagnosticoDirty}
+              draftStorageKey={userId ? draftKey(userId, 'os', id, 'diagnostico') : undefined}
             />
           </section>
         )}
@@ -547,10 +599,10 @@ function OSFormEdit({ id }: { id: string }) {
                 onAtualizarProduto={atualizarProduto}
                 onAtualizarServico={atualizarServico}
                 onRemoverProduto={(row: ItemGridRow) =>
-                  setRemovendo({ tipo: 'produto', codigo: row.codigo, descricao: row.descricao })
+                  !removerMutation.isPending && removerMutation.mutate({ tipo: 'produto', codigo: row.codigo, descricao: row.descricao })
                 }
                 onRemoverServico={(row: ItemGridRow) =>
-                  setRemovendo({ tipo: 'servico', codigo: row.codigo, descricao: row.descricao })
+                  !removerMutation.isPending && removerMutation.mutate({ tipo: 'servico', codigo: row.codigo, descricao: row.descricao })
                 }
               />
             </section>
@@ -599,17 +651,6 @@ function OSFormEdit({ id }: { id: string }) {
       </Tabs>
 
       <ConfirmDialog
-        open={removendo !== null}
-        title={`Remover ${removendo?.tipo === 'produto' ? 'produto' : 'serviço'}?`}
-        description={`Esta ação removerá "${removendo?.descricao}" da OS.`}
-        confirmLabel="Remover"
-        danger
-        loading={removerMutation.isPending}
-        onCancel={() => setRemovendo(null)}
-        onConfirm={() => removerMutation.mutate()}
-      />
-
-      <ConfirmDialog
         open={trocaPendente !== null}
         title="Descartar alterações não salvas?"
         description="Há alterações no Diagnóstico que ainda não foram salvas. Trocar de aba agora descarta o que foi digitado."
@@ -623,6 +664,7 @@ function OSFormEdit({ id }: { id: string }) {
           aplicarTroca(key);
         }}
       />
+      {guard.dialog}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { getClienteByCodigo } from '../api/clientes.api.js';
@@ -75,7 +75,8 @@ export function VeiculosPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buscaAtiva, cliente?.codigo, anoFabricacao]);
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isPlaceholderData, isError, error, refetch } = useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ['equipamentos', 'lista', buscaAtiva, cliente?.codigo, anoFabricacao, page, limit, sortBy, sortOrder],
     queryFn: () => listarEquipamentos(buscaAtiva, page, limit, cliente?.codigo, sortBy, sortOrder, anoFabricacao ? Number(anoFabricacao) : undefined),
   });
@@ -235,6 +236,7 @@ export function VeiculosPage() {
           ) : (
             <>
               <Table
+                stale={isPlaceholderData}
                 columns={columns}
                 data={data.items}
                 rowKey={(v) => v.codigo}

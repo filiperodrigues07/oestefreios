@@ -69,3 +69,18 @@ export interface Branding {
 
 /** Nome/logo do cliente pra sidebar — qualquer usuário autenticado pode ler (rota sem SYSTEM_SETTINGS). */
 export const getBranding = () => apiFetch<Branding>('/settings/branding');
+
+export interface SistemaStatus {
+  status: 'ok' | 'degraded' | 'down';
+  timestamp: string;
+  version: string;
+  postgres: 'ok' | 'down';
+  firebird: 'ok' | 'down' | 'mock';
+  cherpMode: 'mock' | 'firebird';
+  backup: { finishedAt: string; local: boolean; remote: boolean | null } | null;
+  sessoesAtivas: number;
+  uptimeSegundos: number;
+}
+
+/** Painel "Sistema" em Configurações (SYSTEM_SETTINGS). */
+export const getSistemaStatus = () => apiFetch<SistemaStatus>('/settings/sistema');

@@ -95,3 +95,9 @@
   .attentionChevron { display: none; }
   .mobileOnly { display: inline; }
 }
+
+/* Inputs de data sem contorno próprio: o foco aparece no contêiner. */
+.dateRange:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-surface);
+}

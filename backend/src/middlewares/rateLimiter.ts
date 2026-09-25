@@ -36,6 +36,15 @@ export const refreshLimiter = rateLimit({
   handler: (_req, res) => failure(res, 'RATE_LIMITED', 'Muitas requisições. Tente novamente em instantes.', 429),
 });
 
+/** Relato de erro do navegador (rota pública): um aparelho em loop de erro não pode encher o log. */
+export const clientErrorLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => res.status(204).end(),
+});
+
 /** Por usuário logado (ou IP, se ainda não houver) — o abuso é da conta, não do endereço. */
 const chavePorUsuario = (req: Request) => req.user?.id ?? ipKeyGenerator(req.ip ?? '');
 

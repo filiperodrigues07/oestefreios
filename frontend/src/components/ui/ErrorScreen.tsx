@@ -1,4 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
+import { codigoSuporte } from '../../api/httpClient.js';
+import { APP_VERSION } from '../../utils/appVersion.js';
 import { getBranding, type Branding } from '../../api/settings.api.js';
 import { queryClient } from '../../api/queryClient.js';
 import { useAuthStore } from '../../store/authStore.js';
@@ -26,6 +28,10 @@ export function ErrorScreen({
 }: ErrorScreenProps) {
   const online = useOnlineStatus();
   const presentation = getErrorPresentation(error, !online);
+  const suporte =
+    error && typeof error === 'object' && 'requestId' in error && typeof error.requestId === 'string'
+      ? codigoSuporte(error.requestId)
+      : undefined;
   const [branding, setBranding] = useState<Branding | undefined>(() =>
     queryClient.getQueryData<Branding>(['branding']),
   );
@@ -100,6 +106,8 @@ export function ErrorScreen({
         <h2 className={styles.title}>{title ?? presentation.title}</h2>
       )}
       <p className={styles.description}>{description ?? presentation.description}</p>
+      {suporte && <p className={styles.description}>Código para suporte: <strong>{suporte}</strong></p>}
+      <p className={styles.description} style={{ fontSize: 'var(--font-size-xs)', opacity: 0.7 }}>Versão {APP_VERSION}</p>
       <div className={styles.actions}>
         {presentation.recovery === 'login' ? (
           <a className={styles.primaryLink} href="/login">

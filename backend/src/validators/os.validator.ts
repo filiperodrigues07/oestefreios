@@ -35,8 +35,21 @@ export const atualizarOSSchema = z
     dataPrevista: z.iso.datetime().optional(),
     kmAtual: z.coerce.number().nonnegative().optional(),
     kmFinal: z.coerce.number().nonnegative().optional(),
+    /**
+     * Valores que o usuário tinha na tela quando começou a editar (controle de concorrência otimista).
+     * Se algum desses campos mudou no servidor desde então (outro usuário, ou direto no CHERP), responde 409.
+     */
+    base: z
+      .object({
+        diagnostico: z.string().optional(),
+        observacoes: z.string().optional(),
+        solucao: z.string().optional(),
+        kmAtual: z.number().nullable().optional(),
+        kmFinal: z.number().nullable().optional(),
+      })
+      .optional(),
   })
-  .refine((data) => Object.keys(data).length > 0, { message: 'Nenhum campo para atualizar.' });
+  .refine((data) => Object.keys(data).some((key) => key !== 'base'), { message: 'Nenhum campo para atualizar.' });
 
 /** Motivo fica como digitado (sem `toUppercase`) — é texto de auditoria, não dado do CHERP. */
 export const excluirOSSchema = z.object({

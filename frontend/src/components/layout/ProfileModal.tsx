@@ -3,6 +3,8 @@ import { useRef, useState } from 'react';
 import { logout, updateMyProfile, updateMyProfilePhoto } from '../../api/auth.api.js';
 import { getGeralSettings, saveGeralSettings } from '../../api/settings.api.js';
 import { clearOfflineQueue } from '../../pwa/offlineQueue.js';
+import { APP_VERSION } from '../../utils/appVersion.js';
+import { clearAllDrafts } from '../../utils/drafts.js';
 import { clearLegacyApiCache } from '../../pwa/apiCache.js';
 import { queryClient } from '../../api/queryClient.js';
 import { Avatar, Button, Input, Modal, useToast } from '../ui/index.js';
@@ -56,6 +58,7 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
     mutationFn: logout,
     onSettled: async () => {
       await Promise.allSettled([clearOfflineQueue(), clearLegacyApiCache()]);
+      clearAllDrafts();
       queryClient.clear();
       clearSession();
       onClose();
@@ -181,6 +184,9 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
             Sair
           </Button>
         </div>
+        <p style={{ margin: 0, fontSize: 'var(--font-size-xs)', color: 'var(--color-text-muted)', textAlign: 'center' }}>
+          Versão {APP_VERSION}
+        </p>
       </div>
     </Modal>
   );

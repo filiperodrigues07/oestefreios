@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
+import { prefetchOS } from '../routes/prefetch.js';
 import { baixarOSPdf, duplicarOS, excluirOS, listarOS, type OSSortBy } from '../api/os.api.js';
 import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import { baixarRelatorioOS } from '../api/relatorios.api.js';
@@ -136,7 +137,12 @@ export function OSListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [situacaoDocumento, prioridade, dataInicial, dataFinal, buscaAtiva]);
 
-  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
+  const { data, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useQuery({
+    // Troca de página/filtro mantém a lista anterior na tela (sem skeleton piscando) até a nova chegar.
+    placeholderData: keepPreviousData,
+    // Vários aparelhos na oficina: a lista se atualiza sozinha (só com a aba visível) e ao voltar pra aba.
+    refetchInterval: 45_000,
+    refetchOnWindowFocus: true,
     queryKey: [
       'os-list',
       situacaoDocumento,
@@ -457,19 +463,33 @@ export function OSListPage() {
 
         {!isLoading && !isError && data?.items.length === 0 && (
           <EmptyState
-            title="Nenhuma OS encontrada"
-            description="Ajuste os filtros ou crie uma nova OS."
-            action={filtrosAtivos > 0 || buscaAtiva ? <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button> : undefined}
+            title={filtrosAtivos > 0 || buscaAtiva ? 'Nenhuma OS encontrada' : 'Nenhuma OS ainda'}
+            description={
+              buscaAtiva
+                ? 'A busca procura por número da OS, cliente, placa ou veículo. Confira a digitação ou limpe os filtros.'
+                : filtrosAtivos > 0
+                  ? 'Nenhuma OS com esses filtros. Limpe os filtros para ver todas.'
+                  : 'Quando uma OS for aberta, aqui ou no CHERP, ela aparece nesta lista.'
+            }
+            action={
+              filtrosAtivos > 0 || buscaAtiva ? (
+                <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button>
+              ) : hasPermission('OS_CREATE') ? (
+                <LinkButton to="/os/nova">Abrir nova OS</LinkButton>
+              ) : undefined
+            }
           />
         )}
 
         {!isLoading && !isError && data && data.items.length > 0 && (
           <>
             <Table
+              stale={isPlaceholderData}
               columns={columns}
               data={data.items}
               rowKey={(os) => os.id}
               onRowClick={(os) => navigate(`/os/${os.id}`)}
+              onRowIntent={(os) => prefetchOS(os.id)}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortChange={handleSortChange}

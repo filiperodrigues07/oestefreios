@@ -5,6 +5,9 @@ import { App } from './App.js';
 import { queryClient } from './api/queryClient.js';
 import { ErrorBoundary } from './components/ui/ErrorBoundary.js';
 import './styles/global.css';
+import { installGlobalErrorReporting } from './utils/reportClientError.js';
+
+installGlobalErrorReporting();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

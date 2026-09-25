@@ -56,7 +56,15 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div key={t.id} className={`${styles.toast} ${styles[t.tone]}`}>
               <span>{t.message}</span>
               {t.actionLabel && t.onAction && (
-                <button type="button" className={styles.toastAction} onClick={t.onAction}>
+                <button
+                  type="button"
+                  className={styles.toastAction}
+                  onClick={() => {
+                    // Some ao tocar: evita disparar a mesma ação duas vezes (ex.: Desfazer).
+                    setToasts((prev) => prev.filter((x) => x.id !== t.id));
+                    t.onAction?.();
+                  }}
+                >
                   {t.actionLabel}
                 </button>
               )}

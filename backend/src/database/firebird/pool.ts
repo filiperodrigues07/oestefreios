@@ -63,6 +63,16 @@ export function closeFirebirdPool(): Promise<void> {
   return new Promise((resolve) => old.destroy(() => resolve()));
 }
 
+/** Acima disso a query vira `warn` no log — acha gargalo real em vez de chute. */
+export const SLOW_QUERY_MS = 500;
+
+/** Loga query lenta com o começo do SQL (sem parâmetros: podem ter dado de cliente). */
+export function logSeLenta(sql: string, inicio: number, contexto: string): void {
+  const duracaoMs = Math.round(performance.now() - inicio);
+  if (duracaoMs < SLOW_QUERY_MS) return;
+  logger.warn({ duracaoMs, sql: sql.replace(/\s+/g, ' ').trim().slice(0, 200), contexto }, 'Query Firebird lenta');
+}
+
 /**
  * node-firebird devolve array pra SELECT normal, mas um objeto único (não array)
  * pra INSERT/UPDATE/DELETE ... RETURNING de uma linha só — normaliza os dois casos.
@@ -74,10 +84,12 @@ function asRows(result: unknown): Record<string, unknown>[] {
 }
 
 export async function firebirdQuery<T = FirebirdRow>(sql: string, params: unknown[] = []): Promise<T[]> {
+  const inicio = performance.now();
   const db = await acquireConnection();
   return new Promise((resolve, reject) => {
     db.query(sql, params, (queryErr, result) => {
       db.detach();
+      logSeLenta(sql, inicio, 'query');
       if (queryErr) {
         logger.error({ err: queryErr }, 'Falha ao executar query Firebird');
         return reject(new ExternalServiceError());
@@ -127,9 +139,11 @@ export async function firebirdQueryWithBlob<T = FirebirdRow>(
   params: unknown[],
   blobColumn: string,
 ): Promise<T[]> {
+  const inicio = performance.now();
   const db = await acquireConnection();
   return new Promise((resolve, reject) => {
     db.query(sql, params, (queryErr, result) => {
+      logSeLenta(sql, inicio, 'query-blob');
       if (queryErr) {
         db.detach();
         logger.error({ err: queryErr }, 'Falha ao executar query Firebird');
@@ -169,7 +183,9 @@ export async function firebirdTransaction<T>(
 
       const query = <R = FirebirdRow>(sql: string, params: unknown[] = []): Promise<R[]> =>
         new Promise((res, rej) => {
+          const inicio = performance.now();
           transaction.query(sql, params, (queryErr, result) => {
+            logSeLenta(sql, inicio, 'transacao');
             if (queryErr) return rej(queryErr);
             res(asRows(result).map(decodeLatin1Row) as R[]);
           }, { timeout: 15_000 });

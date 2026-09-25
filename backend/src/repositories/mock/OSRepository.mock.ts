@@ -82,6 +82,9 @@ function seedOS(input: SeedOSInput): OrdemServico {
   };
 }
 
+/** Itens removidos por OS (chave id:tipo:codigo) — espelha as linhas ATIVO = 0 do CHERP. */
+const REMOVIDOS = new Map<string, OSItemProduto | OSItemServico>();
+
 const OS_LIST: OrdemServico[] = [
   seedOS({
     numero: 1234,
@@ -246,9 +249,28 @@ export class OSRepositoryMock implements IOSRepository {
       throw new Error('OS não encontrada.');
     }
     const atual = OS_LIST[idx]!;
+    // Espelha o soft delete do CHERP: guarda o item que saiu pra buscar*Removido (Desfazer).
+    for (const item of atual.produtos) {
+      if (patch.produtos && !patch.produtos.some((p) => p.produtoCodigo === item.produtoCodigo)) {
+        REMOVIDOS.set(`${id}:produto:${item.produtoCodigo}`, item);
+      }
+    }
+    for (const item of atual.servicos) {
+      if (patch.servicos && !patch.servicos.some((s) => s.servicoCodigo === item.servicoCodigo)) {
+        REMOVIDOS.set(`${id}:servico:${item.servicoCodigo}`, item);
+      }
+    }
     const atualizado: OrdemServico = { ...atual, ...patch };
     OS_LIST[idx] = atualizado;
     return atualizado;
+  }
+
+  async buscarProdutoRemovido(id: string, produtoCodigo: string): Promise<OSItemProduto | null> {
+    return (REMOVIDOS.get(`${id}:produto:${produtoCodigo}`) as OSItemProduto | undefined) ?? null;
+  }
+
+  async buscarServicoRemovido(id: string, servicoCodigo: string): Promise<OSItemServico | null> {
+    return (REMOVIDOS.get(`${id}:servico:${servicoCodigo}`) as OSItemServico | undefined) ?? null;
   }
 
   async atualizarItemProduto(id: string, produtoCodigo: string, patch: OSItemPatch): Promise<OrdemServico> {

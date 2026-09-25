@@ -28,3 +28,7 @@ backend/scripts/*-produto-nao-lancar-*
 
 # Boletos de cobranca (PDF privado, fora do /api/uploads publico)
 backend/storage/
+
+# Playwright
+test-results/
+playwright-report/
