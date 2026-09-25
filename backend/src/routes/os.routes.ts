@@ -19,6 +19,8 @@ import {
   removerImagemHandler,
   removerProdutoHandler,
   removerServicoHandler,
+  restaurarProdutoHandler,
+  restaurarServicoHandler,
 } from '../controllers/os.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
@@ -102,6 +104,14 @@ osRouter.delete(
   asyncHandler(removerProdutoHandler),
 );
 
+osRouter.post(
+  '/:id/produtos/:produtoCodigo/restaurar',
+  idempotency,
+  requirePermission('PRODUCT_ADD_TO_OS'),
+  validate(osItemProdutoParamSchema, 'params'),
+  asyncHandler(restaurarProdutoHandler),
+);
+
 osRouter.patch(
   '/:id/produtos/:produtoCodigo',
   requirePermission('PRODUCT_ADD_TO_OS'),
@@ -124,6 +134,14 @@ osRouter.delete(
   requirePermission('SERVICE_ADD_TO_OS'),
   validate(osItemServicoParamSchema, 'params'),
   asyncHandler(removerServicoHandler),
+);
+
+osRouter.post(
+  '/:id/servicos/:servicoCodigo/restaurar',
+  idempotency,
+  requirePermission('SERVICE_ADD_TO_OS'),
+  validate(osItemServicoParamSchema, 'params'),
+  asyncHandler(restaurarServicoHandler),
 );
 
 osRouter.patch(

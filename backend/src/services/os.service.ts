@@ -281,7 +281,7 @@ export async function atualizarOS(
   delete campos.base;
   const camposAlterados = Object.keys(campos).filter(
     (key) => campos[key as keyof AtualizarOSInput] !== undefined,
-  ) as (keyof AtualizarOSInput)[];
+  ) as Exclude<keyof AtualizarOSInput, 'base'>[];
 
   const atualizado = await osRepository.atualizar(id, {
     ...campos,
@@ -471,6 +471,54 @@ export async function removerServicoOS(
 
   await auditOS('OS_SERVICE_REMOVED', id, usuario, ctx, { before: item });
 
+  return toOSDTO(atualizado, usuario.permissions);
+}
+
+/**
+ * "Desfazer" depois de remover um item: reinsere a última linha removida (mesma quantidade, preço,
+ * desconto e descrição complementar) pelo mesmo caminho de inserção de sempre — nunca reativa a linha
+ * antiga (ATIVO = 1) pra não depender de trigger do CHERP. O preço vem do servidor, nunca do cliente.
+ */
+export async function restaurarItemOS(
+  id: string,
+  tipo: 'produto' | 'servico',
+  codigo: string,
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<OperationalOSDTO | AdminOSDTO> {
+  const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
+
+  if (tipo === 'produto') {
+    if (atual.produtos.some((p) => p.produtoCodigo === codigo)) {
+      throw new ValidationError('Este produto já está na OS.');
+    }
+    const item = await osRepository.buscarProdutoRemovido(id, codigo);
+    if (!item) throw new NotFoundError('Não há produto removido para restaurar.', 'OS_ITEM_NOT_FOUND');
+    const produtos = [...atual.produtos, item];
+    const atualizado = await osRepository.atualizar(id, {
+      produtos,
+      faturamento: calcularFaturamento(produtos, atual.servicos),
+      historico: [...atual.historico, historicoEntry(`Produto restaurado: ${item.descricao}`, usuario)],
+      cherpUsuarioChave: usuario.cherpUsuarioChave,
+    });
+    await auditOS('OS_PRODUCT_RESTORED', id, usuario, ctx, { after: item });
+    return toOSDTO(atualizado, usuario.permissions);
+  }
+
+  if (atual.servicos.some((s) => s.servicoCodigo === codigo)) {
+    throw new ValidationError('Este serviço já está na OS.');
+  }
+  const item = await osRepository.buscarServicoRemovido(id, codigo);
+  if (!item) throw new NotFoundError('Não há serviço removido para restaurar.', 'OS_ITEM_NOT_FOUND');
+  const servicos = [...atual.servicos, item];
+  const atualizado = await osRepository.atualizar(id, {
+    servicos,
+    faturamento: calcularFaturamento(atual.produtos, servicos),
+    historico: [...atual.historico, historicoEntry(`Serviço restaurado: ${item.descricao}`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
+  });
+  await auditOS('OS_SERVICE_RESTORED', id, usuario, ctx, { after: item });
   return toOSDTO(atualizado, usuario.permissions);
 }
 

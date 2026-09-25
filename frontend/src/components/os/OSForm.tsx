@@ -14,6 +14,7 @@ import {
   getOS,
   removerProdutoOS,
   removerServicoOS,
+  restaurarItemOS,
 } from '../../api/os.api.js';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
 import { ApiError } from '../../api/httpClient.js';
@@ -265,11 +266,6 @@ function OSFormEdit({ id }: { id: string }) {
     enabled: !!os,
   });
 
-  const [removendo, setRemovendo] = useState<{
-    tipo: 'produto' | 'servico';
-    codigo: string;
-    descricao: string;
-  } | null>(null);
 
   function invalidate() {
     return Promise.all([
@@ -383,15 +379,27 @@ function OSFormEdit({ id }: { id: string }) {
     }
   }
 
+  // Sem diálogo de confirmação: remove na hora e oferece "Desfazer" — confirmação o usuário clica sem ler,
+  // desfazer corrige o erro de verdade.
+  const restaurarMutation = useMutation({
+    mutationFn: (item: { tipo: 'produto' | 'servico'; codigo: string }) => restaurarItemOS(id, item.tipo, item.codigo),
+    onSuccess: (atualizado, item) => {
+      queryClient.setQueryData(['os', id], atualizado);
+      void queryClient.invalidateQueries({ queryKey: ['os-list'] });
+      showToast(`${item.tipo === 'produto' ? 'Produto' : 'Serviço'} restaurado.`, 'success');
+    },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível desfazer a remoção.'),
+  });
+
   const removerMutation = useMutation({
-    mutationFn: () =>
-      removendo!.tipo === 'produto'
-        ? removerProdutoOS(id, removendo!.codigo)
-        : removerServicoOS(id, removendo!.codigo),
-    onSuccess: async () => {
+    mutationFn: (item: { tipo: 'produto' | 'servico'; codigo: string; descricao: string }) =>
+      item.tipo === 'produto' ? removerProdutoOS(id, item.codigo) : removerServicoOS(id, item.codigo),
+    onSuccess: async (_os, item) => {
       await invalidate();
-      setRemovendo(null);
-      showToast('Removido.', 'success');
+      showToast(`"${item.descricao}" removido.`, 'success', {
+        actionLabel: 'Desfazer',
+        onAction: () => restaurarMutation.mutate(item),
+      });
     },
     onError: (err) =>
       handleMutationError(err, showToast, 'Não foi possível remover. Tente novamente.'),
@@ -572,10 +580,10 @@ function OSFormEdit({ id }: { id: string }) {
                 onAtualizarProduto={atualizarProduto}
                 onAtualizarServico={atualizarServico}
                 onRemoverProduto={(row: ItemGridRow) =>
-                  setRemovendo({ tipo: 'produto', codigo: row.codigo, descricao: row.descricao })
+                  !removerMutation.isPending && removerMutation.mutate({ tipo: 'produto', codigo: row.codigo, descricao: row.descricao })
                 }
                 onRemoverServico={(row: ItemGridRow) =>
-                  setRemovendo({ tipo: 'servico', codigo: row.codigo, descricao: row.descricao })
+                  !removerMutation.isPending && removerMutation.mutate({ tipo: 'servico', codigo: row.codigo, descricao: row.descricao })
                 }
               />
             </section>
@@ -622,17 +630,6 @@ function OSFormEdit({ id }: { id: string }) {
           </section>
         )}
       </Tabs>
-
-      <ConfirmDialog
-        open={removendo !== null}
-        title={`Remover ${removendo?.tipo === 'produto' ? 'produto' : 'serviço'}?`}
-        description={`Esta ação removerá "${removendo?.descricao}" da OS.`}
-        confirmLabel="Remover"
-        danger
-        loading={removerMutation.isPending}
-        onCancel={() => setRemovendo(null)}
-        onConfirm={() => removerMutation.mutate()}
-      />
 
       <ConfirmDialog
         open={trocaPendente !== null}

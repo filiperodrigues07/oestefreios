@@ -256,6 +256,18 @@ const ITEM_SERVICO_SELECT = `
   ORDER BY NUMITEM, CHAVE
 `;
 
+/** Linha mais recente (maior CHAVE) já removida de um código — o "Desfazer" reinsere a partir dela. */
+function itemRemovidoSelect(tabela: 'ITENSORDEMSERVICOPROD' | 'ITENSORDEMSERVICOSERV'): string {
+  return `
+  SELECT FIRST 1 CHAVE AS CHAVE, CHAVEOS AS CHAVEOS, CODPRODUTO AS CODIGO, CAST(PRODUTO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
+         UN AS UNIDADE, QTDE AS QTDE, VLRUNIT AS VLRUNIT, DESCVLR AS DESCVLR, VLRTOTAL AS VLRTOTAL,
+         CAST(DESCRCOMPLEMENT AS VARCHAR(1000) CHARACTER SET OCTETS) AS DESCRCOMPLEMENT
+  FROM ${tabela}
+  WHERE CHAVEOS = ? AND CODPRODUTO = ? AND ATIVO = 0
+  ORDER BY CHAVE DESC
+`;
+}
+
 interface WorkflowRow {
   id: string;
   status: string;
@@ -1033,6 +1045,18 @@ export class OSRepositoryFirebird implements IOSRepository {
       throw new NotFoundError('Ordem de serviço não encontrada.', 'OS_NOT_FOUND');
     }
     return atualizada;
+  }
+
+  async buscarProdutoRemovido(id: string, produtoCodigo: string): Promise<OSItemProduto | null> {
+    const chaveOS = await this.resolveChaveOS(id);
+    const rows = await firebirdQuery<ItemProdutoRow>(itemRemovidoSelect('ITENSORDEMSERVICOPROD'), [chaveOS, produtoCodigo]);
+    return rows[0] ? mapItemProduto(rows[0]) : null;
+  }
+
+  async buscarServicoRemovido(id: string, servicoCodigo: string): Promise<OSItemServico | null> {
+    const chaveOS = await this.resolveChaveOS(id);
+    const rows = await firebirdQuery<ItemServicoRow>(itemRemovidoSelect('ITENSORDEMSERVICOSERV'), [chaveOS, servicoCodigo]);
+    return rows[0] ? mapItemServico(rows[0]) : null;
   }
 
   private async resolveChaveOS(id: string): Promise<number> {

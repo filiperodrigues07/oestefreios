@@ -159,6 +159,15 @@ export function adicionarServicoOS(
   });
 }
 
+/** "Desfazer" depois de remover: o backend reinsere a última linha removida (preço vem do servidor). */
+export function restaurarItemOS(id: string, tipo: 'produto' | 'servico', codigo: string): Promise<OrdemServicoDTO> {
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/${tipo === 'produto' ? 'produtos' : 'servicos'}/${codigo}/restaurar`, {
+    method: 'POST',
+    // Desfazer só faz sentido na hora; replay offline minutos depois surpreenderia o usuário.
+    queueOffline: false,
+  });
+}
+
 export function removerServicoOS(id: string, servicoCodigo: string): Promise<OrdemServicoDTO> {
   return apiFetch<OrdemServicoDTO>(`/os/${id}/servicos/${servicoCodigo}`, {
     method: 'DELETE',
