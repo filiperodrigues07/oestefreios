@@ -14,6 +14,9 @@ function appVersion(): string {
   }
 }
 
+/** Backend do proxy /api — o E2E sobe uma instância isolada em outra porta (ver playwright.config.ts). */
+const API_PROXY_TARGET = process.env.API_PROXY_TARGET ?? 'http://localhost:3000';
+
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(appVersion()),
@@ -68,7 +71,7 @@ export default defineConfig({
     allowedHosts: ['.loca.lt'],
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
     },
@@ -77,7 +80,7 @@ export default defineConfig({
   preview: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: API_PROXY_TARGET,
         changeOrigin: true,
       },
     },

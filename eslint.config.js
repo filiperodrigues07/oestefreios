@@ -16,6 +16,8 @@ export default tseslint.config(
       'frontend/vite.config.ts.timestamp-*',
       '.claude/**',
       '.agents/**',
+      'test-results/**',
+      'playwright-report/**',
     ],
   },
   js.configs.recommended,

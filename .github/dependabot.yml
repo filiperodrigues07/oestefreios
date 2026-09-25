@@ -1,0 +1,18 @@
+# Atualizações semanais de dependências (npm dos três package.json e GitHub Actions).
+# Os PRs rodam o CI completo (lint, tipos, testes, E2E) antes de qualquer merge.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # Correções pequenas num PR só; major continua separado pra revisar com calma.
+      minor-e-patch:
+        update-types: [minor, patch]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

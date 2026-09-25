@@ -58,6 +58,7 @@ npm run dev        # backend (porta 3000) + frontend (porta 5173) em paralelo
 npm run lint
 npm run typecheck
 npm run test        # testes do backend, inclui a regra crítica de segurança financeira
+npm run test:e2e    # fluxo crítico da OS no navegador (Playwright)
 npm run build        # build de produção dos dois workspaces
 ```
 
@@ -129,6 +130,23 @@ O fluxo offline inclui manifest com ícones PNG, service worker para assets, ban
 - **Tela `/auditoria`**: lista paginada com filtro por evento/entidade, modal de detalhe com o diff completo. Só aparece no Perfil (nunca na navegação principal) para quem tem `SYSTEM_SETTINGS` — testado que o Mecânico não vê o link **e** que a API responde 403 se ele tentar acessar a URL direto (nunca confiar só em esconder na UI).
 - **Suite de testes de autorização** (`backend/src/__tests__/authorization.test.ts`, via `supertest` contra a instância real do Express): 401 sem token, 403 com token válido mas sem a permissão certa, 200 com a permissão certa, em `/os`, `/dashboard/admin`, `/audit-logs` e `/produtos` — incluindo a regra crítica (produto sem `precoUnitario` pro token sem `FINANCIAL_VIEW`). Mais um teste de ponta a ponta (`auditLog.test.ts`) provando que criar uma OS de verdade grava e aparece na consulta de auditoria.
 
+## Proteção contra erro de usuário e suporte (Fase 11)
+
+- **Alteração não salva**: sair da tela (menu, voltar, fechar/recarregar a aba) com formulário alterado pede confirmação (`hooks/useUnsavedChangesGuard.tsx`); fechar modal de usuário/veículo também (`hooks/useConfirmDiscard.tsx`).
+- **Rascunho local do diagnóstico**: o texto fica no aparelho enquanto não é salvo e é oferecido de volta ao reabrir a OS (`utils/drafts.ts`). Salvar com sucesso ou fazer logout apaga.
+- **Edição simultânea**: `PUT /os/:id` aceita `base` (valores vistos ao começar a editar). Se outro usuário, ou o próprio CHERP, mudou o campo nesse meio-tempo, o backend responde `409 OS_CONFLICT` e a tela pergunta qual versão fica.
+- **Desfazer em vez de confirmar**: remover produto/serviço é imediato, com "Desfazer" no toast (`POST /os/:id/{produtos|servicos}/:codigo/restaurar` reinsere a última linha removida, com preço do servidor).
+- **Código para suporte**: toda resposta tem `X-Request-Id`. Erro 5xx mostra os 8 primeiros caracteres na tela; `journalctl -u oeste-freios-backend | grep <código>` acha a causa.
+- **Erros de tela no log**: `POST /api/client-errors` recebe ErrorBoundary, erro de rota, `window.onerror` e promise sem `catch` (`utils/reportClientError.ts`).
+- **Versão visível**: hash do build no perfil, na tela de erro e no `/api/health`.
+- **Configurações > Sistema**: saúde do Firebird e do Postgres, último backup, usuários conectados, versão e fila offline do aparelho.
+- **Query lenta**: toda query Firebird acima de 500 ms vira `warn` no log.
+- **Atalhos**: `/` busca, `N` nova OS, `?` lista de atalhos (fora de campos de texto).
+
+## Testes E2E (Fase 10)
+
+`npm run test:e2e` roda o fluxo crítico da OS no Chromium (Playwright): criar, diagnóstico, status, aviso de saída, rascunho, desfazer remoção e edição simultânea. Sobe uma instância isolada (backend mock na porta 3100, Vite na 5190) sem conflitar com o `npm run dev`. Usa o Postgres do `DATABASE_URL` e cria o usuário de teste `e2e.supervisor@dev.local`. Roda também no CI, junto com `npm audit` de produção.
+
 ## Estrutura
 
 ```
@@ -165,4 +183,4 @@ frontend/src/
 
 ## Roadmap (próximas fases)
 
-Fase 10 (testes abrangentes — E2E, cobertura mais ampla além da autorização já feita na Fase 9) — em stand by. Visual/design: pendente, próximo passo combinado com o cliente depois de validar o funcional.
+Fase 10: E2E do fluxo crítico da OS feito (ver "Testes E2E"); E2E das outras telas (clientes, veículos, relatórios) ainda pendente. Visual/design: pendente, próximo passo combinado com o cliente depois de validar o funcional.
