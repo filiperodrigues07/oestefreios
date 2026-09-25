@@ -2,6 +2,9 @@ import { QueryCache, QueryClient } from '@tanstack/react-query';
 import { ApiError } from './httpClient.js';
 import { notifyToast } from '../components/ui/toastBus.js';
 
+const AVISO_REPETIDO_MS = 2 * 60_000;
+let ultimoAviso = { message: '', em: 0 };
+
 export const queryClient = new QueryClient({
   // Rede de segurança pra falha de leitura (GET) que a página não trata explicitamente com
   // seu próprio `isError` — mutações já mostram toast próprio por página (ver `handleMutationError`),
@@ -9,6 +12,10 @@ export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error) => {
       const message = error instanceof ApiError ? error.message : 'Não foi possível carregar os dados. Tente novamente.';
+      // Listas com atualização automática falham juntas (ex.: CHERP fora do ar): um aviso só, não um a cada ciclo.
+      const agora = Date.now();
+      if (message === ultimoAviso.message && agora - ultimoAviso.em < AVISO_REPETIDO_MS) return;
+      ultimoAviso = { message, em: agora };
       notifyToast(message, 'danger');
     },
   }),
