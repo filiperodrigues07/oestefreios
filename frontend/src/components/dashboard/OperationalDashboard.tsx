@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
+import { prefetchOS } from '../../routes/prefetch.js';
+import listaStyles from './OperationalDashboard.module.css';
 import { getOperationalDashboard } from '../../api/dashboard.api.js';
 import { StatTile } from '../charts/StatTile.js';
 import { Button, Card, EmptyState, ErrorState, PriorityBadge, Skeleton, StatusBadge } from '../ui/index.js';
@@ -47,19 +49,26 @@ export function OperationalDashboard() {
           <EmptyState title="Nenhuma OS atribuída a você" description="As atribuições são gerenciadas pela plataforma." />
         )}
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <div className={listaStyles.list}>
           {data.minhasOS.map((os) => (
-            <Link key={os.id} to={`/os/${os.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <Card elevated style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 'var(--space-3)' }}>
+            <Link
+              key={os.id}
+              to={`/os/${os.id}`}
+              className={listaStyles.link}
+              onPointerEnter={() => prefetchOS(os.id)}
+              onTouchStart={() => prefetchOS(os.id)}
+              onFocus={() => prefetchOS(os.id)}
+            >
+              <Card elevated className={listaStyles.row}>
                 <div>
-                  <div style={{ fontWeight: 600 }}>
+                  <div className={listaStyles.title}>
                     OS #{os.numero} · {os.clienteCodigo}
                   </div>
-                  <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                  <div className={listaStyles.meta}>
                     {os.equipamentoCodigo} · {new Date(os.dataAbertura).toLocaleDateString('pt-BR')}
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 'var(--space-2)', flexShrink: 0 }}>
+                <div className={listaStyles.badges}>
                   <PriorityBadge priority={os.prioridade} />
                   <StatusBadge status={os.status} />
                 </div>

@@ -140,16 +140,11 @@ function OSFormCreate() {
 
         <section className={styles.section}>
           <h2 className={styles.sectionTitle}>Problema relatado</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
+          <div className={styles.createStack}>
             <div>
               <label
                 htmlFor="problema"
-                style={{
-                  display: 'block',
-                  fontSize: 'var(--font-size-sm)',
-                  fontWeight: 500,
-                  marginBottom: 'var(--space-1)',
-                }}
+                className={styles.fieldLabel}
               >
                 Descrição
               </label>
@@ -180,7 +175,7 @@ function OSFormCreate() {
             {mutation.isError && (
               <p
                 role="alert"
-                style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}
+                className={styles.formError}
               >
                 {mutation.error instanceof Error ? mutation.error.message : 'Erro ao criar OS.'}
               </p>
@@ -459,7 +454,7 @@ function OSFormEdit({ id }: { id: string }) {
     return (
       <div className={`${styles.page} ${styles.detailPage}`}>
         <Skeleton height={32} width={240} />
-        <div style={{ marginTop: 'var(--space-4)' }}>
+        <div className={styles.skeletonGap}>
           <Skeleton height={120} />
         </div>
       </div>
@@ -553,7 +548,7 @@ function OSFormEdit({ id }: { id: string }) {
             />
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>Problema relatado</h2>
-              <p style={{ whiteSpace: 'pre-wrap' }}>{os.problema || 'Não informado.'}</p>
+              <p className={styles.problemaTexto}>{os.problema || 'Não informado.'}</p>
             </section>
           </>
         )}

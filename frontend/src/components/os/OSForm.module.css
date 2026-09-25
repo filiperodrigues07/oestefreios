@@ -172,3 +172,31 @@
   }
   .contextBar > span { flex-basis: 100%; }
 }
+
+.createStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.fieldLabel {
+  display: block;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  margin-bottom: var(--space-1);
+}
+
+.formError {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+}
+
+.skeletonGap {
+  margin-top: var(--space-4);
+}
+
+.problemaTexto {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

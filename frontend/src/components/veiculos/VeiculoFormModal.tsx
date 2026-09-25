@@ -192,40 +192,27 @@ function VeiculoFormContent({
         </>
       }
     >
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      <div className={styles.form}>
         {!clienteCodigo && (
           <div>
             {clienteEscolhido ? (
-              <div
-                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-              >
+              <div className={styles.clienteRow}>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 'var(--font-size-xs)',
-                      color: 'var(--color-text-secondary)',
-                    }}
-                  >
+                  <div className={styles.clienteLabel}>
                     Cliente
                   </div>
-                  <div style={{ fontWeight: 600 }}>{clienteEscolhido.nome}</div>
+                  <div className={styles.clienteNome}>{clienteEscolhido.nome}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setClienteEscolhido(null)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--color-primary)',
-                    cursor: 'pointer',
-                    fontSize: 'var(--font-size-sm)',
-                  }}
+                  className={styles.linkButton}
                 >
                   Trocar
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+              <div className={styles.stackSm}>
                 <ClienteSearch onSelect={setClienteEscolhido} />
                 <Button type="button" variant="secondary" size="sm" onClick={() => setNovoClienteAberto(true)}>
                   + Cadastrar novo cliente
@@ -250,11 +237,7 @@ function VeiculoFormContent({
         {veiculoEfetivo && <Input label="Placa" required value={form.placa} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={8} onChange={(e) => setForm({ ...form, placa: sanitizarPlaca(e.target.value) })} placeholder="AAA-9999 ou AAA9A99" />}
         {lookupMutation.isError && <p role="alert" className={styles.lookupError}>{lookupMutation.error instanceof Error ? lookupMutation.error.message : 'Não foi possível consultar a placa.'}</p>}
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
-            gap: 'var(--space-3)',
-          }}
+          className={styles.grid160}
         >
           <Input
             label="Marca"
@@ -270,11 +253,7 @@ function VeiculoFormContent({
           />
         </div>
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))',
-            gap: 'var(--space-3)',
-          }}
+          className={styles.grid120}
         >
           <Input
             label="Ano fab."
@@ -317,7 +296,7 @@ function VeiculoFormContent({
         <ConfirmDialog open={!!pendingLookup} title="Usar dados encontrados?" description="A consulta encontrou informações diferentes das preenchidas. Deseja substituir os dados atuais?" confirmLabel="Substituir dados" cancelLabel="Manter dados atuais" onConfirm={() => { if (pendingLookup) applyLookup(pendingLookup); setPendingLookup(null); }} onCancel={() => setPendingLookup(null)} />
 
         {carregandoDuplicado && (
-          <p role="status" style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+          <p role="status" className={styles.statusText}>
             Carregando cadastro existente...
           </p>
         )}
@@ -333,28 +312,20 @@ function VeiculoFormContent({
             return (
               <div
                 role="alert"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 'var(--space-1)',
-                  border: '1px solid var(--color-warning)',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-warning-surface)',
-                  padding: 'var(--space-3)',
-                }}
+                className={styles.duplicateBox}
               >
                 <strong>{isChassiDuplicado ? 'Chassi já cadastrado' : 'Placa já cadastrada'}</strong>
-                <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                <p className={styles.statusText}>
                   {err instanceof Error ? err.message : ''}
                 </p>
-                <p style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
+                <p className={styles.statusText}>
                   Os dados do cadastro existente foram carregados acima — revise e salve para atualizá-lo, ou cancele.
                 </p>
               </div>
             );
           }
           return (
-            <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
+            <p role="alert" className={styles.errorText}>
               {err instanceof Error ? err.message : 'Erro ao salvar veículo.'}
             </p>
           );

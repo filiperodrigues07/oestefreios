@@ -238,7 +238,7 @@ export function AuditoriaTab() {
       </section>
 
       {isLoading && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <div className={styles.detailStack}>
           <Skeleton height={56} />
           <Skeleton height={56} />
           <Skeleton height={56} />
@@ -261,17 +261,17 @@ export function AuditoriaTab() {
             key={entry.id}
             type="button"
             onClick={() => setSelecionado(entry)}
-            style={{ all: 'unset', cursor: 'pointer', display: 'block' }}
+            className={styles.entryButton}
           >
-            <Card elevated className={styles.entryCard} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Card elevated className={`${styles.entryCard} ${styles.entryRow}`}>
               <div>
-                <div style={{ fontWeight: 600 }}>{EVENT_LABELS[entry.event] ?? entry.event}</div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+                <div className={styles.entryTitle}>{EVENT_LABELS[entry.event] ?? entry.event}</div>
+                <div className={styles.meta}>
                   {entry.userName ?? 'Sistema'}
                   {entry.entityType && ` · ${entry.entityType} ${entry.entityId?.slice(0, 8)}`}
                 </div>
               </div>
-              <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', whiteSpace: 'nowrap' }}>
+              <div className={styles.metaNowrap}>
                 {new Date(entry.createdAt).toLocaleString('pt-BR')}
               </div>
             </Card>
@@ -291,7 +291,7 @@ export function AuditoriaTab() {
         onClose={() => setSelecionado(null)}
       >
         {selecionado && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+          <div className={styles.detailStack}>
             <Row label="Usuário" value={selecionado.userName ?? 'Sistema'} />
             <Row label="Data/hora" value={new Date(selecionado.createdAt).toLocaleString('pt-BR')} />
             {selecionado.entityType && <Row label="Entidade" value={`${selecionado.entityType} ${selecionado.entityId ?? ''}`} />}
@@ -299,19 +299,10 @@ export function AuditoriaTab() {
             {selecionado.userAgent && <Row label="Dispositivo" value={selecionado.userAgent} />}
             {selecionado.changes !== null && selecionado.changes !== undefined && (
               <div>
-                <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)', marginBottom: 'var(--space-1)' }}>
+                <div className={styles.detailLabel}>
                   Dados alterados
                 </div>
-                <pre
-                  style={{
-                    background: 'var(--color-neutral-surface)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: 'var(--space-3)',
-                    fontSize: 'var(--font-size-xs)',
-                    overflowX: 'auto',
-                    margin: 0,
-                  }}
-                >
+                <pre className={styles.diff}>
                   {JSON.stringify(selecionado.changes, null, 2)}
                 </pre>
               </div>
@@ -326,8 +317,8 @@ export function AuditoriaTab() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>{label}</div>
-      <div style={{ fontWeight: 500 }}>{value}</div>
+      <div className={styles.meta}>{label}</div>
+      <div className={styles.detailValue}>{value}</div>
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { readDraft, removeDraft, writeDraft } from '../../utils/drafts.js';
 import { somenteDigitos } from '../../utils/veiculoFormatters.js';
 import { Button, Modal } from '../ui/index.js';
+import styles from './DiagnosticoSection.module.css';
 
 interface DiagnosticoDraft {
   diagnostico: string;
@@ -193,12 +194,12 @@ export function DiagnosticoSection({
   if (!podeEditar) {
     return (
       <div>
-        <h2 style={{ fontSize: 'var(--font-size-md)', margin: 0 }}>Diagnóstico, observações e solução</h2>
-        <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+        <h2 className={styles.title}>Diagnóstico, observações e solução</h2>
+        <div className={styles.stackCompact}>
           <TextBlock label="Diagnóstico" value={diagnostico} />
           <TextBlock label="Observações" value={observacoes} />
           <TextBlock label="Serviço realizado" value={solucao} />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
+          <div className={styles.kmGrid}>
             <TextBlock label="KM na abertura" value={kmAtual !== undefined ? String(kmAtual) : undefined} />
             <TextBlock label="KM na entrega" value={kmFinal !== undefined ? String(kmFinal) : undefined} />
           </div>
@@ -209,8 +210,8 @@ export function DiagnosticoSection({
 
   return (
     <div>
-      <h2 style={{ fontSize: 'var(--font-size-md)', margin: 0 }}>Diagnóstico, observações e solução</h2>
-      <div style={{ marginTop: 'var(--space-2)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+      <h2 className={styles.title}>Diagnóstico, observações e solução</h2>
+      <div className={styles.stack}>
         {draftPendente && (
           <div role="status" className="draft-banner">
             <span>
@@ -226,13 +227,13 @@ export function DiagnosticoSection({
         <EditTextarea label="Observações" value={observacoesForm} onChange={(v) => alterar(setObservacoesForm, v)} />
         <EditTextarea label="Serviço realizado" value={solucaoForm} onChange={(v) => alterar(setSolucaoForm, v)} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-3)' }}>
+        <div className={styles.kmGrid}>
           <EditNumber label="KM na abertura" value={kmAtualForm} onChange={(v) => alterar(setKmAtualForm, v)} />
           <EditNumber label="KM na entrega" value={kmFinalForm} onChange={(v) => alterar(setKmFinalForm, v)} />
         </div>
         {kmAtualForm !== '' && kmFinalForm !== '' && Number(kmFinalForm) < Number(kmAtualForm) && (
           // Só avisa (não bloqueia): troca de painel/hodômetro zerado existe na vida real.
-          <p role="status" style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-warning-on-surface)' }}>
+          <p role="status" className={styles.kmWarning}>
             KM na entrega menor que na abertura. Confira se não houve erro de digitação.
           </p>
         )}
@@ -265,7 +266,7 @@ export function DiagnosticoSection({
           </>
         }
       >
-        <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
+        <p className={styles.conflictText}>
           Enquanto você editava, o diagnóstico foi alterado por outra pessoa (ou direto no CHERP). Seu texto
           continua na tela. Escolha qual versão fica gravada — ou feche para revisar antes.
         </p>
@@ -277,14 +278,14 @@ export function DiagnosticoSection({
 function TextBlock({ label, value }: { label: string; value?: string }) {
   return (
     <div>
-      <div style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-secondary)' }}>
+      <div className={styles.readLabel}>
         {label}
       </div>
-      <div>
+      <div className={styles.readValue}>
         {value?.trim() ? (
           value
         ) : (
-          <span style={{ color: 'var(--color-text-secondary)' }}>Não informado.</span>
+          <span className={styles.muted}>Não informado.</span>
         )}
       </div>
     </div>
@@ -305,7 +306,7 @@ function EditNumber({
     <div>
       <label
         htmlFor={id}
-        style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}
+        className={styles.label}
       >
         {label}
       </label>
@@ -319,16 +320,7 @@ function EditNumber({
         enterKeyHint="done"
         value={value}
         onChange={(e) => onChange(somenteDigitos(e.target.value, 8))}
-        style={{
-          width: '100%',
-          padding: '9px 10px',
-          borderRadius: 'var(--radius-sm)',
-          border: '1px solid var(--color-border)',
-          background: 'var(--color-surface)',
-          color: 'var(--color-text-primary)',
-          fontSize: 'var(--font-size-input)',
-          fontFamily: 'inherit',
-        }}
+        className={styles.field}
       />
     </div>
   );
@@ -348,7 +340,7 @@ function EditTextarea({
     <div>
       <label
         htmlFor={id}
-        style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 500, marginBottom: 'var(--space-1)' }}
+        className={styles.label}
       >
         {label}
       </label>
@@ -356,18 +348,9 @@ function EditTextarea({
         id={id}
         value={value}
         onChange={(e) => onChange(e.target.value.toLocaleUpperCase('pt-BR'))}
-        rows={2}
-        style={{
-          width: '100%',
-          padding: '9px 10px',
-          borderRadius: 'var(--radius-sm)',
-          border: '1px solid var(--color-border)',
-          background: 'var(--color-surface)',
-          color: 'var(--color-text-primary)',
-          fontSize: 'var(--font-size-input)',
-          fontFamily: 'inherit',
-          resize: 'vertical',
-        }}
+        rows={3}
+        autoCapitalize="characters"
+        className={styles.textarea}
       />
     </div>
   );
