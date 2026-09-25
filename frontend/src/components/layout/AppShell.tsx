@@ -340,7 +340,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 )}
               </button>
               {notificationsOpen && (
-                <div className={styles.notificationMenu} role="dialog" aria-label="Notificações">
+                <div className={styles.notificationMenu} role="region" aria-label="Notificações">
                   <div className={styles.notificationMenuHeader}>
                     <div>
                       <strong>Notificações</strong>

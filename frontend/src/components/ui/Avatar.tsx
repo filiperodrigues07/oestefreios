@@ -18,7 +18,7 @@ export function Avatar({ name, photoUrl, size = 36 }: AvatarProps) {
   const src = photoUrl?.startsWith('/uploads/') ? `/api${photoUrl}` : photoUrl;
   return (
     <div className={styles.avatar} style={{ width: size, height: size, fontSize: size * 0.4 }} aria-hidden="true">
-      {src ? <img src={src} alt="" /> : getInitials(name)}
+      {src ? <img src={src} alt="" width={size} height={size} loading="lazy" decoding="async" /> : getInitials(name)}
     </div>
   );
 }

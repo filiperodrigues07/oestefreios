@@ -1,10 +1,11 @@
 import { useMutation } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { logout } from '../../api/auth.api.js';
 import { clearOfflineQueue } from '../../pwa/offlineQueue.js';
 import { clearLegacyApiCache } from '../../pwa/apiCache.js';
 import { queryClient } from '../../api/queryClient.js';
+import { useClickOutside } from '../../hooks/useClickOutside.js';
 import { usePendingOperations } from '../../hooks/usePendingOperations.js';
 import { Avatar } from '../ui/Avatar.js';
 import { PendingOperationsModal } from './PendingOperationsModal.js';
@@ -47,15 +48,7 @@ export function SidebarProfile({
     },
   });
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  useClickOutside(wrapperRef, () => setOpen(false), open);
 
   if (!user) return null;
 

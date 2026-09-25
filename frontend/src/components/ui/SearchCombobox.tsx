@@ -12,6 +12,7 @@ import {
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
 import styles from './Input.module.css';
 import comboStyles from './SearchCombobox.module.css';
+import { useClickOutside } from '../../hooks/useClickOutside.js';
 
 export interface SearchComboboxItem {
   key: string;
@@ -82,15 +83,7 @@ function SearchComboboxInner<T extends SearchComboboxItem>(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery, minChars]);
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  useClickOutside(wrapperRef, () => setOpen(false), open);
 
   const showResults = open && (query.trim().length >= minChars || forcedShow);
 

@@ -3,6 +3,7 @@ import { ActionIcon } from './ActionIcon.js';
 import { Button } from './Button.js';
 import { useToast } from './ToastProvider.js';
 import styles from './ExportButtons.module.css';
+import { useClickOutside } from '../../hooks/useClickOutside.js';
 
 interface ExportButtonsProps {
   onExportarExcel: () => Promise<void>;
@@ -20,15 +21,7 @@ export function ExportButtons({ onExportarExcel, onExportarPdf, size = 'sm' }: E
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-        setAberto(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  useClickOutside(wrapperRef, () => setAberto(false), aberto);
 
   useEffect(() => {
     if (aberto) itemRefs.current[0]?.focus();
