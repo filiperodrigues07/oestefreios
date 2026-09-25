@@ -12,12 +12,20 @@ export class ApiError extends Error {
   code: string;
   status?: number;
   details?: unknown;
-  constructor(code: string, message: string, status?: number, details?: unknown) {
+  /** X-Request-Id da resposta — o mesmo id do log do backend. */
+  requestId?: string;
+  constructor(code: string, message: string, status?: number, details?: unknown, requestId?: string) {
     super(message);
     this.code = code;
     this.status = status;
     this.details = details;
+    this.requestId = requestId;
   }
+}
+
+/** Primeiros 8 caracteres do requestId: curto pra ditar por telefone, único o bastante pra achar no log. */
+export function codigoSuporte(requestId: string | undefined): string | undefined {
+  return requestId ? requestId.slice(0, 8) : undefined;
 }
 
 let refreshInFlight: Promise<boolean> | null = null;
@@ -171,7 +179,10 @@ export async function apiFetch<T>(
     const message =
       body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
     const details = body && !body.success ? body.error.details : undefined;
-    throw new ApiError(code, message, res.status, details);
+    const requestId = res.headers.get('X-Request-Id') ?? undefined;
+    // Erro do servidor: o texto já diz "tente novamente"; o código permite achar a causa no log sem adivinhar.
+    const suporte = res.status >= 500 && requestId ? ` (código para suporte: ${codigoSuporte(requestId)})` : '';
+    throw new ApiError(code, message + suporte, res.status, details, requestId);
   }
 
   return body.data;

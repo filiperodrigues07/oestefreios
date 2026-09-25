@@ -43,3 +43,11 @@ describe('esqueciSenhaEmailLimiter', () => {
     expect((await request(app).post('/f').send({ email: `outro-${Date.now()}@teste.local` })).status).toBe(200);
   });
 });
+
+describe('X-Request-Id', () => {
+  it('toda resposta da API devolve o id usado no log (código para suporte)', async () => {
+    const { app } = await import('../app.js');
+    const res = await request(app).get('/api/rota-que-nao-existe');
+    expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
