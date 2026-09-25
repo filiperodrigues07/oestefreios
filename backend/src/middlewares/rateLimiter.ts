@@ -1,4 +1,5 @@
-import rateLimit from 'express-rate-limit';
+import type { Request } from 'express';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { failure } from '../utils/apiResponse.js';
 
 export const generalLimiter = rateLimit({
@@ -33,4 +34,51 @@ export const refreshLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true,
   handler: (_req, res) => failure(res, 'RATE_LIMITED', 'Muitas requisições. Tente novamente em instantes.', 429),
+});
+
+/** Por usuário logado (ou IP, se ainda não houver) — o abuso é da conta, não do endereço. */
+const chavePorUsuario = (req: Request) => req.user?.id ?? ipKeyGenerator(req.ip ?? '');
+
+/**
+ * Consultas externas (CNPJ, CEP, inscrição estadual, placa): cada chamada gasta cota de API paga ou de terceiros,
+ * então um único usuário não pode esgotá-la. Deve vir DEPOIS do authenticate.
+ */
+export const consultaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: chavePorUsuario,
+  handler: (_req, res) => failure(res, 'RATE_LIMITED', 'Muitas consultas em pouco tempo. Aguarde alguns minutos.', 429),
+});
+
+/** Relatórios, exportações e PDFs: consultas pesadas ao CHERP e geração de arquivo em memória. */
+export const exportLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: chavePorUsuario,
+  handler: (_req, res) => failure(res, 'RATE_LIMITED', 'Muitas exportações em pouco tempo. Aguarde alguns minutos.', 429),
+});
+
+/**
+ * "Esqueci a senha" tem orçamento próprio (não divide com o login): sempre responde sucesso, então o
+ * skipSuccessfulRequests não serve. Um limite por IP e outro por e-mail evitam spam de e-mail para a caixa de alguém.
+ */
+export const esqueciSenhaIpLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => failure(res, 'RATE_LIMITED', 'Muitas solicitações. Tente novamente mais tarde.', 429),
+});
+
+export const esqueciSenhaEmailLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => `email:${String((req.body as { email?: unknown } | undefined)?.email ?? '').trim().toLowerCase()}`,
+  handler: (_req, res) => failure(res, 'RATE_LIMITED', 'Muitas solicitações para este e-mail. Tente novamente mais tarde.', 429),
 });

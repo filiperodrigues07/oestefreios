@@ -14,6 +14,7 @@ import type { AuthenticatedUser, Permission } from '../types/auth.types.js';
 import { logger } from '../utils/logger.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
+import { escaparHtml } from '../utils/html.js';
 import { isSmtpConfigured, sendEmail } from './settings.service.js';
 
 export interface CreateUserInput {
@@ -155,7 +156,7 @@ async function sendInviteEmail(userId: string, name: string, email: string): Pro
     await sendEmail(
       email,
       'Bem-vindo(a) ao Oeste Freios — defina sua senha',
-      `<p>Olá, ${name}.</p>
+      `<p>Olá, ${escaparHtml(name)}.</p>
        <p>Uma conta foi criada pra você no Oeste Freios. Clique no link abaixo pra definir sua senha de acesso — ele expira em 72 horas:</p>
        <p><a href="${link}">${link}</a></p>`,
     );

@@ -148,7 +148,7 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
           {imagens.map((img) => (
             <div key={img.identificador} className={styles.card}>
               {urls[img.identificador] ? (
-                <img src={urls[img.identificador]} alt={img.descricao || img.nomeArquivo} className={styles.thumb} />
+                <img src={urls[img.identificador]} alt={img.descricao || img.nomeArquivo} className={styles.thumb} loading="lazy" decoding="async" />
               ) : (
                 <Skeleton height={120} />
               )}

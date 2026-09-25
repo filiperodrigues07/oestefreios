@@ -22,6 +22,8 @@ import {
 } from '../controllers/os.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
+import { idempotency } from '../middlewares/idempotency.js';
+import { exportLimiter } from '../middlewares/rateLimiter.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
@@ -48,12 +50,13 @@ osRouter.use(authenticate, requirePermission('OS_VIEW'));
 
 osRouter.get('/', validate(listarOSQuerySchema, 'query'), asyncHandler(listOSHandler));
 osRouter.get('/:id', validate(osIdParamSchema, 'params'), asyncHandler(getOSByIdHandler));
-osRouter.get('/:id/pdf', validate(osIdParamSchema, 'params'), asyncHandler(getOSPdfHandler));
+osRouter.get('/:id/pdf', exportLimiter, validate(osIdParamSchema, 'params'), asyncHandler(getOSPdfHandler));
 
-osRouter.post('/', requirePermission('OS_CREATE'), validate(criarOSSchema), asyncHandler(criarOSHandler));
+osRouter.post('/', idempotency, requirePermission('OS_CREATE'), validate(criarOSSchema), asyncHandler(criarOSHandler));
 
 osRouter.post(
   '/:id/duplicar',
+  idempotency,
   requirePermission('OS_CREATE'),
   validate(osIdParamSchema, 'params'),
   asyncHandler(duplicarOSHandler),
@@ -85,6 +88,7 @@ osRouter.patch(
 
 osRouter.post(
   '/:id/produtos',
+  idempotency,
   requirePermission('PRODUCT_ADD_TO_OS'),
   validate(osIdParamSchema, 'params'),
   validate(adicionarProdutoSchema),
@@ -108,6 +112,7 @@ osRouter.patch(
 
 osRouter.post(
   '/:id/servicos',
+  idempotency,
   requirePermission('SERVICE_ADD_TO_OS'),
   validate(osIdParamSchema, 'params'),
   validate(adicionarServicoSchema),

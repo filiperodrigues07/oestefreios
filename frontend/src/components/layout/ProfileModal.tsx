@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { logout, updateMyProfile, updateMyProfilePhoto } from '../../api/auth.api.js';
 import { getGeralSettings, saveGeralSettings } from '../../api/settings.api.js';
 import { clearOfflineQueue } from '../../pwa/offlineQueue.js';
+import { clearLegacyApiCache } from '../../pwa/apiCache.js';
+import { queryClient } from '../../api/queryClient.js';
 import { Avatar, Button, Input, Modal, useToast } from '../ui/index.js';
 import { hasPermission, useAuthStore } from '../../store/authStore.js';
 import { useThemeStore } from '../../store/themeStore.js';
@@ -28,9 +30,10 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
   const [email, setEmail] = useState(user?.email ?? '');
   const photoInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (!open) setEditando(false);
-  }, [open]);
+  function fechar() {
+    setEditando(false);
+    onClose();
+  }
 
   const photoMutation = useMutation({
     mutationFn: updateMyProfilePhoto,
@@ -52,7 +55,8 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: async () => {
-      await clearOfflineQueue();
+      await Promise.allSettled([clearOfflineQueue(), clearLegacyApiCache()]);
+      queryClient.clear();
       clearSession();
       onClose();
       window.location.assign('/login');
@@ -81,7 +85,7 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
   if (!user) return null;
 
   return (
-    <Modal open={open} title="Meu perfil" onClose={onClose}>
+    <Modal open={open} title="Meu perfil" onClose={fechar}>
       <div className={styles.body}>
         <div className={styles.identity}>
           <div className={styles.photoControl}>
@@ -93,7 +97,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
               accept="image/png,image/jpeg,image/webp"
               onChange={(event) => selecionarFoto(event.target.files?.[0])}
             />
-            <Button size="sm" variant="secondary" loading={photoMutation.isPending} onClick={() => photoInputRef.current?.click()}>
+            <Button
+              size="sm"
+              variant="secondary"
+              loading={photoMutation.isPending}
+              onClick={() => photoInputRef.current?.click()}
+            >
               Alterar foto
             </Button>
           </div>
@@ -106,19 +115,28 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
           ) : (
             <div className={styles.editFields}>
               <Input label="Nome" value={name} onChange={(e) => setName(e.target.value)} />
-              <Input label="E-mail" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              <Input
+                label="E-mail"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
           )}
         </div>
 
         {saveMutation.isError && (
           <p role="alert" className={styles.error}>
-            {saveMutation.error instanceof Error ? saveMutation.error.message : 'Erro ao salvar perfil.'}
+            {saveMutation.error instanceof Error
+              ? saveMutation.error.message
+              : 'Erro ao salvar perfil.'}
           </p>
         )}
         {photoMutation.isError && (
           <p role="alert" className={styles.error}>
-            {photoMutation.error instanceof Error ? photoMutation.error.message : 'Erro ao enviar a foto.'}
+            {photoMutation.error instanceof Error
+              ? photoMutation.error.message
+              : 'Erro ao enviar a foto.'}
           </p>
         )}
 
@@ -127,7 +145,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
             <Button size="sm" variant="secondary" onClick={() => setEditando(false)}>
               Cancelar
             </Button>
-            <Button size="sm" onClick={() => saveMutation.mutate()} loading={saveMutation.isPending} disabled={!name.trim() || !email.trim()}>
+            <Button
+              size="sm"
+              onClick={() => saveMutation.mutate()}
+              loading={saveMutation.isPending}
+              disabled={!name.trim() || !email.trim()}
+            >
               Salvar
             </Button>
           </div>
@@ -149,7 +172,12 @@ export function ProfileModal({ open, onClose }: ProfileModalProps) {
         {podeConfigurarSistema && <AccentColorSection />}
 
         <div className={styles.actionsRow}>
-          <Button size="sm" variant="danger" onClick={() => logoutMutation.mutate()} loading={logoutMutation.isPending}>
+          <Button
+            size="sm"
+            variant="danger"
+            onClick={() => logoutMutation.mutate()}
+            loading={logoutMutation.isPending}
+          >
             Sair
           </Button>
         </div>
@@ -165,22 +193,21 @@ function AccentColorSection() {
   const { data } = useQuery({ queryKey: ['settings', 'geral'], queryFn: getGeralSettings });
   const [cor, setCor] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (data && cor === null) setCor(data.corDestaque || '#0369a1');
-  }, [data, cor]);
-
   const saveMutation = useMutation({
     mutationFn: (corDestaque: string) => saveGeralSettings({ ...data!, corDestaque }),
     onSuccess: (saved) => {
       queryClient.setQueryData(['settings', 'geral'], saved);
-      queryClient.setQueryData(['branding'], (old: { nomeEmpresa: string; logoUrl: string; corDestaque: string } | undefined) =>
-        old ? { ...old, corDestaque: saved.corDestaque } : old,
+      queryClient.setQueryData(
+        ['branding'],
+        (old: { nomeEmpresa: string; logoUrl: string; corDestaque: string } | undefined) =>
+          old ? { ...old, corDestaque: saved.corDestaque } : old,
       );
       showToast('Cor de destaque atualizada.', 'success');
     },
   });
 
-  if (!data || cor === null) return null;
+  if (!data) return null;
+  const corAtual = cor ?? data.corDestaque ?? '#0369a1';
 
   return (
     <section className={styles.section}>
@@ -188,12 +215,17 @@ function AccentColorSection() {
       <div className={styles.accentRow}>
         <input
           type="color"
-          value={cor}
+          value={corAtual}
           onChange={(e) => setCor(e.target.value)}
           className={styles.colorInput}
           aria-label="Cor de destaque"
         />
-        <Button size="sm" onClick={() => saveMutation.mutate(cor)} loading={saveMutation.isPending} disabled={cor === data.corDestaque}>
+        <Button
+          size="sm"
+          onClick={() => saveMutation.mutate(corAtual)}
+          loading={saveMutation.isPending}
+          disabled={corAtual === data.corDestaque}
+        >
           Salvar
         </Button>
       </div>

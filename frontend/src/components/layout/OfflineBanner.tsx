@@ -9,7 +9,8 @@ export function OfflineBanner() {
 
   return (
     <div className={styles.banner} role="status">
-      Você está offline. Mostrando os últimos dados carregados — alterações ficam pendentes até a conexão voltar.
+      Você está offline. Dados já abertos podem continuar visíveis; novas consultas precisam de
+      conexão. Alterações permitidas ficam pendentes.
     </div>
   );
 }

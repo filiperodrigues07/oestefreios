@@ -15,6 +15,7 @@ import { parseDurationMs } from '../utils/parseDuration.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
 import { adquirirVaga, garantirPresenca, liberar, sessaoUnicaAtiva, usuarioIsentoDeLimite } from './license.service.js';
+import { escaparHtml } from '../utils/html.js';
 import { isSmtpConfigured, sendEmail } from './settings.service.js';
 
 function toJwtPayload(user: UserWithRole): JwtPayload {
@@ -67,19 +68,27 @@ async function audit(event: string, userId: string | null, ctx: RequestContext, 
   await recordAudit({ userId, userName, event, ip: ctx.ip, userAgent: ctx.userAgent });
 }
 
+let hashFalsoEmCache: Promise<string> | null = null;
+function hashFalso(): Promise<string> {
+  hashFalsoEmCache ??= hashPassword(randomBytes(16).toString('hex'));
+  return hashFalsoEmCache;
+}
+
 export async function login(email: string, password: string, ctx: RequestContext) {
   const user = await userRepository.findByEmail(email);
 
   // Mesma mensagem genérica para email inexistente ou senha errada — não enumera usuários.
   const genericError = () => new UnauthorizedError('Credenciais inválidas.', 'INVALID_CREDENTIALS');
 
+  // Sempre gasta o mesmo tempo de argon2, exista o usuário ou não — senão a resposta mais rápida revela e-mails cadastrados.
+  const senhaConfere = await verifyPassword(user?.passwordHash ?? (await hashFalso()), password).catch(() => false);
+
   if (!user || !user.isActive) {
     await audit('LOGIN_FAILURE', user?.id ?? null, ctx, user?.name);
     throw genericError();
   }
 
-  const valid = await verifyPassword(user.passwordHash, password);
-  if (!valid) {
+  if (!senhaConfere) {
     await audit('LOGIN_FAILURE', user.id, ctx, user.name);
     throw genericError();
   }
@@ -188,7 +197,7 @@ export async function forgotPassword(email: string, ctx: RequestContext): Promis
     await sendEmail(
       user.email,
       'Redefinição de senha — Oeste Freios',
-      `<p>Olá, ${user.name}.</p>
+      `<p>Olá, ${escaparHtml(user.name)}.</p>
        <p>Recebemos um pedido para redefinir sua senha. Clique no link abaixo — ele expira em 45 minutos:</p>
        <p><a href="${link}">${link}</a></p>
        <p>Se você não pediu essa redefinição, pode ignorar este e-mail.</p>`,

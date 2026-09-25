@@ -7,6 +7,7 @@ import { usePwaUpdate } from './hooks/usePwaUpdate.js';
 import { useTheme } from './hooks/useTheme.js';
 import { router } from './routes/router.js';
 import { useAuthStore } from './store/authStore.js';
+import { clearLegacyApiCache } from './pwa/apiCache.js';
 
 /** Efeitos que dependem do ToastProvider (fila offline, atualização do PWA) — precisam estar por dentro dele. */
 function AppEffects() {
@@ -20,9 +21,13 @@ export function App() {
   const clearSession = useAuthStore((s) => s.clearSession);
 
   useEffect(() => {
-    bootstrapSession().then((ok) => {
-      if (!ok) clearSession();
-    });
+    // Limpa dados de API persistidos pela versão antiga antes de restaurar a sessão.
+    void clearLegacyApiCache()
+      .catch(() => undefined)
+      .then(() => bootstrapSession())
+      .then((ok) => {
+        if (!ok) clearSession();
+      });
   }, [clearSession]);
 
   return (

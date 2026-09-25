@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
 import { Modal, Skeleton, useToast } from '../ui/index.js';
@@ -21,9 +21,10 @@ interface ClienteFormModalProps {
 export function ClienteFormModal({ open, mode, codigo, onClose, onSaved }: ClienteFormModalProps) {
   const { showToast } = useToast();
   const [clienteCarregado, setClienteCarregado] = useState<ClienteDTO | null>(null);
-  useEffect(() => {
-    if (!open) setClienteCarregado(null);
-  }, [open]);
+  function fechar() {
+    setClienteCarregado(null);
+    onClose();
+  }
   const { data: clienteInicial, isLoading } = useQuery({
     queryKey: ['cliente', codigo],
     queryFn: () => getClienteByCodigo(codigo!),
@@ -31,7 +32,7 @@ export function ClienteFormModal({ open, mode, codigo, onClose, onSaved }: Clien
   });
 
   return (
-    <Modal open={open} title={mode === 'edit' || clienteCarregado ? 'Editar cliente' : 'Novo cliente'} onClose={onClose}>
+    <Modal open={open} title={mode === 'edit' || clienteCarregado ? 'Editar cliente' : 'Novo cliente'} onClose={fechar}>
       {mode === 'edit' && isLoading ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
           <Skeleton height={40} />
@@ -48,7 +49,7 @@ export function ClienteFormModal({ open, mode, codigo, onClose, onSaved }: Clien
             showToast(mode === 'edit' || clienteCarregado ? 'Cliente atualizado.' : 'Cliente cadastrado.', 'success');
             onSaved(cliente);
           }}
-          onCancel={onClose}
+          onCancel={fechar}
         />
       )}
     </Modal>

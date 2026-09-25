@@ -1,4 +1,5 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import * as Firebird from 'node-firebird';
 import request from 'supertest';
 import { app } from '../app.js';
 import { env } from '../config/env.js';
@@ -146,14 +147,22 @@ describe('auditoria de negócio', () => {
   });
 
   it('registra Firebird sem senha em changes', async () => {
-    const current = await request(app).get('/api/settings/firebird').set('Authorization', `Bearer ${adminToken}`);
-    expect(current.status).toBe(200);
-    const updated = await request(app).put('/api/settings/firebird').set('Authorization', `Bearer ${adminToken}`)
-      .send(current.body.data);
-    expect(updated.status).toBe(200);
-    const audit = await pool.query<{ changes: unknown }>(
-      "SELECT changes FROM audit_logs WHERE event = 'SETTINGS_FIREBIRD_UPDATED' ORDER BY created_at DESC LIMIT 1");
-    expect(audit.rows[0]?.changes).toBeDefined();
-    expect(JSON.stringify(audit.rows[0]?.changes)).not.toMatch(/"password"|enc:v1:/i);
+    // Esta prova é sobre o log; não deve depender de uma conexão externa ao CHERP.
+    const attach = vi.spyOn(Firebird, 'attach').mockImplementation((_options, callback) => {
+      callback(new Error('Firebird indisponível no teste'), undefined!);
+    });
+    try {
+      const current = await request(app).get('/api/settings/firebird').set('Authorization', `Bearer ${adminToken}`);
+      expect(current.status).toBe(200);
+      const updated = await request(app).put('/api/settings/firebird').set('Authorization', `Bearer ${adminToken}`)
+        .send(current.body.data);
+      expect(updated.status).toBe(200);
+      const audit = await pool.query<{ changes: unknown }>(
+        "SELECT changes FROM audit_logs WHERE event = 'SETTINGS_FIREBIRD_UPDATED' ORDER BY created_at DESC LIMIT 1");
+      expect(audit.rows[0]?.changes).toBeDefined();
+      expect(JSON.stringify(audit.rows[0]?.changes)).not.toMatch(/"password"|enc:v1:/i);
+    } finally {
+      attach.mockRestore();
+    }
   });
 });

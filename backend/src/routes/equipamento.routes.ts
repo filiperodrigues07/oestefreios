@@ -7,6 +7,7 @@ import {
   searchEquipamentosHandler,
 } from '../controllers/equipamento.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
+import { consultaLimiter } from '../middlewares/rateLimiter.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -22,7 +23,7 @@ equipamentoRouter.use(authenticate);
 
 equipamentoRouter.get('/', validate(searchQuerySchema, 'query'), asyncHandler(searchEquipamentosHandler));
 equipamentoRouter.get('/lookup/quota', requirePermission('OS_CREATE'), asyncHandler(getVehicleLookupQuotaHandler));
-equipamentoRouter.post('/lookup', requirePermission('OS_CREATE'), validate(vehicleLookupSchema), asyncHandler(lookupVehiclePlateHandler));
+equipamentoRouter.post('/lookup', consultaLimiter, requirePermission('OS_CREATE'), validate(vehicleLookupSchema), asyncHandler(lookupVehiclePlateHandler));
 equipamentoRouter.get('/:codigo', validate(codigoParamSchema, 'params'), asyncHandler(getEquipamentoByCodigoHandler));
 
 equipamentoRouter.post(

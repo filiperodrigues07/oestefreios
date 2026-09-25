@@ -64,14 +64,21 @@ export function CatalogTable<T extends CatalogItemBase>({
   onClearExtraFilters,
 }: CatalogTableProps<T>) {
   const [filtroInput, setFiltroInput] = useState(initialSearch);
-  const [page, setPage] = useState(1);
+  const extraFilterKey = JSON.stringify([
+    extraParams?.tipoCodigo,
+    extraParams?.tipoModo,
+    extraParams?.tipoServicoCodigo,
+    extraParams?.saldoModo,
+  ]);
+  const [pagination, setPagination] = useState({ filterKey: extraFilterKey, page: 1 });
+  const page = pagination.filterKey === extraFilterKey ? pagination.page : 1;
+  const setPage = (nextPage: number) => setPagination({ filterKey: extraFilterKey, page: nextPage });
   const [limit, setLimit] = useState(20);
   const [sortBy, setSortBy] = useState<CatalogSortBy>('descricao');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const filtro = useDebouncedValue(filtroInput, 300);
 
   useEffect(() => { onFilterChange?.(filtro); }, [filtro, onFilterChange]);
-  useEffect(() => { setPage(1); }, [extraParams?.tipoCodigo, extraParams?.tipoModo, extraParams?.tipoServicoCodigo, extraParams?.saldoModo]);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: [queryKey, filtro, page, limit, sortBy, sortOrder, extraParams?.tipoCodigo, extraParams?.tipoModo, extraParams?.tipoServicoCodigo, extraParams?.saldoModo],

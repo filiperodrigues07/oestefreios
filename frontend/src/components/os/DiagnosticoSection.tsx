@@ -46,17 +46,19 @@ export function DiagnosticoSection({
   const [kmAtualForm, setKmAtualForm] = useState(kmAtual !== undefined ? String(kmAtual) : '');
   const [kmFinalForm, setKmFinalForm] = useState(kmFinal !== undefined ? String(kmFinal) : '');
 
-  // Ressincroniza com o servidor quando não há edição em andamento — evita perder o que o
-  // usuário está digitando se a OS for atualizada em segundo plano (ex. outra aba/refetch).
-  useEffect(() => {
-    if (dirty) return;
-    setDiagnosticoForm(diagnostico ?? '');
-    setObservacoesForm(observacoes ?? '');
-    setSolucaoForm(solucao ?? '');
-    setKmAtualForm(kmAtual !== undefined ? String(kmAtual) : '');
-    setKmFinalForm(kmFinal !== undefined ? String(kmFinal) : '');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagnostico, observacoes, solucao, kmAtual, kmFinal, dirty]);
+  // Guarda a última versão recebida; ao mudar, sincroniza somente se não há edição local.
+  const serverKey = JSON.stringify([diagnostico, observacoes, solucao, kmAtual, kmFinal, dirty]);
+  const [previousServerKey, setPreviousServerKey] = useState(serverKey);
+  if (serverKey !== previousServerKey) {
+    setPreviousServerKey(serverKey);
+    if (!dirty) {
+      setDiagnosticoForm(diagnostico ?? '');
+      setObservacoesForm(observacoes ?? '');
+      setSolucaoForm(solucao ?? '');
+      setKmAtualForm(kmAtual !== undefined ? String(kmAtual) : '');
+      setKmFinalForm(kmFinal !== undefined ? String(kmFinal) : '');
+    }
+  }
 
   function marcarAlterado<T>(setter: (v: T) => void) {
     return (v: T) => {

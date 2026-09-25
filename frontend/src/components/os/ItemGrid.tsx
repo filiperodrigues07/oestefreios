@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useRef, useState, type KeyboardEvent } from 'react';
 import { ActionIcon } from '../ui/ActionIcon.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { Input } from '../ui/Input.js';
@@ -119,14 +119,6 @@ export function ItemGrid({
   const precoEditadoNumero = Number(precoEditado.replace(',', '.'));
   const precoEditadoValido = Number.isFinite(precoEditadoNumero) && precoEditadoNumero >= 0;
 
-  useEffect(() => {
-    if (selecionado && podeEditarPreco) {
-      setPrecoEditado(
-        selecionado.precoUnitario !== undefined ? selecionado.precoUnitario.toFixed(2) : '',
-      );
-    }
-  }, [selecionado, podeEditarPreco]);
-
   const codigoMutation = useMutation({
     mutationFn: (codigo: string) => buscarPorCodigo(codigo),
     onSuccess: (candidate) => {
@@ -193,6 +185,9 @@ export function ItemGrid({
 
   function handleSelecionar(item: ItemGridCandidate) {
     setSelecionado(item);
+    if (podeEditarPreco) {
+      setPrecoEditado(item.precoUnitario !== undefined ? item.precoUnitario.toFixed(2) : '');
+    }
     setErro(null);
     requestAnimationFrame(() => {
       qtdRef.current?.focus();

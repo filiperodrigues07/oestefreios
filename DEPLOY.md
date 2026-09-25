@@ -260,7 +260,7 @@ Adicione (backup diário às 3h, mantém 14 dias):
 0 3 * * * pg_dump -U postgres oeste_freios | gzip > /var/backups/oeste-freios/db-$(date +\%F).sql.gz && find /var/backups/oeste-freios -name 'db-*.sql.gz' -mtime +14 -delete
 ```
 
-Uploads (logo, fotos de perfil) — backup separado (não fica no Postgres), dono do cron é o
+Arquivos locais (uploads e PDFs privados de boletos) — backup separado (não ficam no Postgres), dono do cron é o
 `oestefreios` (só ele tem permissão de leitura em `/opt/oeste-freios`):
 
 ```bash
@@ -270,8 +270,14 @@ crontab -e   # como oestefreios
 ```
 
 ```cron
-30 3 * * * tar czf /var/backups/oeste-freios-uploads/uploads-$(date +\%F).tar.gz -C /opt/oeste-freios/backend uploads && find /var/backups/oeste-freios-uploads -name 'uploads-*.tar.gz' -mtime +14 -delete
+30 3 * * * tar czf /var/backups/oeste-freios-uploads/arquivos-$(date +\%F).tar.gz -C /opt/oeste-freios/backend uploads storage/cobrancas && find /var/backups/oeste-freios-uploads -name 'arquivos-*.tar.gz' -mtime +14 -delete
 ```
+
+O diretório `storage/cobrancas` precisa existir (o deploy o cria). Substitua o cron antigo de
+`uploads-*.tar.gz` pelo novo; não rode os dois como se fossem backups completos. Confira o conteúdo
+com `tar tzf /var/backups/oeste-freios-uploads/arquivos-AAAA-MM-DD.tar.gz` e faça uma restauração
+de teste em diretório isolado, verificando ao menos um PDF e uma logo. Os backups antigos de uploads
+devem ser preservados até o novo procedimento estar validado.
 
 Considere copiar `/var/backups/oeste-freios*` pra fora da VPS periodicamente (outro storage, S3,
 etc.) — backup só na mesma máquina não protege contra perda do servidor inteiro.
@@ -298,7 +304,7 @@ pendentes e reinicia o serviço. Pede sudo pra reiniciar o systemd/testar o ngin
       criada, e o cookie de sessão não fica `secure`).
 - [ ] HTTPS válido (cadeado verde), renovação automática do certbot confirmada.
 - [ ] Firewall (`ufw`) ativo, só 22/80/443 liberados.
-- [ ] Backup diário do Postgres e dos uploads rodando e testado (restaurar um dump de teste ao
+- [ ] Backup diário do Postgres, uploads e PDFs de boletos rodando e testado (restaurar um dump de teste ao
       menos uma vez pra confirmar que o backup funciona de verdade).
 - [ ] Confirmado com o cliente que o firewall do servidor CHERP libera o IP da VPS.
 

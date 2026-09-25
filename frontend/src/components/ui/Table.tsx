@@ -88,7 +88,9 @@ export function Table<T>({
   const [prefs, setPrefs] = useState<ColumnPrefs>(() => (columnPrefsKey ? (loadPrefs(columnPrefsKey) ?? EMPTY_PREFS) : EMPTY_PREFS));
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
   const prefsRef = useRef(prefs);
-  prefsRef.current = prefs;
+  useEffect(() => {
+    prefsRef.current = prefs;
+  }, [prefs]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
@@ -158,7 +160,7 @@ export function Table<T>({
     event.stopPropagation();
 
     // Duplo clique/toque: pointerdown com preventDefault suprime o "dblclick" nativo, então detecta na mão.
-    const agora = performance.now();
+    const agora = event.timeStamp;
     const anterior = ultimoToqueNaAlca.current;
     if (anterior && anterior.key === col.key && agora - anterior.em < 400) {
       ultimoToqueNaAlca.current = null;

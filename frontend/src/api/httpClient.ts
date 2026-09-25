@@ -1,5 +1,6 @@
 import { clearOfflineQueue, enqueueOperation } from '../pwa/offlineQueue.js';
 import { OfflineQueuedError } from '../pwa/OfflineQueuedError.js';
+import { clearLegacyApiCache } from '../pwa/apiCache.js';
 import { useAuthStore } from '../store/authStore.js';
 import type { ApiResponse } from '../types/cherp.types.js';
 import type { LoginResponse } from '../types/auth.types.js';
@@ -36,7 +37,9 @@ function handleRejectedSession(code: string): void {
   if (code === 'SESSION_REVOKED' || code === 'LICENSE_LIMIT_REACHED') {
     const motivo = code === 'LICENSE_LIMIT_REACHED' ? 'licenca' : 'sessao-encerrada';
     useAuthStore.getState().clearSession();
-    void clearOfflineQueue().finally(() => redirectTo(`/login?motivo=${motivo}`));
+    void Promise.allSettled([clearOfflineQueue(), clearLegacyApiCache()]).finally(() =>
+      redirectTo(`/login?motivo=${motivo}`),
+    );
   }
 }
 
@@ -72,6 +75,23 @@ export function bootstrapSession(): Promise<boolean> {
   return refreshOnce();
 }
 
+/**
+ * Trata um 401 já lido do corpo: encerra a sessão quando revogada/licença e tenta UMA renovação do token quando
+ * expirou ou foi rotacionada. Devolve true se o chamador deve repetir a requisição com o token novo.
+ * Único ponto com essa regra — apiFetch, apiFetchBlob e apiFetchMultipart compartilham.
+ */
+async function renovarAposNaoAutorizado(code: string, isRetry: boolean): Promise<boolean> {
+  if (code === 'SESSION_REVOKED' && !isRetry) {
+    if (await refreshOnce()) return true;
+  }
+  handleRejectedSession(code);
+  if (!isRetry && (code === 'TOKEN_EXPIRED' || code === 'SESSION_REVOKED' || !code)) {
+    if (code !== 'SESSION_REVOKED' && (await refreshOnce())) return true;
+    useAuthStore.getState().clearSession();
+  }
+  return false;
+}
+
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   /** Consultas externas pagas nunca devem ser repetidas automaticamente pela fila offline. */
@@ -81,13 +101,30 @@ interface RequestOptions extends Omit<RequestInit, 'body'> {
    * conexão (seção 26). Sem isso, a fila usa uma descrição genérica "MÉTODO /rota".
    */
   offlineDescription?: string;
+  /** Impede que o replay de uma alteração offline use a sessão de outra conta. */
+  expectedUserId?: string;
 }
 
 /** Cliente HTTP com renovação automática de access token expirado (uma tentativa, sem loop). */
-export async function apiFetch<T>(path: string, options: RequestOptions = {}, isRetry = false): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  options: RequestOptions = {},
+  isRetry = false,
+): Promise<T> {
   const { accessToken } = useAuthStore.getState();
-  const { offlineDescription, queueOffline = true, ...requestOptions } = options;
+  const { offlineDescription, queueOffline = true, expectedUserId, ...requestOptions } = options;
   const method = (requestOptions.method ?? 'GET').toUpperCase();
+
+  // Toda criação leva uma chave: retry após 401, duplo clique e replay da fila offline não duplicam o registro.
+  // A chave nasce na 1ª tentativa e é reaproveitada nas seguintes (options é repassado adiante).
+  if (method === 'POST' && !path.startsWith('/auth') && !new Headers(requestOptions.headers).has('Idempotency-Key')) {
+    options = { ...options, headers: { ...requestOptions.headers, 'Idempotency-Key': crypto.randomUUID() } };
+    return apiFetch<T>(path, options, isRetry);
+  }
+
+  if (expectedUserId && useAuthStore.getState().user?.id !== expectedUserId) {
+    throw new ApiError('OFFLINE_OWNER_CHANGED', 'A conta atual não corresponde à alteração offline.');
+  }
 
   let res: Response;
   try {
@@ -106,11 +143,14 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
     const isAuthRoute = path.startsWith('/auth');
     const isOffline = typeof navigator !== 'undefined' && !navigator.onLine;
 
-    if (isMutation && !isAuthRoute && isOffline && queueOffline) {
+    const ownerUserId = useAuthStore.getState().user?.id;
+    if (isMutation && !isAuthRoute && isOffline && queueOffline && accessToken && ownerUserId) {
       const queueId = await enqueueOperation({
+        ownerUserId,
         method: method as 'POST' | 'PUT' | 'PATCH' | 'DELETE',
         path,
         body: requestOptions.body,
+        idempotencyKey: new Headers(requestOptions.headers).get('Idempotency-Key') ?? undefined,
         description: offlineDescription ?? `${method} ${path}`,
       });
       throw new OfflineQueuedError(queueId);
@@ -122,26 +162,14 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}, is
 
   const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
 
-  if (res.status === 401 && !isRetry && body && !body.success && body.error.code === 'SESSION_REVOKED') {
-    const refreshed = await refreshOnce();
-    if (refreshed) return apiFetch<T>(path, options, true);
-  }
-
   if (res.status === 401 && body && !body.success) {
-    handleRejectedSession(body.error.code);
-  }
-
-  if (res.status === 401 && !isRetry && body && !body.success && body.error.code === 'TOKEN_EXPIRED') {
-    const refreshed = await refreshOnce();
-    if (refreshed) {
-      return apiFetch<T>(path, options, true);
-    }
-    useAuthStore.getState().clearSession();
+    if (await renovarAposNaoAutorizado(body.error.code, isRetry)) return apiFetch<T>(path, options, true);
   }
 
   if (!body || !body.success) {
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
-    const message = body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
+    const message =
+      body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
     const details = body && !body.success ? body.error.details : undefined;
     throw new ApiError(code, message, res.status, details);
   }
@@ -160,25 +188,19 @@ export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob>
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
   });
 
-  if (res.status === 401 && !isRetry) {
-    const body = (await res.clone().json().catch(() => null)) as ApiResponse<unknown> | null;
+  if (res.status === 401) {
+    const body = (await res
+      .clone()
+      .json()
+      .catch(() => null)) as ApiResponse<unknown> | null;
     const code = body && !body.success ? body.error.code : '';
-    if (code === 'SESSION_REVOKED') {
-      const refreshed = await refreshOnce();
-      if (refreshed) return apiFetchBlob(path, true);
-    }
-    handleRejectedSession(code);
-
-    if (code === 'TOKEN_EXPIRED' || !code) {
-      const refreshed = await refreshOnce();
-      if (refreshed) return apiFetchBlob(path, true);
-      useAuthStore.getState().clearSession();
-    }
+    if (await renovarAposNaoAutorizado(code, isRetry)) return apiFetchBlob(path, true);
   }
 
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiResponse<unknown> | null;
-    const message = body && !body.success ? body.error.message : 'Não foi possível gerar o arquivo.';
+    const message =
+      body && !body.success ? body.error.message : 'Não foi possível gerar o arquivo.';
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
     throw new ApiError(code, message, res.status);
   }
@@ -190,7 +212,11 @@ export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob>
  * Envia `multipart/form-data` (upload de imagem) — `apiFetch` sempre serializa o body como JSON,
  * então não serve pra isso. Sem `Content-Type` manual: o browser define o boundary certo sozinho.
  */
-export async function apiFetchMultipart<T>(path: string, formData: FormData, isRetry = false): Promise<T> {
+export async function apiFetchMultipart<T>(
+  path: string,
+  formData: FormData,
+  isRetry = false,
+): Promise<T> {
   const { accessToken } = useAuthStore.getState();
   const res = await fetch(`${API_BASE}${path}`, {
     method: 'POST',
@@ -202,17 +228,13 @@ export async function apiFetchMultipart<T>(path: string, formData: FormData, isR
   const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
 
   if (res.status === 401 && body && !body.success) {
-    handleRejectedSession(body.error.code);
-    if (!isRetry && body.error.code === 'TOKEN_EXPIRED') {
-      const refreshed = await refreshOnce();
-      if (refreshed) return apiFetchMultipart<T>(path, formData, true);
-      useAuthStore.getState().clearSession();
-    }
+    if (await renovarAposNaoAutorizado(body.error.code, isRetry)) return apiFetchMultipart<T>(path, formData, true);
   }
 
   if (!body || !body.success) {
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
-    const message = body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
+    const message =
+      body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
     const details = body && !body.success ? body.error.details : undefined;
     throw new ApiError(code, message, res.status, details);
   }

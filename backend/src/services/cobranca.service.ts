@@ -5,6 +5,7 @@ import { AppError } from '../errors/AppError.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { ValidationError } from '../errors/ValidationError.js';
 import type { AuthenticatedUser } from '../types/auth.types.js';
+import { escaparHtml } from '../utils/html.js';
 import { logger } from '../utils/logger.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
@@ -213,7 +214,7 @@ function comTimeout<T>(promessa: Promise<T>, ms: number): Promise<T> {
   return Promise.race([promessa, limite]).finally(() => clearTimeout(timer));
 }
 
-const escapar = (texto: string) => texto.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);
+const escapar = escaparHtml;
 const moeda = (valor: number) => valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 const dataBr = (iso: string) => iso.split('-').reverse().join('/');
 

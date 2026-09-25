@@ -9,6 +9,7 @@ import {
 } from '../controllers/relatorio.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
+import { exportLimiter } from '../middlewares/rateLimiter.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import {
@@ -21,7 +22,7 @@ import {
 
 export const relatorioRouter = Router();
 
-relatorioRouter.use(authenticate);
+relatorioRouter.use(authenticate, exportLimiter);
 
 // Exportação do que já está na tela (OS/Clientes) — mesma permissão que já libera ver a tela,
 // não é um "relatório gerencial" à parte. Financeiro continua atrás de FINANCIAL_VIEW dentro do service.

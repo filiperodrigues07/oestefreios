@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ActionIcon, Button } from '../ui/index.js';
 import styles from './OSMoreActions.module.css';
+import { useClickOutside } from '../../hooks/useClickOutside.js';
 
 type IconName = Parameters<typeof ActionIcon>[0]['name'];
 
@@ -26,13 +27,7 @@ export function OSMoreActions({ items, loading }: OSMoreActionsProps) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) setAberto(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  useClickOutside(wrapperRef, () => setAberto(false), aberto);
 
   useEffect(() => {
     if (aberto) itemRefs.current.find((el) => el && !el.disabled)?.focus();

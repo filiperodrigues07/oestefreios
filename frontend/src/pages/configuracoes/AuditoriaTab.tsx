@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { exportarAuditLogs, listarAuditLogs, type AuditLogFilters } from '../../api/auditLog.api.js';
 import {
   Button,
@@ -59,6 +59,101 @@ function eventCategory(event: string): string {
   return event.split('_')[0] ?? '';
 }
 
+function EventFilter({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
+  const labelId = useId();
+  const listId = useId();
+
+  useEffect(() => {
+    if (open) optionRefs.current[Math.max(0, options.findIndex((option) => option.value === value))]?.focus();
+  }, [open, options, value]);
+
+  useEffect(() => {
+    if (!open) return;
+    function closeOutside(event: PointerEvent) {
+      if (!wrapperRef.current?.contains(event.target as Node)) setOpen(false);
+    }
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [open]);
+
+  function choose(nextValue: string) {
+    onChange(nextValue);
+    setOpen(false);
+    triggerRef.current?.focus();
+  }
+
+  function optionKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      setOpen(false);
+      triggerRef.current?.focus();
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const next = Math.max(0, Math.min(options.length - 1, index + (event.key === 'ArrowDown' ? 1 : -1)));
+      optionRefs.current[next]?.focus();
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      optionRefs.current[event.key === 'Home' ? 0 : options.length - 1]?.focus();
+    }
+  }
+
+  return (
+    <div
+      className={styles.eventPicker}
+      ref={wrapperRef}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
+      <span id={labelId} className={styles.filterLabel}>Evento</span>
+      <button
+        ref={triggerRef}
+        type="button"
+        className={styles.eventTrigger}
+        aria-labelledby={labelId}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((current) => !current)}
+      >
+        <span>{options.find((option) => option.value === value)?.label ?? 'Todos'}</span>
+        <span className={styles.chevron} aria-hidden="true">⌄</span>
+      </button>
+      {open && (
+        <div id={listId} role="listbox" className={styles.eventList} aria-label="Selecionar evento">
+          {options.map((option, index) => (
+            <button
+              key={option.value}
+              ref={(element) => { optionRefs.current[index] = element; }}
+              type="button"
+              role="option"
+              aria-selected={option.value === value}
+              tabIndex={option.value === value ? 0 : -1}
+              className={styles.eventOption}
+              onClick={() => choose(option.value)}
+              onKeyDown={(event) => optionKeyDown(event, index)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** Trilha de auditoria (seção 24 do briefing) — só acessível com SYSTEM_SETTINGS (rota já protege no backend). */
 export function AuditoriaTab() {
   const [page, setPage] = useState(1);
@@ -105,29 +200,37 @@ export function AuditoriaTab() {
       <section className={styles.filterCard}>
         <h2>Auditoria</h2>
         <p>Rastreie ações do sistema. Busca livre cobre usuário, evento e ID; não cobre dados alterados.</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'var(--space-2)', alignItems: 'end' }}>
-          <SearchInput
-            placeholder="Buscar por usuário, evento ou ID"
-            value={busca}
-            onChange={e => { setBusca(e.target.value); setPage(1); }}
-          />
+        <div className={styles.filters}>
+          <div className={styles.search}>
+            <SearchInput
+              placeholder="Buscar por usuário, evento ou ID"
+              value={busca}
+              onChange={e => { setBusca(e.target.value); setPage(1); }}
+            />
+          </div>
           <ResponsiveFilters activeCount={activeCount} onClear={limparFiltros}>
-            <Input label="Data inicial" type="date" value={filtros.dataInicial ?? ''} onChange={e => updateFiltro('dataInicial', e.target.value)} />
-            <Input label="Data final" type="date" value={filtros.dataFinal ?? ''} onChange={e => updateFiltro('dataFinal', e.target.value)} />
-            <Select label="Entidade" value={filtros.entityType ?? ''} onChange={e => updateFiltro('entityType', e.target.value)} options={[
+            <div className={styles.date}><Input label="Data inicial" type="date" value={filtros.dataInicial ?? ''} onChange={e => updateFiltro('dataInicial', e.target.value)} /></div>
+            <div className={styles.date}><Input label="Data final" type="date" value={filtros.dataFinal ?? ''} onChange={e => updateFiltro('dataFinal', e.target.value)} /></div>
+            <div className={styles.narrow}><Select label="Entidade" value={filtros.entityType ?? ''} onChange={e => updateFiltro('entityType', e.target.value)} options={[
               { value: '', label: 'Todas' }, ...['OS', 'USER', 'CLIENTE', 'VEICULO', 'SETTINGS', 'SESSION'].map(value => ({ value, label: value }))
-            ]} />
-            <Select label="Categoria" value={filtros.categoria ?? ''} onChange={e => updateFiltro('categoria', e.target.value)} options={[
+            ]} /></div>
+            <div className={styles.narrow}><Select label="Categoria" value={filtros.categoria ?? ''} onChange={e => updateFiltro('categoria', e.target.value)} options={[
               { value: '', label: 'Todas' }, ...['AUTH', 'OS', 'USER', 'CLIENTE', 'VEICULO', 'SETTINGS', 'SESSION'].map(value => ({ value, label: value }))
-            ]} />
-            <Select label="Evento" value={filtros.event ?? ''} onChange={e => updateFiltro('event', e.target.value)} options={[
-              { value: '', label: 'Todos' }, ...Object.entries(EVENT_LABELS)
-                .filter(([value]) => !filtros.categoria || eventCategory(value) === filtros.categoria)
-                .map(([value, label]) => ({ value, label }))
-            ]} />
-            <Input label="Usuário" value={filtros.usuario ?? ''} onChange={e => updateFiltro('usuario', e.target.value)} />
+            ]} /></div>
+            <div className={styles.event}>
+              <EventFilter
+                value={filtros.event ?? ''}
+                onChange={value => updateFiltro('event', value)}
+                options={[
+                  { value: '', label: 'Todos' }, ...Object.entries(EVENT_LABELS)
+                    .filter(([value]) => !filtros.categoria || eventCategory(value) === filtros.categoria)
+                    .map(([value, label]) => ({ value, label }))
+                ]}
+              />
+            </div>
+            <div className={styles.user}><Input label="Usuário" value={filtros.usuario ?? ''} onChange={e => updateFiltro('usuario', e.target.value)} /></div>
           </ResponsiveFilters>
-          <Button variant="secondary" loading={exportando} onClick={exportar}>Exportar Excel</Button>
+          <Button className={styles.export} variant="secondary" loading={exportando} onClick={exportar}>Exportar Excel</Button>
         </div>
       </section>
 
