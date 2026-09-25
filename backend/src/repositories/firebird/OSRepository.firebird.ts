@@ -547,8 +547,31 @@ export class OSRepositoryFirebird implements IOSRepository {
       )`);
       params.push(buscaCodigoLike, buscaCodigoLike, buscaTextoLike, buscaTextoLike, buscaCodigoLike, buscaPlacaLike, buscaTextoLike);
     }
-    const candidateSql = `${HEADER_SELECT}${conditions.length ? ` AND ${conditions.join(' AND ')}` : ''} ORDER BY OS.CHAVE DESC`;
-    const headers = await firebirdQuery<OSHeaderRow>(candidateSql, params);
+    const where = conditions.length ? ` AND ${conditions.join(' AND ')}` : '';
+    const page = filter.page ?? 1;
+    const limit = filter.limit ?? 20;
+
+    // Caminho rápido (listagem padrão): sem filtro por status/técnico e sem ordenação própria, a página é
+    // exatamente FIRST/SKIP da ordem do banco — não precisa trazer todos os cabeçalhos para memória.
+    if (!filter.status && !filter.tecnicoId && !filter.sortBy) {
+      const pular = Math.max(0, Math.floor((page - 1) * limit));
+      const tamanho = Math.max(1, Math.floor(limit));
+      const paginado = HEADER_SELECT.replace('SELECT', `SELECT FIRST ${tamanho} SKIP ${pular}`);
+      const contagem = `SELECT COUNT(*) AS TOTAL ${HEADER_SELECT.slice(HEADER_SELECT.indexOf('FROM ORDEMSERVICO'))}`;
+      const [pageHeaders, contagemRows] = await Promise.all([
+        firebirdQuery<OSHeaderRow>(`${paginado}${where} ORDER BY OS.CHAVE DESC`, params),
+        firebirdQuery<{ TOTAL: number }>(`${contagem}${where}`, params),
+      ]);
+      const workflowsPagina = await fetchWorkflows(pageHeaders.map((h) => h.IDENTIFICADOR));
+      const itensPagina = await this.carregarItens(pageHeaders);
+      const items = pageHeaders.map((h) => ({
+        ...buildOrdemServico(h, [], [], workflowsPagina.get(h.IDENTIFICADOR.toLowerCase())),
+        ...itensPagina(h.CHAVE),
+      }));
+      return { items, total: Number(contagemRows[0]?.TOTAL ?? 0) };
+    }
+
+    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT}${where} ORDER BY OS.CHAVE DESC`, params);
 
     const workflows = await fetchWorkflows(headers.map((h) => h.IDENTIFICADOR));
 
@@ -581,14 +604,19 @@ export class OSRepositoryFirebird implements IOSRepository {
     }
 
     const total = merged.length;
-    const page = filter.page ?? 1;
-    const limit = filter.limit ?? 20;
     const start = (page - 1) * limit;
     const pageItems = merged.slice(start, start + limit);
 
-    // Duas consultas agrupadas por página, em vez de duas consultas para cada OS.
-    const pageHeaders = pageItems.map((os) => headers.find((header) => header.IDENTIFICADOR === os.id)!);
-    const chaves = pageHeaders.map((header) => header.CHAVE);
+    const headerPorId = new Map(headers.map((header) => [header.IDENTIFICADOR, header]));
+    const itensPagina = await this.carregarItens(pageItems.map((os) => headerPorId.get(os.id)!));
+    const withItens = pageItems.map((os) => ({ ...os, ...itensPagina(headerPorId.get(os.id)!.CHAVE) }));
+
+    return { items: withItens, total };
+  }
+
+  /** Duas consultas agrupadas por página, em vez de duas consultas para cada OS. Devolve os itens por CHAVE da OS. */
+  private async carregarItens(headers: OSHeaderRow[]): Promise<(chave: number) => Pick<OrdemServico, 'produtos' | 'servicos'>> {
+    const chaves = headers.map((header) => header.CHAVE);
     let itensProd: ItemProdutoRow[] = [];
     let itensServ: ItemServicoRow[] = [];
     if (chaves.length > 0) {
@@ -598,16 +626,14 @@ export class OSRepositoryFirebird implements IOSRepository {
         firebirdQuery<ItemServicoRow>(ITEM_SERVICO_SELECT.replace('CHAVEOS = ?', `CHAVEOS IN (${placeholders})`), chaves),
       ]);
     }
-    const withItens = pageItems.map((os) => {
-      const chave = headers.find((header) => header.IDENTIFICADOR === os.id)!.CHAVE;
-      return {
-        ...os,
-        produtos: itensProd.filter((item) => item.CHAVEOS === chave).map(mapItemProduto),
-        servicos: itensServ.filter((item) => item.CHAVEOS === chave).map(mapItemServico),
-      };
+    const produtosPorOs = new Map<number, ItemProdutoRow[]>();
+    for (const item of itensProd) produtosPorOs.set(item.CHAVEOS, [...(produtosPorOs.get(item.CHAVEOS) ?? []), item]);
+    const servicosPorOs = new Map<number, ItemServicoRow[]>();
+    for (const item of itensServ) servicosPorOs.set(item.CHAVEOS, [...(servicosPorOs.get(item.CHAVEOS) ?? []), item]);
+    return (chave) => ({
+      produtos: (produtosPorOs.get(chave) ?? []).map(mapItemProduto),
+      servicos: (servicosPorOs.get(chave) ?? []).map(mapItemServico),
     });
-
-    return { items: withItens, total };
   }
 
   /**

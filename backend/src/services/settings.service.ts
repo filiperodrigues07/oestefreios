@@ -11,6 +11,7 @@ import { getCherpMode, setCherpMode, type CherpMode as CherpModeType } from '../
 import { logger } from '../utils/logger.js';
 import type { AuthenticatedUser } from '../types/auth.types.js';
 import type { RequestContext } from '../utils/requestContext.js';
+import { criarTtlCache } from '../utils/ttlCache.js';
 import { recordAudit } from './auditLog.service.js';
 
 function auditSettings(event: string, usuario: AuthenticatedUser, ctx: RequestContext, changes: unknown) {
@@ -106,10 +107,19 @@ const INTEGRACOES_PADRAO: IntegracoesSettings = {
   dadosApiToken: env.DADOS_API_TOKEN ?? '',
 };
 
-export async function readCategory<T>(category: string, fallback: T): Promise<T> {
-  const [row] = await db.select().from(settings).where(eq(settings.category, category));
-  if (!row) return fallback;
-  return { ...fallback, ...(row.data as Partial<T>) };
+const cacheSettings = criarTtlCache<unknown>(10_000);
+
+/** Para quem grava em `settings` por fora do writeCategory (ex.: transação com lock do billing). */
+export function limparCacheSettings(category: string): void {
+  cacheSettings.limpar(category);
+}
+
+/** Lida a cada request autenticado de escrita (assinatura, licença) — cache de 10 s, limpo em toda gravação. */
+export function readCategory<T>(category: string, fallback: T): Promise<T> {
+  return cacheSettings.obter(category, async () => {
+    const [row] = await db.select().from(settings).where(eq(settings.category, category));
+    return row ? { ...fallback, ...(row.data as Partial<T>) } : fallback;
+  }) as Promise<T>;
 }
 
 export async function writeCategory<T extends object>(category: string, data: T): Promise<void> {
@@ -117,6 +127,7 @@ export async function writeCategory<T extends object>(category: string, data: T)
     .insert(settings)
     .values({ category, data, updatedAt: new Date() })
     .onConflictDoUpdate({ target: settings.category, set: { data, updatedAt: new Date() } });
+  cacheSettings.limpar(category);
 }
 
 export async function getFirebirdSettings(): Promise<FirebirdSettings> {

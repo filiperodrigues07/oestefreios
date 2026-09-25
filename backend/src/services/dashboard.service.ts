@@ -10,6 +10,7 @@ import type {
   DashboardSerieDTO,
 } from '../dto/dashboard.dto.js';
 import { clienteRepository, equipamentoRepository, osRepository, produtoRepository, servicoRepository } from '../repositories/index.js';
+import { criarTtlCache } from '../utils/ttlCache.js';
 import type { AuthenticatedUser, Permission } from '../types/auth.types.js';
 import type { OrdemServico, OSPrioridade, OSStatus } from '../types/cherp.types.js';
 
@@ -52,7 +53,16 @@ async function getAllOS(): Promise<OrdemServico[]> {
   return items;
 }
 
-export async function getAdminDashboard(permissions: Permission[]): Promise<AdminDashboardDTO> {
+const cacheAdmin = criarTtlCache<AdminDashboardDTO>(15_000);
+const cacheOperacional = criarTtlCache<DashboardOperacionalDTO>(15_000);
+
+/** Cache curto: o painel varre até 1000 OS com itens; o resultado só muda no nível de minutos para o usuário. */
+export function getAdminDashboard(permissions: Permission[]): Promise<AdminDashboardDTO> {
+  const verFinanceiro = permissions.includes('FINANCIAL_VIEW');
+  return cacheAdmin.obter(verFinanceiro ? 'fin' : 'sem-fin', () => calcularAdminDashboard(permissions));
+}
+
+async function calcularAdminDashboard(permissions: Permission[]): Promise<AdminDashboardDTO> {
   const todasOS = await getAllOS();
 
   const countsByStatus = zeroedStatusCounts();
@@ -211,7 +221,16 @@ function buildSeries(inicio: Date, fim: Date, granularidade: DashboardGranularid
 }
 
 /** Dashboard operacional por período, sem métricas financeiras e sem carregar itens da OS. */
-export async function getOperationalDashboardV2(input: {
+export function getOperationalDashboardV2(input: {
+  inicio: Date;
+  fim: Date;
+  granularidade: DashboardGranularidade;
+}): Promise<DashboardOperacionalDTO> {
+  const chave = [startOfDay(input.inicio).getTime(), endOfDay(input.fim).getTime(), input.granularidade].join('|');
+  return cacheOperacional.obter(chave, () => calcularOperacionalV2(input));
+}
+
+async function calcularOperacionalV2(input: {
   inicio: Date;
   fim: Date;
   granularidade: DashboardGranularidade;

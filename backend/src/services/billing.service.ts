@@ -9,7 +9,7 @@ import type { AuthenticatedUser } from '../types/auth.types.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
 import type { Cobranca } from './cobranca.service.js';
-import { readCategory } from './settings.service.js';
+import { limparCacheSettings, readCategory } from './settings.service.js';
 
 /**
  * Mensalidade do cliente. Guardada em `settings` (categoria `billing`, jsonb) — só o proprietário
@@ -157,6 +157,7 @@ export async function alterarBilling(
       .onConflictDoUpdate({ target: settings.category, set: { data: depois, updatedAt: new Date() } });
     return { antes, depois };
   });
+  limparCacheSettings('billing');
   invalidarCacheBilling();
   return resultado;
 }
