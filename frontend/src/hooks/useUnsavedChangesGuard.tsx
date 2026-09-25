@@ -5,12 +5,13 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog.js';
 /**
  * Protege formulário com alteração não salva contra saída acidental: navegação interna (menu,
  * voltar do navegador, link) abre uma confirmação; fechar/recarregar a aba cai no aviso nativo
- * do navegador (`beforeunload`). Troca só de query string (ex.: `?tab=`) não conta como saída.
+ * do navegador (`beforeunload`). Troca só de query string (ex.: `?tab=`) não conta como saída,
+ * a menos que `incluirQuery` seja true (abas que trocam o formulário inteiro, ex.: Configurações).
  *
  * Devolve o diálogo (renderizar junto com o formulário) e `liberar()`, pra chamar antes de uma
  * navegação intencional feita pelo próprio código (ex.: redirecionar depois de salvar).
  */
-export function useUnsavedChangesGuard(dirty: boolean) {
+export function useUnsavedChangesGuard(dirty: boolean, { incluirQuery = false }: { incluirQuery?: boolean } = {}) {
   const dirtyRef = useRef(dirty);
   const liberadoRef = useRef(false);
   useLayoutEffect(() => {
@@ -20,7 +21,10 @@ export function useUnsavedChangesGuard(dirty: boolean) {
 
   const blocker = useBlocker(
     ({ currentLocation, nextLocation }) =>
-      dirtyRef.current && !liberadoRef.current && currentLocation.pathname !== nextLocation.pathname,
+      dirtyRef.current &&
+      !liberadoRef.current &&
+      (currentLocation.pathname !== nextLocation.pathname ||
+        (incluirQuery && currentLocation.search !== nextLocation.search)),
   );
 
   useEffect(() => {

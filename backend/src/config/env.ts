@@ -38,6 +38,8 @@ const envSchema = z.object({
   LICENSE_MAX_SESSIONS: z.coerce.number().int().nonnegative().default(5),
   /** Minutos sem atividade autenticada até a sessão deixar de ocupar vaga. */
   LICENSE_IDLE_MINUTES: z.coerce.number().int().positive().default(15),
+  /** Arquivo que o deploy/backup.sh escreve ao terminar — a aba Sistema mostra quando foi o último backup. */
+  BACKUP_STATUS_FILE: z.string().default('/var/backups/oeste-freios/last-backup.json'),
 }).superRefine((value, ctx) => {
   if (value.NODE_ENV === 'production' && !value.SETTINGS_ENCRYPTION_KEY) {
     ctx.addIssue({ code: 'custom', path: ['SETTINGS_ENCRYPTION_KEY'], message: 'Obrigatória em produção.' });

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard.js';
+import { SistemaTab } from './configuracoes/SistemaTab.js';
 import { useSearchParams } from 'react-router';
 import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import {
@@ -70,7 +71,8 @@ function useSettingsForm<T>(data: T | undefined) {
     if (data !== undefined) setForm(data);
   }
   const dirty = form !== null && data !== undefined && JSON.stringify(form) !== JSON.stringify(data);
-  const { dialog } = useUnsavedChangesGuard(dirty);
+  // Trocar de aba (?tab=) desmonta o formulário — conta como saída.
+  const { dialog } = useUnsavedChangesGuard(dirty, { incluirQuery: true });
   return [form, setForm, dialog] as const;
 }
 
@@ -109,7 +111,7 @@ function SettingsIcon({
 export function ConfiguracoesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTab = searchParams.get('tab');
-  const tab = ['firebird', 'smtp', 'geral', 'integracoes', 'auditoria'].includes(selectedTab ?? '')
+  const tab = ['firebird', 'smtp', 'geral', 'integracoes', 'auditoria', 'sistema'].includes(selectedTab ?? '')
     ? selectedTab!
     : 'firebird';
   const setTab = (value: string) => setSearchParams({ tab: value });
@@ -133,6 +135,7 @@ export function ConfiguracoesPage() {
           { key: 'geral', label: 'Empresa', icon: <NavIcon name="users" /> },
           { key: 'integracoes', label: 'Integrações', icon: <SettingsIcon name="network" /> },
           { key: 'auditoria', label: 'Auditoria', icon: <NavIcon name="shield" /> },
+          { key: 'sistema', label: 'Sistema', icon: <SettingsIcon name="server" /> },
         ].map((item) => (
           <button
             type="button"
@@ -160,6 +163,7 @@ export function ConfiguracoesPage() {
         {tab === 'geral' && <GeralTab />}
         {tab === 'integracoes' && <IntegracoesTab />}
         {tab === 'auditoria' && <AuditoriaTab />}
+        {tab === 'sistema' && <SistemaTab />}
       </div>
     </div>
   );

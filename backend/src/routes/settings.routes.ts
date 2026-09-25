@@ -20,6 +20,8 @@ import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { success } from '../utils/apiResponse.js';
+import { getSistemaStatus } from '../services/sistema.service.js';
 import {
   firebirdSettingsSchema,
   geralSettingsSchema,
@@ -37,6 +39,7 @@ settingsRouter.get('/branding', authenticate, asyncHandler(getBrandingHandler));
 // Configurações técnicas (Firebird/SMTP/Geral) são dado sensível de sistema — só SYSTEM_SETTINGS.
 settingsRouter.use(authenticate, requirePermission('SYSTEM_SETTINGS'));
 
+settingsRouter.get('/sistema', asyncHandler(async (_req, res) => success(res, await getSistemaStatus())));
 settingsRouter.get('/firebird', asyncHandler(getFirebirdSettingsHandler));
 settingsRouter.get('/firebird/password', asyncHandler(getFirebirdPasswordHandler));
 settingsRouter.get('/firebird/status', asyncHandler(getFirebirdConnectionStatusHandler));
