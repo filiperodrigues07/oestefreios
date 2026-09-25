@@ -1,8 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef } from 'react';
-import { apiFetch } from '../api/httpClient.js';
+import { ApiError, apiFetch } from '../api/httpClient.js';
 import { useToast } from '../components/ui/ToastProvider.js';
 import {
+  OFFLINE_QUEUE_CHANGED,
   getAllOperations,
   markOperationFailed,
   operationBelongsToUser,
@@ -40,17 +41,24 @@ export function useOfflineSync() {
             continue;
           }
           if (!operationBelongsToUser(op, userId)) continue;
+          // Já falhou por erro do servidor (4xx): só reenvia quando o usuário pedir na tela de pendências.
+          if (op.status === 'failed') continue;
           try {
             await apiFetch(op.path, {
               method: op.method,
               body: op.body,
               queueOffline: false,
               expectedUserId: userId,
+              headers: op.idempotencyKey ? { 'Idempotency-Key': op.idempotencyKey } : undefined,
             });
             await removeOperation(op.id);
             sincronizadas++;
-          } catch {
-            await markOperationFailed(op.id);
+          } catch (error) {
+            // Sem rede ou servidor instável: a operação continua pendente e a próxima reconexão tenta de novo.
+            // Só erro definitivo (4xx) vira "falhou" — reenviar às cegas duplicaria ou repetiria um erro.
+            const definitivo = error instanceof ApiError && error.status !== undefined && error.status >= 400 && error.status < 500 && error.status !== 401 && error.status !== 429;
+            if (!definitivo) break;
+            await markOperationFailed(op.id, error.message);
             falhas++;
           }
         }
@@ -75,6 +83,7 @@ export function useOfflineSync() {
           );
         }
       } finally {
+        window.dispatchEvent(new Event(OFFLINE_QUEUE_CHANGED));
         flushingUsersRef.current.delete(userId);
       }
     }

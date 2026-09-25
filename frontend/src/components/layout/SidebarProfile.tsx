@@ -5,7 +5,9 @@ import { logout } from '../../api/auth.api.js';
 import { clearOfflineQueue } from '../../pwa/offlineQueue.js';
 import { clearLegacyApiCache } from '../../pwa/apiCache.js';
 import { queryClient } from '../../api/queryClient.js';
+import { usePendingOperations } from '../../hooks/usePendingOperations.js';
 import { Avatar } from '../ui/Avatar.js';
+import { PendingOperationsModal } from './PendingOperationsModal.js';
 import { useAuthStore } from '../../store/authStore.js';
 import { useThemeStore } from '../../store/themeStore.js';
 import styles from './SidebarProfile.module.css';
@@ -31,6 +33,8 @@ export function SidebarProfile({
   const setTheme = useThemeStore((s) => s.setTheme);
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [pendenciasAbertas, setPendenciasAbertas] = useState(false);
+  const { operations: pendentes } = usePendingOperations();
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const logoutMutation = useMutation({
@@ -99,6 +103,20 @@ export function SidebarProfile({
             Meu perfil
           </button>
 
+          {pendentes.length > 0 && (
+            <button
+              type="button"
+              className={styles.menuItem}
+              role="menuitem"
+              onClick={() => {
+                setOpen(false);
+                setPendenciasAbertas(true);
+              }}
+            >
+              Alterações pendentes ({pendentes.length})
+            </button>
+          )}
+
           <button
             type="button"
             className={`${styles.menuItem} ${styles.menuItemDanger}`}
@@ -144,6 +162,8 @@ export function SidebarProfile({
           </span>
         )}
       </button>
+
+      <PendingOperationsModal open={pendenciasAbertas} operations={pendentes} onClose={() => setPendenciasAbertas(false)} />
     </div>
   );
 }

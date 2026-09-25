@@ -75,6 +75,23 @@ export function bootstrapSession(): Promise<boolean> {
   return refreshOnce();
 }
 
+/**
+ * Trata um 401 já lido do corpo: encerra a sessão quando revogada/licença e tenta UMA renovação do token quando
+ * expirou ou foi rotacionada. Devolve true se o chamador deve repetir a requisição com o token novo.
+ * Único ponto com essa regra — apiFetch, apiFetchBlob e apiFetchMultipart compartilham.
+ */
+async function renovarAposNaoAutorizado(code: string, isRetry: boolean): Promise<boolean> {
+  if (code === 'SESSION_REVOKED' && !isRetry) {
+    if (await refreshOnce()) return true;
+  }
+  handleRejectedSession(code);
+  if (!isRetry && (code === 'TOKEN_EXPIRED' || code === 'SESSION_REVOKED' || !code)) {
+    if (code !== 'SESSION_REVOKED' && (await refreshOnce())) return true;
+    useAuthStore.getState().clearSession();
+  }
+  return false;
+}
+
 interface RequestOptions extends Omit<RequestInit, 'body'> {
   body?: unknown;
   /** Consultas externas pagas nunca devem ser repetidas automaticamente pela fila offline. */
@@ -97,6 +114,13 @@ export async function apiFetch<T>(
   const { accessToken } = useAuthStore.getState();
   const { offlineDescription, queueOffline = true, expectedUserId, ...requestOptions } = options;
   const method = (requestOptions.method ?? 'GET').toUpperCase();
+
+  // Toda criação leva uma chave: retry após 401, duplo clique e replay da fila offline não duplicam o registro.
+  // A chave nasce na 1ª tentativa e é reaproveitada nas seguintes (options é repassado adiante).
+  if (method === 'POST' && !path.startsWith('/auth') && !new Headers(requestOptions.headers).has('Idempotency-Key')) {
+    options = { ...options, headers: { ...requestOptions.headers, 'Idempotency-Key': crypto.randomUUID() } };
+    return apiFetch<T>(path, options, isRetry);
+  }
 
   if (expectedUserId && useAuthStore.getState().user?.id !== expectedUserId) {
     throw new ApiError('OFFLINE_OWNER_CHANGED', 'A conta atual não corresponde à alteração offline.');
@@ -126,6 +150,7 @@ export async function apiFetch<T>(
         method: method as 'POST' | 'PUT' | 'PATCH' | 'DELETE',
         path,
         body: requestOptions.body,
+        idempotencyKey: new Headers(requestOptions.headers).get('Idempotency-Key') ?? undefined,
         description: offlineDescription ?? `${method} ${path}`,
       });
       throw new OfflineQueuedError(queueId);
@@ -137,33 +162,8 @@ export async function apiFetch<T>(
 
   const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
 
-  if (
-    res.status === 401 &&
-    !isRetry &&
-    body &&
-    !body.success &&
-    body.error.code === 'SESSION_REVOKED'
-  ) {
-    const refreshed = await refreshOnce();
-    if (refreshed) return apiFetch<T>(path, options, true);
-  }
-
   if (res.status === 401 && body && !body.success) {
-    handleRejectedSession(body.error.code);
-  }
-
-  if (
-    res.status === 401 &&
-    !isRetry &&
-    body &&
-    !body.success &&
-    body.error.code === 'TOKEN_EXPIRED'
-  ) {
-    const refreshed = await refreshOnce();
-    if (refreshed) {
-      return apiFetch<T>(path, options, true);
-    }
-    useAuthStore.getState().clearSession();
+    if (await renovarAposNaoAutorizado(body.error.code, isRetry)) return apiFetch<T>(path, options, true);
   }
 
   if (!body || !body.success) {
@@ -188,23 +188,13 @@ export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob>
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
   });
 
-  if (res.status === 401 && !isRetry) {
+  if (res.status === 401) {
     const body = (await res
       .clone()
       .json()
       .catch(() => null)) as ApiResponse<unknown> | null;
     const code = body && !body.success ? body.error.code : '';
-    if (code === 'SESSION_REVOKED') {
-      const refreshed = await refreshOnce();
-      if (refreshed) return apiFetchBlob(path, true);
-    }
-    handleRejectedSession(code);
-
-    if (code === 'TOKEN_EXPIRED' || !code) {
-      const refreshed = await refreshOnce();
-      if (refreshed) return apiFetchBlob(path, true);
-      useAuthStore.getState().clearSession();
-    }
+    if (await renovarAposNaoAutorizado(code, isRetry)) return apiFetchBlob(path, true);
   }
 
   if (!res.ok) {
@@ -238,12 +228,7 @@ export async function apiFetchMultipart<T>(
   const body = (await res.json().catch(() => null)) as ApiResponse<T> | null;
 
   if (res.status === 401 && body && !body.success) {
-    handleRejectedSession(body.error.code);
-    if (!isRetry && body.error.code === 'TOKEN_EXPIRED') {
-      const refreshed = await refreshOnce();
-      if (refreshed) return apiFetchMultipart<T>(path, formData, true);
-      useAuthStore.getState().clearSession();
-    }
+    if (await renovarAposNaoAutorizado(body.error.code, isRetry)) return apiFetchMultipart<T>(path, formData, true);
   }
 
   if (!body || !body.success) {
