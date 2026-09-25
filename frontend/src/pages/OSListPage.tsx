@@ -463,9 +463,21 @@ export function OSListPage() {
 
         {!isLoading && !isError && data?.items.length === 0 && (
           <EmptyState
-            title="Nenhuma OS encontrada"
-            description="Ajuste os filtros ou crie uma nova OS."
-            action={filtrosAtivos > 0 || buscaAtiva ? <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button> : undefined}
+            title={filtrosAtivos > 0 || buscaAtiva ? 'Nenhuma OS encontrada' : 'Nenhuma OS ainda'}
+            description={
+              buscaAtiva
+                ? 'A busca procura por número da OS, cliente, placa ou veículo. Confira a digitação ou limpe os filtros.'
+                : filtrosAtivos > 0
+                  ? 'Nenhuma OS com esses filtros. Limpe os filtros para ver todas.'
+                  : 'Quando uma OS for aberta, aqui ou no CHERP, ela aparece nesta lista.'
+            }
+            action={
+              filtrosAtivos > 0 || buscaAtiva ? (
+                <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button>
+              ) : hasPermission('OS_CREATE') ? (
+                <LinkButton to="/os/nova">Abrir nova OS</LinkButton>
+              ) : undefined
+            }
           />
         )}
 

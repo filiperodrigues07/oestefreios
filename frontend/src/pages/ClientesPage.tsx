@@ -304,8 +304,20 @@ export function ClientesPage() {
       {!isLoading && !isError && data && data.items.length === 0 && (
         <EmptyState
           title={filtrosAtivos > 0 || buscaAtiva ? 'Nenhum cliente encontrado' : 'Nenhum cliente cadastrado ainda'}
-          description={filtrosAtivos > 0 || buscaAtiva ? 'Não encontramos resultados com os filtros atuais.' : undefined}
-          action={filtrosAtivos > 0 || buscaAtiva ? <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button> : undefined}
+          description={
+            buscaAtiva
+              ? 'A busca procura por nome, código, CPF/CNPJ ou telefone. Confira a digitação ou limpe os filtros.'
+              : filtrosAtivos > 0
+                ? 'Não encontramos resultados com os filtros atuais.'
+                : undefined
+          }
+          action={
+            filtrosAtivos > 0 || buscaAtiva ? (
+              <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button>
+            ) : podeCriar ? (
+              <LinkButton to="/clientes/novo">Cadastrar cliente</LinkButton>
+            ) : undefined
+          }
         />
       )}
 
