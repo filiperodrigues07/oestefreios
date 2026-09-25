@@ -6,6 +6,16 @@ import { HomePage } from '../pages/HomePage.js';
 import { LoginPage } from '../pages/LoginPage.js';
 import { ProtectedRoute } from './ProtectedRoute.js';
 import { RouteErrorPage } from './RouteErrorPage.js';
+import {
+  importClientesPage,
+  importConfiguracoesPage,
+  importOSFormPage,
+  importOSListPage,
+  importProdutosPage,
+  importRelatoriosPage,
+  importUsuariosPage,
+  importVeiculosPage,
+} from './prefetch.js';
 import { ErrorScreen } from '../components/ui/ErrorScreen.js';
 
 // Lazy: cada página só entra no bundle quando a rota é visitada, em vez de tudo no carregamento inicial.
@@ -20,34 +30,32 @@ const ClienteFormPage = lazy(() =>
   import('../pages/ClienteFormPage.js').then((m) => ({ default: m.ClienteFormPage })),
 );
 const ClientesPage = lazy(() =>
-  import('../pages/ClientesPage.js').then((m) => ({ default: m.ClientesPage })),
+  importClientesPage().then((m) => ({ default: m.ClientesPage })),
 );
 const VeiculosPage = lazy(() =>
-  import('../pages/VeiculosPage.js').then((m) => ({ default: m.VeiculosPage })),
+  importVeiculosPage().then((m) => ({ default: m.VeiculosPage })),
 );
 const ConfiguracoesPage = lazy(() =>
-  import('../pages/ConfiguracoesPage.js').then((m) => ({ default: m.ConfiguracoesPage })),
+  importConfiguracoesPage().then((m) => ({ default: m.ConfiguracoesPage })),
 );
 const EsqueciSenhaPage = lazy(() =>
   import('../pages/EsqueciSenhaPage.js').then((m) => ({ default: m.EsqueciSenhaPage })),
 );
-const OSFormPage = lazy(() =>
-  import('../pages/OSFormPage.js').then((m) => ({ default: m.OSFormPage })),
-);
+const OSFormPage = lazy(() => importOSFormPage().then((m) => ({ default: m.OSFormPage })));
 const OSListPage = lazy(() =>
-  import('../pages/OSListPage.js').then((m) => ({ default: m.OSListPage })),
+  importOSListPage().then((m) => ({ default: m.OSListPage })),
 );
 const ProdutosPage = lazy(() =>
-  import('../pages/ProdutosPage.js').then((m) => ({ default: m.ProdutosPage })),
+  importProdutosPage().then((m) => ({ default: m.ProdutosPage })),
 );
 const RedefinirSenhaPage = lazy(() =>
   import('../pages/RedefinirSenhaPage.js').then((m) => ({ default: m.RedefinirSenhaPage })),
 );
 const RelatoriosPage = lazy(() =>
-  import('../pages/RelatoriosPage.js').then((m) => ({ default: m.RelatoriosPage })),
+  importRelatoriosPage().then((m) => ({ default: m.RelatoriosPage })),
 );
 const UsuariosPage = lazy(() =>
-  import('../pages/UsuariosPage.js').then((m) => ({ default: m.UsuariosPage })),
+  importUsuariosPage().then((m) => ({ default: m.UsuariosPage })),
 );
 
 function PageLoadingFallback() {

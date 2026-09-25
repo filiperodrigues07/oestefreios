@@ -1,6 +1,7 @@
 import { useIsMutating, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation } from 'react-router';
+import { prefetchRoute } from '../../routes/prefetch.js';
 import { getBranding } from '../../api/settings.api.js';
 import { getDashboardOperacional } from '../../api/dashboard.api.js';
 import { calendarDateValue } from '../../utils/calendarDate.js';
@@ -295,6 +296,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                   }
                   title={collapsed ? item.label : undefined}
                   aria-label={collapsed ? item.label : undefined}
+                  onPointerEnter={() => prefetchRoute(item.to)}
+                  onFocus={() => prefetchRoute(item.to)}
                 >
                   <NavIcon name={item.icon} />
                   {!collapsed && <><span className={styles.sidebarItemLabel}>{item.label}</span>{item.to === '/' && <span className={styles.newBadge}>Novo</span>}<svg className={styles.activeChevron} width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m9 5 7 7-7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg></>}
@@ -450,6 +453,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             className={({ isActive }) =>
               `${styles.bottomNavItem} ${isActive ? styles.bottomNavItemActive : ''}`
             }
+            onTouchStart={() => prefetchRoute(item.to)}
           >
             <NavIcon name={item.icon} />
             <span>{item.mobileLabel ?? item.label}</span>

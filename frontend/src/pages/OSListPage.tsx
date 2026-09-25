@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
+import { prefetchOS } from '../routes/prefetch.js';
 import { baixarOSPdf, duplicarOS, excluirOS, listarOS, type OSSortBy } from '../api/os.api.js';
 import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import { baixarRelatorioOS } from '../api/relatorios.api.js';
@@ -473,6 +474,7 @@ export function OSListPage() {
               data={data.items}
               rowKey={(os) => os.id}
               onRowClick={(os) => navigate(`/os/${os.id}`)}
+              onRowIntent={(os) => prefetchOS(os.id)}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortChange={handleSortChange}
