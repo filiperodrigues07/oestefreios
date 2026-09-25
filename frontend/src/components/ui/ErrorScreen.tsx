@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { codigoSuporte } from '../../api/httpClient.js';
+import { APP_VERSION } from '../../utils/appVersion.js';
 import { getBranding, type Branding } from '../../api/settings.api.js';
 import { queryClient } from '../../api/queryClient.js';
 import { useAuthStore } from '../../store/authStore.js';
@@ -106,6 +107,7 @@ export function ErrorScreen({
       )}
       <p className={styles.description}>{description ?? presentation.description}</p>
       {suporte && <p className={styles.description}>Código para suporte: <strong>{suporte}</strong></p>}
+      <p className={styles.description} style={{ fontSize: 'var(--font-size-xs)', opacity: 0.7 }}>Versão {APP_VERSION}</p>
       <div className={styles.actions}>
         {presentation.recovery === 'login' ? (
           <a className={styles.primaryLink} href="/login">

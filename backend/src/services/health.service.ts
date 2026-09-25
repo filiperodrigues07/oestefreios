@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { firebirdQuery } from '../database/firebird/pool.js';
 import { db } from '../database/postgres/client.js';
+import { APP_VERSION } from '../config/version.js';
 import { getCherpMode } from '../repositories/cherpMode.js';
 
 type Componente = 'ok' | 'down';
@@ -36,5 +37,5 @@ export async function getHealthStatus() {
   ]);
 
   const status = postgres === 'down' ? ('down' as const) : firebird === 'down' ? ('degraded' as const) : ('ok' as const);
-  return { status, timestamp: new Date().toISOString(), postgres, firebird, cherpMode };
+  return { status, timestamp: new Date().toISOString(), version: APP_VERSION, postgres, firebird, cherpMode };
 }
