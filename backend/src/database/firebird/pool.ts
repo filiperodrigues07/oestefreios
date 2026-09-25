@@ -55,6 +55,14 @@ export function reloadFirebirdPool(newOptions: Partial<Firebird.Options>): Promi
   return new Promise((resolve) => old.destroy(() => resolve()));
 }
 
+/** Fecha o pool no shutdown (conexões ociosas) — sem isso o processo pode ficar preso esperando o Firebird. */
+export function closeFirebirdPool(): Promise<void> {
+  const old = cachedPool;
+  cachedPool = null;
+  if (!old) return Promise.resolve();
+  return new Promise((resolve) => old.destroy(() => resolve()));
+}
+
 /**
  * node-firebird devolve array pra SELECT normal, mas um objeto único (não array)
  * pra INSERT/UPDATE/DELETE ... RETURNING de uma linha só — normaliza os dois casos.

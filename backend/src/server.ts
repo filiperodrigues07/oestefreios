@@ -1,6 +1,8 @@
 import { app } from './app.js';
 import { env } from './config/env.js';
+import { closeFirebirdPool } from './database/firebird/pool.js';
 import { pool } from './database/postgres/client.js';
+import { agendarRetencao } from './services/retencao.service.js';
 import { applyStoredFirebirdSettings } from './services/settings.service.js';
 import { logger } from './utils/logger.js';
 
@@ -15,12 +17,23 @@ applyStoredFirebirdSettings().catch((err) => {
   logger.warn({ err }, 'Não foi possível aplicar configurações salvas do Firebird — mantendo .env');
 });
 
+agendarRetencao();
+
+let encerrando = false;
 async function shutdown(signal: string) {
+  if (encerrando) return;
+  encerrando = true;
   logger.info(`Recebido ${signal}, encerrando graciosamente...`);
+  // Se algo travar (conexão keep-alive, query longa), força a saída antes do systemd matar com SIGKILL.
+  setTimeout(() => {
+    logger.error('Encerramento demorou mais de 10s — forçando saída');
+    process.exit(1);
+  }, 10_000).unref();
   server.close(async () => {
-    await pool.end();
+    await Promise.allSettled([pool.end(), closeFirebirdPool()]);
     process.exit(0);
   });
+  server.closeIdleConnections();
 }
 
 process.on('SIGINT', () => shutdown('SIGINT'));
