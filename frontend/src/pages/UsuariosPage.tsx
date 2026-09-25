@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
+import { useConfirmDiscard } from '../hooks/useConfirmDiscard.js';
 import { createUser, deleteUser, exportUsersExcel, listCherpUsers, listRoles, listUsers, reenviarConvite, updateUser } from '../api/users.api.js';
 import {
   ActionIcon,
@@ -342,6 +343,8 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
   const preset = roleSelecionado?.permissions ?? [];
   const isCustom = form.roleId !== '' && !setsEqual(form.permissions, preset);
   const isAdminRole = roleSelecionado?.name === 'Administrador';
+  const formOriginal = useMemo(() => (usuario ? formDeUsuario(usuario) : formVazio(roles)), [usuario, roles]);
+  const descarte = useConfirmDiscard(open && JSON.stringify(form) !== JSON.stringify(formOriginal), onClose);
 
   const saveMutation = useMutation({
     mutationFn: () => {
@@ -396,13 +399,14 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
   }
 
   return (
+    <>
     <Modal
       open={open}
       title={usuario ? 'Editar usuário' : 'Novo usuário'}
-      onClose={onClose}
+      onClose={descarte.requestClose}
       footer={
         <div className={styles.modalFooter}>
-          <Button variant="secondary" onClick={onClose}>
+          <Button variant="secondary" onClick={descarte.requestClose}>
             Cancelar
           </Button>
           <Button
@@ -513,6 +517,8 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
         )}
       </div>
     </Modal>
+    {descarte.dialog}
+    </>
   );
 }
 

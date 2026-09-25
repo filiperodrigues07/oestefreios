@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
+import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard.js';
 import { useSearchParams } from 'react-router';
 import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import {
@@ -57,7 +58,10 @@ interface TestFeedback {
   message: string;
 }
 
-/** Mantém o rascunho local sincronizado quando uma nova versão chega da API. */
+/**
+ * Mantém o rascunho local sincronizado quando uma nova versão chega da API e avisa antes de sair
+ * da tela com alteração não salva (o diálogo devolvido precisa ser renderizado pela aba).
+ */
 function useSettingsForm<T>(data: T | undefined) {
   const [form, setForm] = useState<T | null>(() => data ?? null);
   const [lastData, setLastData] = useState(data);
@@ -65,7 +69,9 @@ function useSettingsForm<T>(data: T | undefined) {
     setLastData(data);
     if (data !== undefined) setForm(data);
   }
-  return [form, setForm] as const;
+  const dirty = form !== null && data !== undefined && JSON.stringify(form) !== JSON.stringify(data);
+  const { dialog } = useUnsavedChangesGuard(dirty);
+  return [form, setForm, dialog] as const;
 }
 
 function SettingsIcon({
@@ -171,7 +177,7 @@ function FirebirdTab() {
     queryFn: getFirebirdConnectionStatus,
     staleTime: 30_000,
   });
-  const [form, setForm] = useSettingsForm<FirebirdSettings>(data);
+  const [form, setForm, guardDialog] = useSettingsForm<FirebirdSettings>(data);
   const [testResult, setTestResult] = useState<TestFeedback | null>(null);
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
   const [checkedForm, setCheckedForm] = useState<FirebirdSettings | null>(null);
@@ -414,6 +420,7 @@ function FirebirdTab() {
           aplicá-los.
         </p>
       </Modal>
+      {guardDialog}
     </div>
   );
 }
@@ -425,7 +432,7 @@ function SmtpTab() {
     queryKey: ['settings', 'smtp'],
     queryFn: getSmtpSettings,
   });
-  const [form, setForm] = useSettingsForm<SmtpSettings>(data);
+  const [form, setForm, guardDialog] = useSettingsForm<SmtpSettings>(data);
   const [destino, setDestino] = useState('');
   const [testResult, setTestResult] = useState<TestFeedback | null>(null);
 
@@ -504,6 +511,7 @@ function SmtpTab() {
         <p>As alterações passam a valer nos próximos e-mails enviados.</p>
         <Button onClick={() => saveMutation.mutate(form)} loading={saveMutation.isPending}><SettingsIcon name="save" />Salvar configurações de e-mail</Button>
       </div>
+      {guardDialog}
     </section>
   );
 }
@@ -515,7 +523,7 @@ function GeralTab() {
     queryKey: ['settings', 'geral'],
     queryFn: getGeralSettings,
   });
-  const [form, setForm] = useSettingsForm<GeralSettings>(data);
+  const [form, setForm, guardDialog] = useSettingsForm<GeralSettings>(data);
   const logoInputRef = useRef<HTMLInputElement>(null);
 
   const saveMutation = useMutation({
@@ -625,6 +633,7 @@ function GeralTab() {
           Salvar cadastro da empresa
         </Button>
       </div>
+      {guardDialog}
     </section>
   );
 }
@@ -636,7 +645,7 @@ function IntegracoesTab() {
     queryKey: ['settings', 'integracoes'],
     queryFn: getIntegracoesSettings,
   });
-  const [form, setForm] = useSettingsForm<IntegracoesSettings>(data);
+  const [form, setForm, guardDialog] = useSettingsForm<IntegracoesSettings>(data);
 
   const saveMutation = useMutation({
     mutationFn: saveIntegracoesSettings,
@@ -731,6 +740,7 @@ function IntegracoesTab() {
           </Button>
         </div>
       </section>
+      {guardDialog}
     </div>
   );
 }

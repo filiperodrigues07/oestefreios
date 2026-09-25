@@ -1,5 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import { atualizarCliente, consultarCep, consultarCnpj, consultarInscricaoEstadual, criarCliente, getClienteByCodigo, getClienteByDocumento } from '../../api/clientes.api.js';
 import { ApiError } from '../../api/httpClient.js';
 import { Button, Checkbox, ConfirmDialog, Input, RequiredMark, Select, useToast } from '../ui/index.js';
@@ -98,6 +99,9 @@ interface ClienteFormProps {
 export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, cancelLabel = 'Cancelar', onExistingLoaded }: ClienteFormProps) {
   const { showToast } = useToast();
   const [form, setForm] = useState<ClienteInput>(() => (clienteInicial ? clienteParaInput(clienteInicial) : FORM_VAZIO));
+  // Referência do "salvo": muda só ao carregar um cadastro existente — qualquer diferença disso é edição pendente.
+  const [formSalvo, setFormSalvo] = useState(form);
+  const guard = useUnsavedChangesGuard(JSON.stringify(form) !== JSON.stringify(formSalvo));
   const [documentoErro, setDocumentoErro] = useState<string | null>(null);
   const [cepErro, setCepErro] = useState<string | null>(null);
   const [clienteEncontrado, setClienteEncontrado] = useState<ClienteDTO | null>(null);
@@ -170,7 +174,10 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
 
   const saveMutation = useMutation({
     mutationFn: () => (modoEdicao ? atualizarCliente(codigoEfetivo!, form) : criarCliente(form)),
-    onSuccess: (cliente) => onSaved(cliente),
+    onSuccess: (cliente) => {
+      guard.liberar();
+      onSaved(cliente);
+    },
     onError: async (err) => {
       if (!(err instanceof ApiError) || err.code !== 'CLIENT_DUPLICATE') return;
       const duplicado = err.details as { codigo: string; nome: string } | undefined;
@@ -235,7 +242,9 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
     if (!clienteEncontrado) return;
     consultaSequencia.current++;
     documentoAtual.current = clienteEncontrado.documento?.replace(/\D/g, '') ?? '';
-    setForm(clienteParaInput(clienteEncontrado));
+    const carregado = clienteParaInput(clienteEncontrado);
+    setForm(carregado);
+    setFormSalvo(carregado);
     setModoEfetivo('edit');
     setCodigoEfetivo(clienteEncontrado.codigo);
     onExistingLoaded?.(clienteEncontrado);
@@ -585,6 +594,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
           setTrocaTipoPendente(null);
         }}
       />
+      {guard.dialog}
     </div>
   );
 }

@@ -21,6 +21,7 @@ import { OS_PRIORIDADE_OPTIONS } from '../../constants/osStatus.js';
 import { handleMutationError } from '../../pwa/offlineErrorToast.js';
 import { OfflineQueuedError } from '../../pwa/OfflineQueuedError.js';
 import { hasPermission } from '../../store/authStore.js';
+import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
 import { type OSPrioridade, type OSStatus } from '../../types/os.types.js';
 import {
@@ -72,6 +73,7 @@ function OSFormCreate() {
   const [equipamento, setEquipamento] = useState<EquipamentoDTO | null>(null);
   const [problema, setProblema] = useState('');
   const [prioridade, setPrioridade] = useState<OSPrioridade>('NORMAL');
+  const guard = useUnsavedChangesGuard(Boolean(cliente || equipamento || problema.trim()));
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -81,10 +83,14 @@ function OSFormCreate() {
         problema,
         prioridade,
       }),
-    onSuccess: (os) => navigate(`/os/${os.id}`, { replace: true }),
+    onSuccess: (os) => {
+      guard.liberar();
+      navigate(`/os/${os.id}`, { replace: true });
+    },
     onError: (err) => {
       if (err instanceof OfflineQueuedError) {
         showToast(err.message, 'warning');
+        guard.liberar();
         navigate('/os', { replace: true });
       }
     },
@@ -189,6 +195,7 @@ function OSFormCreate() {
           </div>
         </section>
       </Tabs>
+      {guard.dialog}
     </div>
   );
 }
@@ -205,6 +212,7 @@ function OSFormEdit({ id }: { id: string }) {
   );
   const [diagnosticoDirty, setDiagnosticoDirty] = useState(false);
   const [trocaPendente, setTrocaPendente] = useState<string | null>(null);
+  const guard = useUnsavedChangesGuard(diagnosticoDirty);
 
   function aplicarTroca(key: string) {
     setTab(key as OSTab);
@@ -407,6 +415,7 @@ function OSFormEdit({ id }: { id: string }) {
         queryClient.invalidateQueries({ queryKey: ['dashboard-operacional'] }),
       ]);
       showToast('OS excluída.', 'success');
+      guard.liberar();
       navigate('/os', { replace: true });
     },
     onError: (err) => handleMutationError(err, showToast, 'Não foi possível excluir a OS. Tente novamente.'),
@@ -525,7 +534,13 @@ function OSFormEdit({ id }: { id: string }) {
               kmFinal={os.kmFinal}
               podeEditar={podeEditar}
               salvando={salvarMutation.isPending}
-              onSave={(patch) => salvarMutation.mutate(patch)}
+              onSave={(patch) =>
+                salvarMutation.mutateAsync(patch).then(
+                  () => true,
+                  // Enfileirada offline conta como aceita (sincroniza depois); outro erro mantém o texto na tela.
+                  (err: unknown) => err instanceof OfflineQueuedError,
+                )
+              }
               onDirtyChange={setDiagnosticoDirty}
             />
           </section>
@@ -623,6 +638,7 @@ function OSFormEdit({ id }: { id: string }) {
           aplicarTroca(key);
         }}
       />
+      {guard.dialog}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useConfirmDiscard } from '../../hooks/useConfirmDiscard.js';
 import { atualizarEquipamento, criarEquipamento, getEquipamentoByCodigo, getVehicleLookupQuota, lookupVehiclePlate, type VehicleLookupQuota, type VehicleLookupResult } from '../../api/equipamentos.api.js';
 import { ApiError } from '../../api/httpClient.js';
 import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
@@ -77,6 +78,8 @@ function VeiculoFormContent({
   const [form, setForm] = useState<Omit<EquipamentoInput, 'clienteCodigo'>>(() =>
     veiculo ? formFromEquipamento(veiculo) : { ...VAZIO, placa: placaInicial ?? '' },
   );
+  // Referência pra detectar edição pendente — atualizada quando um cadastro existente é carregado.
+  const [formOriginal, setFormOriginal] = useState(form);
   const [clienteEscolhido, setClienteEscolhido] = useState<ClienteDTO | null>(() =>
     veiculo?.clienteCodigo
       ? {
@@ -135,7 +138,9 @@ function VeiculoFormContent({
       setCarregandoDuplicado(true);
       try {
         const equipamentoExistente = await getEquipamentoByCodigo(duplicado.codigo);
-        setForm(formFromEquipamento(equipamentoExistente));
+        const carregado = formFromEquipamento(equipamentoExistente);
+        setForm(carregado);
+        setFormOriginal(carregado);
         setVeiculoEfetivo(equipamentoExistente);
         if (!clienteCodigo && equipamentoExistente.clienteCodigo) {
           setClienteEscolhido({
@@ -151,16 +156,22 @@ function VeiculoFormContent({
     },
   });
 
-  function handleClose() {
-    if (mutation.isPending) return;
+  function fecharSemConfirmar() {
     setForm({ ...VAZIO, placa: placaInicial ?? '' });
     setClienteEscolhido(null);
     onClose();
+  }
+  const descarte = useConfirmDiscard(JSON.stringify(form) !== JSON.stringify(formOriginal), fecharSemConfirmar);
+
+  function handleClose() {
+    if (mutation.isPending) return;
+    descarte.requestClose();
   }
 
   const podeSalvar = form.placa.trim().length > 0 && !!clienteFinal;
 
   return (
+    <>
     <Modal
       open={open}
       title={veiculoEfetivo ? 'Editar veículo' : 'Novo veículo'}
@@ -347,6 +358,8 @@ function VeiculoFormContent({
         })()}
       </div>
     </Modal>
+    {descarte.dialog}
+    </>
   );
 }
 

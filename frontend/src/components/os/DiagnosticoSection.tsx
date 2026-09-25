@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { Button } from '../ui/index.js';
 
 export interface DiagnosticoPatch {
@@ -17,7 +17,8 @@ interface DiagnosticoSectionProps {
   kmFinal?: number;
   podeEditar: boolean;
   salvando: boolean;
-  onSave: (patch: DiagnosticoPatch) => void;
+  /** Resolve `true` quando a alteração foi aceita (gravada ou enfileirada offline); `false` mantém o formulário sujo. */
+  onSave: (patch: DiagnosticoPatch) => Promise<boolean>;
   /** Avisa o pai quando há edição pendente não salva — usado pra confirmar antes de trocar de aba. */
   onDirtyChange?: (dirty: boolean) => void;
 }
@@ -60,22 +61,28 @@ export function DiagnosticoSection({
     }
   }
 
+  // Conta edições: se o usuário continuar digitando enquanto o salvar está em voo, o formulário continua sujo.
+  const edicoes = useRef(0);
+
   function marcarAlterado<T>(setter: (v: T) => void) {
     return (v: T) => {
       setter(v);
+      edicoes.current += 1;
       setDirty(true);
     };
   }
 
-  function salvar() {
-    onSave({
+  async function salvar() {
+    const edicoesNoEnvio = edicoes.current;
+    const ok = await onSave({
       diagnostico: diagnosticoForm,
       observacoes: observacoesForm,
       solucao: solucaoForm,
       kmAtual: kmAtualForm.trim() !== '' ? Number(kmAtualForm) : undefined,
       kmFinal: kmFinalForm.trim() !== '' ? Number(kmFinalForm) : undefined,
     });
-    setDirty(false);
+    // Só limpa depois da resposta: se falhar, o texto digitado continua na tela pra tentar de novo.
+    if (ok && edicoes.current === edicoesNoEnvio) setDirty(false);
   }
 
   if (!podeEditar) {
@@ -109,7 +116,7 @@ export function DiagnosticoSection({
         </div>
 
         <div>
-          <Button size="sm" loading={salvando} disabled={!dirty} onClick={salvar}>
+          <Button size="sm" loading={salvando} disabled={!dirty} onClick={() => void salvar()}>
             Salvar
           </Button>
         </div>
