@@ -26,7 +26,7 @@ import { hasPermission, useAuthStore } from '../../store/authStore.js';
 import { draftKey } from '../../utils/drafts.js';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
-import { type OSPrioridade, type OSStatus } from '../../types/os.types.js';
+import { type OrdemServicoDTO, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
 import {
   ActionIcon,
   Button,
@@ -289,23 +289,46 @@ function OSFormEdit({ id }: { id: string }) {
     },
   });
 
+  /**
+   * Atualização otimista: o seletor muda na hora; se o backend recusar (transição inválida, sem
+   * conexão de verdade...), volta ao valor anterior. Enfileirado offline mantém o novo valor na tela.
+   */
+  async function aplicarOtimista(patch: Partial<OrdemServicoDTO>) {
+    await queryClient.cancelQueries({ queryKey: ['os', id] });
+    const anterior = queryClient.getQueryData<OrdemServicoDTO>(['os', id]);
+    if (anterior) queryClient.setQueryData<OrdemServicoDTO>(['os', id], { ...anterior, ...patch });
+    return { anterior };
+  }
+
+  function desfazerOtimista(err: unknown, contexto: { anterior?: OrdemServicoDTO } | undefined) {
+    if (err instanceof OfflineQueuedError) return;
+    if (contexto?.anterior) queryClient.setQueryData(['os', id], contexto.anterior);
+  }
+
   const statusMutation = useMutation({
     mutationFn: (status: OSStatus) => alterarStatusOS(id, status),
+    onMutate: (status) => aplicarOtimista({ status }),
     onSuccess: async () => {
       await invalidate();
       showToast('Status alterado.', 'success');
     },
-    onError: (err) => handleMutationError(err, showToast, 'Não foi possível alterar o status.'),
+    onError: (err, _status, contexto) => {
+      desfazerOtimista(err, contexto);
+      handleMutationError(err, showToast, 'Não foi possível alterar o status.');
+    },
   });
 
   const prioridadeMutation = useMutation({
     mutationFn: (prioridade: OSPrioridade) => atualizarOS(id, { prioridade }),
+    onMutate: (prioridade) => aplicarOtimista({ prioridade }),
     onSuccess: async () => {
       await invalidate();
       showToast('Prioridade atualizada.', 'success');
     },
-    onError: (err) =>
-      handleMutationError(err, showToast, 'Não foi possível atualizar a prioridade.'),
+    onError: (err, _prioridade, contexto) => {
+      desfazerOtimista(err, contexto);
+      handleMutationError(err, showToast, 'Não foi possível atualizar a prioridade.');
+    },
   });
 
   async function adicionarProduto(
