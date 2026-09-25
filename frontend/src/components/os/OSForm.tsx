@@ -20,7 +20,8 @@ import { getEquipamentoByCodigo } from '../../api/equipamentos.api.js';
 import { OS_PRIORIDADE_OPTIONS } from '../../constants/osStatus.js';
 import { handleMutationError } from '../../pwa/offlineErrorToast.js';
 import { OfflineQueuedError } from '../../pwa/OfflineQueuedError.js';
-import { hasPermission } from '../../store/authStore.js';
+import { hasPermission, useAuthStore } from '../../store/authStore.js';
+import { draftKey } from '../../utils/drafts.js';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
 import { type OSPrioridade, type OSStatus } from '../../types/os.types.js';
@@ -213,6 +214,7 @@ function OSFormEdit({ id }: { id: string }) {
   const [diagnosticoDirty, setDiagnosticoDirty] = useState(false);
   const [trocaPendente, setTrocaPendente] = useState<string | null>(null);
   const guard = useUnsavedChangesGuard(diagnosticoDirty);
+  const userId = useAuthStore((s) => s.user?.id);
 
   function aplicarTroca(key: string) {
     setTab(key as OSTab);
@@ -542,6 +544,7 @@ function OSFormEdit({ id }: { id: string }) {
                 )
               }
               onDirtyChange={setDiagnosticoDirty}
+              draftStorageKey={userId ? draftKey(userId, 'os', id, 'diagnostico') : undefined}
             />
           </section>
         )}

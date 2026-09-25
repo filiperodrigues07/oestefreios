@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { logout } from '../../api/auth.api.js';
 import { clearOfflineQueue } from '../../pwa/offlineQueue.js';
+import { clearAllDrafts } from '../../utils/drafts.js';
 import { clearLegacyApiCache } from '../../pwa/apiCache.js';
 import { queryClient } from '../../api/queryClient.js';
 import { useClickOutside } from '../../hooks/useClickOutside.js';
@@ -42,6 +43,7 @@ export function SidebarProfile({
     mutationFn: logout,
     onSettled: async () => {
       await Promise.allSettled([clearOfflineQueue(), clearLegacyApiCache()]);
+      clearAllDrafts();
       queryClient.clear();
       clearSession();
       navigate('/login', { replace: true });
