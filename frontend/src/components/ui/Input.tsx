@@ -39,6 +39,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         aria-invalid={error ? true : undefined}
         aria-describedby={errorId}
         onChange={uppercase ? handleChange : onChange}
+        // Campo em maiúsculas: teclado do celular já abre em CAPS e o corretor não "corrige" nome/placa.
+        autoCapitalize={uppercase ? 'characters' : undefined}
+        spellCheck={uppercase ? false : undefined}
         {...rest}
       />
       {error && (

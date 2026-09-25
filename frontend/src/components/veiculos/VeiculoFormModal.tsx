@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useConfirmDiscard } from '../../hooks/useConfirmDiscard.js';
+import { sanitizarChassi, sanitizarPlaca, somenteDigitos } from '../../utils/veiculoFormatters.js';
 import { atualizarEquipamento, criarEquipamento, getEquipamentoByCodigo, getVehicleLookupQuota, lookupVehiclePlate, type VehicleLookupQuota, type VehicleLookupResult } from '../../api/equipamentos.api.js';
 import { ApiError } from '../../api/httpClient.js';
 import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
@@ -246,7 +247,7 @@ function VeiculoFormContent({
 
         {!veiculoEfetivo && <PlateLookup quota={quotaQuery.data} loadingQuota={quotaQuery.isLoading} loading={lookupMutation.isPending}
           plate={form.placa} onPlateChange={(placa) => setForm({ ...form, placa })} onLookup={() => lookupMutation.mutate()} />}
-        {veiculoEfetivo && <Input label="Placa" required value={form.placa} onChange={(e) => setForm({ ...form, placa: e.target.value.toUpperCase() })} placeholder="AAA-9999 ou AAA9A99" />}
+        {veiculoEfetivo && <Input label="Placa" required value={form.placa} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={8} onChange={(e) => setForm({ ...form, placa: sanitizarPlaca(e.target.value) })} placeholder="AAA-9999 ou AAA9A99" />}
         {lookupMutation.isError && <p role="alert" className={styles.lookupError}>{lookupMutation.error instanceof Error ? lookupMutation.error.message : 'Não foi possível consultar a placa.'}</p>}
         <div
           style={{
@@ -280,14 +281,14 @@ function VeiculoFormContent({
             inputMode="numeric"
             maxLength={4}
             value={form.anoFabricacao}
-            onChange={(e) => setForm({ ...form, anoFabricacao: e.target.value })}
+            onChange={(e) => setForm({ ...form, anoFabricacao: somenteDigitos(e.target.value, 4) })}
           />
           <Input
             label="Ano mod."
             inputMode="numeric"
             maxLength={4}
             value={form.anoModelo}
-            onChange={(e) => setForm({ ...form, anoModelo: e.target.value })}
+            onChange={(e) => setForm({ ...form, anoModelo: somenteDigitos(e.target.value, 4) })}
           />
           <Input
             label="Cor"
@@ -299,8 +300,10 @@ function VeiculoFormContent({
         <Input
           label="Chassi"
           uppercase
+          autoCorrect="off"
+          maxLength={17}
           value={form.chassi}
-          onChange={(e) => setForm({ ...form, chassi: e.target.value })}
+          onChange={(e) => setForm({ ...form, chassi: sanitizarChassi(e.target.value) })}
         />
         <div className={styles.extraGrid}>
           <Input label="Versão" uppercase value={form.versao} onChange={(e) => setForm({ ...form, versao: e.target.value })} />
@@ -369,7 +372,7 @@ function PlateLookup({ quota, loadingQuota, loading, plate, onPlateChange, onLoo
   return <section className={`${styles.lookup} ${styles[tone]}`} aria-label="Consulta automática pela placa">
     <strong>Consulta automática pela placa</strong>
     <div className={styles.lookupRow}>
-      <Input label="Placa" required value={plate} onChange={(e) => onPlateChange(e.target.value.toUpperCase())} placeholder="AAA-9999 ou AAA9A99" />
+      <Input label="Placa" required value={plate} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={8} enterKeyHint="search" onChange={(e) => onPlateChange(sanitizarPlaca(e.target.value))} placeholder="AAA-9999 ou AAA9A99" />
       <Button type="button" onClick={onLookup} loading={loading} disabled={loadingQuota || quota?.exhausted || !plate.trim()}>{loading ? 'Consultando veículo...' : 'Consultar placa'}</Button>
     </div>
     {quota && <div className={styles.quota}>

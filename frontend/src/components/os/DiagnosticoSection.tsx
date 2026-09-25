@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { readDraft, removeDraft, writeDraft } from '../../utils/drafts.js';
+import { somenteDigitos } from '../../utils/veiculoFormatters.js';
 import { Button, Modal } from '../ui/index.js';
 
 interface DiagnosticoDraft {
@@ -229,6 +230,12 @@ export function DiagnosticoSection({
           <EditNumber label="KM na abertura" value={kmAtualForm} onChange={(v) => alterar(setKmAtualForm, v)} />
           <EditNumber label="KM na entrega" value={kmFinalForm} onChange={(v) => alterar(setKmFinalForm, v)} />
         </div>
+        {kmAtualForm !== '' && kmFinalForm !== '' && Number(kmFinalForm) < Number(kmAtualForm) && (
+          // Só avisa (não bloqueia): troca de painel/hodômetro zerado existe na vida real.
+          <p role="status" style={{ margin: 0, fontSize: 'var(--font-size-sm)', color: 'var(--color-warning-on-surface)' }}>
+            KM na entrega menor que na abertura. Confira se não houve erro de digitação.
+          </p>
+        )}
 
         <div>
           <Button size="sm" loading={salvando} disabled={!dirty} onClick={() => void salvar()}>
@@ -304,11 +311,14 @@ function EditNumber({
       </label>
       <input
         id={id}
-        type="number"
+        // text + inputMode: teclado numérico sem aceitar "e", "-", "," que o type="number" deixa passar.
+        type="text"
         inputMode="numeric"
-        min={0}
+        pattern="[0-9]*"
+        maxLength={8}
+        enterKeyHint="done"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => onChange(somenteDigitos(e.target.value, 8))}
         style={{
           width: '100%',
           padding: '9px 10px',

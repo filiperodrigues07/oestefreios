@@ -157,6 +157,7 @@ function OSFormCreate() {
                 id="problema"
                 value={problema}
                 onChange={(e) => setProblema(e.target.value.toLocaleUpperCase('pt-BR'))}
+                autoCapitalize="characters"
                 rows={3}
                 className={styles.textarea}
               />
