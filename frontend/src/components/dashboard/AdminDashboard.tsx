@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { getDashboardOperacional } from '../../api/dashboard.api.js';
@@ -124,7 +124,7 @@ export function AdminDashboard() {
   const [customEnd, setCustomEnd] = useState(calendarDateValue(today));
   const [granularidade, setGranularidade] = useState<DashboardGranularidade>('diario');
   const dates = useMemo(() => periodDates(period, customStart, customEnd), [period, customStart, customEnd]);
-  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({ queryKey: ['dashboard-operacional', dates.inicio, dates.fim, granularidade], queryFn: () => getDashboardOperacional({ ...dates, granularidade }) });
+  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({ queryKey: ['dashboard-operacional', dates.inicio, dates.fim, granularidade], placeholderData: keepPreviousData, queryFn: () => getDashboardOperacional({ ...dates, granularidade }) });
 
   if (isLoading) return <div className={styles.loadingGrid}>{Array.from({ length: 7 }, (_, index) => <Skeleton key={index} height={index < 5 ? 130 : 300} />)}</div>;
   if (isError || !data) return <ErrorState error={error} action={<button className={styles.retry} onClick={() => refetch()}>Tentar novamente</button>} />;

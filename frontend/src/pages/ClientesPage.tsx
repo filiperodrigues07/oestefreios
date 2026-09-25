@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { excluirCliente, searchClientes, type ClienteSortBy } from '../api/clientes.api.js';
@@ -113,7 +113,8 @@ export function ClientesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [buscaAtiva, tipoPessoa, uf]);
 
-  const { data, isLoading, isError, error, refetch } = useQuery({
+  const { data, isLoading, isPlaceholderData, isError, error, refetch } = useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ['clientes', buscaAtiva, page, limit, tipoPessoa, uf, sortBy, sortOrder],
     queryFn: () =>
       searchClientes(buscaAtiva, page, limit, {
@@ -311,6 +312,7 @@ export function ClientesPage() {
       {!isLoading && !isError && data && data.items.length > 0 && (
         <>
           <Table
+            stale={isPlaceholderData}
             columns={columns}
             data={data.items}
             rowKey={(c) => c.codigo}

@@ -38,6 +38,8 @@ interface TableProps<T> {
   columnPrefsKey?: string;
   /** Conteúdo resumido do cartão no mobile. O desktop continua usando as colunas da tabela. */
   renderMobileCard?: (row: T) => ReactNode;
+  /** Mostrando a página anterior enquanto a nova carrega (placeholderData): esmaece e marca aria-busy. */
+  stale?: boolean;
 }
 
 const EMPTY_PREFS: ColumnPrefs = { order: [], widths: {} };
@@ -84,6 +86,7 @@ export function Table<T>({
   onSortChange,
   columnPrefsKey,
   renderMobileCard,
+  stale = false,
 }: TableProps<T>) {
   const [prefs, setPrefs] = useState<ColumnPrefs>(() => (columnPrefsKey ? (loadPrefs(columnPrefsKey) ?? EMPTY_PREFS) : EMPTY_PREFS));
   const [dragOverKey, setDragOverKey] = useState<string | null>(null);
@@ -326,7 +329,7 @@ export function Table<T>({
   const fieldColumns = displayColumns.filter((col) => col.header !== '');
 
   return (
-    <div className={styles.root}>
+    <div className={stale ? `${styles.root} ${styles.stale}` : styles.root} aria-busy={stale || undefined}>
       {columnPrefsKey && hasCustomPrefs(prefs) && (
         <div className={styles.toolbar}>
           <button type="button" className={styles.resetButton} onClick={restaurarColunas}>

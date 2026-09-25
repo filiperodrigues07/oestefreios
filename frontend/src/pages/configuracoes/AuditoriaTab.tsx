@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import { exportarAuditLogs, listarAuditLogs, type AuditLogFilters } from '../../api/auditLog.api.js';
 import {
@@ -188,6 +188,7 @@ export function AuditoriaTab() {
   }
 
   const { data, isLoading, isError, error } = useQuery({
+    placeholderData: keepPreviousData,
     queryKey: ['audit-logs', page, limit, filtros, buscaDebounced],
     queryFn: () => listarAuditLogs({ ...filtros, busca: buscaDebounced || undefined, page, limit }),
   });

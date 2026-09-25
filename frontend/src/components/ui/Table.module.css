@@ -341,3 +341,15 @@ tbody tr:last-child .td {
     padding-inline: var(--space-3);
   }
 }
+
+/* Página anterior na tela enquanto a nova carrega — sinal visual sem esconder o conteúdo. */
+.stale {
+  opacity: 0.6;
+  transition: opacity 150ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stale {
+    transition: none;
+  }
+}

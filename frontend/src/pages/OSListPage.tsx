@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { baixarOSPdf, duplicarOS, excluirOS, listarOS, type OSSortBy } from '../api/os.api.js';
@@ -136,7 +136,9 @@ export function OSListPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [situacaoDocumento, prioridade, dataInicial, dataFinal, buscaAtiva]);
 
-  const { data, isLoading, isFetching, isError, error, refetch } = useQuery({
+  const { data, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useQuery({
+    // Troca de página/filtro mantém a lista anterior na tela (sem skeleton piscando) até a nova chegar.
+    placeholderData: keepPreviousData,
     queryKey: [
       'os-list',
       situacaoDocumento,
@@ -466,6 +468,7 @@ export function OSListPage() {
         {!isLoading && !isError && data && data.items.length > 0 && (
           <>
             <Table
+              stale={isPlaceholderData}
               columns={columns}
               data={data.items}
               rowKey={(os) => os.id}

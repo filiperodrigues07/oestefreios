@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
 import type { CatalogParams } from '../../api/catalog.types.js';
 import { useDebouncedValue } from '../../hooks/useDebouncedValue.js';
@@ -43,6 +43,7 @@ export function CatalogList<T extends CatalogItemBase>({
   const filtro = useDebouncedValue(filtroInput, 300);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
+    placeholderData: keepPreviousData,
     queryKey: [queryKey, filtro, page, sortBy, sortOrder],
     queryFn: () => fetchFn({ filtro, page, limit: 10, sortBy, sortOrder }),
   });
