@@ -80,6 +80,14 @@ export interface AtualizarOSInput {
   dataPrevista?: string;
   kmAtual?: number;
   kmFinal?: number;
+  /** Valores vistos ao começar a editar — o backend responde 409 OS_CONFLICT se mudaram (ver os.service.ts). */
+  base?: {
+    diagnostico?: string;
+    observacoes?: string;
+    solucao?: string;
+    kmAtual?: number | null;
+    kmFinal?: number | null;
+  };
 }
 
 export function atualizarOS(id: string, input: AtualizarOSInput): Promise<OrdemServicoDTO> {

@@ -16,6 +16,7 @@ import {
   removerServicoOS,
 } from '../../api/os.api.js';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
+import { ApiError } from '../../api/httpClient.js';
 import { getEquipamentoByCodigo } from '../../api/equipamentos.api.js';
 import { OS_PRIORIDADE_OPTIONS } from '../../constants/osStatus.js';
 import { handleMutationError } from '../../pwa/offlineErrorToast.js';
@@ -284,12 +285,11 @@ function OSFormEdit({ id }: { id: string }) {
       await invalidate();
       showToast('Alterações salvas.', 'success');
     },
-    onError: (err) =>
-      handleMutationError(
-        err,
-        showToast,
-        'Não foi possível salvar as alterações. Tente novamente.',
-      ),
+    onError: (err) => {
+      // Conflito tem diálogo próprio no DiagnosticoSection — toast aqui seria aviso duplicado.
+      if (err instanceof ApiError && err.code === 'OS_CONFLICT') return;
+      handleMutationError(err, showToast, 'Não foi possível salvar as alterações. Tente novamente.');
+    },
   });
 
   const statusMutation = useMutation({
@@ -538,9 +538,16 @@ function OSFormEdit({ id }: { id: string }) {
               salvando={salvarMutation.isPending}
               onSave={(patch) =>
                 salvarMutation.mutateAsync(patch).then(
-                  () => true,
-                  // Enfileirada offline conta como aceita (sincroniza depois); outro erro mantém o texto na tela.
-                  (err: unknown) => err instanceof OfflineQueuedError,
+                  () => 'ok' as const,
+                  async (err: unknown) => {
+                    if (err instanceof OfflineQueuedError) return 'queued' as const;
+                    if (err instanceof ApiError && err.code === 'OS_CONFLICT') {
+                      // Busca a versão atual pra "Usar a versão atual" mostrar o texto do outro usuário.
+                      await queryClient.invalidateQueries({ queryKey: ['os', id] });
+                      return 'conflict' as const;
+                    }
+                    return 'error' as const;
+                  },
                 )
               }
               onDirtyChange={setDiagnosticoDirty}

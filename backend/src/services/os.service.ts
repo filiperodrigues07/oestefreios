@@ -1,5 +1,6 @@
 import { toOSDTO } from '../dto/mappers/os.mapper.js';
 import type { AdminOSDTO, OperationalOSDTO } from '../dto/os.dto.js';
+import { ConflictError } from '../errors/ConflictError.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
 import { ValidationError } from '../errors/ValidationError.js';
 import {
@@ -232,6 +233,38 @@ interface AtualizarOSInput {
   dataPrevista?: string;
   kmAtual?: number;
   kmFinal?: number;
+  base?: OSBaseEdicao;
+}
+
+/** Campos de texto livre/KM editados na aba Diagnóstico — os que sofrem com edição simultânea. */
+export interface OSBaseEdicao {
+  diagnostico?: string;
+  observacoes?: string;
+  solucao?: string;
+  kmAtual?: number | null;
+  kmFinal?: number | null;
+}
+
+function normalizarCampo(valor: unknown): string {
+  if (valor === undefined || valor === null) return '';
+  return String(valor).trim().toLocaleUpperCase('pt-BR');
+}
+
+/**
+ * Concorrência otimista: compara o valor que o usuário viu ao começar a editar com o valor atual,
+ * só nos campos que ele está gravando. Mudança em outro campo (ou item) não gera conflito.
+ */
+function assertSemConflito(atual: OrdemServico, patch: AtualizarOSInput): void {
+  const { base } = patch;
+  if (!base) return;
+  const campos = (Object.keys(base) as (keyof OSBaseEdicao)[]).filter((k) => patch[k] !== undefined);
+  const conflitantes = campos.filter((k) => normalizarCampo(atual[k]) !== normalizarCampo(base[k]));
+  if (conflitantes.length === 0) return;
+  throw new ConflictError(
+    'Outro usuário alterou esta OS enquanto você editava. Seu texto foi mantido na tela.',
+    'OS_CONFLICT',
+    { campos: conflitantes, atual: Object.fromEntries(conflitantes.map((k) => [k, atual[k] ?? null])) },
+  );
 }
 
 export async function atualizarOS(
@@ -242,19 +275,22 @@ export async function atualizarOS(
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   const atual = await getOSOrThrow(id);
   assertNaoFinalizada(atual);
+  assertSemConflito(atual, patch);
 
-  const camposAlterados = Object.keys(patch).filter(
-    (key) => patch[key as keyof AtualizarOSInput] !== undefined,
+  const campos: AtualizarOSInput = { ...patch };
+  delete campos.base;
+  const camposAlterados = Object.keys(campos).filter(
+    (key) => campos[key as keyof AtualizarOSInput] !== undefined,
   ) as (keyof AtualizarOSInput)[];
 
   const atualizado = await osRepository.atualizar(id, {
-    ...patch,
+    ...campos,
     cherpUsuarioChave: usuario.cherpUsuarioChave,
     historico: [...atual.historico, historicoEntry(`OS atualizada (${camposAlterados.join(', ')})`, usuario)],
   });
 
   const before = Object.fromEntries(camposAlterados.map((k) => [k, atual[k]]));
-  const after = Object.fromEntries(camposAlterados.map((k) => [k, patch[k]]));
+  const after = Object.fromEntries(camposAlterados.map((k) => [k, campos[k]]));
   await auditOS('OS_UPDATED', id, usuario, ctx, { before, after });
 
   return toOSDTO(atualizado, usuario.permissions);

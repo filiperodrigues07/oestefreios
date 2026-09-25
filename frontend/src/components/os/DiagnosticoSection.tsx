@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { readDraft, removeDraft, writeDraft } from '../../utils/drafts.js';
-import { Button } from '../ui/index.js';
+import { Button, Modal } from '../ui/index.js';
 
 interface DiagnosticoDraft {
   diagnostico: string;
@@ -16,7 +16,20 @@ export interface DiagnosticoPatch {
   solucao: string;
   kmAtual?: number;
   kmFinal?: number;
+  base?: DiagnosticoBase;
 }
+
+/** Valores do servidor no momento em que a edição começou (concorrência otimista, ver os.service.ts). */
+export interface DiagnosticoBase {
+  diagnostico: string;
+  observacoes: string;
+  solucao: string;
+  kmAtual: number | null;
+  kmFinal: number | null;
+}
+
+/** ok = gravado · queued = na fila offline · conflict = outro usuário alterou antes · error = falhou. */
+export type DiagnosticoSaveResult = 'ok' | 'queued' | 'conflict' | 'error';
 
 interface DiagnosticoSectionProps {
   diagnostico?: string;
@@ -26,8 +39,8 @@ interface DiagnosticoSectionProps {
   kmFinal?: number;
   podeEditar: boolean;
   salvando: boolean;
-  /** Resolve `true` quando a alteração foi aceita (gravada ou enfileirada offline); `false` mantém o formulário sujo. */
-  onSave: (patch: DiagnosticoPatch) => Promise<boolean>;
+  /** Só `ok`/`queued` limpam o estado "alterado"; `conflict` abre a escolha entre manter o meu ou o do outro. */
+  onSave: (patch: DiagnosticoPatch) => Promise<DiagnosticoSaveResult>;
   /** Avisa o pai quando há edição pendente não salva — usado pra confirmar antes de trocar de aba. */
   onDirtyChange?: (dirty: boolean) => void;
   /** Chave do rascunho local (ver utils/drafts.ts); sem ela, não guarda rascunho. */
@@ -58,6 +71,17 @@ export function DiagnosticoSection({
   const [solucaoForm, setSolucaoForm] = useState(solucao ?? '');
   const [kmAtualForm, setKmAtualForm] = useState(kmAtual !== undefined ? String(kmAtual) : '');
   const [kmFinalForm, setKmFinalForm] = useState(kmFinal !== undefined ? String(kmFinal) : '');
+
+  const baseAtualDoServidor = (): DiagnosticoBase => ({
+    diagnostico: diagnostico ?? '',
+    observacoes: observacoes ?? '',
+    solucao: solucao ?? '',
+    kmAtual: kmAtual ?? null,
+    kmFinal: kmFinal ?? null,
+  });
+  // O que estava gravado quando a edição começou — só avança enquanto não há edição local.
+  const [base, setBase] = useState<DiagnosticoBase>(baseAtualDoServidor);
+  const [conflito, setConflito] = useState(false);
 
   // Rascunho de uma sessão anterior que difere do que está gravado: oferece restaurar (nunca aplica sozinho).
   const [draftPendente, setDraftPendente] = useState(() => {
@@ -100,6 +124,8 @@ export function DiagnosticoSection({
     setSolucaoForm(draftPendente.data.solucao);
     setKmAtualForm(draftPendente.data.kmAtual);
     setKmFinalForm(draftPendente.data.kmFinal);
+    // Restaurar é escolha explícita de sobrepor o que está gravado agora.
+    setBase(baseAtualDoServidor());
     edicoes.current += 1;
     setDirty(true);
     setDraftPendente(null);
@@ -116,6 +142,7 @@ export function DiagnosticoSection({
   if (serverKey !== previousServerKey) {
     setPreviousServerKey(serverKey);
     if (!dirty) {
+      setBase(baseAtualDoServidor());
       setDiagnosticoForm(diagnostico ?? '');
       setObservacoesForm(observacoes ?? '');
       setSolucaoForm(solucao ?? '');
@@ -133,20 +160,33 @@ export function DiagnosticoSection({
     setDirty(true);
   }
 
-  async function salvar() {
+  async function salvar(sobrescrever = false) {
     const edicoesNoEnvio = edicoes.current;
-    const ok = await onSave({
+    const resultado = await onSave({
       diagnostico: diagnosticoForm,
       observacoes: observacoesForm,
       solucao: solucaoForm,
       kmAtual: kmAtualForm.trim() !== '' ? Number(kmAtualForm) : undefined,
       kmFinal: kmFinalForm.trim() !== '' ? Number(kmFinalForm) : undefined,
+      base: sobrescrever ? undefined : base,
     });
+    if (resultado === 'conflict') {
+      setConflito(true);
+      return;
+    }
+    const ok = resultado === 'ok' || resultado === 'queued';
     // Só limpa depois da resposta: se falhar, o texto digitado continua na tela pra tentar de novo.
     if (ok && edicoes.current === edicoesNoEnvio) {
       setDirty(false);
-      if (draftStorageKey) removeDraft(draftStorageKey);
+      // Na fila offline o rascunho fica até a próxima abertura confirmar que o servidor recebeu.
+      if (draftStorageKey && resultado === 'ok') removeDraft(draftStorageKey);
     }
+  }
+
+  function usarVersaoDoOutro() {
+    setConflito(false);
+    if (draftStorageKey) removeDraft(draftStorageKey);
+    setDirty(false);
   }
 
   if (!podeEditar) {
@@ -196,6 +236,33 @@ export function DiagnosticoSection({
           </Button>
         </div>
       </div>
+      {/* Três saídas: fechar (Esc/fora) só volta pra edição — nunca descarta o texto sem escolha explícita. */}
+      <Modal
+        open={conflito}
+        centerOnMobile
+        title="Outro usuário alterou esta OS"
+        onClose={() => setConflito(false)}
+        footer={
+          <>
+            <Button variant="secondary" onClick={usarVersaoDoOutro}>
+              Usar a versão atual
+            </Button>
+            <Button
+              onClick={() => {
+                setConflito(false);
+                void salvar(true);
+              }}
+            >
+              Gravar a minha versão
+            </Button>
+          </>
+        }
+      >
+        <p style={{ margin: 0, color: 'var(--color-text-secondary)' }}>
+          Enquanto você editava, o diagnóstico foi alterado por outra pessoa (ou direto no CHERP). Seu texto
+          continua na tela. Escolha qual versão fica gravada — ou feche para revisar antes.
+        </p>
+      </Modal>
     </div>
   );
 }
