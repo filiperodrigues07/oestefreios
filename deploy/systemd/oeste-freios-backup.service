@@ -1,7 +1,7 @@
 ## Copiar para /etc/systemd/system/ junto com oeste-freios-backup.timer.
 ## Depois: systemctl daemon-reload && systemctl enable --now oeste-freios-backup.timer
 ## Cria /var/backups/oeste-freios como root uma vez: install -d -o oestefreios -g oestefreios -m 700 /var/backups/oeste-freios
-## IMPORTANTE: copie os backups para FORA da VPS (rclone/scp) — backup no mesmo disco não protege contra perda da máquina.
+## Cópia externa: configure RCLONE_REMOTE (e HEALTHCHECK_BACKUP_URL) no .env — ver comentários em deploy/backup.sh.
 
 [Unit]
 Description=Oeste Freios - backup diário (Postgres + arquivos)

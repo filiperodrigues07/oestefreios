@@ -246,53 +246,127 @@ nginx, então nem precisa de regra específica bloqueando; só confirme que não
 
 ## 13. Backups
 
-Banco (dono do cron é o usuário `postgres`, que já tem permissão de leitura no banco):
+`deploy/backup.sh` faz o backup diário do Postgres e dos arquivos (uploads e PDFs de boletos), roda
+como `oestefreios` pelo timer do systemd e mantém 14 dias no disco.
 
 ```bash
-sudo mkdir -p /var/backups/oeste-freios
-sudo chown postgres:postgres /var/backups/oeste-freios
-sudo -u postgres crontab -e
+sudo install -d -o oestefreios -g oestefreios -m 700 /var/backups/oeste-freios
+sudo cp deploy/systemd/oeste-freios-backup.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now oeste-freios-backup.timer
+sudo systemctl start oeste-freios-backup.service   # primeiro backup agora, pra conferir
+journalctl -u oeste-freios-backup -n 20
 ```
 
-Adicione (backup diário às 3h, mantém 14 dias):
+Se existir o cron antigo (`pg_dump`/`tar` no `crontab` do `postgres` ou do `oestefreios`), remova
+depois de confirmar que o timer gerou `postgres-*.sql.gz` e `arquivos-*.tar.gz`.
 
-```cron
-0 3 * * * pg_dump -U postgres oeste_freios | gzip > /var/backups/oeste-freios/db-$(date +\%F).sql.gz && find /var/backups/oeste-freios -name 'db-*.sql.gz' -mtime +14 -delete
-```
+### Cópia fora da VPS (obrigatório na prática)
 
-Arquivos locais (uploads e PDFs privados de boletos) — backup separado (não ficam no Postgres), dono do cron é o
-`oestefreios` (só ele tem permissão de leitura em `/opt/oeste-freios`):
+Backup só no mesmo disco não protege contra perda do servidor. Com o [rclone](https://rclone.org)
+configurado para o usuário `oestefreios` (`rclone config`, ex.: Backblaze B2 ou Google Drive),
+adicione ao `.env` do backend:
 
 ```bash
-sudo mkdir -p /var/backups/oeste-freios-uploads
-sudo chown oestefreios:oestefreios /var/backups/oeste-freios-uploads
-crontab -e   # como oestefreios
+RCLONE_REMOTE=b2:oeste-freios-backup   # nome do remote + pasta/bucket
+RETENCAO_REMOTA_DIAS=30
 ```
 
-```cron
-30 3 * * * tar czf /var/backups/oeste-freios-uploads/arquivos-$(date +\%F).tar.gz -C /opt/oeste-freios/backend uploads storage/cobrancas && find /var/backups/oeste-freios-uploads -name 'arquivos-*.tar.gz' -mtime +14 -delete
+Sem `RCLONE_REMOTE`, o script faz só o backup local. Se a cópia externa falhar, o script sai com
+erro e a aba **Configurações > Sistema** mostra o backup como "Atrasado".
+
+### Alerta quando o backup parar
+
+Crie um check em [healthchecks.io](https://healthchecks.io) (grátis) com período de 1 dia e
+tolerância de 2 horas, e ponha a URL no `.env`:
+
+```bash
+HEALTHCHECK_BACKUP_URL=https://hc-ping.com/SEU-UUID
 ```
 
-O diretório `storage/cobrancas` precisa existir (o deploy o cria). Substitua o cron antigo de
-`uploads-*.tar.gz` pelo novo; não rode os dois como se fossem backups completos. Confira o conteúdo
-com `tar tzf /var/backups/oeste-freios-uploads/arquivos-AAAA-MM-DD.tar.gz` e faça uma restauração
-de teste em diretório isolado, verificando ao menos um PDF e uma logo. Os backups antigos de uploads
-devem ser preservados até o novo procedimento estar validado.
+Sucesso pinga a URL e falha pinga `URL/fail`. Se o ping não chegar, você recebe o alerta.
 
-Considere copiar `/var/backups/oeste-freios*` pra fora da VPS periodicamente (outro storage, S3,
-etc.) — backup só na mesma máquina não protege contra perda do servidor inteiro.
+### Teste de restauração automático
+
+Backup que nunca foi restaurado é só esperança. `deploy/restore-test.sh` restaura o dump mais
+recente num banco temporário, confere se `users`, `roles`, `permissions` e `audit_logs` têm linhas,
+confere o `.tar.gz` de arquivos e apaga o banco temporário. Roda todo dia 1 às 05:00.
+
+```bash
+sudo -u postgres psql -c "ALTER USER oeste_freios CREATEDB;"
+sudo cp deploy/systemd/oeste-freios-restore-test.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload && sudo systemctl enable --now oeste-freios-restore-test.timer
+sudo systemctl start oeste-freios-restore-test.service && journalctl -u oeste-freios-restore-test -n 20
+```
+
+Opcional: `HEALTHCHECK_RESTORE_URL` no `.env` (check com período de 31 dias).
+
+### Restauração manual
+
+```bash
+gunzip -c /var/backups/oeste-freios/postgres-AAAAMMDD.sql.gz | psql "$DATABASE_URL"
+sudo tar -xzf /var/backups/oeste-freios/arquivos-AAAAMMDD.tar.gz -C /
+```
 
 ## 14. Atualizações futuras
 
 ```bash
-cd /opt/oeste-freios
-./deploy/deploy.sh
+/opt/oeste-freios/deploy/deploy.sh
 ```
 
-O script faz `git pull`, reinstala dependências, builda os dois workspaces, roda migrations
-pendentes e reinicia o serviço. Pede sudo pra reiniciar o systemd/testar o nginx.
+Com o layout de releases (abaixo), o script:
+
+1. Busca `master` e cria uma release nova em `/opt/oeste-freios-app/releases/<data-hora>`.
+2. Instala dependências, compila e roda as migrations, sem tocar na versão no ar.
+3. Troca o link `current` de uma vez e reinicia o backend.
+4. Espera o `/api/health` responder com a versão nova por até 60s. Se não responder, volta sozinho
+   para a release anterior.
+5. Mantém as 5 últimas releases.
+
+Falha de build ou de migration para antes da troca: a produção continua na versão anterior.
+
+Para voltar manualmente:
+
+```bash
+/opt/oeste-freios/deploy/rollback.sh                  # release anterior
+/opt/oeste-freios/deploy/rollback.sh 20260925-143000  # release específica
+```
+
+**Migrations e rollback:** o rollback troca o código, não desfaz migration. Toda migration precisa
+funcionar com a versão anterior do código: só adicionar tabela/coluna, nunca renomear ou remover no
+mesmo deploy (remova numa versão seguinte, quando nada mais usar).
+
+Sem o layout de releases, o `deploy.sh` usa o fluxo antigo (`git pull` + build no lugar), sem rollback.
+
+### Deploy atômico: migração única do layout antigo
+
+Faça uma vez, num horário tranquilo. A indisponibilidade é só o restart do passo 4.
+
+```bash
+# 1. Como oestefreios: atualiza o clone e prepara /opt/oeste-freios-app (copia .env, uploads e
+#    boletos para shared/ e compila a primeira release). O serviço continua no ar.
+cd /opt/oeste-freios && git pull origin master
+sudo install -d -o oestefreios -g oestefreios /opt/oeste-freios-app
+./deploy/migrar-para-releases.sh
+
+# 2. systemd do backend no layout novo (WorkingDirectory/EnvironmentFile/ReadWritePaths em shared/)
+sudo cp deploy/systemd/oeste-freios-backend.service /etc/systemd/system/
+sudo systemctl daemon-reload
+
+# 3. nginx servindo /opt/oeste-freios-app/current/frontend/dist
+sudo cp deploy/nginx/app.mecanicaoestefreios.com.br.conf /etc/nginx/sites-available/
+#    (se o certbot tinha reescrito o bloco 443, reaplique só a linha `root` em vez de copiar o arquivo)
+sudo nginx -t
+
+# 4. Troca
+sudo systemctl restart oeste-freios-backend && sudo systemctl reload nginx
+curl -s http://127.0.0.1:3000/api/health
+```
+
+A partir daqui, `.env`, `uploads/` e `storage/` valem em `/opt/oeste-freios-app/shared/`. As cópias
+antigas em `/opt/oeste-freios/backend/` podem ser apagadas depois de uma semana sem problema.
 
 ---
+
 
 ## Checklist de segurança final
 
@@ -304,8 +378,9 @@ pendentes e reinicia o serviço. Pede sudo pra reiniciar o systemd/testar o ngin
       criada, e o cookie de sessão não fica `secure`).
 - [ ] HTTPS válido (cadeado verde), renovação automática do certbot confirmada.
 - [ ] Firewall (`ufw`) ativo, só 22/80/443 liberados.
-- [ ] Backup diário do Postgres, uploads e PDFs de boletos rodando e testado (restaurar um dump de teste ao
-      menos uma vez pra confirmar que o backup funciona de verdade).
+- [ ] Backup diário rodando, com cópia fora da VPS (`RCLONE_REMOTE`) e alerta (`HEALTHCHECK_BACKUP_URL`).
+- [ ] Teste de restauração mensal habilitado e o primeiro rodado com sucesso.
+- [ ] Monitor externo (UptimeRobot/Healthchecks) no `/api/health` — responde 503 quando o Postgres cai.
 - [ ] Confirmado com o cliente que o firewall do servidor CHERP libera o IP da VPS.
 
 ## Troubleshooting rápido
