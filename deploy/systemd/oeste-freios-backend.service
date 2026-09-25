@@ -21,6 +21,19 @@ NoNewPrivileges=true
 ProtectSystem=strict
 ReadWritePaths=/opt/oeste-freios/backend/uploads /opt/oeste-freios/backend/storage/cobrancas
 ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+# Sem MemoryDenyWriteExecute: o JIT do V8 precisa de memória gravável+executável.
 
 StandardOutput=journal
 StandardError=journal

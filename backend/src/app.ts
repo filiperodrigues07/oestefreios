@@ -15,8 +15,12 @@ import { generalLimiter } from './middlewares/rateLimiter.js';
 import { apiRouter } from './routes/index.js';
 import { logger } from './utils/logger.js';
 import { env } from './config/env.js';
+import { trustProxyHops } from './config/proxy.js';
 
 export const app = express();
+
+// Antes de qualquer limiter/log: define de onde vem o IP real do cliente (ver config/proxy.ts).
+app.set('trust proxy', trustProxyHops(env.NODE_ENV));
 
 app.use(helmet());
 app.use(cors(corsOptions));
@@ -27,7 +31,7 @@ app.use(timeout('30s'));
 
 app.use('/api/auth/me/photo', express.json({ limit: '1500kb' }));
 app.use('/api/settings/geral', express.json({ limit: '1500kb' }));
-app.use(express.json());
+app.use(express.json({ limit: '100kb' }));
 app.use(cookieParser());
 app.use(generalLimiter);
 

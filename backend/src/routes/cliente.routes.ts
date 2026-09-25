@@ -11,6 +11,7 @@ import {
   searchClientesHandler,
 } from '../controllers/cliente.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
+import { consultaLimiter } from '../middlewares/rateLimiter.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -25,9 +26,9 @@ clienteRouter.use(authenticate);
 
 clienteRouter.get('/', validate(searchQuerySchema, 'query'), asyncHandler(searchClientesHandler));
 clienteRouter.get('/documento/:documento', validate(documentoParamSchema, 'params'), asyncHandler(getClienteByDocumentoHandler));
-clienteRouter.get('/cnpj/:cnpj', validate(cnpjParamSchema, 'params'), asyncHandler(consultarCnpjHandler));
-clienteRouter.get('/inscricao-estadual/:cnpj', validate(cnpjParamSchema, 'params'), asyncHandler(consultarInscricaoEstadualHandler));
-clienteRouter.get('/cep/:cep', validate(cepParamSchema, 'params'), asyncHandler(consultarCepHandler));
+clienteRouter.get('/cnpj/:cnpj', consultaLimiter, validate(cnpjParamSchema, 'params'), asyncHandler(consultarCnpjHandler));
+clienteRouter.get('/inscricao-estadual/:cnpj', consultaLimiter, validate(cnpjParamSchema, 'params'), asyncHandler(consultarInscricaoEstadualHandler));
+clienteRouter.get('/cep/:cep', consultaLimiter, validate(cepParamSchema, 'params'), asyncHandler(consultarCepHandler));
 clienteRouter.get('/:codigo', validate(codigoParamSchema, 'params'), asyncHandler(getClienteByCodigoHandler));
 
 // Cadastrar/editar cliente é parte do mesmo fluxo de quem cria/edita OS — reaproveita a permissão existente.
