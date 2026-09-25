@@ -140,6 +140,9 @@ export function OSListPage() {
   const { data, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useQuery({
     // Troca de página/filtro mantém a lista anterior na tela (sem skeleton piscando) até a nova chegar.
     placeholderData: keepPreviousData,
+    // Vários aparelhos na oficina: a lista se atualiza sozinha (só com a aba visível) e ao voltar pra aba.
+    refetchInterval: 45_000,
+    refetchOnWindowFocus: true,
     queryKey: [
       'os-list',
       situacaoDocumento,

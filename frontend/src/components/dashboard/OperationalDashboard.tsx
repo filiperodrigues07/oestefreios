@@ -9,6 +9,9 @@ import styles from './AdminDashboard.module.css';
 export function OperationalDashboard() {
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['dashboard-me'],
+    // "Minhas OS" do mecânico: OS atribuída por outra pessoa aparece sem precisar recarregar.
+    refetchInterval: 45_000,
+    refetchOnWindowFocus: true,
     queryFn: getOperationalDashboard,
   });
 
