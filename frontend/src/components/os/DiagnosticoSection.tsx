@@ -238,7 +238,8 @@ export function DiagnosticoSection({
           </p>
         )}
 
-        <div>
+        <div className={dirty ? `${styles.saveBar} ${styles.saveBarPendente}` : styles.saveBar}>
+          {dirty && <span className={styles.saveHint}>Alterações não salvas</span>}
           <Button size="sm" loading={salvando} disabled={!dirty} onClick={() => void salvar()}>
             Salvar
           </Button>

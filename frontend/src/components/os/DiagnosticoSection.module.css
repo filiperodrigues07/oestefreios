@@ -77,3 +77,39 @@
   margin: 0;
   color: var(--color-text-secondary);
 }
+
+.saveBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+/* Com alteração pendente, o Salvar gruda no rodapé: texto longo não empurra o botão pra fora da tela. */
+.saveBarPendente {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-elevated);
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.saveHint {
+  font-size: var(--font-size-sm);
+  color: var(--color-warning-on-surface);
+}
+
+@media (max-width: 899px) {
+  /* Acima da navegação inferior fixa do app. */
+  .saveBarPendente {
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  .saveBar button {
+    min-height: 44px;
+    flex: 1;
+  }
+}
