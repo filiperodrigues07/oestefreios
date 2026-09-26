@@ -3,6 +3,7 @@ import { env } from '../../config/env.js';
 import { db } from '../../database/postgres/client.js';
 import { osWorkflow } from '../../database/postgres/schema.js';
 import { toLatin1Param, toLatin1SearchParam } from '../../database/firebird/encoding.js';
+import { decodeObsTexto, encodeObsTexto } from './obsField.js';
 import { firebirdQuery, firebirdQueryWithBlob, firebirdTransaction } from '../../database/firebird/pool.js';
 import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { NotFoundError } from '../../errors/NotFoundError.js';
@@ -84,23 +85,12 @@ const PRIORIDADE_CODIGO_POR_STATUS: Record<OSPrioridade, number> = {
   URGENTE: 3,
 };
 
-const OBS_MARK = '[OBSERVACOES]\n';
-const SOLUCAO_MARK = '\n[SOLUCAO]\n';
-
 function encodeObs(observacoes?: string, solucao?: string): Buffer | null {
-  if (!observacoes && !solucao) return null;
-  return toLatin1Param(`${OBS_MARK}${observacoes ?? ''}${SOLUCAO_MARK}${solucao ?? ''}`);
+  const texto = encodeObsTexto(observacoes, solucao);
+  return texto === null ? null : toLatin1Param(texto);
 }
 
-function decodeObs(raw: unknown): { observacoes?: string; solucao?: string } {
-  const texto = raw == null ? '' : String(raw);
-  if (!texto) return {};
-  const solIdx = texto.indexOf(SOLUCAO_MARK);
-  if (solIdx === -1) return { observacoes: texto || undefined };
-  const observacoes = texto.slice(OBS_MARK.length, solIdx) || undefined;
-  const solucao = texto.slice(solIdx + SOLUCAO_MARK.length) || undefined;
-  return { observacoes, solucao };
-}
+const decodeObs = decodeObsTexto;
 
 /**
  * "Finalizar OS" (status CONCLUIDA/CANCELADA) é decisão só do nosso app, marcada em
