@@ -1,2 +1,2 @@
 .label { display: inline-flex; align-items: center; gap: 5px; color: var(--color-text-secondary); font-size: var(--font-size-xs); }
-.info { border: 0; background: transparent; color: var(--color-text-muted); cursor: help; font-size: 12px; line-height: 1; padding: 0; }.info:hover { color: var(--color-primary); }
+.info { display: inline-grid; place-items: center; min-width: 24px; min-height: 24px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-text-muted); cursor: help; font-size: 12px; line-height: 1; padding: 0; }.info:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }.info:hover { color: var(--color-primary); }

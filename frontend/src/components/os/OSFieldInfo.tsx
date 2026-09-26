@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { hasPermission } from '../../store/authStore.js';
 import { Tooltip } from '../ui/index.js';
 import styles from './OSFieldInfo.module.css';
 
@@ -21,7 +22,9 @@ const metadata: Record<FieldKey, { origem: string; tipo: string; descricao: stri
   totais: { origem: 'ORDEMSERVICO.TOTALPRODUTO, TOTALSERVICO, TOTALOS', tipo: 'numérico', descricao: 'Recalculados no Firebird a partir dos itens ativos dentro de transação.' },
 };
 
+/** Origem técnica do campo no CHERP: só pra quem administra o sistema — pro mecânico é ruído (nome de tabela/coluna). */
 export function OSFieldInfo({ field, children }: { field: FieldKey; children: ReactNode }) {
   const item = metadata[field];
+  if (!hasPermission('SYSTEM_SETTINGS')) return <span className={styles.label}>{children}</span>;
   return <span className={styles.label}>{children}<Tooltip content={`CHERP/integração\nOrigem: ${item.origem}\nTipo: ${item.tipo}\n${item.descricao}`}><button type="button" className={styles.info} aria-label={`Detalhes técnicos de ${String(children)}`}>ⓘ</button></Tooltip></span>;
 }

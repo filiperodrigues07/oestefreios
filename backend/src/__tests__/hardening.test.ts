@@ -72,3 +72,13 @@ describe('loginContaLimiter', () => {
     expect(outraConta.status).toBe(401);
   });
 });
+
+describe('uploads inexistentes', () => {
+  it('arquivo que não existe responde 404, não 500', async () => {
+    const { app } = await import('../app.js');
+    const res = await request(app).get('/api/uploads/avatars/');
+    expect(res.status).toBe(404);
+    const arquivo = await request(app).get('/api/uploads/avatars/nao-existe.png');
+    expect(arquivo.status).toBe(404);
+  }, 30_000);
+});
