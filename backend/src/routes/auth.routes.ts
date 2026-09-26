@@ -12,7 +12,7 @@ import {
   changePasswordHandler,
 } from '../controllers/auth.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
-import { authLimiter, esqueciSenhaEmailLimiter, esqueciSenhaIpLimiter, refreshLimiter } from '../middlewares/rateLimiter.js';
+import { authLimiter, esqueciSenhaEmailLimiter, esqueciSenhaIpLimiter, loginContaLimiter, refreshLimiter } from '../middlewares/rateLimiter.js';
 import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { changePasswordSchema, forgotPasswordSchema, loginSchema, resetPasswordSchema, updateMyProfileSchema } from '../validators/auth.validator.js';
@@ -20,7 +20,7 @@ import { changePasswordSchema, forgotPasswordSchema, loginSchema, resetPasswordS
 export const authRouter = Router();
 
 authRouter.get('/config', asyncHandler(authConfigHandler));
-authRouter.post('/login', authLimiter, validate(loginSchema), asyncHandler(loginHandler));
+authRouter.post('/login', authLimiter, validate(loginSchema), loginContaLimiter, asyncHandler(loginHandler));
 authRouter.post('/refresh', refreshLimiter, asyncHandler(refreshHandler));
 authRouter.post('/logout', asyncHandler(logoutHandler));
 authRouter.get('/me', authenticate, asyncHandler(meHandler));

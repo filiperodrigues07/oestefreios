@@ -22,6 +22,27 @@ export const authLimiter = rateLimit({
 });
 
 /**
+ * Limite por CONTA (e-mail), independente do IP: força bruta distribuída ou com IP forjado continua
+ * travada na mesma conta. 10 erros em 15 min bloqueiam novas tentativas pra esse e-mail até a janela
+ * passar; login certo não conta. Mensagem igual pra conta que existe ou não (não revela cadastro).
+ */
+export const loginContaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => `login:${String((req.body as { email?: unknown } | undefined)?.email ?? '').trim().toLowerCase()}`,
+  handler: (_req, res) =>
+    failure(
+      res,
+      'RATE_LIMITED',
+      'Muitas tentativas de login para esta conta. Aguarde 15 minutos ou use "Esqueci minha senha".',
+      429,
+    ),
+});
+
+/**
  * Limiter próprio pra /auth/refresh — não pode compartilhar orçamento com o login. O refresh token
  * tem 256 bits de entropia (não é adivinhável por força bruta) e o front chama essa rota a cada
  * carregamento de página pra restaurar sessão (bootstrapSession); um cookie ausente/expirado gera

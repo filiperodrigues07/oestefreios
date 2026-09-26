@@ -6,8 +6,10 @@ import { agendarRetencao } from './services/retencao.service.js';
 import { applyStoredFirebirdSettings } from './services/settings.service.js';
 import { logger } from './utils/logger.js';
 
-const server = app.listen(env.PORT, () => {
-  logger.info(`Backend rodando em http://localhost:${env.PORT} (${env.NODE_ENV})`);
+const host = env.HOST ?? (env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0');
+
+const server = app.listen(env.PORT, host, () => {
+  logger.info(`Backend rodando em http://${host}:${env.PORT} (${env.NODE_ENV})`);
   logger.info(`Swagger em http://localhost:${env.PORT}/api/docs`);
 });
 
