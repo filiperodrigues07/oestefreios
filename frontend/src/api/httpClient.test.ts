@@ -39,6 +39,22 @@ function resposta(status: number, corpo: unknown) {
 }
 
 describe('apiFetch — Idempotency-Key', () => {
+  it('cria chave UUID em navegador sem randomUUID, como no acesso por IP local', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(resposta(201, { success: true, data: { ok: true } }));
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('crypto', {
+      getRandomValues: (bytes: Uint8Array) => {
+        bytes.set([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
+        return bytes;
+      },
+    });
+
+    await apiFetch('/os', { method: 'POST', body: { a: 1 } });
+
+    const key = new Headers((fetchMock.mock.calls[0]![1] as RequestInit).headers).get('Idempotency-Key');
+    expect(key).toBe('00010203-0405-4607-8809-0a0b0c0d0e0f');
+  });
+
   it('POST leva uma chave e ela é reaproveitada na repetição após renovar o token', async () => {
     const fetchMock = vi
       .fn()
