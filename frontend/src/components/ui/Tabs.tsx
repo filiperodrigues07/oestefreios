@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import styles from './Tabs.module.css';
 
 export interface TabItem {
@@ -29,6 +29,28 @@ export function Tabs({
   fullWidth = false,
 }: TabsProps) {
   const tablistRef = useRef<HTMLDivElement>(null);
+  // Abas que não cabem (celular): mostra degradê + seta só do lado que ainda tem aba escondida.
+  const [sobra, setSobra] = useState({ esquerda: false, direita: false });
+  const medirSobra = useCallback(() => {
+    const el = tablistRef.current;
+    if (!el) return;
+    const esquerda = el.scrollLeft > 4;
+    const direita = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    setSobra((atual) => (atual.esquerda === esquerda && atual.direita === direita ? atual : { esquerda, direita }));
+  }, []);
+
+  useEffect(() => {
+    const el = tablistRef.current;
+    if (!el) return;
+    medirSobra();
+    const observer = new ResizeObserver(medirSobra);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [medirSobra, items.length]);
+
+  function rolar(direcao: 1 | -1) {
+    tablistRef.current?.scrollBy({ left: direcao * tablistRef.current.clientWidth * 0.7, behavior: 'smooth' });
+  }
 
   useEffect(() => {
     const selected = Array.from(tablistRef.current?.querySelectorAll<HTMLButtonElement>('[role="tab"]') ?? [])
@@ -38,10 +60,17 @@ export function Tabs({
 
   return (
     <div className={fullWidth ? styles.fullWidth : undefined}>
+      <div className={styles.tablistWrap}>
       <div
         ref={tablistRef}
-        className={`${styles.tablist} ${variant === 'segmented' ? styles.segmented : ''}`}
+        className={[
+          styles.tablist,
+          variant === 'segmented' ? styles.segmented : '',
+          sobra.esquerda ? styles.sobraEsquerda : '',
+          sobra.direita ? styles.sobraDireita : '',
+        ].filter(Boolean).join(' ')}
         role="tablist"
+        onScroll={medirSobra}
       >
         {items.map((item) => (
           <button
@@ -67,6 +96,14 @@ export function Tabs({
             {item.mobileLabel && <span className={styles.mobileLabel}>{item.mobileLabel}</span>}
           </button>
         ))}
+      </div>
+      {/* Setas só para toque/mouse: pelo teclado as abas já rolam sozinhas até a focada. */}
+      {sobra.esquerda && (
+        <button type="button" tabIndex={-1} aria-hidden="true" className={`${styles.seta} ${styles.setaEsquerda}`} onClick={() => rolar(-1)}>‹</button>
+      )}
+      {sobra.direita && (
+        <button type="button" tabIndex={-1} aria-hidden="true" className={`${styles.seta} ${styles.setaDireita}`} onClick={() => rolar(1)}>›</button>
+      )}
       </div>
       <div className={styles.panel} role="tabpanel">
         {children}

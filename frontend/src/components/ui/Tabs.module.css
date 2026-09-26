@@ -82,6 +82,14 @@
   display: none;
 }
 
+.tablistWrap {
+  position: relative;
+}
+
+.seta {
+  display: none;
+}
+
 .desktopLabel, .mobileLabel { align-items: center; gap: 6px; }
 .desktopLabel { display: inline-flex; }
 
@@ -95,8 +103,50 @@
     padding: 0 var(--space-3);
     background: var(--color-background);
     scroll-snap-type: x proximity;
+    /* Encaixe respeita o espaçamento lateral: sem isso a 1ª aba "encaixa" 12px pra dentro e parece que há aba escondida à esquerda. */
+    scroll-padding-inline: var(--space-3);
     scrollbar-width: none;
-    mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 20px), transparent 100%);
+  }
+  .tablist::-webkit-scrollbar {
+    display: none;
+  }
+  /* Degradê só do lado que ainda tem aba escondida — no fim da rolagem ele some. */
+  .sobraDireita {
+    mask-image: linear-gradient(to right, #000 0%, #000 calc(100% - 48px), transparent 100%);
+  }
+  .sobraEsquerda {
+    mask-image: linear-gradient(to left, #000 0%, #000 calc(100% - 48px), transparent 100%);
+  }
+  .sobraEsquerda.sobraDireita {
+    mask-image: linear-gradient(to right, transparent 0%, #000 48px, #000 calc(100% - 48px), transparent 100%);
+  }
+  .tablistWrap {
+    position: sticky;
+    top: calc(var(--app-header-height, 58px) + env(safe-area-inset-top));
+    z-index: calc(var(--z-nav) - 2);
+  }
+  .tablistWrap .tablist {
+    position: static;
+  }
+  .seta {
+    position: absolute;
+    top: 0;
+    display: grid;
+    place-items: center;
+    width: 32px;
+    height: 44px;
+    border: 0;
+    background: transparent;
+    color: var(--color-primary);
+    font-size: 26px;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .setaEsquerda {
+    left: calc(var(--space-3) * -1);
+  }
+  .setaDireita {
+    right: calc(var(--space-3) * -1);
   }
   .tab {
     display: inline-flex;
