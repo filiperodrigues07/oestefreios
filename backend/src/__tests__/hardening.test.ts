@@ -49,7 +49,8 @@ describe('X-Request-Id', () => {
     const { app } = await import('../app.js');
     const res = await request(app).get('/api/rota-que-nao-existe');
     expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
-  });
+    // Importa o app inteiro: com a suíte rodando em paralelo, passa dos 5s padrão.
+  }, 30_000);
 });
 
 describe('loginContaLimiter', () => {

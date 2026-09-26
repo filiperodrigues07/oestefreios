@@ -164,6 +164,41 @@ export async function excluirOS(
 }
 
 /**
+ * Desfaz "Finalizar OS"/cancelamento feito pelo app: destrava a edição e volta a OS pra "Em atendimento".
+ * Só vale pra trava do nosso lado (`travadoLocal`) — OS com pedido/NF gerado ou fechada no CHERP é decisão
+ * fiscal de lá e continua somente consulta. Exige permissão própria (OS_REOPEN) e motivo, auditado.
+ */
+export async function reabrirOS(
+  id: string,
+  motivo: string,
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<OperationalOSDTO | AdminOSDTO> {
+  const atual = await getOSOrThrow(id);
+  if ((atual.situacaoDocumento ?? 0) !== 0) {
+    throw new ValidationError('Esta OS já tem pedido/NF gerado no CHERP e só pode ser reaberta por lá.');
+  }
+  if (!atual.travadoLocal) {
+    throw new ValidationError(
+      atual.dataConclusao
+        ? 'Esta OS foi fechada no CHERP e só pode ser reaberta por lá.'
+        : 'Esta OS não está finalizada.',
+    );
+  }
+
+  const atualizado = await osRepository.atualizar(id, {
+    status: 'ABERTA',
+    travadoLocal: false,
+    dataConclusao: undefined,
+    historico: [...atual.historico, historicoEntry(`OS reaberta (motivo: ${motivo})`, usuario)],
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
+  });
+
+  await auditOS('OS_REOPENED', id, usuario, ctx, { motivo, before: atual.status, after: 'ABERTA' });
+  return toOSDTO(atualizado, usuario.permissions);
+}
+
+/**
  * Cria uma OS nova a partir de outra (cabeçalho, itens e diagnóstico). Funciona mesmo com a
  * origem finalizada / com pedido gerado — a origem nunca é alterada, só lida. A OS nova nasce
  * aberta, com número e DAV próprios (gerados pelo `criar` do repositório) e sem fotos/histórico.

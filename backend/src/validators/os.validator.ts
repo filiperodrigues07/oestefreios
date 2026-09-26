@@ -56,6 +56,10 @@ export const excluirOSSchema = z.object({
   motivo: z.string().trim().min(5, 'Informe o motivo da exclusão (mínimo 5 caracteres).').max(500),
 });
 
+export const reabrirOSSchema = z.object({
+  motivo: z.string().trim().min(5, 'Informe por que a OS está sendo reaberta (mínimo 5 caracteres).').max(500),
+});
+
 export const alterarStatusSchema = z.object({
   status: z.enum(OS_STATUS_VALUES),
 });

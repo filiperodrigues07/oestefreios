@@ -70,6 +70,11 @@ export function excluirOS(id: string, motivo: string): Promise<null> {
   return apiFetch<null>(`/os/${id}`, { method: 'DELETE', body: { motivo }, queueOffline: false });
 }
 
+/** Desfaz "Finalizar OS"/cancelamento feito pelo app (permissão OS_REOPEN). Nunca vai pra fila offline. */
+export function reabrirOS(id: string, motivo: string): Promise<OrdemServicoDTO> {
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/reabrir`, { method: 'POST', body: { motivo }, queueOffline: false });
+}
+
 export interface AtualizarOSInput {
   diagnostico?: string;
   observacoes?: string;

@@ -8,6 +8,7 @@ export const PERMISSIONS = [
   'OS_EDIT',
   'OS_DELETE',
   'OS_CHANGE_STATUS',
+  'OS_REOPEN',
 
   'CLIENT_DELETE',
   'VEHICLE_DELETE',

@@ -32,6 +32,10 @@ interface OSFormHeaderProps {
   canDelete: boolean;
   onExcluir: (motivo: string) => void;
   excluindo: boolean;
+  /** Já considera permissão OS_REOPEN e trava só do app (OS com pedido/NF no CHERP não reabre por aqui). */
+  canReopen: boolean;
+  onReabrir: (motivo: string) => void;
+  reabrindo: boolean;
 }
 
 export function OSFormHeader({
@@ -56,7 +60,11 @@ export function OSFormHeader({
   canDelete,
   onExcluir,
   excluindo,
+  canReopen,
+  onReabrir,
+  reabrindo,
 }: OSFormHeaderProps) {
+  const [confirmandoReabrir, setConfirmandoReabrir] = useState(false);
   const [imprimindo, setImprimindo] = useState(false);
   const [confirmandoDuplicar, setConfirmandoDuplicar] = useState(false);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
@@ -103,6 +111,7 @@ export function OSFormHeader({
       <div className={styles.actions}>
         <Button type="button" variant="secondary" size="sm" className={styles.backButton} onClick={handleVoltar}><ActionIcon name="back" />Voltar</Button>
         {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <div className={styles.finalizeAction}><FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} /></div>}
+        {canReopen && <Button type="button" size="sm" loading={reabrindo} onClick={() => setConfirmandoReabrir(true)}><ActionIcon name="update" />Reabrir OS</Button>}
         <Button type="button" variant="secondary" size="sm" className={styles.printButton} onClick={handleImprimir} loading={imprimindo}><ActionIcon name="print" />Imprimir</Button>
         <OSMoreActions items={moreItems} loading={refreshing || duplicando || excluindo} />
       </div>
@@ -129,6 +138,19 @@ export function OSFormHeader({
       onConfirm={() => {
         setConfirmandoDuplicar(false);
         onDuplicar();
+      }}
+    />
+    <ReasonDialog
+      open={confirmandoReabrir}
+      title={`Reabrir OS #${numero}?`}
+      description="A OS volta para Em atendimento e pode ser editada de novo. O motivo fica no histórico da OS e na auditoria."
+      reasonLabel="Motivo da reabertura"
+      confirmLabel="Reabrir OS"
+      loading={reabrindo}
+      onCancel={() => setConfirmandoReabrir(false)}
+      onConfirm={(motivo) => {
+        setConfirmandoReabrir(false);
+        onReabrir(motivo);
       }}
     />
     <ReasonDialog

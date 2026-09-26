@@ -261,6 +261,8 @@ export class OSRepositoryMock implements IOSRepository {
       }
     }
     const atualizado: OrdemServico = { ...atual, ...patch };
+    // Espelha o Firebird: CONCLUIDA/CANCELADA pelo app trava só do lado do app (os_workflow.travado_local).
+    if (patch.status !== undefined) atualizado.travadoLocal = patch.status === 'CONCLUIDA' || patch.status === 'CANCELADA';
     OS_LIST[idx] = atualizado;
     return atualizado;
   }

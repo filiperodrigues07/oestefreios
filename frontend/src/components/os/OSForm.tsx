@@ -14,6 +14,7 @@ import {
   getOS,
   removerProdutoOS,
   removerServicoOS,
+  reabrirOS,
   restaurarItemOS,
 } from '../../api/os.api.js';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
@@ -446,6 +447,16 @@ function OSFormEdit({ id }: { id: string }) {
     onError: (err) => handleMutationError(err, showToast, 'Não foi possível duplicar a OS. Tente novamente.'),
   });
 
+  const reabrirMutation = useMutation({
+    mutationFn: (motivo: string) => reabrirOS(id, motivo),
+    onSuccess: async (atualizado) => {
+      queryClient.setQueryData(['os', id], atualizado);
+      await invalidate();
+      showToast('OS reaberta. Já pode editar de novo.', 'success');
+    },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível reabrir a OS.'),
+  });
+
   const excluirMutation = useMutation({
     mutationFn: (motivo: string) => excluirOS(id, motivo),
     onSuccess: async () => {
@@ -525,6 +536,9 @@ function OSFormEdit({ id }: { id: string }) {
         canDelete={hasPermission('OS_DELETE') && !osFinalizada}
         onExcluir={(motivo) => excluirMutation.mutate(motivo)}
         excluindo={excluirMutation.isPending}
+        canReopen={hasPermission('OS_REOPEN') && Boolean(os.travadoLocal) && (os.situacaoDocumento ?? 0) === 0}
+        onReabrir={(motivo) => reabrirMutation.mutate(motivo)}
+        reabrindo={reabrirMutation.isPending}
       />
 
       {/* Resumo fixo — some quem é o cliente/veículo mesmo fora da aba "Dados". */}
