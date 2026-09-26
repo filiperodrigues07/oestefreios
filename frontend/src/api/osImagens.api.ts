@@ -21,7 +21,7 @@ export const excluirImagemOS = (id: string, identificador: string) =>
   apiFetch<OSImagemDTO[]>(`/os/${id}/imagens/${identificador}`, { method: 'DELETE' });
 
 /** Baixa os bytes da imagem e devolve uma object URL pra exibir num `<img>` — a rota exige token, não dá pra usar direto como `src`. */
-export async function carregarImagemComoObjectUrl(id: string, identificador: string): Promise<string> {
-  const blob = await apiFetchBlob(`/os/${id}/imagens/${identificador}`);
+export async function carregarImagemComoObjectUrl(id: string, identificador: string, preview = false, signal?: AbortSignal): Promise<string> {
+  const blob = await apiFetchBlob(`/os/${id}/imagens/${identificador}${preview ? '?preview=1' : ''}`, false, signal);
   return URL.createObjectURL(blob);
 }

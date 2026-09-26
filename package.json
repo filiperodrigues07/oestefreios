@@ -16,7 +16,8 @@
     "typecheck": "npm run typecheck -w backend && npm run typecheck -w frontend",
     "test": "npm run test -w backend && npm run test:frontend",
     "test:frontend": "npm run test -w frontend",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:mobile": "node scripts/run-mobile-e2e.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

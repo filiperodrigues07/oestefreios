@@ -52,6 +52,15 @@ export function InstallBanner() {
     }
   }
 
+  if (!window.isSecureContext) {
+    return (
+      <div className={styles.banner} role="note">
+        <span>O modo offline não funciona neste endereço. Para instalar e usar offline, abra o app pelo endereço HTTPS da oficina.</span>
+        <button type="button" className={styles.dismissButton} onClick={dismiss} aria-label="Dispensar aviso sobre HTTPS">✕</button>
+      </div>
+    );
+  }
+
   if (canInstall) {
     return (
       <div className={styles.banner} role="note">

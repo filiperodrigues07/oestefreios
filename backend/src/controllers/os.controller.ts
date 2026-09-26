@@ -6,6 +6,7 @@ import { getGeralSettings } from '../services/settings.service.js';
 import { success } from '../utils/apiResponse.js';
 import { resolverLogoParaPdf } from '../utils/brandingAssets.js';
 import { detectarTipoImagem } from '../utils/imageSignature.js';
+import { gerarMiniaturaOS } from '../utils/osImagePreview.js';
 import { requestContext } from '../utils/requestContext.js';
 
 export async function listOSHandler(req: Request, res: Response) {
@@ -212,6 +213,12 @@ export async function removerImagemHandler(req: Request, res: Response) {
 export async function buscarImagemHandler(req: Request, res: Response) {
   const { id, identificador } = req.params as { id: string; identificador: string };
   const imagem = await osService.buscarImagemOS(id, identificador);
+  if (req.query.preview === '1') {
+    const miniatura = await gerarMiniaturaOS(imagem.buffer);
+    res.setHeader('Content-Type', 'image/webp');
+    res.send(miniatura);
+    return;
+  }
   const tipo = detectarTipoImagem(imagem.buffer);
   res.setHeader('Content-Type', tipo?.mime ?? 'application/octet-stream');
   res.send(imagem.buffer);

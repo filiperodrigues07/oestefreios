@@ -434,6 +434,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               />
             </svg>
           </button>
+          <span className={styles.mobilePageTitle} title={tituloPagina}>{tituloPagina}</span>
           <button
             type="button"
             className={styles.mobileProfile}

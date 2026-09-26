@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRef, useState, type KeyboardEvent } from 'react';
+import { getUserErrorMessage } from '../../utils/errorPresentation.js';
 import { ActionIcon } from '../ui/ActionIcon.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { Input } from '../ui/Input.js';
@@ -130,7 +131,7 @@ export function ItemGrid({
       }
     },
     onError: (err) =>
-      setErro(err instanceof Error ? err.message : 'Não foi possível buscar o código.'),
+      setErro(getUserErrorMessage(err, 'Não foi possível buscar o código.')),
   });
 
   const addMutation = useMutation({
@@ -142,7 +143,7 @@ export function ItemGrid({
         complemento.trim() || undefined,
       ),
     onSuccess: () => resetarAdicao(),
-    onError: (err) => setErro(err instanceof Error ? err.message : 'Não foi possível adicionar.'),
+    onError: (err) => setErro(getUserErrorMessage(err, 'Não foi possível adicionar.')),
   });
 
   const somarDuplicadoMutation = useMutation({
@@ -156,7 +157,7 @@ export function ItemGrid({
     },
     onError: (err) => {
       setDuplicado(null);
-      setErro(err instanceof Error ? err.message : 'Não foi possível atualizar a quantidade.');
+      setErro(getUserErrorMessage(err, 'Não foi possível atualizar a quantidade.'));
     },
   });
 
@@ -171,7 +172,7 @@ export function ItemGrid({
     },
     onSuccess: () => setEditandoCodigo(null),
     onError: (err) =>
-      setErro(err instanceof Error ? err.message : 'Não foi possível salvar a edição.'),
+      setErro(getUserErrorMessage(err, 'Não foi possível salvar a edição.')),
   });
 
   function resetarAdicao() {

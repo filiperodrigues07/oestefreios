@@ -207,11 +207,12 @@ export async function apiFetch<T>(
  * Baixa um arquivo binário (Excel/PDF de relatórios) — `apiFetch` sempre faz `res.json()`, então
  * não serve pra isso. Mesma renovação de token de `apiFetch`, sem fila offline (download não faz sentido offline).
  */
-export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob> {
+export async function apiFetchBlob(path: string, isRetry = false, signal?: AbortSignal): Promise<Blob> {
   const { accessToken } = useAuthStore.getState();
   const res = await fetch(`${API_BASE}${path}`, {
     credentials: 'include',
     headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+    signal,
   });
 
   if (res.status === 401) {
@@ -220,7 +221,7 @@ export async function apiFetchBlob(path: string, isRetry = false): Promise<Blob>
       .json()
       .catch(() => null)) as ApiResponse<unknown> | null;
     const code = body && !body.success ? body.error.code : '';
-    if (await renovarAposNaoAutorizado(code, isRetry)) return apiFetchBlob(path, true);
+    if (await renovarAposNaoAutorizado(code, isRetry)) return apiFetchBlob(path, true, signal);
   }
 
   if (!res.ok) {

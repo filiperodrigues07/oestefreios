@@ -150,6 +150,9 @@
     margin-top: var(--space-3);
     padding: var(--space-3);
   }
+  .itemsSection {
+    padding: 0;
+  }
   .itemsSection > div {
     padding: var(--space-3);
   }

@@ -34,6 +34,41 @@
   display: block;
 }
 
+.openPhoto {
+  display: block;
+  width: 100%;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.retryPhoto {
+  width: 100%;
+  min-height: 120px;
+  border: 0;
+  background: var(--color-surface);
+  color: var(--color-primary);
+  padding: var(--space-3);
+  cursor: pointer;
+}
+
+.fullPhoto {
+  display: block;
+  max-width: 100%;
+  max-height: 70dvh;
+  margin: auto;
+  object-fit: contain;
+}
+
+.photoError {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+}
+
+.photoError p { margin: 0; }
+
 .legenda {
   padding: var(--space-2);
   font-size: var(--font-size-xs);

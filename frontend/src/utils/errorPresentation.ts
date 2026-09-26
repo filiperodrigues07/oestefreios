@@ -128,3 +128,20 @@ export function getErrorPresentation(error?: unknown, offline = false): ErrorPre
     };
   return { code: 'OPS!', ...messages[500]! };
 }
+
+/** Texto seguro para erros em formulários e avisos curtos; nunca mostra exceções técnicas. */
+export function getUserErrorMessage(error: unknown, fallback: string): string {
+  if (!error || typeof error !== 'object') return fallback;
+  const details = error as { status?: unknown; code?: unknown; name?: unknown; message?: unknown };
+  if (details.code === 'CRYPTO_UNAVAILABLE') {
+    return 'Não foi possível preparar a operação. Atualize o navegador e tente novamente.';
+  }
+  // Códigos operacionais do backend têm textos escritos para o usuário e indicam o que corrigir.
+  if (
+    (details.code === 'VALIDATION_ERROR' || details.code === 'CLIENT_HAS_LINKS' || details.code === 'VEHICLE_HAS_LINKS') &&
+    typeof details.message === 'string' && details.message.trim()
+  ) return details.message;
+  const presentation = getErrorPresentation(error);
+  if (presentation.code === 'OPS!') return fallback;
+  return `${presentation.title}. ${presentation.description}`;
+}
