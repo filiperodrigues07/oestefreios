@@ -56,10 +56,6 @@ export function saveCobrancaConfig(input: CobrancaConfigDTO): Promise<CobrancaCo
   return apiFetch('/billing/cobranca-config', { method: 'PUT', body: input, queueOffline: false });
 }
 
-export function getCobrancaSmtpPassword(): Promise<{ password: string }> {
-  return apiFetch('/billing/cobranca-config/senha');
-}
-
 export function testarCobrancaSmtp(destino: string): Promise<{ ok: boolean; message: string }> {
   return apiFetch('/billing/cobranca-config/testar', { method: 'POST', body: { destino }, queueOffline: false });
 }

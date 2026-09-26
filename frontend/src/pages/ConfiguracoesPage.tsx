@@ -6,13 +6,10 @@ import { useSearchParams } from 'react-router';
 import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import {
   getFirebirdSettings,
-  getFirebirdPassword,
   getFirebirdConnectionStatus,
   getGeralSettings,
   getIntegracoesSettings,
-  getSmtpPassword,
   getSmtpSettings,
-  getIntegrationSecret,
   saveFirebirdSettings,
   saveGeralSettings,
   saveIntegracoesSettings,
@@ -284,17 +281,12 @@ function FirebirdTab() {
           <div>
             <PasswordInput
               label="Senha"
-              copyable
-              placeholder={form.password === '••••••••' ? '••••••••' : ''}
+              autoComplete="new-password"
+              placeholder={form.password === '••••••••' ? 'Senha salva — digite só para trocar' : ''}
               value={form.password === '••••••••' ? '' : form.password}
               onChange={(e) => setForm({ ...form, password: e.target.value })}
-              onReveal={async () => {
-                const result = await getFirebirdPassword();
-                setForm((current) => current ? { ...current, password: result.password } : current);
-                return result.password;
-              }}
             />
-            <p>Senha do usuário.</p>
+            <p>Senha do usuário. A senha salva nunca é exibida; em branco, mantém a atual.</p>
           </div>
           <div className={styles.fullRow}>
             <Select
@@ -496,11 +488,7 @@ function SmtpTab() {
         <div className={styles.sectionIntro}><span>2</span><div><h3>Conta e remetente</h3><p>Credenciais de autenticação e nome exibido nos e-mails.</p></div></div>
         <div className={styles.fields}>
           <Input label="Usuário da conta" value={form.user} onChange={(e) => setForm({ ...form, user: e.target.value })} />
-          <PasswordInput label="Senha ou senha de aplicativo" copyable onReveal={async () => {
-            const result = await getSmtpPassword();
-            setForm((current) => current ? { ...current, password: result.password } : current);
-            return result.password;
-          }} placeholder={form.password === '••••••••' ? 'Deixe em branco para manter a atual' : ''} value={form.password === '••••••••' ? '' : form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <PasswordInput label="Senha ou senha de aplicativo" autoComplete="new-password" placeholder={form.password === '••••••••' ? 'Senha salva — digite só para trocar' : ''} value={form.password === '••••••••' ? '' : form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
           <Input label="E-mail remetente" type="email" value={form.fromEmail} onChange={(e) => setForm({ ...form, fromEmail: e.target.value })} />
           <Input label="Nome do remetente" value={form.fromName} onChange={(e) => setForm({ ...form, fromName: e.target.value })} />
         </div>
@@ -687,15 +675,10 @@ function IntegracoesTab() {
           <div className={styles.fullRow}>
             <PasswordInput
               label="Chave da API DadosAPI"
-              copyable
+              autoComplete="off"
               value={form.dadosApiToken === '••••••••' ? '' : form.dadosApiToken}
               onChange={(e) => setForm({ ...form, dadosApiToken: e.target.value })}
-              placeholder={form.dadosApiToken ? undefined : 'Nenhuma chave configurada'}
-              onReveal={async () => {
-                const result = await getIntegrationSecret('dadosApiToken');
-                setForm((current) => current ? { ...current, dadosApiToken: result.value } : current);
-                return result.value;
-              }}
+              placeholder={form.dadosApiToken ? 'Chave salva — cole outra só para trocar' : 'Nenhuma chave configurada'}
             />
             <p>A DadosAPI libera a chave pela área restrita após o cadastro. Atualmente, o botão de cadastro do site direciona para o atendimento via WhatsApp.</p>
           </div>
@@ -720,15 +703,10 @@ function IntegracoesTab() {
           <div className={styles.fullRow}>
             <PasswordInput
               label="Chave da API SINTEGRA Brasil"
-              copyable
+              autoComplete="off"
               value={form.sintegraApiKey === '••••••••' ? '' : form.sintegraApiKey}
               onChange={(e) => setForm({ ...form, sintegraApiKey: e.target.value })}
-              placeholder={form.sintegraApiKey ? undefined : 'Nenhuma chave configurada'}
-              onReveal={async () => {
-                const result = await getIntegrationSecret('sintegraApiKey');
-                setForm((current) => current ? { ...current, sintegraApiKey: result.value } : current);
-                return result.value;
-              }}
+              placeholder={form.sintegraApiKey ? 'Chave salva — cole outra só para trocar' : 'Nenhuma chave configurada'}
             />
             <p>
               Gere uma chave grátis em{' '}
