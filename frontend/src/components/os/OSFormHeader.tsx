@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { baixarOSPdf } from '../../api/os.api.js';
+import { getUserErrorMessage } from '../../utils/errorPresentation.js';
 import { ActionIcon, Button, ConfirmDialog, LinkButton, PriorityBadge, ReasonDialog, useToast } from '../ui/index.js';
 import { OS_PRIORITY_CONFIG, OS_STATUS_CONFIG } from '../../constants/osStatus.js';
 import { ALLOWED_TRANSITIONS, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
@@ -82,7 +83,7 @@ export function OSFormHeader({
     try {
       await baixarOSPdf(id, numero);
     } catch (err) {
-      showToast(err instanceof Error ? err.message : 'Não foi possível gerar o PDF.', 'danger');
+      showToast(getUserErrorMessage(err, 'Não foi possível gerar o PDF.'), 'danger');
     } finally {
       setImprimindo(false);
     }

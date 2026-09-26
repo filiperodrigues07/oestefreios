@@ -6,6 +6,7 @@ import { ApiError } from '../../api/httpClient.js';
 import { Button, Checkbox, ConfirmDialog, Input, RequiredMark, Select, useToast } from '../ui/index.js';
 import type { ClienteDTO, ClienteInput, RegimeTributario, TipoPessoa } from '../../types/cherp.types.js';
 import { cpfValido, formatarCep, maiuscula, formatarDocumento, formatarTelefone } from '../../utils/clienteFormatters.js';
+import { getUserErrorMessage } from '../../utils/errorPresentation.js';
 import styles from './ClienteForm.module.css';
 
 const REGIME_TRIBUTARIO_OPTIONS = [
@@ -135,7 +136,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
     },
     onError: (err, { cnpj, sequencia }) => {
       if (sequencia !== consultaSequencia.current || documentoAtual.current !== cnpj) return;
-      setDocumentoErro(err instanceof Error ? err.message : 'Não foi possível consultar o CNPJ — preencha manualmente.');
+      setDocumentoErro(getUserErrorMessage(err, 'Não foi possível consultar o CNPJ. Preencha manualmente.'));
     },
   });
 
@@ -169,7 +170,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
         uf: dados.uf.toUpperCase(),
       }));
     },
-    onError: (err) => setCepErro(err instanceof Error ? err.message : 'Não foi possível consultar o CEP.'),
+    onError: (err) => setCepErro(getUserErrorMessage(err, 'Não foi possível consultar o CEP.')),
   });
 
   const saveMutation = useMutation({
@@ -231,7 +232,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
       ieMutation.mutate({ cnpj: digits, sequencia });
     } catch (err) {
       if (sequencia === consultaSequencia.current) {
-        setDocumentoErro(err instanceof Error ? err.message : 'Não foi possível consultar o documento.');
+        setDocumentoErro(getUserErrorMessage(err, 'Não foi possível consultar o documento.'));
       }
     } finally {
       if (sequencia === consultaSequencia.current) setConsultandoDocumento(false);
@@ -540,7 +541,7 @@ export function ClienteForm({ mode, codigo, clienteInicial, onSaved, onCancel, c
         if (duplicado) return null;
         return (
           <p role="alert" style={{ color: 'var(--color-danger)', fontSize: 'var(--font-size-sm)', margin: 0 }}>
-            {err instanceof Error ? err.message : 'Erro ao salvar cliente.'}
+            {getUserErrorMessage(err, 'Não foi possível salvar o cliente. Confira os dados e tente novamente.')}
           </p>
         );
       })()}

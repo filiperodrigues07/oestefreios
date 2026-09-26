@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getErrorPresentation } from './errorPresentation.js';
+import { getErrorPresentation, getUserErrorMessage } from './errorPresentation.js';
 
 describe('Mensagens de erro', () => {
   it.each([400, 401, 403, 404, 408, 409, 410, 413, 422, 429, 500, 502, 503, 504])(
@@ -42,5 +42,18 @@ describe('Mensagens de erro', () => {
     expect(getErrorPresentation({ status: 403 }).recovery).toBe('home');
     expect(getErrorPresentation({ status: 404 }).recovery).toBe('home');
     expect(getErrorPresentation({ status: 503 }).recovery).toBe('retry');
+  });
+});
+
+describe('Mensagens curtas para ações', () => {
+  it('não expõe erros técnicos e mantém orientação para conexão e validação', () => {
+    const fallback = 'Não foi possível salvar. Tente novamente.';
+    expect(getUserErrorMessage(new TypeError('crypto.randomUUID is not a function'), fallback)).toBe(fallback);
+    expect(getUserErrorMessage({ status: 500, message: 'SELECT senha FROM usuarios' }, fallback)).not.toMatch(/SELECT|senha/);
+    expect(getUserErrorMessage({ status: 422, message: 'SQL error' }, fallback)).toContain('Confira');
+    expect(getUserErrorMessage({ code: 'NETWORK_ERROR' }, fallback)).toContain('conexão');
+    expect(getUserErrorMessage(new TypeError('Failed to fetch'), fallback)).toContain('conexão');
+    expect(getUserErrorMessage({ status: 400, code: 'VALIDATION_ERROR', message: 'Produto já adicionado a esta OS.' }, fallback))
+      .toBe('Produto já adicionado a esta OS.');
   });
 });

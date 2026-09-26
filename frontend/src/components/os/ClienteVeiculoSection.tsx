@@ -100,15 +100,17 @@ function ClienteVeiculoCreatePicker({ cliente, equipamento, onClienteChange, onE
   const [novoClienteAberto, setNovoClienteAberto] = useState(false);
   const [placaDigitada, setPlacaDigitada] = useState('');
   const [resolvendoCliente, setResolvendoCliente] = useState(false);
+  const [erroClienteDoVeiculo, setErroClienteDoVeiculo] = useState(false);
 
   async function handlePlacaSelect(veiculo: EquipamentoDTO) {
     onEquipamentoChange(veiculo);
+    setErroClienteDoVeiculo(false);
     setResolvendoCliente(true);
     try {
       const clienteDoVeiculo = await getClienteByCodigo(veiculo.clienteCodigo);
       onClienteChange(clienteDoVeiculo);
     } catch {
-      // Veículo achado mas cliente não resolveu (raro) — segue pendente, busca manual no bloco Cliente.
+      setErroClienteDoVeiculo(true);
     } finally {
       setResolvendoCliente(false);
     }
@@ -149,6 +151,7 @@ function ClienteVeiculoCreatePicker({ cliente, equipamento, onClienteChange, onE
             <p className={styles.resolvendo}>Buscando cliente do veículo...</p>
           ) : (
             <>
+              {erroClienteDoVeiculo && <p className={styles.resolvendo} role="alert">Não foi possível localizar o cliente deste veículo. Selecione o cliente abaixo.</p>}
               <ClienteSearch onSelect={onClienteChange} />
               <Button type="button" variant="secondary" size="sm" onClick={() => setNovoClienteAberto(true)}>
                 <ActionIcon name="add" />

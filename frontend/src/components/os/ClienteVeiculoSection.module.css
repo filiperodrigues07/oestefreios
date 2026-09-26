@@ -5,5 +5,5 @@
 .pickerGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); align-items: start; }
 .slot { display: flex; flex-direction: column; gap: var(--space-2); }
 .slotTitle { font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
-.trocarButton { border: 0; background: transparent; color: var(--color-primary); font-size: 11px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.trocarButton { min-width: 44px; min-height: 44px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-primary); padding: 8px; font-size: var(--font-size-sm); font-weight: 600; white-space: nowrap; cursor: pointer; }
 .resolvendo { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); }

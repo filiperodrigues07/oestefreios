@@ -38,6 +38,16 @@
   padding: calc(var(--space-2) + env(safe-area-inset-top)) var(--space-4) var(--space-2);
 }
 
+.mobilePageTitle {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pullRefreshIndicator {
   position: fixed;
   top: calc(var(--app-header-height, 58px) + env(safe-area-inset-top) + var(--space-2));

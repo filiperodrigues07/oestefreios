@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useConfirmDiscard } from '../../hooks/useConfirmDiscard.js';
 import { sanitizarChassi, sanitizarPlaca, somenteDigitos } from '../../utils/veiculoFormatters.js';
+import { getUserErrorMessage } from '../../utils/errorPresentation.js';
 import { atualizarEquipamento, criarEquipamento, getEquipamentoByCodigo, getVehicleLookupQuota, lookupVehiclePlate, type VehicleLookupQuota, type VehicleLookupResult } from '../../api/equipamentos.api.js';
 import { ApiError } from '../../api/httpClient.js';
 import { ClienteFormModal } from '../clientes/ClienteFormModal.js';
@@ -235,7 +236,7 @@ function VeiculoFormContent({
         {!veiculoEfetivo && <PlateLookup quota={quotaQuery.data} loadingQuota={quotaQuery.isLoading} loading={lookupMutation.isPending}
           plate={form.placa} onPlateChange={(placa) => setForm({ ...form, placa })} onLookup={() => lookupMutation.mutate()} />}
         {veiculoEfetivo && <Input label="Placa" required value={form.placa} autoCapitalize="characters" autoCorrect="off" spellCheck={false} maxLength={8} onChange={(e) => setForm({ ...form, placa: sanitizarPlaca(e.target.value) })} placeholder="AAA-9999 ou AAA9A99" />}
-        {lookupMutation.isError && <p role="alert" className={styles.lookupError}>{lookupMutation.error instanceof Error ? lookupMutation.error.message : 'Não foi possível consultar a placa.'}</p>}
+        {lookupMutation.isError && <p role="alert" className={styles.lookupError}>{getUserErrorMessage(lookupMutation.error, 'Não foi possível consultar a placa.')}</p>}
         <div
           className={styles.grid160}
         >
@@ -316,7 +317,7 @@ function VeiculoFormContent({
               >
                 <strong>{isChassiDuplicado ? 'Chassi já cadastrado' : 'Placa já cadastrada'}</strong>
                 <p className={styles.statusText}>
-                  {err instanceof Error ? err.message : ''}
+                  {isChassiDuplicado ? 'Este chassi já está cadastrado.' : 'Esta placa já está cadastrada.'}
                 </p>
                 <p className={styles.statusText}>
                   Os dados do cadastro existente foram carregados acima — revise e salve para atualizá-lo, ou cancele.
@@ -326,7 +327,7 @@ function VeiculoFormContent({
           }
           return (
             <p role="alert" className={styles.errorText}>
-              {err instanceof Error ? err.message : 'Erro ao salvar veículo.'}
+              {getUserErrorMessage(err, 'Não foi possível salvar o veículo. Confira os dados e tente novamente.')}
             </p>
           );
         })()}
