@@ -17,6 +17,13 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
     return failure(res, 'VALIDATION_ERROR', 'Dados inválidos.', 400);
   }
 
+  // Erro HTTP de middleware de terceiros (ex.: express.static com fallthrough: false devolve 404 pra
+  // arquivo inexistente): respeita o status 4xx em vez de virar 500 e poluir o log como erro.
+  const httpStatus = extractHttpStatus(err);
+  if (httpStatus !== undefined && httpStatus >= 400 && httpStatus < 500) {
+    return failure(res, httpStatus === 404 ? 'NOT_FOUND' : 'BAD_REQUEST', httpStatus === 404 ? 'Recurso não encontrado.' : 'Requisição inválida.', httpStatus);
+  }
+
   const gdscode = extractGdscode(err);
   const mapped = gdscode !== undefined ? FIREBIRD_ERROR_MESSAGES[gdscode] : undefined;
   if (mapped) {
@@ -38,6 +45,12 @@ const FIREBIRD_ERROR_MESSAGES: Record<number, { code: string; message: string; s
   335544466: { code: 'REFERENCE_CONFLICT', message: 'Esse registro está vinculado a outro no CHERP e não pode ser alterado dessa forma.', statusCode: 409 },
   335544347: { code: 'VALIDATION_ERROR', message: 'Algum campo obrigatório não foi preenchido corretamente.', statusCode: 400 },
 };
+
+function extractHttpStatus(err: unknown): number | undefined {
+  if (typeof err !== 'object' || err === null) return undefined;
+  const value = (err as { status?: unknown; statusCode?: unknown }).status ?? (err as { statusCode?: unknown }).statusCode;
+  return typeof value === 'number' ? value : undefined;
+}
 
 function extractGdscode(err: unknown): number | undefined {
   if (typeof err !== 'object' || err === null || !('gdscode' in err)) return undefined;

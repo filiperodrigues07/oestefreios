@@ -91,10 +91,6 @@ export async function getCobrancaSettingsMasked(): Promise<CobrancaSettings> {
   return { ...config, smtp: { ...config.smtp, password: config.smtp.password ? SENHA_MASCARADA : '' } };
 }
 
-export async function getCobrancaSmtpPassword(): Promise<string> {
-  return (await getCobrancaSettings()).smtp.password;
-}
-
 export async function saveCobrancaSettings(input: CobrancaSettings, usuario: AuthenticatedUser, ctx: RequestContext): Promise<CobrancaSettings> {
   const atual = await getCobrancaSettings();
   const password = !input.smtp.password || input.smtp.password === SENHA_MASCARADA ? atual.smtp.password : input.smtp.password;

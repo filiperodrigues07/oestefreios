@@ -100,3 +100,26 @@ test.describe('fluxo crítico da OS', () => {
     await outro.close();
   });
 });
+
+test.describe('reabrir OS', () => {
+  test('gerente finaliza por engano e reabre com motivo', async ({ page }) => {
+    await login(page);
+    await criarOS(page);
+
+    await page.getByRole('button', { name: 'Finalizar OS' }).click();
+    const finalizar = page.getByRole('dialog', { name: 'Finalizar OS?' });
+    await expect(finalizar).toContainText('não pode mais ser editada');
+    await finalizar.getByRole('button', { name: 'Finalizar OS' }).click();
+    await expect(page.getByText('Status alterado.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Reabrir OS' }).click();
+    const reabrir = page.getByRole('dialog', { name: /Reabrir OS/ });
+    await reabrir.getByRole('textbox').fill('Finalizada por engano');
+    await reabrir.getByRole('button', { name: 'Reabrir OS' }).click();
+    await expect(page.getByText('OS reaberta. Já pode editar de novo.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Finalizar OS' })).toBeVisible();
+
+    await abrirAba(page, /Histórico/);
+    await expect(page.getByText(/OS reaberta \(motivo: Finalizada por engano\)/)).toBeVisible();
+  });
+});

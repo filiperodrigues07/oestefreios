@@ -5,7 +5,6 @@ import {
   criarCobranca,
   enviarCobranca,
   getCobrancaConfig,
-  getCobrancaSmtpPassword,
   removerCobranca,
   saveCobrancaConfig,
   testarCobrancaSmtp,
@@ -379,16 +378,10 @@ function ConfigModal({ config, onClose }: { config: CobrancaConfigDTO; onClose: 
           />
           <PasswordInput
             label="Senha (de aplicativo)"
-            copyable
             autoComplete="new-password"
-            placeholder={smtp.password === '••••••••' ? '••••••••' : ''}
+            placeholder={smtp.password === '••••••••' ? 'Senha salva — digite só para trocar' : ''}
             value={smtp.password === '••••••••' ? '' : smtp.password}
             onChange={(e) => setSmtp({ ...smtp, password: e.target.value })}
-            onReveal={async () => {
-              const { password } = await getCobrancaSmtpPassword();
-              setSmtp((atual) => ({ ...atual, password }));
-              return password;
-            }}
           />
           <Input
             label="Nome do remetente"

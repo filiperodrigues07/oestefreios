@@ -2,7 +2,7 @@ import express from 'express';
 import request from 'supertest';
 import { describe, expect, it } from 'vitest';
 import { trustProxyHops } from '../config/proxy.js';
-import { esqueciSenhaEmailLimiter } from '../middlewares/rateLimiter.js';
+import { esqueciSenhaEmailLimiter, loginContaLimiter } from '../middlewares/rateLimiter.js';
 import { escaparHtml } from '../utils/html.js';
 
 describe('trustProxyHops', () => {
@@ -49,5 +49,36 @@ describe('X-Request-Id', () => {
     const { app } = await import('../app.js');
     const res = await request(app).get('/api/rota-que-nao-existe');
     expect(res.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    // Importa o app inteiro: com a suíte rodando em paralelo, passa dos 5s padrão.
+  }, 30_000);
+});
+
+describe('loginContaLimiter', () => {
+  it('trava a conta depois de 10 erros mesmo trocando de IP, sem afetar outra conta', async () => {
+    const app = express();
+    app.set('trust proxy', 1);
+    app.use(express.json());
+    app.post('/login', loginContaLimiter, (_req, res) => res.status(401).json({ ok: false }));
+    const email = `alvo-${Date.now()}@teste.local`;
+
+    for (let i = 0; i < 10; i++) {
+      const res = await request(app).post('/login').set('X-Forwarded-For', `198.51.100.${i}`).send({ email, password: 'x' });
+      expect(res.status).toBe(401);
+    }
+    const bloqueado = await request(app).post('/login').set('X-Forwarded-For', '198.51.100.99').send({ email: email.toUpperCase(), password: 'x' });
+    expect(bloqueado.status).toBe(429);
+
+    const outraConta = await request(app).post('/login').send({ email: `outra-${Date.now()}@teste.local`, password: 'x' });
+    expect(outraConta.status).toBe(401);
   });
+});
+
+describe('uploads inexistentes', () => {
+  it('arquivo que não existe responde 404, não 500', async () => {
+    const { app } = await import('../app.js');
+    const res = await request(app).get('/api/uploads/avatars/');
+    expect(res.status).toBe(404);
+    const arquivo = await request(app).get('/api/uploads/avatars/nao-existe.png');
+    expect(arquivo.status).toBe(404);
+  }, 30_000);
 });

@@ -6,7 +6,6 @@ import {
   createCobrancaHandler,
   downloadCobrancaHandler,
   getCobrancaConfigHandler,
-  getCobrancaSmtpPasswordHandler,
   removeCobrancaHandler,
   saveCobrancaConfigHandler,
   sendCobrancaHandler,
@@ -43,5 +42,4 @@ billingRouter.post('/cobrancas/:id/enviar', idParam, validate(enviarCobrancaSche
 billingRouter.delete('/cobrancas/:id', idParam, asyncHandler(removeCobrancaHandler));
 billingRouter.get('/cobranca-config', asyncHandler(getCobrancaConfigHandler));
 billingRouter.put('/cobranca-config', validate(cobrancaConfigSchema), asyncHandler(saveCobrancaConfigHandler));
-billingRouter.get('/cobranca-config/senha', asyncHandler(getCobrancaSmtpPasswordHandler));
 billingRouter.post('/cobranca-config/testar', validate(testeCobrancaSchema), asyncHandler(testCobrancaSmtpHandler));

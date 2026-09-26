@@ -1,5 +1,5 @@
 interface ActionIconProps {
-  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'edit' | 'delete' | 'save' | 'ready' | 'photo' | 'chevronDown' | 'export' | 'calendar' | 'close' | 'copy' | 'more' | 'camera' | 'receipt' | 'users' | 'lock';
+  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'edit' | 'delete' | 'save' | 'ready' | 'photo' | 'chevronDown' | 'export' | 'calendar' | 'close' | 'copy' | 'more' | 'camera' | 'receipt' | 'users' | 'lock' | 'clipboard' | 'items' | 'diagnosis' | 'history';
   size?: number;
 }
 
@@ -12,6 +12,10 @@ export function ActionIcon({ name, size = 16 }: ActionIconProps) {
   if (name === 'excel') return <svg {...common}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 13l4 4m0-4-4 4m7-4v4" /></svg>;
   if (name === 'pdf') return <svg {...common}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M8 16h8M8 12h5" /></svg>;
   if (name === 'receipt') return <svg {...common}><path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z" /><path d="M8 8h8M8 12h8M8 16h5" /></svg>;
+  if (name === 'clipboard') return <svg {...common}><rect x="5" y="4" width="14" height="18" rx="2" /><path d="M9 4.5V3h6v1.5M8 10h8M8 14h8M8 18h5" /></svg>;
+  if (name === 'items') return <svg {...common}><rect x="3" y="4" width="7" height="7" rx="1" /><rect x="14" y="4" width="7" height="7" rx="1" /><rect x="3" y="15" width="7" height="7" rx="1" /><path d="M14 18h7M17.5 14.5v7" /></svg>;
+  if (name === 'diagnosis') return <svg {...common}><path d="M4 20h16M6 16l4-4 3 2 5-7M16 7h2v2" /><circle cx="6" cy="16" r="1" /></svg>;
+  if (name === 'history') return <svg {...common}><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5M12 7v5l3 2" /></svg>;
   if (name === 'users') return <svg {...common}><circle cx="9" cy="8" r="3" /><path d="M3 20v-1a6 6 0 0 1 12 0v1M17 5a3 3 0 0 1 0 6m1 3a5 5 0 0 1 3 5v1" /></svg>;
   if (name === 'lock') return <svg {...common}><rect x="5" y="10" width="14" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>;
   if (name === 'print') return <svg {...common}><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 14h12v8H6z" /></svg>;

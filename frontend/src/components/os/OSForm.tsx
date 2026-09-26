@@ -14,6 +14,7 @@ import {
   getOS,
   removerProdutoOS,
   removerServicoOS,
+  reabrirOS,
   restaurarItemOS,
 } from '../../api/os.api.js';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
@@ -24,6 +25,7 @@ import { handleMutationError } from '../../pwa/offlineErrorToast.js';
 import { OfflineQueuedError } from '../../pwa/OfflineQueuedError.js';
 import { hasPermission, useAuthStore } from '../../store/authStore.js';
 import { draftKey } from '../../utils/drafts.js';
+import { getErrorPresentation } from '../../utils/errorPresentation.js';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
 import { type OrdemServicoDTO, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
@@ -59,6 +61,16 @@ interface OSFormProps {
 
 type OSTab = 'dados' | 'itens' | 'diagnostico' | 'historico' | 'fotos';
 const OS_TABS_VALIDAS: OSTab[] = ['dados', 'itens', 'diagnostico', 'historico', 'fotos'];
+
+function osTabLabel(icon: 'clipboard' | 'items' | 'diagnosis' | 'photo' | 'history', text: string) {
+  return <><ActionIcon name={icon} size={18} /> {text}</>;
+}
+
+function mensagemErroCriacao(error: unknown): string {
+  if (error instanceof ApiError && error.code === 'CRYPTO_UNAVAILABLE') return error.message;
+  const presentation = getErrorPresentation(error);
+  return `${presentation.title}. ${presentation.description}`;
+}
 
 /** Tela única de Ordem de Serviço — criação e edição compartilham a mesma estrutura visual. */
 export function OSForm({ mode, id }: OSFormProps) {
@@ -100,6 +112,7 @@ function OSFormCreate() {
   });
 
   const podeSalvar = cliente && equipamento && !mutation.isPending;
+  const erroCriacao = mutation.isError ? mensagemErroCriacao(mutation.error) : null;
 
   return (
     <div className={`${styles.page} ${styles.detailPage}`}>
@@ -118,11 +131,11 @@ function OSFormCreate() {
           desabilitadas até "Criar OS", pra não parecer uma tela totalmente separada. */}
       <Tabs
         items={[
-          { key: 'dados', label: '▣ Dados da OS', mobileLabel: 'Dados' },
-          { key: 'itens', label: '▤ Produtos e Serviços', mobileLabel: 'Itens', disabled: true, title: 'Disponível depois de criar a OS' },
-          { key: 'diagnostico', label: '▱ Diagnóstico', mobileLabel: 'Diagnóstico', disabled: true, title: 'Disponível depois de criar a OS' },
-          { key: 'fotos', label: <><ActionIcon name="photo" /> Fotos</>, mobileLabel: <><ActionIcon name="photo" /> Fotos</>, disabled: true, title: 'Disponível depois de criar a OS' },
-          { key: 'historico', label: '◷ Histórico', mobileLabel: 'Histórico', disabled: true, title: 'Disponível depois de criar a OS' },
+          { key: 'dados', label: osTabLabel('clipboard', 'Dados da OS'), mobileLabel: osTabLabel('clipboard', 'Dados') },
+          { key: 'itens', label: osTabLabel('items', 'Produtos e Serviços'), mobileLabel: osTabLabel('items', 'Itens'), disabled: true, title: 'Disponível depois de criar a OS' },
+          { key: 'diagnostico', label: osTabLabel('diagnosis', 'Diagnóstico'), mobileLabel: osTabLabel('diagnosis', 'Diagnóstico'), disabled: true, title: 'Disponível depois de criar a OS' },
+          { key: 'fotos', label: osTabLabel('photo', 'Fotos'), mobileLabel: osTabLabel('photo', 'Fotos'), disabled: true, title: 'Disponível depois de criar a OS' },
+          { key: 'historico', label: osTabLabel('history', 'Histórico'), mobileLabel: osTabLabel('history', 'Histórico'), disabled: true, title: 'Disponível depois de criar a OS' },
         ]}
         active="dados"
         onChange={() => {}}
@@ -177,7 +190,7 @@ function OSFormCreate() {
                 role="alert"
                 className={styles.formError}
               >
-                {mutation.error instanceof Error ? mutation.error.message : 'Erro ao criar OS.'}
+                {erroCriacao}
               </p>
             )}
 
@@ -434,6 +447,16 @@ function OSFormEdit({ id }: { id: string }) {
     onError: (err) => handleMutationError(err, showToast, 'Não foi possível duplicar a OS. Tente novamente.'),
   });
 
+  const reabrirMutation = useMutation({
+    mutationFn: (motivo: string) => reabrirOS(id, motivo),
+    onSuccess: async (atualizado) => {
+      queryClient.setQueryData(['os', id], atualizado);
+      await invalidate();
+      showToast('OS reaberta. Já pode editar de novo.', 'success');
+    },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível reabrir a OS.'),
+  });
+
   const excluirMutation = useMutation({
     mutationFn: (motivo: string) => excluirOS(id, motivo),
     onSuccess: async () => {
@@ -513,6 +536,9 @@ function OSFormEdit({ id }: { id: string }) {
         canDelete={hasPermission('OS_DELETE') && !osFinalizada}
         onExcluir={(motivo) => excluirMutation.mutate(motivo)}
         excluindo={excluirMutation.isPending}
+        canReopen={hasPermission('OS_REOPEN') && Boolean(os.travadoLocal) && (os.situacaoDocumento ?? 0) === 0}
+        onReabrir={(motivo) => reabrirMutation.mutate(motivo)}
+        reabrindo={reabrirMutation.isPending}
       />
 
       {/* Resumo fixo — some quem é o cliente/veículo mesmo fora da aba "Dados". */}
@@ -523,16 +549,15 @@ function OSFormEdit({ id }: { id: string }) {
 
       <Tabs
         items={[
-          { key: 'dados', label: '▣ Dados da OS', mobileLabel: 'Dados' },
+          { key: 'dados', label: osTabLabel('clipboard', 'Dados da OS'), mobileLabel: osTabLabel('clipboard', 'Dados') },
           {
             key: 'itens',
-            label:
-              totalItens > 0 ? `▤ Produtos e Serviços (${totalItens})` : '▤ Produtos e Serviços',
-            mobileLabel: totalItens > 0 ? `Itens (${totalItens})` : 'Itens',
+            label: osTabLabel('items', totalItens > 0 ? `Produtos e Serviços (${totalItens})` : 'Produtos e Serviços'),
+            mobileLabel: osTabLabel('items', totalItens > 0 ? `Itens (${totalItens})` : 'Itens'),
           },
-          { key: 'diagnostico', label: '▱ Diagnóstico', mobileLabel: 'Diagnóstico' },
-          { key: 'fotos', label: <><ActionIcon name="photo" /> Fotos</>, mobileLabel: <><ActionIcon name="photo" /> Fotos</> },
-          { key: 'historico', label: '◷ Histórico', mobileLabel: 'Histórico' },
+          { key: 'diagnostico', label: osTabLabel('diagnosis', 'Diagnóstico'), mobileLabel: osTabLabel('diagnosis', 'Diagnóstico') },
+          { key: 'fotos', label: osTabLabel('photo', 'Fotos'), mobileLabel: osTabLabel('photo', 'Fotos') },
+          { key: 'historico', label: osTabLabel('history', 'Histórico'), mobileLabel: osTabLabel('history', 'Histórico') },
         ]}
         active={tab}
         onChange={mudarTab}

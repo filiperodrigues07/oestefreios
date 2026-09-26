@@ -36,6 +36,3 @@ export const integracoesSettingsSchema = z.object({
   dadosApiToken: z.string(),
 });
 
-export const integrationSecretParamSchema = z.object({
-  key: z.enum(['dadosApiToken', 'sintegraApiKey']),
-});

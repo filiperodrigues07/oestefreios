@@ -124,8 +124,10 @@ describe('cobranças por boleto (API)', () => {
     expect(salvo.body.data.smtp.password).toBe('••••••••');
     const gravado = await pool.query("SELECT data->'smtp'->>'password' AS senha FROM settings WHERE category = 'cobranca'");
     expect(gravado.rows[0]?.senha).toMatch(/^enc:v1:/);
+    // Senha salva nunca volta em texto puro: não existe mais rota pra revelar.
     const revelada = await request(app).get('/api/billing/cobranca-config/senha').set(auth(donoToken));
-    expect(revelada.body.data.password).toBe('segredo-super');
+    expect(revelada.status).toBe(404);
+    expect(JSON.stringify(revelada.body)).not.toContain('segredo-super');
 
     const enviar = await request(app).post(`/api/billing/cobrancas/${cobranca.id}/enviar`).set(auth(donoToken)).send({ mensagem: 'Qualquer dúvida, responda.' });
     expect(enviar.status).toBe(200);

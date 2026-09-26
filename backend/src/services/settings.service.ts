@@ -142,10 +142,6 @@ export async function getFirebirdSettingsMasked(): Promise<FirebirdSettings> {
 }
 
 /** Revelação explícita, restrita pela rota a SYSTEM_SETTINGS; nunca usada na carga normal da tela. */
-export async function getFirebirdPassword(): Promise<string> {
-  return (await getFirebirdSettings()).password;
-}
-
 /** Verifica a configuração efetivamente carregada sem exigir que o usuário clique em testar. */
 export async function getFirebirdConnectionStatus(): Promise<{ ok: boolean; message: string; checkedAt: string }> {
   const result = await testFirebirdConnection(await getFirebirdSettings());
@@ -239,10 +235,6 @@ export async function getSmtpSettings(): Promise<SmtpSettings> {
 }
 
 /** Revelação explícita (botão do olho/copiar), restrita pela rota a SYSTEM_SETTINGS. */
-export async function getSmtpPassword(): Promise<string> {
-  return (await getSmtpSettings()).password;
-}
-
 export async function getSmtpSettingsMasked(): Promise<SmtpSettings> {
   const data = await getSmtpSettings();
   return { ...data, password: data.password ? SENHA_MASCARADA : '' };
@@ -334,10 +326,6 @@ export async function getIntegracoesSettingsMasked(): Promise<IntegracoesSetting
     sintegraApiKey: data.sintegraApiKey ? SENHA_MASCARADA : '',
     dadosApiToken: data.dadosApiToken ? SENHA_MASCARADA : '',
   };
-}
-
-export async function getIntegrationSecret(key: keyof IntegracoesSettings): Promise<string> {
-  return (await getIntegracoesSettings())[key];
 }
 
 export async function saveIntegracoesSettings(

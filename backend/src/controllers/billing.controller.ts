@@ -63,11 +63,6 @@ export async function saveCobrancaConfigHandler(req: Request, res: Response) {
   success(res, await cobrancaService.saveCobrancaSettings(req.body, req.user!, requestContext(req)), 'E-mail de cobrança salvo.');
 }
 
-export async function getCobrancaSmtpPasswordHandler(_req: Request, res: Response) {
-  res.setHeader('Cache-Control', 'no-store');
-  success(res, { password: await cobrancaService.getCobrancaSmtpPassword() });
-}
-
 export async function testCobrancaSmtpHandler(req: Request, res: Response) {
   success(res, await cobrancaService.testarSmtpCobranca((req.body as { destino: string }).destino));
 }

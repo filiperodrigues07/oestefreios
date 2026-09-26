@@ -33,16 +33,6 @@ export async function getFirebirdSettingsHandler(_req: Request, res: Response) {
   success(res, data);
 }
 
-export async function getFirebirdPasswordHandler(_req: Request, res: Response) {
-  res.setHeader('Cache-Control', 'no-store');
-  success(res, { password: await settingsService.getFirebirdPassword() });
-}
-
-export async function getSmtpPasswordHandler(_req: Request, res: Response) {
-  res.setHeader('Cache-Control', 'no-store');
-  success(res, { password: await settingsService.getSmtpPassword() });
-}
-
 export async function getFirebirdConnectionStatusHandler(_req: Request, res: Response) {
   res.setHeader('Cache-Control', 'no-store');
   success(res, await settingsService.getFirebirdConnectionStatus());
@@ -109,8 +99,3 @@ export async function saveIntegracoesSettingsHandler(req: Request, res: Response
   success(res, data, 'Integrações salvas.');
 }
 
-export async function getIntegrationSecretHandler(req: Request, res: Response) {
-  res.setHeader('Cache-Control', 'no-store');
-  const { key } = req.params as { key: 'dadosApiToken' | 'sintegraApiKey' };
-  success(res, { value: await settingsService.getIntegrationSecret(key) });
-}

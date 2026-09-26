@@ -12,6 +12,7 @@ import {
   criarOSHandler,
   duplicarOSHandler,
   excluirOSHandler,
+  reabrirOSHandler,
   getOSByIdHandler,
   getOSPdfHandler,
   listarImagensHandler,
@@ -36,6 +37,7 @@ import {
   atualizarOSSchema,
   criarOSSchema,
   excluirOSSchema,
+  reabrirOSSchema,
   listarOSQuerySchema,
   osIdParamSchema,
   osImagemParamSchema,
@@ -62,6 +64,14 @@ osRouter.post(
   requirePermission('OS_CREATE'),
   validate(osIdParamSchema, 'params'),
   asyncHandler(duplicarOSHandler),
+);
+
+osRouter.post(
+  '/:id/reabrir',
+  requirePermission('OS_REOPEN'),
+  validate(osIdParamSchema, 'params'),
+  validate(reabrirOSSchema),
+  asyncHandler(reabrirOSHandler),
 );
 
 osRouter.delete(

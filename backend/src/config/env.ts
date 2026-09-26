@@ -3,6 +3,12 @@ import { z } from 'zod';
 
 const envSchema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
+  /**
+   * Interface de rede do backend. Em produção só o nginx (mesma máquina) fala com ele: escutar em
+   * 0.0.0.0 expõe a API direto na internet, sem HTTPS e com X-Forwarded-For forjável. Padrão por
+   * ambiente em server.ts (produção: 127.0.0.1; dev: todas, pra testar no celular pela rede local).
+   */
+  HOST: z.string().trim().min(1).optional(),
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   FRONTEND_URL: z.url().default('http://localhost:5173'),
 
