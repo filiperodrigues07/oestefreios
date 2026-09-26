@@ -13,7 +13,8 @@ if [ -L "$APP_BASE/current" ]; then
   exit 0
 fi
 
-install -d -m 750 "$APP_BASE" "$APP_BASE/releases"
+# 755: o nginx (www-data) precisa atravessar até current/frontend/dist; segredos ficam em shared/ (700/600).
+install -d -m 755 "$APP_BASE" "$APP_BASE/releases"
 install -d -m 700 "$SHARED" "$SHARED/storage" "$SHARED/storage/cobrancas"
 install -d -m 755 "$SHARED/uploads"
 
