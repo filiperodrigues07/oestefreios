@@ -137,7 +137,7 @@ test.describe('OS finalizada some para quem não tem a permissão', () => {
     await expect(mecanicoPage.getByText('OS finalizada. Ela saiu da sua lista.')).toBeVisible();
     await expect(mecanicoPage).toHaveURL(/\/os$/);
     await expect(mecanicoPage.locator(`[href="/os/${id}"]`)).toHaveCount(0);
-    await expect(mecanicoPage.getByRole('combobox', { name: 'Situação' })).toHaveCount(0);
+    await expect(mecanicoPage.getByRole('combobox', { name: 'Status' })).toHaveCount(0);
 
     // Link direto continua abrindo, só leitura.
     await mecanicoPage.goto(`/os/${id}`);
@@ -145,7 +145,7 @@ test.describe('OS finalizada some para quem não tem a permissão', () => {
     await mecanicoPage.close();
 
     await page.goto('/os');
-    await page.getByRole('combobox', { name: 'Situação' }).selectOption({ label: 'Finalizada no app' });
+    await page.getByRole('combobox', { name: 'Status' }).selectOption({ label: 'Finalizada no app' });
     // Toda linha desse filtro é "Finalizada no app", e a OS que o mecânico finalizou está entre elas.
     const linhas = page.locator('tbody tr:visible');
     await expect(linhas.first()).toBeVisible();

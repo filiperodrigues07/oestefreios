@@ -296,7 +296,7 @@ export function OSListPage() {
     },
     {
       key: 'situacaoDocumento',
-      header: 'Situação',
+      header: 'Status',
       width: '112px',
       sortable: true,
       render: (os) => {
@@ -370,7 +370,7 @@ export function OSListPage() {
     <div className={styles.page}>
       <PageHeader
         title="Ordens de Serviço"
-        description="Consulte as ordens e a situação do documento registrada no CHERP."
+        description="Consulte as ordens e o status do documento registrado no CHERP."
         actions={
           <>
             <RefreshButton onClick={() => refetch()} loading={isFetching} />
@@ -433,8 +433,8 @@ export function OSListPage() {
           {/* Sem OS_VIEW_FINALIZADAS a lista já vem só com OS em aberto: filtro de situação não se aplica. */}
           {podeVerFinalizadas && (
             <Select
-              label="Situação"
-              placeholder="Todas as situações"
+              label="Status"
+              placeholder="Todos os status"
               value={situacaoDocumento}
               onChange={(e) => handleSituacaoDocumentoChange(e.target.value)}
               options={[
