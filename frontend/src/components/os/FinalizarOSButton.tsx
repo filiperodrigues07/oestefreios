@@ -24,7 +24,7 @@ export function FinalizarOSButton({ onConfirm, loading }: FinalizarOSButtonProps
       <ConfirmDialog
         open={confirmando}
         title="Finalizar OS?"
-        description="Depois de finalizada, a OS não pode mais ser editada no app (só um gerente consegue reabrir). Ela continua disponível no CHERP para faturamento."
+        description="A OS fica como Pronta no CHERP e continua em aberto lá para faturamento. No app, ela não pode mais ser editada (só um gerente consegue reabrir)."
         confirmLabel="Finalizar OS"
         loading={loading}
         onCancel={() => setConfirmando(false)}

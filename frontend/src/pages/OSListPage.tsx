@@ -10,6 +10,8 @@ import {
   OS_DOCUMENT_STATUS_CONFIG,
   OS_DOCUMENT_STATUS_OPTIONS,
   OS_PRIORIDADE_OPTIONS,
+  SITUACAO_ATENDIMENTO_CONFIG,
+  SITUACAO_ATENDIMENTO_OPTIONS,
   SITUACAO_FINALIZADA_APP,
   situacaoDaOS,
 } from '../constants/osStatus.js';
@@ -78,6 +80,10 @@ export function OSListPage() {
     const value = searchParams.get('prioridade') ?? filtrosSalvos.get('prioridade');
     return value && OS_PRIORIDADE_OPTIONS.some((o) => o.value === value) ? (value as OSPrioridade) : '';
   });
+  const [situacaoAtendimento, setSituacaoAtendimento] = useState(() => {
+    const value = searchParams.get('situacaoAtendimento') ?? filtrosSalvos.get('situacaoAtendimento');
+    return value && SITUACAO_ATENDIMENTO_CONFIG[value] ? value : '';
+  });
   const [dataInicial, setDataInicial] = useState(() => searchParams.get('dataInicial') ?? filtrosSalvos.get('dataInicial') ?? '');
   const [dataFinal, setDataFinal] = useState(() => searchParams.get('dataFinal') ?? filtrosSalvos.get('dataFinal') ?? '');
   const [busca, setBusca] = useState(() => searchParams.get('busca') ?? filtrosSalvos.get('busca') ?? '');
@@ -134,13 +140,14 @@ export function OSListPage() {
     // Valor vazio significa "todas" e precisa sobreviver a F5; ausência da chave usa o padrão "aberta".
     params.set('situacaoDocumento', situacaoDocumento);
     if (prioridade) params.set('prioridade', prioridade);
+    if (situacaoAtendimento) params.set('situacaoAtendimento', situacaoAtendimento);
     if (dataInicial) params.set('dataInicial', dataInicial);
     if (dataFinal) params.set('dataFinal', dataFinal);
     if (buscaAtiva) params.set('busca', buscaAtiva);
     setSearchParams(params, { replace: true });
     writeStoredFilters('os', params);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [situacaoDocumento, prioridade, dataInicial, dataFinal, buscaAtiva]);
+  }, [situacaoDocumento, prioridade, situacaoAtendimento, dataInicial, dataFinal, buscaAtiva]);
 
   const { data, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useQuery({
     // Troca de página/filtro mantém a lista anterior na tela (sem skeleton piscando) até a nova chegar.
@@ -152,6 +159,7 @@ export function OSListPage() {
       'os-list',
       situacaoDocumento,
       prioridade,
+      situacaoAtendimento,
       dataInicial,
       dataFinal,
       buscaAtiva,
@@ -166,6 +174,7 @@ export function OSListPage() {
         somenteFinalizadasApp: situacaoDocumento === SITUACAO_FINALIZADA_APP,
         incluirFinalizadas: true,
         prioridade: prioridade || undefined,
+        situacaoAtendimento: situacaoAtendimento || undefined,
         dataInicial: dataInicial || undefined,
         dataFinal: dataFinal || undefined,
         busca: buscaAtiva || undefined,
@@ -184,11 +193,13 @@ export function OSListPage() {
   const filtrosAtivos =
     Number(situacaoDocumento !== '') +
     Number(Boolean(prioridade)) +
+    Number(Boolean(situacaoAtendimento)) +
     Number(Boolean(dataInicial) || Boolean(dataFinal));
 
   function limparFiltros() {
     setSituacaoDocumento('');
     setPrioridade('');
+    setSituacaoAtendimento('');
     setDataInicial('');
     setDataFinal('');
     setBusca('');
@@ -198,6 +209,11 @@ export function OSListPage() {
 
   function handleSituacaoDocumentoChange(value: string) {
     setSituacaoDocumento(value);
+    setPage(1);
+  }
+
+  function handleSituacaoAtendimentoChange(value: string) {
+    setSituacaoAtendimento(value);
     setPage(1);
   }
 
@@ -285,6 +301,15 @@ export function OSListPage() {
       render: (os) => {
         const config = situacaoDaOS(os);
         return <Badge tone={config?.tone ?? 'neutral'}>{config?.label ?? 'Não informado'}</Badge>;
+      },
+    },
+    {
+      key: 'situacaoAtendimento',
+      header: 'Sit. atendimento',
+      width: '150px',
+      render: (os) => {
+        const config = os.situacaoAtendimentoCodigo ? SITUACAO_ATENDIMENTO_CONFIG[os.situacaoAtendimentoCodigo] : undefined;
+        return config ? <Badge tone={config.tone}>{config.label}</Badge> : <span aria-label="Não informada">—</span>;
       },
     },
     {
@@ -417,6 +442,13 @@ export function OSListPage() {
             />
           )}
           <Select
+            label="Sit. atendimento"
+            placeholder="Todas"
+            value={situacaoAtendimento}
+            onChange={(e) => handleSituacaoAtendimentoChange(e.target.value)}
+            options={SITUACAO_ATENDIMENTO_OPTIONS}
+          />
+          <Select
             className="os-priority-select"
             data-priority={prioridade || undefined}
             label="Prioridade"
@@ -525,6 +557,12 @@ export function OSListPage() {
                         label: 'Abertura',
                         value: new Date(os.dataAbertura).toLocaleDateString('pt-BR'),
                         mono: true,
+                      },
+                      {
+                        label: 'Sit. atendimento',
+                        value: os.situacaoAtendimentoCodigo && SITUACAO_ATENDIMENTO_CONFIG[os.situacaoAtendimentoCodigo]
+                          ? <Badge tone={SITUACAO_ATENDIMENTO_CONFIG[os.situacaoAtendimentoCodigo]!.tone}>{SITUACAO_ATENDIMENTO_CONFIG[os.situacaoAtendimentoCodigo]!.label}</Badge>
+                          : '—',
                       },
                       { label: 'Prioridade', value: <PriorityBadge priority={os.prioridade} /> },
                       ...(canSeeFinancial

@@ -18,6 +18,8 @@ export interface OSListFilter {
    * app (os_workflow.travado_local). Volume de OS em aberto é pequeno, então dá pra filtrar em memória.
    */
   ocultarFinalizadasApp?: boolean;
+  /** Situação de atendimento do CHERP (código de TABELAS grupo 15), filtrada direto no SQL. */
+  situacaoAtendimento?: string;
   /** Só as finalizadas pelo app que ainda estão em aberto no CHERP (aguardando faturamento lá). */
   somenteFinalizadasApp?: boolean;
   sortBy?: 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';

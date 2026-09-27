@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { baixarOSPdf } from '../../api/os.api.js';
 import { getUserErrorMessage } from '../../utils/errorPresentation.js';
 import { ActionIcon, Button, ConfirmDialog, LinkButton, PriorityBadge, ReasonDialog, useToast } from '../ui/index.js';
-import { OS_PRIORITY_CONFIG, OS_STATUS_CONFIG } from '../../constants/osStatus.js';
+import { OS_PRIORITY_CONFIG, OS_STATUS_CONFIG, SITUACAO_ATENDIMENTO_CONFIG } from '../../constants/osStatus.js';
 import { ALLOWED_TRANSITIONS, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
 import { FinalizarOSButton } from './FinalizarOSButton.js';
 import { OSMoreActions, type MoreActionItem } from './OSMoreActions.js';
@@ -15,6 +15,8 @@ interface OSFormHeaderProps {
   numero: number;
   nroDav?: string;
   status: OSStatus;
+  /** Situação de atendimento real do CHERP — Pronta/Entregue/Encerrada marcadas lá não têm status próprio no app. */
+  situacaoAtendimentoCodigo?: string;
   prioridade: OSPrioridade;
   dataAbertura: string;
   onRefresh: () => void;
@@ -44,6 +46,7 @@ export function OSFormHeader({
   numero,
   nroDav,
   status,
+  situacaoAtendimentoCodigo,
   prioridade,
   dataAbertura,
   onRefresh,
@@ -66,6 +69,8 @@ export function OSFormHeader({
   reabrindo,
 }: OSFormHeaderProps) {
   const [confirmandoReabrir, setConfirmandoReabrir] = useState(false);
+  const cherpDizMais = situacaoAtendimentoCodigo === '000004' || situacaoAtendimentoCodigo === '000005' || situacaoAtendimentoCodigo === '000006';
+  const rotuloStatus = cherpDizMais ? SITUACAO_ATENDIMENTO_CONFIG[situacaoAtendimentoCodigo!]!.label : OS_STATUS_CONFIG[status].label;
   const [imprimindo, setImprimindo] = useState(false);
   const [confirmandoDuplicar, setConfirmandoDuplicar] = useState(false);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
@@ -101,7 +106,7 @@ export function OSFormHeader({
       <div className={styles.titleBlock}>
         <div className={styles.titleLine}>
           <h1>OS #{numero}</h1>
-          <span className={styles.badge}>{OS_STATUS_CONFIG[status].label}</span>
+          <span className={styles.badge}>{rotuloStatus}</span>
           <PriorityBadge priority={prioridade} />
         </div>
         <div className={styles.metaLine}>

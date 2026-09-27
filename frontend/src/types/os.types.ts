@@ -63,6 +63,8 @@ export interface OrdemServicoDTO {
   situacaoDocumento?: number;
   /** "Finalizar OS" travou a edição só neste app — nunca reflete nada do CHERP. */
   travadoLocal?: boolean;
+  /** Situação de atendimento real do CHERP (000001…000006), inclusive o que foi marcado direto lá. */
+  situacaoAtendimentoCodigo?: string;
   faturamento?: number;
   nroDav?: string;
   kmAtual?: number;

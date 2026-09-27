@@ -20,6 +20,21 @@ export const OS_DOCUMENT_STATUS_CONFIG: Record<number, OSStatusConfig> = {
 
 export const OS_DOCUMENT_STATUS_OPTIONS = Object.entries(OS_DOCUMENT_STATUS_CONFIG).map(([value, config]) => ({ value, label: config.label }));
 
+/**
+ * Situação de atendimento nativa do CHERP (TABELAS grupo 15). É o valor real de lá: inclui Pronta,
+ * Entregue e Encerrada marcadas direto no CHERP. "Finalizar OS" no app grava Pronta.
+ */
+export const SITUACAO_ATENDIMENTO_CONFIG: Record<string, OSStatusConfig> = {
+  '000001': { label: 'Em atendimento', tone: 'info' },
+  '000002': { label: 'Aguardando ret. cliente', tone: 'warning' },
+  '000003': { label: 'Aguardando peças', tone: 'warning' },
+  '000004': { label: 'Pronta', tone: 'success' },
+  '000005': { label: 'Entregue', tone: 'primary' },
+  '000006': { label: 'Encerrada', tone: 'neutral' },
+};
+
+export const SITUACAO_ATENDIMENTO_OPTIONS = Object.entries(SITUACAO_ATENDIMENTO_CONFIG).map(([value, config]) => ({ value, label: config.label }));
+
 /** Valor do filtro de Situação para "finalizadas no app" (não é uma SITUACAO do CHERP). */
 export const SITUACAO_FINALIZADA_APP = 'app';
 

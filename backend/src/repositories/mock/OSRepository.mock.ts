@@ -82,6 +82,15 @@ function seedOS(input: SeedOSInput): OrdemServico {
   };
 }
 
+/** Mock não tem TABELAS: deriva a situação de atendimento do status, igual ao que o Firebird grava. */
+const SITUACAO_ATENDIMENTO_MOCK: Partial<Record<OSStatus, string>> = {
+  ABERTA: '000001', EM_ANALISE: '000001', EM_ANDAMENTO: '000001',
+  AGUARDANDO_CLIENTE: '000002', AGUARDANDO_PECA: '000003', CONCLUIDA: '000004',
+};
+function comSituacaoAtendimento(os: OrdemServico): OrdemServico {
+  return os.situacaoAtendimentoCodigo ? os : { ...os, situacaoAtendimentoCodigo: SITUACAO_ATENDIMENTO_MOCK[os.status] };
+}
+
 /** Itens removidos por OS (chave id:tipo:codigo) — espelha as linhas ATIVO = 0 do CHERP. */
 const REMOVIDOS = new Map<string, OSItemProduto | OSItemServico>();
 
@@ -164,7 +173,8 @@ let nextNumero = 1236;
 
 export class OSRepositoryMock implements IOSRepository {
   async buscarPorId(id: string): Promise<OrdemServico | null> {
-    return OS_LIST.find((os) => os.id === id) ?? null;
+    const os = OS_LIST.find((o) => o.id === id);
+    return os ? comSituacaoAtendimento(os) : null;
   }
 
   /** Espelha a regra da implementação real: só OS em aberto (nunca concluída/cancelada) — ver OSRepository.firebird.ts. */
@@ -198,6 +208,10 @@ export class OSRepositoryMock implements IOSRepository {
     if (filter.dataFinal) {
       const fim = filter.dataFinal.getTime();
       filtered = filtered.filter((os) => new Date(os.dataAbertura).getTime() <= fim);
+    }
+    filtered = filtered.map(comSituacaoAtendimento);
+    if (filter.situacaoAtendimento) {
+      filtered = filtered.filter((os) => os.situacaoAtendimentoCodigo === filter.situacaoAtendimento);
     }
     const page = filter.page ?? 1;
     const limit = filter.limit ?? 20;
@@ -269,7 +283,7 @@ export class OSRepositoryMock implements IOSRepository {
     // Espelha o Firebird: CONCLUIDA/CANCELADA pelo app trava só do lado do app (os_workflow.travado_local).
     if (patch.status !== undefined) atualizado.travadoLocal = patch.status === 'CONCLUIDA' || patch.status === 'CANCELADA';
     OS_LIST[idx] = atualizado;
-    return atualizado;
+    return comSituacaoAtendimento(atualizado);
   }
 
   async buscarProdutoRemovido(id: string, produtoCodigo: string): Promise<OSItemProduto | null> {

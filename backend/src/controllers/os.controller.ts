@@ -15,6 +15,7 @@ export async function listOSHandler(req: Request, res: Response) {
     situacaoDocumento?: number;
     incluirFinalizadas?: boolean;
     somenteFinalizadasApp?: boolean;
+    situacaoAtendimento?: string;
     clienteCodigo?: string;
     tecnicoId?: string;
     prioridade?: string;

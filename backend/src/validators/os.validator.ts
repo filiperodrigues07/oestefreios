@@ -117,6 +117,7 @@ export const listarOSQuerySchema = z.object({
   // query string sempre chega como texto, então precisa comparar o valor, não só a presença.
   incluirFinalizadas: z.enum(['true', 'false']).optional().transform((v) => v === 'true'),
   somenteFinalizadasApp: z.enum(['true', 'false']).optional().transform((v) => v === 'true'),
+  situacaoAtendimento: z.enum(['000001', '000002', '000003', '000004', '000005', '000006']).optional(),
   clienteCodigo: z.string().trim().min(1).optional(),
   tecnicoId: z.string().trim().min(1).optional(),
   prioridade: z.enum(OS_PRIORIDADE_VALUES).optional(),

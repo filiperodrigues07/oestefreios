@@ -526,6 +526,7 @@ function OSFormEdit({ id }: { id: string }) {
         numero={os.numero}
         nroDav={os.nroDav}
         status={os.status}
+        situacaoAtendimentoCodigo={os.situacaoAtendimentoCodigo}
         prioridade={os.prioridade}
         dataAbertura={os.dataAbertura}
         onRefresh={() => refetch()}

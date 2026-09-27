@@ -198,6 +198,12 @@ export interface OrdemServico {
   situacaoDocumento?: number;
   /** "Finalizar OS" pelo app (os_workflow.travado_local) — trava edição só aqui, nunca mexe no CHERP. */
   travadoLocal?: boolean;
+  /**
+   * Situação de atendimento nativa do CHERP (TABELAS grupo 15, código): 000001 Em atendimento,
+   * 000002 Aguardando ret. cliente, 000003 Aguardando peças, 000004 Pronta, 000005 Entregue,
+   * 000006 Encerrada. Valor real de lá — inclui o que foi marcado direto no CHERP.
+   */
+  situacaoAtendimentoCodigo?: string;
   faturamento?: number;
   /** Nº do DAV impresso no CHERP (ORDEMSERVICO.NRODAV) — só leitura, o CHERP quem gera. */
   nroDav?: string;

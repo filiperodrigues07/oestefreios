@@ -58,10 +58,10 @@ const SITUACAO_ESTORNADA = 6;
 const CHAVETABELA_SITUACAO_ATENDIMENTO = 15;
 
 /**
- * Espelho só-escrita dos 5 status intermediários pro campo nativo CHAVESITUACAOOS do CHERP —
- * puramente informativo pra quem olha a OS direto no CHERP. CONCLUIDA e CANCELADA ficam de fora de
- * propósito: são decisão só do nosso app (`os_workflow.travado_local`, ver `atualizar` abaixo) e
- * nunca escrevem nada no CHERP, pro time de faturamento continuar processando por lá.
+ * Espelho do nosso status pro campo nativo CHAVESITUACAOOS do CHERP (situação de atendimento).
+ * "Finalizar OS" (CONCLUIDA) grava PRONTA: quem olha no CHERP vê que o mecânico terminou; a OS segue
+ * em aberto (SITUACAO fiscal intocada) pro time de faturamento gerar pedido/NF por lá. Reabrir volta
+ * pra EM ATENDIMENTO. CANCELADA não escreve nada — ENCERRADA é do próprio CHERP ao faturar.
  */
 const SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS: Partial<Record<OSStatus, string>> = {
   ABERTA: '000001', // EM ATENDIMENTO
@@ -69,6 +69,7 @@ const SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS: Partial<Record<OSStatus, string>> 
   EM_ANDAMENTO: '000001', // EM ATENDIMENTO
   AGUARDANDO_CLIENTE: '000002', // AGUARDANDO RET. CLIENTE
   AGUARDANDO_PECA: '000003', // AGUARDANDO PEÇAS
+  CONCLUIDA: '000004', // PRONTA
 };
 
 /**
@@ -338,6 +339,7 @@ function buildOrdemServico(
     dataConclusao,
     situacaoDocumento: header.SITUACAO,
     travadoLocal: workflow?.travadoLocal ?? false,
+    situacaoAtendimentoCodigo: header.SITUACAO_ATENDIMENTO_CODIGO?.trim() || undefined,
     faturamento,
     nroDav: header.NRODAV?.trim() || undefined,
     kmAtual: header.KMATUAL !== null ? Number(header.KMATUAL) : undefined,
@@ -518,6 +520,10 @@ export class OSRepositoryFirebird implements IOSRepository {
     } else if (!filter.incluirFinalizadas) {
       conditions.push('OS.SITUACAO = ?');
       params.push(SITUACAO_ABERTO);
+    }
+    if (filter.situacaoAtendimento) {
+      conditions.push('TRIM(SIT.CODIGO) = ?');
+      params.push(filter.situacaoAtendimento);
     }
     if (filter.clienteCodigo) {
       conditions.push('CLI.CODIGO = ?');
@@ -835,8 +841,8 @@ export class OSRepositoryFirebird implements IOSRepository {
       const solucao = patch.solucao !== undefined ? patch.solucao : atual.solucao;
       camposOSFB.push({ coluna: 'OBS', valor: encodeObs(observacoes, solucao) });
     }
-    // CONCLUIDA/CANCELADA não têm entrada em SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS de propósito —
-    // "Finalizar OS" trava só no nosso app (os_workflow.travado_local, abaixo), nunca escreve no CHERP.
+    // CONCLUIDA grava PRONTA (a trava de edição continua sendo os_workflow.travado_local, abaixo);
+    // CANCELADA não tem entrada no mapa e não escreve situação de atendimento.
     const codigoSituacaoAtendimento = patch.status !== undefined ? SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[patch.status] : undefined;
     if (codigoSituacaoAtendimento !== undefined) {
       const chaveSituacaoAtendimento = await resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, codigoSituacaoAtendimento);
