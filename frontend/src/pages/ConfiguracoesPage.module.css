@@ -8,6 +8,8 @@
 .tabs button { display:flex; flex:1 0 auto; justify-content:center; align-items:center; gap:var(--space-2); min-height:44px; padding:0 var(--space-4); border:0; border-radius:var(--radius-sm); color:var(--color-text-secondary); background:transparent; font:inherit; font-size:var(--font-size-sm); cursor:pointer; transition:background .15s ease,color .15s ease; }
 .tabs button:hover { color:var(--color-text-primary); background:var(--color-neutral-surface); }
 .tabs .activeTab { color:var(--color-primary-on-surface); background:var(--color-primary-surface); font-weight:600; }
+/* Logo do WhatsApp como máscara na cor do texto da aba: cinza como os outros ícones, azul na aba ativa. */
+.whatsappTabIcon { display:block; width:18px; height:18px; flex-shrink:0; background-color:currentColor; -webkit-mask:url(/whatsapp-glyph-green.svg) center / contain no-repeat; mask:url(/whatsapp-glyph-green.svg) center / contain no-repeat; }
 .content { width:100%; margin-inline:auto; }
 .columns { display:grid; grid-template-columns:minmax(0,1.7fr) minmax(320px,1fr); gap:var(--space-4); align-items:stretch; }
 .connectionCard,.statusCard,.supportCard { border:1px solid var(--color-border); border-radius:var(--radius-lg); background:var(--color-surface); box-shadow:var(--shadow-sm); }
@@ -45,7 +47,8 @@
 .supportCard { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-6); }
 .supportCard h2 { margin-top:2px; }
 .supportCard p { margin:var(--space-2) 0 var(--space-3); font-size:var(--font-size-sm); line-height:1.5; }
-.singleCard { max-width:820px; margin-inline:auto; }
+/* Conteúdo das abas ocupa a mesma largura da barra de abas. */
+.singleCard { max-width:none; }
 .cardHeadingSimple { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-4); }
 .cardHeadingSimple > div { min-width:0; flex:1; }
 .cardHeadingSimple p { margin:2px 0 0; font-size:var(--font-size-xs); }
@@ -74,4 +77,4 @@
 .formFooter { display:flex; align-items:center; justify-content:space-between; gap:var(--space-4); margin-top:var(--space-6); padding-top:var(--space-4); border-top:1px solid var(--color-border); }
 .formFooter p { margin:0; font-size:var(--font-size-xs); }
 @media (max-width:1150px) { .columns { grid-template-columns:1fr; } .rightColumn { grid-template-columns:1.2fr 1fr; } .integrationsList { grid-template-columns:1fr; } }
-@media (max-width:899px) { .page { padding:var(--space-4) var(--space-3) 40px; } .pageTitle { align-items:flex-start; } .tabs { gap:0; } .tabs button { flex:0 0 auto; padding:0 var(--space-3); } .tabs svg { width:17px; } .fields,.rightColumn,.actions,.testPanel { grid-template-columns:1fr; } .connectionCard,.statusCard,.supportCard { padding:var(--space-4); } .singleCard { max-width:none; } .cardHeading { flex-wrap:wrap; } .cardHeading .helpButton { margin-left:54px; } .lastCheck,.logoUploader,.formFooter { flex-wrap:wrap; } .logoCopy { flex-basis:calc(100% - 90px); } .singleAction,.formFooter { justify-content:stretch; } .singleAction button,.formFooter button { width:100%; } }
+@media (max-width:899px) { .page { padding:var(--space-4) var(--space-3) 40px; } .pageTitle { align-items:flex-start; } .tabs { gap:0; } .tabs button { flex:0 0 auto; padding:0 var(--space-3); } .tabs svg,.whatsappTabIcon { width:17px; height:17px; } .fields,.rightColumn,.actions,.testPanel { grid-template-columns:1fr; } .connectionCard,.statusCard,.supportCard { padding:var(--space-4); } .singleCard { max-width:none; } .cardHeading { flex-wrap:wrap; } .cardHeading .helpButton { margin-left:54px; } .lastCheck,.logoUploader,.formFooter { flex-wrap:wrap; } .logoCopy { flex-basis:calc(100% - 90px); } .singleAction,.formFooter { justify-content:stretch; } .singleAction button,.formFooter button { width:100%; } }

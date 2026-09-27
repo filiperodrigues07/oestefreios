@@ -4,14 +4,19 @@ const get = vi.fn();
 const destroy = vi.fn((cb: () => void) => cb());
 const criarPool = vi.fn(() => ({ get, destroy }));
 
-vi.mock('node-firebird', () => ({ pool: criarPool, default: { pool: criarPool } }));
+vi.mock('node-firebird', () => {
+  const driver = { pool: criarPool, ISOLATION_READ_COMMITTED: [1], ISOLATION_READ_UNCOMMITTED: [2] };
+  return { ...driver, default: driver };
+});
 
 function conexao(resultado: { err?: Error; rows?: unknown }) {
   const detach = vi.fn();
-  return {
-    detach,
-    query: vi.fn((_sql: string, _params: unknown[], cb: (e: Error | null, r?: unknown) => void) => cb(resultado.err ?? null, resultado.rows)),
-  };
+  const query = vi.fn((_sql: string, _params: unknown[], cb: (e: Error | null, r?: unknown) => void) => cb(resultado.err ?? null, resultado.rows));
+  // SELECT roda numa transação de leitura (ver firebirdQuery): mesma query, com commit/rollback.
+  const transaction = vi.fn((_isolamento: unknown, cb: (e: Error | null, t?: unknown) => void) =>
+    cb(null, { query, commit: vi.fn((done: (e: Error | null) => void) => done(null)), rollback: vi.fn((done: () => void) => done()) }),
+  );
+  return { detach, query, transaction };
 }
 
 describe('pool Firebird', () => {

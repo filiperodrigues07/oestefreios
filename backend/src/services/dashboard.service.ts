@@ -157,6 +157,7 @@ function toSummaryDTO(os: OrdemServico): OSSummaryDTO {
 export async function getOperationalDashboard(usuario: AuthenticatedUser): Promise<OperationalDashboardDTO> {
   const todasOS = await osRepository.listarCabecalhos();
   const minhas = todasOS.filter((os) => os.tecnicoId === usuario.id || os.responsavelId === usuario.id);
+  const verFinalizadas = usuario.permissions.includes('OS_VIEW_FINALIZADAS');
 
   const counts = { emAtendimento: 0, aguardando: 0, prontas: 0, encerradas: 0 };
   for (const os of minhas) {
@@ -166,7 +167,9 @@ export async function getOperationalDashboard(usuario: AuthenticatedUser): Promi
     else if (os.status === 'CANCELADA') counts.encerradas++;
   }
 
+  // Contagem continua cheia ("prontas"); a lista some com as finalizadas pra quem não pode vê-las.
   const minhasOS = minhas
+    .filter((os) => verFinalizadas || !os.travadoLocal)
     .sort((a, b) => new Date(b.dataAbertura).getTime() - new Date(a.dataAbertura).getTime())
     .slice(0, 20)
     .map(toSummaryDTO);
@@ -303,7 +306,11 @@ export async function searchDashboard(termo: string, permissions: Permission[]):
   const podeVerProdutos = permissions.includes('PRODUCT_VIEW') || permissions.includes('PRODUCT_SEARCH');
   const podeVerServicos = permissions.includes('SERVICE_VIEW') || permissions.includes('SERVICE_SEARCH');
   const [ordens, clientes, veiculos, produtos, servicos] = await Promise.all([
-    podeVerOS ? osRepository.buscarParaDashboard(termo) : Promise.resolve([]),
+    podeVerOS
+      ? osRepository.buscarParaDashboard(termo).then((lista) =>
+          permissions.includes('OS_VIEW_FINALIZADAS') ? lista : lista.filter((os) => !os.travadoLocal),
+        )
+      : Promise.resolve([]),
     podeVerOS ? clienteRepository.buscar({ busca: termo, limit: 4 }) : Promise.resolve({ items: [], page: 1, limit: 4, total: 0 }),
     podeVerOS ? equipamentoRepository.buscar({ descricao: termo, limit: 4 }) : Promise.resolve({ items: [], page: 1, limit: 4, total: 0 }),
     podeVerProdutos ? produtoRepository.buscar({ busca: termo, limit: 4 }) : Promise.resolve({ items: [], page: 1, limit: 4, total: 0 }),

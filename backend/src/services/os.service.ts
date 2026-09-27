@@ -17,6 +17,8 @@ import { detectarTipoImagem } from '../utils/imageSignature.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
 import { assertValidTransition } from './osWorkflow.js';
+import { enqueueStatusMessages } from './osCommunication.service.js';
+import { logger } from '../utils/logger.js';
 
 function historicoEntry(evento: string, usuario: AuthenticatedUser): OSHistoricoEntry {
   return { timestamp: new Date().toISOString(), evento, usuarioNome: usuario.name };
@@ -73,7 +75,13 @@ export async function listOS(
   filter: OSListFilter,
   permissions: Permission[],
 ): Promise<{ items: (OperationalOSDTO | AdminOSDTO)[]; total: number }> {
-  const result = await osRepository.listar(filter);
+  // Sem OS_VIEW_FINALIZADAS, OS finalizada pelo app some da lista (a OS continua abrindo só leitura por link).
+  const verFinalizadas = permissions.includes('OS_VIEW_FINALIZADAS');
+  const result = await osRepository.listar({
+    ...filter,
+    ocultarFinalizadasApp: !verFinalizadas,
+    somenteFinalizadasApp: verFinalizadas && filter.somenteFinalizadasApp,
+  });
   return { items: result.items.map((os) => toOSDTO(os, permissions)), total: result.total };
 }
 
@@ -126,6 +134,9 @@ export async function criarOS(
   });
 
   await auditOS('OS_CREATED', novo.id, usuario, ctx, { after: input });
+
+  try { await enqueueStatusMessages(novo, 'ABERTA'); }
+  catch (error) { logger.warn({ err: error, osId: novo.id }, 'Não foi possível enfileirar aviso de abertura da OS'); }
 
   return toOSDTO(novo, usuario.permissions);
 }
@@ -229,7 +240,6 @@ export async function duplicarOS(
   const temDiagnostico =
     origem.diagnostico !== undefined ||
     origem.observacoes !== undefined ||
-    origem.solucao !== undefined ||
     origem.kmAtual !== undefined ||
     origem.kmFinal !== undefined;
 
@@ -240,7 +250,6 @@ export async function duplicarOS(
       ...(temItens ? { faturamento: calcularFaturamento(origem.produtos, origem.servicos) } : {}),
       diagnostico: origem.diagnostico,
       observacoes: origem.observacoes,
-      solucao: origem.solucao,
       kmAtual: origem.kmAtual,
       kmFinal: origem.kmFinal,
       cherpUsuarioChave: usuario.cherpUsuarioChave,
@@ -261,7 +270,6 @@ export async function duplicarOS(
 interface AtualizarOSInput {
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   prioridade?: OSPrioridade;
   responsavelId?: string;
   tecnicoId?: string;
@@ -275,7 +283,6 @@ interface AtualizarOSInput {
 export interface OSBaseEdicao {
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   kmAtual?: number | null;
   kmFinal?: number | null;
 }
@@ -353,6 +360,10 @@ export async function alterarStatusOS(
   const atualizado = await osRepository.atualizar(id, patch);
 
   await auditOS('OS_STATUS_CHANGED', id, usuario, ctx, { before: atual.status, after: novoStatus });
+
+  // A mudança da OS já foi salva. Falha no aviso nunca desfaz o status.
+  try { await enqueueStatusMessages(atualizado, novoStatus); }
+  catch (error) { logger.warn({ err: error, osId: id }, 'Não foi possível enfileirar aviso da OS'); }
 
   return toOSDTO(atualizado, usuario.permissions);
 }

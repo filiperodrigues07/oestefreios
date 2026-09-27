@@ -10,6 +10,11 @@ import {
   OS_DOCUMENT_STATUS_CONFIG,
   OS_DOCUMENT_STATUS_OPTIONS,
   OS_PRIORIDADE_OPTIONS,
+  SITUACAO_ATENDIMENTO_CONFIG,
+  SITUACAO_ATENDIMENTO_CURTA,
+  SITUACAO_ATENDIMENTO_OPTIONS,
+  SITUACAO_FINALIZADA_APP,
+  situacaoDaOS,
 } from '../constants/osStatus.js';
 import { hasPermission } from '../store/authStore.js';
 import { readStoredFilters, writeStoredFilters } from '../utils/filterStorage.js';
@@ -66,13 +71,19 @@ export function OSListPage() {
   const filtrosSalvos = readStoredFilters('os');
   const initialSituacaoDocumento = searchParams.get('situacaoDocumento') ?? filtrosSalvos.get('situacaoDocumento');
   const [situacaoDocumento, setSituacaoDocumento] = useState(() =>
-    initialSituacaoDocumento === '' || (initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)])
+    initialSituacaoDocumento === '' ||
+    (initialSituacaoDocumento === SITUACAO_FINALIZADA_APP && hasPermission('OS_VIEW_FINALIZADAS')) ||
+    (initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)])
       ? initialSituacaoDocumento
       : '0',
   );
   const [prioridade, setPrioridade] = useState<OSPrioridade | ''>(() => {
     const value = searchParams.get('prioridade') ?? filtrosSalvos.get('prioridade');
     return value && OS_PRIORIDADE_OPTIONS.some((o) => o.value === value) ? (value as OSPrioridade) : '';
+  });
+  const [situacaoAtendimento, setSituacaoAtendimento] = useState(() => {
+    const value = searchParams.get('situacaoAtendimento') ?? filtrosSalvos.get('situacaoAtendimento');
+    return value && SITUACAO_ATENDIMENTO_CONFIG[value] ? value : '';
   });
   const [dataInicial, setDataInicial] = useState(() => searchParams.get('dataInicial') ?? filtrosSalvos.get('dataInicial') ?? '');
   const [dataFinal, setDataFinal] = useState(() => searchParams.get('dataFinal') ?? filtrosSalvos.get('dataFinal') ?? '');
@@ -87,6 +98,7 @@ export function OSListPage() {
   const podeEditar = hasPermission('OS_EDIT');
   const podeDuplicar = hasPermission('OS_CREATE');
   const podeExcluir = hasPermission('OS_DELETE');
+  const podeVerFinalizadas = hasPermission('OS_VIEW_FINALIZADAS');
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [duplicando, setDuplicando] = useState<OrdemServicoDTO | null>(null);
@@ -129,13 +141,14 @@ export function OSListPage() {
     // Valor vazio significa "todas" e precisa sobreviver a F5; ausência da chave usa o padrão "aberta".
     params.set('situacaoDocumento', situacaoDocumento);
     if (prioridade) params.set('prioridade', prioridade);
+    if (situacaoAtendimento) params.set('situacaoAtendimento', situacaoAtendimento);
     if (dataInicial) params.set('dataInicial', dataInicial);
     if (dataFinal) params.set('dataFinal', dataFinal);
     if (buscaAtiva) params.set('busca', buscaAtiva);
     setSearchParams(params, { replace: true });
     writeStoredFilters('os', params);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [situacaoDocumento, prioridade, dataInicial, dataFinal, buscaAtiva]);
+  }, [situacaoDocumento, prioridade, situacaoAtendimento, dataInicial, dataFinal, buscaAtiva]);
 
   const { data, isLoading, isFetching, isPlaceholderData, isError, error, refetch } = useQuery({
     // Troca de página/filtro mantém a lista anterior na tela (sem skeleton piscando) até a nova chegar.
@@ -147,6 +160,7 @@ export function OSListPage() {
       'os-list',
       situacaoDocumento,
       prioridade,
+      situacaoAtendimento,
       dataInicial,
       dataFinal,
       buscaAtiva,
@@ -157,9 +171,11 @@ export function OSListPage() {
     ],
     queryFn: () =>
       listarOS({
-        situacaoDocumento: situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
+        situacaoDocumento: situacaoDocumento === '' || situacaoDocumento === SITUACAO_FINALIZADA_APP ? undefined : Number(situacaoDocumento),
+        somenteFinalizadasApp: situacaoDocumento === SITUACAO_FINALIZADA_APP,
         incluirFinalizadas: true,
         prioridade: prioridade || undefined,
+        situacaoAtendimento: situacaoAtendimento || undefined,
         dataInicial: dataInicial || undefined,
         dataFinal: dataFinal || undefined,
         busca: buscaAtiva || undefined,
@@ -178,11 +194,13 @@ export function OSListPage() {
   const filtrosAtivos =
     Number(situacaoDocumento !== '') +
     Number(Boolean(prioridade)) +
+    Number(Boolean(situacaoAtendimento)) +
     Number(Boolean(dataInicial) || Boolean(dataFinal));
 
   function limparFiltros() {
     setSituacaoDocumento('');
     setPrioridade('');
+    setSituacaoAtendimento('');
     setDataInicial('');
     setDataFinal('');
     setBusca('');
@@ -192,6 +210,11 @@ export function OSListPage() {
 
   function handleSituacaoDocumentoChange(value: string) {
     setSituacaoDocumento(value);
+    setPage(1);
+  }
+
+  function handleSituacaoAtendimentoChange(value: string) {
+    setSituacaoAtendimento(value);
     setPage(1);
   }
 
@@ -231,15 +254,15 @@ export function OSListPage() {
       key: 'numero',
       header: 'OS',
       mono: true,
-      width: '76px',
+      width: '68px',
       sortable: true,
       render: (os) => `#${os.numero}`,
     },
     {
       key: 'clienteCodigo',
-      header: 'Cód. cliente',
+      header: 'Cód. cli.',
       mono: true,
-      width: '100px',
+      width: '82px',
       render: (os) => os.clienteCodigo,
     },
     {
@@ -250,16 +273,16 @@ export function OSListPage() {
     },
     {
       key: 'veiculoCodigo',
-      header: 'Cód. veículo',
+      header: 'Cód. veíc.',
       mono: true,
-      width: '100px',
+      width: '86px',
       render: (os) => os.equipamentoCodigo,
     },
     {
       key: 'equipamentoDescricao',
       header: 'Placa',
       mono: true,
-      width: '110px',
+      width: '96px',
       sortable: true,
       render: (os) => os.equipamentoDescricao ?? '—',
     },
@@ -267,27 +290,35 @@ export function OSListPage() {
       key: 'dataAbertura',
       header: 'Abertura',
       mono: true,
-      width: '108px',
+      width: '98px',
       sortable: true,
       render: (os) => new Date(os.dataAbertura).toLocaleDateString('pt-BR'),
     },
     {
       key: 'situacaoDocumento',
-      header: 'Situação',
-      width: '130px',
+      header: 'Status',
+      width: '112px',
       sortable: true,
       render: (os) => {
-        const config =
-          os.situacaoDocumento === undefined
-            ? undefined
-            : OS_DOCUMENT_STATUS_CONFIG[os.situacaoDocumento];
+        const config = situacaoDaOS(os);
         return <Badge tone={config?.tone ?? 'neutral'}>{config?.label ?? 'Não informado'}</Badge>;
+      },
+    },
+    {
+      key: 'situacaoAtendimento',
+      header: 'Sit. atend.',
+      width: '124px',
+      render: (os) => {
+        const codigo = os.situacaoAtendimentoCodigo;
+        const config = codigo ? SITUACAO_ATENDIMENTO_CONFIG[codigo] : undefined;
+        if (!config) return <span aria-label="Não informada">—</span>;
+        return <span title={config.label}><Badge tone={config.tone}>{SITUACAO_ATENDIMENTO_CURTA[codigo!] ?? config.label}</Badge></span>;
       },
     },
     {
       key: 'prioridade',
       header: 'Prioridade',
-      width: '108px',
+      width: '100px',
       sortable: true,
       render: (os) => <PriorityBadge priority={os.prioridade} />,
     },
@@ -339,7 +370,7 @@ export function OSListPage() {
     <div className={styles.page}>
       <PageHeader
         title="Ordens de Serviço"
-        description="Consulte as ordens e a situação do documento registrada no CHERP."
+        description="Consulte as ordens e o status do documento registrado no CHERP."
         actions={
           <>
             <RefreshButton onClick={() => refetch()} loading={isFetching} />
@@ -359,7 +390,7 @@ export function OSListPage() {
                     ...(dataInicial ? { dataInicial } : {}),
                     ...(dataFinal ? { dataFinal } : {}),
                     situacaoDocumento:
-                      situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
+                      situacaoDocumento === '' || situacaoDocumento === SITUACAO_FINALIZADA_APP ? undefined : Number(situacaoDocumento),
                     prioridade: prioridade || undefined,
                     busca: buscaAtiva || undefined,
                   },
@@ -373,7 +404,7 @@ export function OSListPage() {
                     ...(dataInicial ? { dataInicial } : {}),
                     ...(dataFinal ? { dataFinal } : {}),
                     situacaoDocumento:
-                      situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
+                      situacaoDocumento === '' || situacaoDocumento === SITUACAO_FINALIZADA_APP ? undefined : Number(situacaoDocumento),
                     prioridade: prioridade || undefined,
                     busca: buscaAtiva || undefined,
                   },
@@ -399,12 +430,26 @@ export function OSListPage() {
           activeCount={filtrosAtivos}
           onClear={limparFiltros}
         >
+          {/* Sem OS_VIEW_FINALIZADAS a lista já vem só com OS em aberto: filtro de situação não se aplica. */}
+          {podeVerFinalizadas && (
+            <Select
+              label="Status"
+              placeholder="Todos os status"
+              value={situacaoDocumento}
+              onChange={(e) => handleSituacaoDocumentoChange(e.target.value)}
+              options={[
+                ...OS_DOCUMENT_STATUS_OPTIONS.slice(0, 1),
+                { value: SITUACAO_FINALIZADA_APP, label: 'Finalizada no app' },
+                ...OS_DOCUMENT_STATUS_OPTIONS.slice(1),
+              ]}
+            />
+          )}
           <Select
-            label="Situação"
-            placeholder="Todas as situações"
-            value={situacaoDocumento}
-            onChange={(e) => handleSituacaoDocumentoChange(e.target.value)}
-            options={OS_DOCUMENT_STATUS_OPTIONS}
+            label="Sit. atendimento"
+            placeholder="Todas"
+            value={situacaoAtendimento}
+            onChange={(e) => handleSituacaoAtendimentoChange(e.target.value)}
+            options={SITUACAO_ATENDIMENTO_OPTIONS}
           />
           <Select
             className="os-priority-select"
@@ -495,10 +540,7 @@ export function OSListPage() {
               onSortChange={handleSortChange}
               columnPrefsKey="os"
               renderMobileCard={(os) => {
-                const status =
-                  os.situacaoDocumento === undefined
-                    ? undefined
-                    : OS_DOCUMENT_STATUS_CONFIG[os.situacaoDocumento];
+                const status = situacaoDaOS(os);
                 return (
                   <MobileRecordCard
                     eyebrow={`OS #${os.numero}`}
@@ -518,6 +560,12 @@ export function OSListPage() {
                         label: 'Abertura',
                         value: new Date(os.dataAbertura).toLocaleDateString('pt-BR'),
                         mono: true,
+                      },
+                      {
+                        label: 'Sit. atendimento',
+                        value: os.situacaoAtendimentoCodigo && SITUACAO_ATENDIMENTO_CONFIG[os.situacaoAtendimentoCodigo]
+                          ? <Badge tone={SITUACAO_ATENDIMENTO_CONFIG[os.situacaoAtendimentoCodigo]!.tone}>{SITUACAO_ATENDIMENTO_CONFIG[os.situacaoAtendimentoCodigo]!.label}</Badge>
+                          : '—',
                       },
                       { label: 'Prioridade', value: <PriorityBadge priority={os.prioridade} /> },
                       ...(canSeeFinancial

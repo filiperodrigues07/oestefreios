@@ -21,7 +21,6 @@ export function toOSDTO(
     problema: os.problema,
     diagnostico: os.diagnostico,
     observacoes: os.observacoes,
-    solucao: os.solucao,
     produtos: os.produtos.map((p) => ({
       produtoCodigo: p.produtoCodigo,
       descricao: p.descricao,
@@ -42,6 +41,7 @@ export function toOSDTO(
     dataConclusao: os.dataConclusao,
     situacaoDocumento: os.situacaoDocumento,
     travadoLocal: os.travadoLocal,
+    situacaoAtendimentoCodigo: os.situacaoAtendimentoCodigo,
     nroDav: os.nroDav,
     kmAtual: os.kmAtual,
     kmFinal: os.kmFinal,

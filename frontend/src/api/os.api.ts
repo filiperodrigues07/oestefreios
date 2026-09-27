@@ -12,6 +12,10 @@ export interface ListarOSFiltro {
   status?: OSStatus | 'AGUARDANDO';
   situacaoDocumento?: number;
   incluirFinalizadas?: boolean;
+  /** Só OS finalizadas pelo app que seguem em aberto no CHERP (exige OS_VIEW_FINALIZADAS no backend). */
+  somenteFinalizadasApp?: boolean;
+  /** Situação de atendimento do CHERP (código 000001…000006). */
+  situacaoAtendimento?: string;
   clienteCodigo?: string;
   prioridade?: OSPrioridade;
   busca?: string;
@@ -28,6 +32,8 @@ export function listarOS(filtro: ListarOSFiltro = {}): Promise<PaginatedOS> {
   if (filtro.status) params.set('status', filtro.status);
   if (filtro.situacaoDocumento !== undefined) params.set('situacaoDocumento', String(filtro.situacaoDocumento));
   if (filtro.incluirFinalizadas) params.set('incluirFinalizadas', 'true');
+  if (filtro.somenteFinalizadasApp) params.set('somenteFinalizadasApp', 'true');
+  if (filtro.situacaoAtendimento) params.set('situacaoAtendimento', filtro.situacaoAtendimento);
   if (filtro.clienteCodigo) params.set('clienteCodigo', filtro.clienteCodigo);
   if (filtro.prioridade) params.set('prioridade', filtro.prioridade);
   if (filtro.busca) params.set('busca', filtro.busca);
@@ -78,7 +84,6 @@ export function reabrirOS(id: string, motivo: string): Promise<OrdemServicoDTO> 
 export interface AtualizarOSInput {
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   prioridade?: OSPrioridade;
   responsavelId?: string;
   tecnicoId?: string;
@@ -89,7 +94,6 @@ export interface AtualizarOSInput {
   base?: {
     diagnostico?: string;
     observacoes?: string;
-    solucao?: string;
     kmAtual?: number | null;
     kmFinal?: number | null;
   };
@@ -106,6 +110,33 @@ export function alterarStatusOS(id: string, status: OSStatus): Promise<OrdemServ
     offlineDescription: `Alterar status da OS ${id} para ${status}`,
   });
 }
+
+export type OsMessageType = 'aberta' | 'aguardando_cliente' | 'aguardando_peca' | 'pronta' | 'resumo_financeiro';
+export type OsMessageChannel = 'whatsapp' | 'email';
+export interface OsMessagePreview {
+  clientName: string;
+  whatsapp: string | null;
+  email: string | null;
+  whatsappConsent: boolean;
+  messages: Partial<Record<OsMessageType, string>>;
+}
+export interface OsMessageHistoryItem {
+  id: string;
+  channel: OsMessageChannel;
+  messageType: OsMessageType;
+  recipient: string;
+  body: string | null;
+  state: string;
+  errorCode: string | null;
+  source: 'manual' | 'automatic';
+  createdAt: string;
+}
+export const getOsMessagePreview = (id: string) => apiFetch<OsMessagePreview>(`/os/${id}/mensagem`);
+export const getOsMessageHistory = (id: string) => apiFetch<OsMessageHistoryItem[]>(`/os/${id}/mensagem/historico`);
+export const sendOsMessage = (id: string, channel: OsMessageChannel, type: OsMessageType, consent: boolean, attachPdf = false) =>
+  apiFetch<{ id: string; state: string }>(`/os/${id}/mensagem`, { method: 'POST', body: { channel, type, consent, attachPdf }, queueOffline: false });
+export const revokeOsWhatsappConsent = (id: string) =>
+  apiFetch<null>(`/os/${id}/mensagem/revogar-whatsapp`, { method: 'POST', queueOffline: false });
 
 export function adicionarProdutoOS(
   id: string,

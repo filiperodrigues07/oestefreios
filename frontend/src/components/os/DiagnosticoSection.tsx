@@ -7,7 +7,6 @@ import styles from './DiagnosticoSection.module.css';
 interface DiagnosticoDraft {
   diagnostico: string;
   observacoes: string;
-  solucao: string;
   kmAtual: string;
   kmFinal: string;
 }
@@ -15,7 +14,6 @@ interface DiagnosticoDraft {
 export interface DiagnosticoPatch {
   diagnostico: string;
   observacoes: string;
-  solucao: string;
   kmAtual?: number;
   kmFinal?: number;
   base?: DiagnosticoBase;
@@ -25,7 +23,6 @@ export interface DiagnosticoPatch {
 export interface DiagnosticoBase {
   diagnostico: string;
   observacoes: string;
-  solucao: string;
   kmAtual: number | null;
   kmFinal: number | null;
 }
@@ -36,7 +33,6 @@ export type DiagnosticoSaveResult = 'ok' | 'queued' | 'conflict' | 'error';
 interface DiagnosticoSectionProps {
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   kmAtual?: number;
   kmFinal?: number;
   podeEditar: boolean;
@@ -53,7 +49,6 @@ interface DiagnosticoSectionProps {
 export function DiagnosticoSection({
   diagnostico,
   observacoes,
-  solucao,
   kmAtual,
   kmFinal,
   podeEditar,
@@ -70,14 +65,12 @@ export function DiagnosticoSection({
   }, [dirty]);
   const [diagnosticoForm, setDiagnosticoForm] = useState(diagnostico ?? '');
   const [observacoesForm, setObservacoesForm] = useState(observacoes ?? '');
-  const [solucaoForm, setSolucaoForm] = useState(solucao ?? '');
   const [kmAtualForm, setKmAtualForm] = useState(kmAtual !== undefined ? String(kmAtual) : '');
   const [kmFinalForm, setKmFinalForm] = useState(kmFinal !== undefined ? String(kmFinal) : '');
 
   const baseAtualDoServidor = (): DiagnosticoBase => ({
     diagnostico: diagnostico ?? '',
     observacoes: observacoes ?? '',
-    solucao: solucao ?? '',
     kmAtual: kmAtual ?? null,
     kmFinal: kmFinal ?? null,
   });
@@ -93,7 +86,6 @@ export function DiagnosticoSection({
     const servidor: DiagnosticoDraft = {
       diagnostico: diagnostico ?? '',
       observacoes: observacoes ?? '',
-      solucao: solucao ?? '',
       kmAtual: kmAtual !== undefined ? String(kmAtual) : '',
       kmFinal: kmFinal !== undefined ? String(kmFinal) : '',
     };
@@ -111,19 +103,17 @@ export function DiagnosticoSection({
       writeDraft<DiagnosticoDraft>(draftStorageKey, {
         diagnostico: diagnosticoForm,
         observacoes: observacoesForm,
-        solucao: solucaoForm,
         kmAtual: kmAtualForm,
         kmFinal: kmFinalForm,
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [draftStorageKey, dirty, diagnosticoForm, observacoesForm, solucaoForm, kmAtualForm, kmFinalForm]);
+  }, [draftStorageKey, dirty, diagnosticoForm, observacoesForm, kmAtualForm, kmFinalForm]);
 
   function restaurarDraft() {
     if (!draftPendente) return;
     setDiagnosticoForm(draftPendente.data.diagnostico);
     setObservacoesForm(draftPendente.data.observacoes);
-    setSolucaoForm(draftPendente.data.solucao);
     setKmAtualForm(draftPendente.data.kmAtual);
     setKmFinalForm(draftPendente.data.kmFinal);
     // Restaurar é escolha explícita de sobrepor o que está gravado agora.
@@ -139,7 +129,7 @@ export function DiagnosticoSection({
   }
 
   // Guarda a última versão recebida; ao mudar, sincroniza somente se não há edição local.
-  const serverKey = JSON.stringify([diagnostico, observacoes, solucao, kmAtual, kmFinal, dirty]);
+  const serverKey = JSON.stringify([diagnostico, observacoes, kmAtual, kmFinal, dirty]);
   const [previousServerKey, setPreviousServerKey] = useState(serverKey);
   if (serverKey !== previousServerKey) {
     setPreviousServerKey(serverKey);
@@ -147,7 +137,6 @@ export function DiagnosticoSection({
       setBase(baseAtualDoServidor());
       setDiagnosticoForm(diagnostico ?? '');
       setObservacoesForm(observacoes ?? '');
-      setSolucaoForm(solucao ?? '');
       setKmAtualForm(kmAtual !== undefined ? String(kmAtual) : '');
       setKmFinalForm(kmFinal !== undefined ? String(kmFinal) : '');
     }
@@ -167,7 +156,6 @@ export function DiagnosticoSection({
     const resultado = await onSave({
       diagnostico: diagnosticoForm,
       observacoes: observacoesForm,
-      solucao: solucaoForm,
       kmAtual: kmAtualForm.trim() !== '' ? Number(kmAtualForm) : undefined,
       kmFinal: kmFinalForm.trim() !== '' ? Number(kmFinalForm) : undefined,
       base: sobrescrever ? undefined : base,
@@ -194,14 +182,13 @@ export function DiagnosticoSection({
   if (!podeEditar) {
     return (
       <div>
-        <h2 className={styles.title}>Diagnóstico, observações e solução</h2>
+        <h2 className={styles.title}>Diagnóstico e observação</h2>
         <div className={styles.stackCompact}>
-          <TextBlock label="Diagnóstico" value={diagnostico} />
-          <TextBlock label="Observações" value={observacoes} />
-          <TextBlock label="Serviço realizado" value={solucao} />
+          <TextBlock label="Diagnóstico (laudo técnico)" value={diagnostico} />
+          <TextBlock label="Observação" value={observacoes} />
           <div className={styles.kmGrid}>
-            <TextBlock label="KM na abertura" value={kmAtual !== undefined ? String(kmAtual) : undefined} />
-            <TextBlock label="KM na entrega" value={kmFinal !== undefined ? String(kmFinal) : undefined} />
+            <TextBlock label="KM inicial" value={kmAtual !== undefined ? String(kmAtual) : undefined} />
+            <TextBlock label="KM final" value={kmFinal !== undefined ? String(kmFinal) : undefined} />
           </div>
         </div>
       </div>
@@ -210,7 +197,7 @@ export function DiagnosticoSection({
 
   return (
     <div>
-      <h2 className={styles.title}>Diagnóstico, observações e solução</h2>
+      <h2 className={styles.title}>Diagnóstico e observação</h2>
       <div className={styles.stack}>
         {draftPendente && (
           <div role="status" className="draft-banner">
@@ -223,18 +210,17 @@ export function DiagnosticoSection({
             </span>
           </div>
         )}
-        <EditTextarea label="Diagnóstico" value={diagnosticoForm} onChange={(v) => alterar(setDiagnosticoForm, v)} />
-        <EditTextarea label="Observações" value={observacoesForm} onChange={(v) => alterar(setObservacoesForm, v)} />
-        <EditTextarea label="Serviço realizado" value={solucaoForm} onChange={(v) => alterar(setSolucaoForm, v)} />
+        <EditTextarea label="Diagnóstico (laudo técnico)" value={diagnosticoForm} onChange={(v) => alterar(setDiagnosticoForm, v)} />
+        <EditTextarea label="Observação" value={observacoesForm} onChange={(v) => alterar(setObservacoesForm, v)} />
 
         <div className={styles.kmGrid}>
-          <EditNumber label="KM na abertura" value={kmAtualForm} onChange={(v) => alterar(setKmAtualForm, v)} />
-          <EditNumber label="KM na entrega" value={kmFinalForm} onChange={(v) => alterar(setKmFinalForm, v)} />
+          <EditNumber label="KM inicial" value={kmAtualForm} onChange={(v) => alterar(setKmAtualForm, v)} />
+          <EditNumber label="KM final" value={kmFinalForm} onChange={(v) => alterar(setKmFinalForm, v)} />
         </div>
         {kmAtualForm !== '' && kmFinalForm !== '' && Number(kmFinalForm) < Number(kmAtualForm) && (
           // Só avisa (não bloqueia): troca de painel/hodômetro zerado existe na vida real.
           <p role="status" className={styles.kmWarning}>
-            KM na entrega menor que na abertura. Confira se não houve erro de digitação.
+            KM final menor que o KM inicial. Confira se não houve erro de digitação.
           </p>
         )}
 

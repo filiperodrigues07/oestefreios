@@ -58,10 +58,10 @@ const SITUACAO_ESTORNADA = 6;
 const CHAVETABELA_SITUACAO_ATENDIMENTO = 15;
 
 /**
- * Espelho só-escrita dos 5 status intermediários pro campo nativo CHAVESITUACAOOS do CHERP —
- * puramente informativo pra quem olha a OS direto no CHERP. CONCLUIDA e CANCELADA ficam de fora de
- * propósito: são decisão só do nosso app (`os_workflow.travado_local`, ver `atualizar` abaixo) e
- * nunca escrevem nada no CHERP, pro time de faturamento continuar processando por lá.
+ * Espelho do nosso status pro campo nativo CHAVESITUACAOOS do CHERP (situação de atendimento).
+ * "Finalizar OS" (CONCLUIDA) grava PRONTA: quem olha no CHERP vê que o mecânico terminou; a OS segue
+ * em aberto (SITUACAO fiscal intocada) pro time de faturamento gerar pedido/NF por lá. Reabrir volta
+ * pra EM ATENDIMENTO. CANCELADA não escreve nada — ENCERRADA é do próprio CHERP ao faturar.
  */
 const SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS: Partial<Record<OSStatus, string>> = {
   ABERTA: '000001', // EM ATENDIMENTO
@@ -69,6 +69,7 @@ const SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS: Partial<Record<OSStatus, string>> 
   EM_ANDAMENTO: '000001', // EM ATENDIMENTO
   AGUARDANDO_CLIENTE: '000002', // AGUARDANDO RET. CLIENTE
   AGUARDANDO_PECA: '000003', // AGUARDANDO PEÇAS
+  CONCLUIDA: '000004', // PRONTA
 };
 
 /**
@@ -85,8 +86,8 @@ const PRIORIDADE_CODIGO_POR_STATUS: Record<OSPrioridade, number> = {
   URGENTE: 3,
 };
 
-function encodeObs(observacoes?: string, solucao?: string): Buffer | null {
-  const texto = encodeObsTexto(observacoes, solucao);
+function encodeObs(observacoes?: string): Buffer | null {
+  const texto = encodeObsTexto(observacoes);
   return texto === null ? null : toLatin1Param(texto);
 }
 
@@ -301,7 +302,7 @@ function buildOrdemServico(
   servicos: OSItemServico[],
   workflow: WorkflowRow | undefined,
 ): OrdemServico {
-  const { observacoes, solucao } = decodeObs(header.OBS);
+  const { observacoes } = decodeObs(header.OBS);
   const dataAbertura = combineDateTime(header.DATA, header.HORAABERTURA);
   const dataConclusao =
     header.DATAFECHA != null ? combineDateTime(header.DATAFECHA, header.HORAFECHAMENTO ?? header.DATAFECHA) : undefined;
@@ -327,7 +328,6 @@ function buildOrdemServico(
     problema: header.PROBLEMA ?? '',
     diagnostico: header.DIAGNOSTICO || undefined,
     observacoes,
-    solucao,
     produtos,
     servicos,
     historico: workflow
@@ -338,6 +338,7 @@ function buildOrdemServico(
     dataConclusao,
     situacaoDocumento: header.SITUACAO,
     travadoLocal: workflow?.travadoLocal ?? false,
+    situacaoAtendimentoCodigo: header.SITUACAO_ATENDIMENTO_CODIGO?.trim() || undefined,
     faturamento,
     nroDav: header.NRODAV?.trim() || undefined,
     kmAtual: header.KMATUAL !== null ? Number(header.KMATUAL) : undefined,
@@ -502,7 +503,14 @@ export class OSRepositoryFirebird implements IOSRepository {
   async listar(filter: OSListFilter): Promise<{ items: OrdemServico[]; total: number }> {
     const conditions: string[] = [];
     const params: unknown[] = [];
-    if (filter.situacaoDocumento !== undefined) {
+    // Finalizada pelo app só existe no Postgres (travado_local): esses dois modos olham só OS em aberto
+    // no CHERP (volume pequeno) e filtram a trava em memória, no caminho de baixo.
+    const filtroFinalizadasApp = Boolean(filter.ocultarFinalizadasApp || filter.somenteFinalizadasApp);
+    if (filtroFinalizadasApp) {
+      if (filter.situacaoDocumento !== undefined && filter.situacaoDocumento !== SITUACAO_ABERTO) return { items: [], total: 0 };
+      conditions.push('OS.SITUACAO = ?');
+      params.push(SITUACAO_ABERTO);
+    } else if (filter.situacaoDocumento !== undefined) {
       // Filtro explícito de situação do documento tem prioridade — nunca combina com a
       // restrição automática de "incluirFinalizadas", senão as duas condições em OS.SITUACAO
       // se anulam (nenhuma linha satisfaz duas igualdades diferentes ao mesmo tempo).
@@ -511,6 +519,10 @@ export class OSRepositoryFirebird implements IOSRepository {
     } else if (!filter.incluirFinalizadas) {
       conditions.push('OS.SITUACAO = ?');
       params.push(SITUACAO_ABERTO);
+    }
+    if (filter.situacaoAtendimento) {
+      conditions.push('TRIM(SIT.CODIGO) = ?');
+      params.push(filter.situacaoAtendimento);
     }
     if (filter.clienteCodigo) {
       conditions.push('CLI.CODIGO = ?');
@@ -555,7 +567,7 @@ export class OSRepositoryFirebird implements IOSRepository {
 
     // Caminho rápido (listagem padrão): sem filtro por status/técnico e sem ordenação própria, a página é
     // exatamente FIRST/SKIP da ordem do banco — não precisa trazer todos os cabeçalhos para memória.
-    if (!filter.status && !filter.tecnicoId && !filter.sortBy) {
+    if (!filter.status && !filter.tecnicoId && !filter.sortBy && !filtroFinalizadasApp) {
       const pular = Math.max(0, Math.floor((page - 1) * limit));
       const tamanho = Math.max(1, Math.floor(limit));
       const paginado = HEADER_SELECT.replace('SELECT', `SELECT FIRST ${tamanho} SKIP ${pular}`);
@@ -593,6 +605,8 @@ export class OSRepositoryFirebird implements IOSRepository {
     if (filter.tecnicoId) {
       merged = merged.filter((os) => os.tecnicoId === filter.tecnicoId);
     }
+    if (filter.ocultarFinalizadasApp) merged = merged.filter((os) => !os.travadoLocal);
+    if (filter.somenteFinalizadasApp) merged = merged.filter((os) => os.travadoLocal);
 
     if (filter.sortBy) {
       const direcao = filter.sortOrder === 'desc' ? -1 : 1;
@@ -736,7 +750,7 @@ export class OSRepositoryFirebird implements IOSRepository {
         throw new ExternalServiceError();
       }
       const ordem = String(chave).padStart(6, '0');
-      const obs = encodeObs(os.observacoes, os.solucao);
+      const obs = encodeObs(os.observacoes);
 
       // Mesma rotina que o CHERP nativo usa (ver procedure AGRUPARDAVOS) pra tirar o próximo número
       // de DAV — contador por empresa em CONFIGCONT.NUMERODAV, incrementado atomicamente ali dentro.
@@ -820,14 +834,11 @@ export class OSRepositoryFirebird implements IOSRepository {
     if (patch.diagnostico !== undefined) {
       camposOSFB.push({ coluna: 'LAUDOTECNICO', valor: patch.diagnostico ? toLatin1Param(patch.diagnostico) : null });
     }
-    if (patch.observacoes !== undefined || patch.solucao !== undefined) {
-      const atual = decodeObs(header.OBS);
-      const observacoes = patch.observacoes !== undefined ? patch.observacoes : atual.observacoes;
-      const solucao = patch.solucao !== undefined ? patch.solucao : atual.solucao;
-      camposOSFB.push({ coluna: 'OBS', valor: encodeObs(observacoes, solucao) });
+    if (patch.observacoes !== undefined) {
+      camposOSFB.push({ coluna: 'OBS', valor: encodeObs(patch.observacoes) });
     }
-    // CONCLUIDA/CANCELADA não têm entrada em SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS de propósito —
-    // "Finalizar OS" trava só no nosso app (os_workflow.travado_local, abaixo), nunca escreve no CHERP.
+    // CONCLUIDA grava PRONTA (a trava de edição continua sendo os_workflow.travado_local, abaixo);
+    // CANCELADA não tem entrada no mapa e não escreve situação de atendimento.
     const codigoSituacaoAtendimento = patch.status !== undefined ? SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[patch.status] : undefined;
     if (codigoSituacaoAtendimento !== undefined) {
       const chaveSituacaoAtendimento = await resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, codigoSituacaoAtendimento);

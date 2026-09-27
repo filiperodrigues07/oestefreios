@@ -189,6 +189,34 @@ export const vehicleLookupRequests = pgTable('vehicle_lookup_requests', {
   index('vehicle_lookup_cache_idx').on(table.tenantId, table.plate, table.cacheExpiresAt),
 ]);
 
+export const clientNotificationPreferences = pgTable('client_notification_preferences', {
+  clientCode: text('client_code').primaryKey(),
+  whatsappConsent: boolean('whatsapp_consent').notNull().default(false),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const osMessageDeliveries = pgTable('os_message_deliveries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  osId: text('os_id').notNull(),
+  clientCode: text('client_code').notNull(),
+  channel: text('channel').notNull(),
+  messageType: text('message_type').notNull(),
+  recipient: text('recipient').notNull(),
+  body: text('body').notNull(),
+  containsFinancial: boolean('contains_financial').notNull().default(false),
+  source: text('source').notNull(),
+  state: text('state').notNull().default('queued'),
+  eventKey: text('event_key').unique(),
+  providerMessageId: text('provider_message_id'),
+  errorCode: text('error_code'),
+  createdBy: uuid('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('os_message_deliveries_os_idx').on(table.osId, table.createdAt.desc()),
+  index('os_message_deliveries_queue_idx').on(table.state, table.createdAt),
+]);
+
 export const rolesRelations = relations(roles, ({ many }) => ({
   rolePermissions: many(rolePermissions),
   users: many(users),

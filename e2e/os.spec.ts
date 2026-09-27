@@ -32,7 +32,7 @@ test.describe('fluxo crítico da OS', () => {
   test('avisa antes de sair com diagnóstico não salvo', async ({ page }) => {
     await criarOS(page);
     await abrirAba(page, /Diagn/);
-    await page.getByLabel('Observações').fill('cliente aguardando');
+    await page.getByLabel('Observação').fill('cliente aguardando');
 
     await page.getByRole('link', { name: 'Clientes' }).first().click();
     const dialogo = page.getByRole('dialog', { name: 'Sair sem salvar?' });
@@ -40,21 +40,21 @@ test.describe('fluxo crítico da OS', () => {
     await dialogo.getByRole('button', { name: 'Continuar editando' }).click();
 
     await expect(page).toHaveURL(/\/os\//);
-    await expect(page.getByLabel('Observações')).toHaveValue('CLIENTE AGUARDANDO');
+    await expect(page.getByLabel('Observação')).toHaveValue('CLIENTE AGUARDANDO');
   });
 
   test('rascunho sobrevive a recarregar a página', async ({ page }) => {
     aceitarAvisosDeSaida(page);
     await criarOS(page);
     await abrirAba(page, /Diagn/);
-    await page.getByLabel('Serviço realizado').fill('troca das pastilhas');
+    await page.getByLabel('Observação').fill('troca das pastilhas');
     await page.waitForTimeout(800); // debounce do rascunho (500ms)
 
     await page.reload();
     await abrirAba(page, /Diagn/);
     await expect(page.getByText(/Há um rascunho não salvo/)).toBeVisible();
     await page.getByRole('button', { name: 'Restaurar' }).click();
-    await expect(page.getByLabel('Serviço realizado')).toHaveValue('TROCA DAS PASTILHAS');
+    await expect(page.getByLabel('Observação')).toHaveValue('TROCA DAS PASTILHAS');
   });
 
   test('remover item e desfazer', async ({ page }) => {
@@ -121,5 +121,44 @@ test.describe('reabrir OS', () => {
 
     await abrirAba(page, /Histórico/);
     await expect(page.getByText(/OS reaberta \(motivo: Finalizada por engano\)/)).toBeVisible();
+  });
+});
+
+test.describe('OS finalizada some para quem não tem a permissão', () => {
+  test('mecânico finaliza e a OS sai da lista dele; admin vê como "Finalizada no app"', async ({ page, browser }) => {
+    await login(page);
+    const id = await criarOS(page, 'SOME DA LISTA');
+
+    const mecanicoPage = await browser.newPage();
+    await login(mecanicoPage, { email: 'mecanico@dev.local', senha: 'Mecanico@123456' });
+    await mecanicoPage.goto(`/os/${id}`);
+    await mecanicoPage.getByRole('button', { name: 'Finalizar OS' }).click();
+    await mecanicoPage.getByRole('dialog', { name: 'Finalizar OS?' }).getByRole('button', { name: 'Finalizar OS' }).click();
+    await expect(mecanicoPage.getByText('OS finalizada. Ela saiu da sua lista.')).toBeVisible();
+    await expect(mecanicoPage).toHaveURL(/\/os$/);
+    await expect(mecanicoPage.locator(`[href="/os/${id}"]`)).toHaveCount(0);
+    await expect(mecanicoPage.getByRole('combobox', { name: 'Status' })).toHaveCount(0);
+
+    // Link direto continua abrindo, só leitura.
+    await mecanicoPage.goto(`/os/${id}`);
+    await expect(mecanicoPage.getByRole('button', { name: 'Finalizar OS' })).toHaveCount(0);
+    await mecanicoPage.close();
+
+    await page.goto('/os');
+    await page.getByRole('combobox', { name: 'Status' }).selectOption({ label: 'Finalizada no app' });
+    // Toda linha desse filtro é "Finalizada no app", e a OS que o mecânico finalizou está entre elas.
+    const linhas = page.locator('tbody tr:visible');
+    await expect(linhas.first()).toBeVisible();
+    await expect(linhas.filter({ hasNotText: 'Finalizada no app' })).toHaveCount(0);
+    const ids: string[] = [];
+    const total = await linhas.count();
+    for (let i = 0; i < total; i++) {
+      await linhas.nth(i).click();
+      await page.waitForURL(/\/os\/[0-9a-f-]{36}$/);
+      ids.push(page.url().split('/os/')[1]!);
+      await page.goBack();
+      await expect(linhas.first()).toBeVisible();
+    }
+    expect(ids).toContain(id);
   });
 });

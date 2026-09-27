@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
 import { useUnsavedChangesGuard } from '../hooks/useUnsavedChangesGuard.js';
 import { SistemaTab } from './configuracoes/SistemaTab.js';
+import { WhatsappTab } from './configuracoes/WhatsappTab.js';
 import { useSearchParams } from 'react-router';
 import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import {
@@ -108,7 +109,7 @@ function SettingsIcon({
 export function ConfiguracoesPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedTab = searchParams.get('tab');
-  const tab = ['firebird', 'smtp', 'geral', 'integracoes', 'auditoria', 'sistema'].includes(selectedTab ?? '')
+  const tab = ['firebird', 'smtp', 'geral', 'integracoes', 'whatsapp', 'auditoria', 'sistema'].includes(selectedTab ?? '')
     ? selectedTab!
     : 'firebird';
   const setTab = (value: string) => setSearchParams({ tab: value });
@@ -131,6 +132,7 @@ export function ConfiguracoesPage() {
           { key: 'smtp', label: 'E-mail', icon: <SettingsIcon name="mail" /> },
           { key: 'geral', label: 'Empresa', icon: <NavIcon name="users" /> },
           { key: 'integracoes', label: 'Integrações', icon: <SettingsIcon name="network" /> },
+          { key: 'whatsapp', label: 'WhatsApp', icon: <span className={styles.whatsappTabIcon} aria-hidden="true" /> },
           { key: 'auditoria', label: 'Auditoria', icon: <NavIcon name="shield" /> },
           { key: 'sistema', label: 'Sistema', icon: <SettingsIcon name="server" /> },
         ].map((item) => (
@@ -159,6 +161,7 @@ export function ConfiguracoesPage() {
         {tab === 'smtp' && <SmtpTab />}
         {tab === 'geral' && <GeralTab />}
         {tab === 'integracoes' && <IntegracoesTab />}
+        {tab === 'whatsapp' && <WhatsappTab />}
         {tab === 'auditoria' && <AuditoriaTab />}
         {tab === 'sistema' && <SistemaTab />}
       </div>
@@ -662,34 +665,6 @@ function IntegracoesTab() {
 
   return (
     <div className={styles.integrationsList}>
-      <section className={`${styles.connectionCard} ${styles.singleCard}`}>
-        <div className={styles.cardHeadingSimple}>
-          <span className={styles.integrationIcon}><SettingsIcon name="database" /></span>
-          <div><h2>Consulta de veículos pela placa</h2><p>Preenchimento automático no cadastro de veículos e na abertura de OS.</p></div>
-          <Badge tone={form.dadosApiToken ? 'success' : 'neutral'}>{form.dadosApiToken ? 'Configurada' : 'Não configurada'}</Badge>
-          <Tooltip content="A chave fica criptografada no servidor e nunca é enviada novamente ao navegador. Somente administradores podem alterá-la.">
-            <button type="button" className={styles.helpIcon} aria-label="Sobre a chave da DadosAPI">ⓘ</button>
-          </Tooltip>
-        </div>
-        <div className={styles.fields}>
-          <div className={styles.fullRow}>
-            <PasswordInput
-              label="Chave da API DadosAPI"
-              autoComplete="off"
-              value={form.dadosApiToken === '••••••••' ? '' : form.dadosApiToken}
-              onChange={(e) => setForm({ ...form, dadosApiToken: e.target.value })}
-              placeholder={form.dadosApiToken ? 'Chave salva — cole outra só para trocar' : 'Nenhuma chave configurada'}
-            />
-            <p>A DadosAPI libera a chave pela área restrita após o cadastro. Atualmente, o botão de cadastro do site direciona para o atendimento via WhatsApp.</p>
-          </div>
-        </div>
-        <div className={styles.singleAction}>
-          <Button size="sm" onClick={() => saveMutation.mutate(form)} loading={saveMutation.isPending}>
-            <SettingsIcon name="save" />
-            Salvar chave da DadosAPI
-          </Button>
-        </div>
-      </section>
       <section className={`${styles.connectionCard} ${styles.singleCard}`}>
         <div className={styles.cardHeadingSimple}>
           <span className={styles.integrationIcon}><SettingsIcon name="network" /></span>

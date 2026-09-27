@@ -38,6 +38,7 @@ const envSchema = z.object({
   DEV_ADMIN_PASSWORD: z.string().min(8).default('Admin@123456'),
   DADOS_API_TOKEN: z.string().trim().optional(),
   DADOS_API_BASE_URL: z.url().default('https://api.dadosapi.com'),
+  VEHICLE_LOOKUP_ENABLED: z.enum(['true', 'false']).default('false').transform((value) => value === 'true'),
   VEHICLE_LOOKUP_MONTHLY_LIMIT: z.coerce.number().int().nonnegative().default(50),
   VEHICLE_LOOKUP_CACHE_TTL_DAYS: z.coerce.number().int().positive().default(30),
   /** Licença simultânea: máx. de usuários diferentes online ao mesmo tempo (0 = sem limite). */

@@ -134,6 +134,20 @@
       "when": 1790463885635,
       "tag": "0018_permissao_reabrir_os",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1790467206756,
+      "tag": "0019_permissao_ver_finalizadas",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1790469980262,
+      "tag": "0020_heavy_mimic",
+      "breakpoints": true
     }
   ]
 }

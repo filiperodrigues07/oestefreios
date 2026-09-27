@@ -27,8 +27,23 @@ SYSTEMCTL="${SYSTEMCTL:-sudo systemctl}"
 NGINX="${NGINX:-sudo nginx}"
 NPM="${NPM:-npm}"
 NODE="${NODE:-node}"
+DOCKER="${DOCKER:-sudo docker}"
 
 servico_reiniciar() { $SYSTEMCTL restart oeste-freios-backend; }
+
+# Evolution só é gerenciada quando as credenciais locais do ambiente foram provisionadas.
+# O nome fixo do projeto preserva volumes e a sessão do WhatsApp entre releases.
+evolution_atualizar() {
+  local fonte="$1"
+  local credenciais="$APP_BASE/shared/evolution.env"
+  if [ ! -f "$credenciais" ]; then credenciais="$APP_DIR/deploy/evolution.env"; fi
+  if [ ! -f "$credenciais" ]; then
+    echo "==> Evolution não configurada neste ambiente; pulando integração WhatsApp."
+    return 0
+  fi
+  echo "==> atualizando Evolution API"
+  $DOCKER compose -p oeste-freios-evolution --env-file "$credenciais" -f "$fonte/deploy/evolution-compose.yml" up -d --wait --wait-timeout 120
+}
 
 # Todo o fluxo fica dentro de main(): o bash lê a função inteira antes de executar, então atualizar
 # este próprio arquivo (git pull / ff do clone) no meio do deploy não embaralha a execução.
@@ -43,6 +58,7 @@ deploy_legado() {
   $NPM ci
   $NPM run build
   (cd backend && $NODE dist/database/postgres/migrate.js)
+  evolution_atualizar "$APP_DIR"
   install -d -m 700 "$APP_DIR/backend/storage/cobrancas"
   servico_reiniciar
   $NGINX -t
@@ -88,6 +104,7 @@ echo "==> migrations"
 # Migrations rodam antes da troca: precisam ser compatíveis com a versão anterior (só adicionar,
 # nunca renomear/remover coluna no mesmo deploy), porque o rollback não desfaz migration.
 (cd "$NOVA/backend" && $NODE dist/database/postgres/migrate.js)
+evolution_atualizar "$NOVA"
 
 trap - ERR
 

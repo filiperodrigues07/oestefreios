@@ -49,6 +49,8 @@ import { DiagnosticoSection, type DiagnosticoPatch } from './DiagnosticoSection.
 import { FinalizarOSButton } from './FinalizarOSButton.js';
 import { FotosSection } from './FotosSection.js';
 import { OSFormHeader } from './OSFormHeader.js';
+import { OSMessageDialog } from './OSMessageDialog.js';
+import type { OsMessageChannel } from '../../api/os.api.js';
 import { HistoryTimeline } from './HistoryTimeline.js';
 import { ProdutosServicosSection } from './ProdutosServicosSection.js';
 import type { ItemGridRow } from './ItemGrid.js';
@@ -214,6 +216,7 @@ function OSFormCreate() {
 
 /** Edição: OS já é uma linha real no CHERP — toda seção grava/consulta de verdade a partir daqui. */
 function OSFormEdit({ id }: { id: string }) {
+  const [messageChannel, setMessageChannel] = useState<OsMessageChannel | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { showToast } = useToast();
@@ -316,8 +319,15 @@ function OSFormEdit({ id }: { id: string }) {
   const statusMutation = useMutation({
     mutationFn: (status: OSStatus) => alterarStatusOS(id, status),
     onMutate: (status) => aplicarOtimista({ status }),
-    onSuccess: async () => {
+    onSuccess: async (_os, status) => {
       await invalidate();
+      // Quem não vê finalizadas: a OS sai da lista dele — volta pra lista em vez de ficar numa OS travada.
+      if ((status === 'CONCLUIDA' || status === 'CANCELADA') && !hasPermission('OS_VIEW_FINALIZADAS')) {
+        showToast(`OS ${status === 'CONCLUIDA' ? 'finalizada' : 'cancelada'}. Ela saiu da sua lista.`, 'success');
+        guard.liberar();
+        navigate('/os', { replace: true });
+        return;
+      }
       showToast('Status alterado.', 'success');
     },
     onError: (err, _status, contexto) => {
@@ -519,6 +529,7 @@ function OSFormEdit({ id }: { id: string }) {
         numero={os.numero}
         nroDav={os.nroDav}
         status={os.status}
+        situacaoAtendimentoCodigo={os.situacaoAtendimentoCodigo}
         prioridade={os.prioridade}
         dataAbertura={os.dataAbertura}
         onRefresh={() => refetch()}
@@ -543,7 +554,13 @@ function OSFormEdit({ id }: { id: string }) {
 
       {/* Resumo fixo — some quem é o cliente/veículo mesmo fora da aba "Dados". */}
       <div className={styles.contextBar}>
-        <span><small>Cliente</small><strong>{nomeCliente}</strong></span>
+        <span className={styles.clientContext}>
+          <span className={styles.contextIdentity}><small>Cliente</small><strong>{nomeCliente}</strong></span>
+          {hasPermission('OS_CHANGE_STATUS') && <span className={styles.contactActions} role="group" aria-label="Enviar OS ao cliente">
+            <button type="button" onClick={() => setMessageChannel('whatsapp')} aria-label={`Enviar OS #${os.numero} por WhatsApp`} title="Enviar por WhatsApp"><span className={styles.whatsappGlyph} aria-hidden="true" /></button>
+            <button type="button" onClick={() => setMessageChannel('email')} aria-label={`Enviar OS #${os.numero} por e-mail`} title="Enviar por e-mail"><ActionIcon name="mail" size={20} /></button>
+          </span>}
+        </span>
         <span><small>Veículo</small><strong>{descricaoVeiculo}</strong></span>
       </div>
 
@@ -583,7 +600,6 @@ function OSFormEdit({ id }: { id: string }) {
             <DiagnosticoSection
               diagnostico={os.diagnostico}
               observacoes={os.observacoes}
-              solucao={os.solucao}
               kmAtual={os.kmAtual}
               kmFinal={os.kmFinal}
               podeEditar={podeEditar}
@@ -690,6 +706,9 @@ function OSFormEdit({ id }: { id: string }) {
         }}
       />
       {guard.dialog}
+      {messageChannel && <OSMessageDialog key={messageChannel} id={id} channel={messageChannel}
+        defaultType={os.status === 'AGUARDANDO_CLIENTE' ? 'aguardando_cliente' : os.status === 'AGUARDANDO_PECA' ? 'aguardando_peca' : os.status === 'CONCLUIDA' ? 'pronta' : 'aberta'}
+        onClose={() => setMessageChannel(null)} />}
     </div>
   );
 }

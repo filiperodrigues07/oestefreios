@@ -321,6 +321,14 @@
 .addField .qtyInput { width:82px; min-height:43px; }
 
 .addActions { display:flex; flex-direction:column; align-items:flex-start; gap:var(--space-1); }
+
+/* Desktop: a dica "Enter adiciona · Esc cancela" fica embaixo dos botões sem ocupar altura na coluna —
+   assim "Ações" e os botões alinham com os rótulos e campos vizinhos (antes subiam ~20px). */
+@media (min-width: 900px) {
+  .addActions { position: relative; }
+  .addActions .shortcutHint { position: absolute; top: calc(100% + 4px); left: 0; }
+  .addQty + .addComplemento { margin-top: var(--space-6); }
+}
 .actionButtons { display:flex; gap:var(--space-2); }
 .addButton,.cancelAddButton { min-height:43px; padding:0 var(--space-3); border-radius:var(--radius-sm); font:inherit; font-size:var(--font-size-sm); font-weight:600; cursor:pointer; }
 .addButton { border:1px solid var(--color-primary); color:white; background:var(--color-primary); }

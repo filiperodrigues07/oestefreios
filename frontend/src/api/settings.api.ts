@@ -80,3 +80,20 @@ export interface SistemaStatus {
 
 /** Painel "Sistema" em Configurações (SYSTEM_SETTINGS). */
 export const getSistemaStatus = () => apiFetch<SistemaStatus>('/settings/sistema');
+
+export type OsMessageType = 'aberta' | 'aguardando_cliente' | 'aguardando_peca' | 'pronta' | 'resumo_financeiro';
+export type AutomaticMessageType = Exclude<OsMessageType, 'resumo_financeiro'>;
+export interface WhatsappSettings {
+  baseUrl: string;
+  apiKey: string;
+  instanceName: string;
+  templates: Record<OsMessageType, string>;
+  automatic: Record<AutomaticMessageType, boolean>;
+  automaticEmail: Record<AutomaticMessageType, boolean>;
+}
+
+export const getWhatsappSettings = () => apiFetch<WhatsappSettings>('/settings/whatsapp');
+export const saveWhatsappSettings = (data: WhatsappSettings) => apiFetch<WhatsappSettings>('/settings/whatsapp', { method: 'PUT', body: data, queueOffline: false });
+export const getWhatsappConnection = () => apiFetch<{ state: string }>('/settings/whatsapp/status');
+export const getWhatsappQr = () => apiFetch<{ base64: string | null; pairingCode: string | null }>('/settings/whatsapp/qr');
+export const createWhatsappInstance = () => apiFetch<null>('/settings/whatsapp/instance', { method: 'POST', queueOffline: false });

@@ -15,7 +15,8 @@
     "db:migrate": "tsx src/database/postgres/migrate.ts",
     "db:seed": "tsx src/database/postgres/seed.ts",
     "superadmin": "tsx src/scripts/superAdmin.ts",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "limpar-obs": "tsx src/scripts/limparMarcadoresObs.ts"
   },
   "dependencies": {
     "@node-rs/argon2": "^2.2.1",

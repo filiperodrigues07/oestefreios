@@ -1,5 +1,5 @@
 interface ActionIconProps {
-  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'edit' | 'delete' | 'save' | 'ready' | 'photo' | 'chevronDown' | 'export' | 'calendar' | 'close' | 'copy' | 'more' | 'camera' | 'receipt' | 'users' | 'lock' | 'clipboard' | 'items' | 'diagnosis' | 'history';
+  name: 'add' | 'search' | 'excel' | 'pdf' | 'print' | 'back' | 'update' | 'mail' | 'whatsapp' | 'edit' | 'delete' | 'save' | 'ready' | 'photo' | 'chevronDown' | 'export' | 'calendar' | 'close' | 'copy' | 'more' | 'camera' | 'receipt' | 'users' | 'lock' | 'clipboard' | 'items' | 'diagnosis' | 'history';
   size?: number;
 }
 
@@ -21,6 +21,7 @@ export function ActionIcon({ name, size = 16 }: ActionIconProps) {
   if (name === 'print') return <svg {...common}><path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" /><path d="M6 14h12v8H6z" /></svg>;
   if (name === 'back') return <svg {...common}><path d="m15 18-6-6 6-6" /><path d="M9 12h11" /></svg>;
   if (name === 'mail') return <svg {...common}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></svg>;
+  if (name === 'whatsapp') return <svg {...common}><path d="M20.5 11.7a8.5 8.5 0 0 1-12.4 7.5L3 20.5l1.4-4.9A8.5 8.5 0 1 1 20.5 11.7Z" /><path d="M8.5 8.3c.4-.4.8-.3 1.1.2l.8 1.4-.6 1c.8 1.4 1.8 2.4 3.2 3.1l.9-.6 1.5.7c.5.3.6.7.2 1.1-.7.9-1.6 1.1-2.7.8-2.2-.7-4.5-3-5.2-5.2-.3-1.1 0-2 .8-2.5Z" /></svg>;
   if (name === 'edit') return <svg {...common}><path d="M12 20h9M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>;
   if (name === 'delete') return <svg {...common}><path d="M4 7h16M9 7V4h6v3m3 0-1 13H7L6 7m4 4v6m4-6v6" /></svg>;
   if (name === 'save') return <svg {...common}><path d="M4 4h13l3 3v13H4zM8 4v6h8V4M8 20v-7h8v7" /></svg>;

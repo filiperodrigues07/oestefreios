@@ -31,7 +31,6 @@ export interface OperationalOSDTO {
   problema: string;
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   produtos: OSItemProdutoBase[];
   servicos: OSItemServicoBase[];
   historico: OSHistoricoEntry[];
@@ -40,6 +39,7 @@ export interface OperationalOSDTO {
   dataConclusao?: string;
   situacaoDocumento?: number;
   travadoLocal?: boolean;
+  situacaoAtendimentoCodigo?: string;
   nroDav?: string;
   kmAtual?: number;
   kmFinal?: number;
