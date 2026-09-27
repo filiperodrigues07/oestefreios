@@ -235,7 +235,6 @@ export async function duplicarOS(
   const temDiagnostico =
     origem.diagnostico !== undefined ||
     origem.observacoes !== undefined ||
-    origem.solucao !== undefined ||
     origem.kmAtual !== undefined ||
     origem.kmFinal !== undefined;
 
@@ -246,7 +245,6 @@ export async function duplicarOS(
       ...(temItens ? { faturamento: calcularFaturamento(origem.produtos, origem.servicos) } : {}),
       diagnostico: origem.diagnostico,
       observacoes: origem.observacoes,
-      solucao: origem.solucao,
       kmAtual: origem.kmAtual,
       kmFinal: origem.kmFinal,
       cherpUsuarioChave: usuario.cherpUsuarioChave,
@@ -267,7 +265,6 @@ export async function duplicarOS(
 interface AtualizarOSInput {
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   prioridade?: OSPrioridade;
   responsavelId?: string;
   tecnicoId?: string;
@@ -281,7 +278,6 @@ interface AtualizarOSInput {
 export interface OSBaseEdicao {
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   kmAtual?: number | null;
   kmFinal?: number | null;
 }

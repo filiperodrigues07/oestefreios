@@ -86,8 +86,8 @@ const PRIORIDADE_CODIGO_POR_STATUS: Record<OSPrioridade, number> = {
   URGENTE: 3,
 };
 
-function encodeObs(observacoes?: string, solucao?: string): Buffer | null {
-  const texto = encodeObsTexto(observacoes, solucao);
+function encodeObs(observacoes?: string): Buffer | null {
+  const texto = encodeObsTexto(observacoes);
   return texto === null ? null : toLatin1Param(texto);
 }
 
@@ -302,7 +302,7 @@ function buildOrdemServico(
   servicos: OSItemServico[],
   workflow: WorkflowRow | undefined,
 ): OrdemServico {
-  const { observacoes, solucao } = decodeObs(header.OBS);
+  const { observacoes } = decodeObs(header.OBS);
   const dataAbertura = combineDateTime(header.DATA, header.HORAABERTURA);
   const dataConclusao =
     header.DATAFECHA != null ? combineDateTime(header.DATAFECHA, header.HORAFECHAMENTO ?? header.DATAFECHA) : undefined;
@@ -328,7 +328,6 @@ function buildOrdemServico(
     problema: header.PROBLEMA ?? '',
     diagnostico: header.DIAGNOSTICO || undefined,
     observacoes,
-    solucao,
     produtos,
     servicos,
     historico: workflow
@@ -751,7 +750,7 @@ export class OSRepositoryFirebird implements IOSRepository {
         throw new ExternalServiceError();
       }
       const ordem = String(chave).padStart(6, '0');
-      const obs = encodeObs(os.observacoes, os.solucao);
+      const obs = encodeObs(os.observacoes);
 
       // Mesma rotina que o CHERP nativo usa (ver procedure AGRUPARDAVOS) pra tirar o próximo número
       // de DAV — contador por empresa em CONFIGCONT.NUMERODAV, incrementado atomicamente ali dentro.
@@ -835,11 +834,8 @@ export class OSRepositoryFirebird implements IOSRepository {
     if (patch.diagnostico !== undefined) {
       camposOSFB.push({ coluna: 'LAUDOTECNICO', valor: patch.diagnostico ? toLatin1Param(patch.diagnostico) : null });
     }
-    if (patch.observacoes !== undefined || patch.solucao !== undefined) {
-      const atual = decodeObs(header.OBS);
-      const observacoes = patch.observacoes !== undefined ? patch.observacoes : atual.observacoes;
-      const solucao = patch.solucao !== undefined ? patch.solucao : atual.solucao;
-      camposOSFB.push({ coluna: 'OBS', valor: encodeObs(observacoes, solucao) });
+    if (patch.observacoes !== undefined) {
+      camposOSFB.push({ coluna: 'OBS', valor: encodeObs(patch.observacoes) });
     }
     // CONCLUIDA grava PRONTA (a trava de edição continua sendo os_workflow.travado_local, abaixo);
     // CANCELADA não tem entrada no mapa e não escreve situação de atendimento.

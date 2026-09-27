@@ -3,7 +3,7 @@ import { hasPermission } from '../../store/authStore.js';
 import { Tooltip } from '../ui/index.js';
 import styles from './OSFieldInfo.module.css';
 
-type FieldKey = 'cliente' | 'veiculo' | 'status' | 'prioridade' | 'responsavel' | 'tecnico' | 'previsao' | 'dav' | 'kmAtual' | 'kmFinal' | 'diagnostico' | 'observacoes' | 'solucao' | 'totais';
+type FieldKey = 'cliente' | 'veiculo' | 'status' | 'prioridade' | 'responsavel' | 'tecnico' | 'previsao' | 'dav' | 'kmAtual' | 'kmFinal' | 'diagnostico' | 'observacoes' | 'totais';
 
 const metadata: Record<FieldKey, { origem: string; tipo: string; descricao: string }> = {
   cliente: { origem: 'ORDEMSERVICO.CHAVECLIFOR + CLIFOR', tipo: 'FK / exibição derivada', descricao: 'Vínculo da OS ao cliente; nome vem de FANTASIA ou RAZAOSOCIAL.' },
@@ -17,8 +17,7 @@ const metadata: Record<FieldKey, { origem: string; tipo: string; descricao: stri
   kmAtual: { origem: 'ORDEMSERVICO.KMATUAL', tipo: 'numérico', descricao: 'Quilometragem registrada na abertura. Leitura e escrita.' },
   kmFinal: { origem: 'ORDEMSERVICO.KMFINAL', tipo: 'numérico', descricao: 'Quilometragem registrada na entrega. Leitura e escrita.' },
   diagnostico: { origem: 'ORDEMSERVICO.LAUDOTECNICO', tipo: 'texto', descricao: 'Diagnóstico técnico da OS. Leitura e escrita.' },
-  observacoes: { origem: 'ORDEMSERVICO.OBS', tipo: 'texto estruturado', descricao: 'Observações e solução são armazenadas com marcadores pela integração.' },
-  solucao: { origem: 'ORDEMSERVICO.OBS', tipo: 'texto estruturado', descricao: 'Solução é parte estruturada de OBS; não há coluna própria confirmada.' },
+  observacoes: { origem: 'ORDEMSERVICO.OBS', tipo: 'texto', descricao: 'Campo "Observação" do CHERP, texto livre. Leitura e escrita.' },
   totais: { origem: 'ORDEMSERVICO.TOTALPRODUTO, TOTALSERVICO, TOTALOS', tipo: 'numérico', descricao: 'Recalculados no Firebird a partir dos itens ativos dentro de transação.' },
 };
 

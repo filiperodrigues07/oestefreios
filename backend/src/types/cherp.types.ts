@@ -187,7 +187,6 @@ export interface OrdemServico {
   problema: string;
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   produtos: OSItemProduto[];
   servicos: OSItemServico[];
   historico: OSHistoricoEntry[];

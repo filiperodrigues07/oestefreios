@@ -84,7 +84,6 @@ export function reabrirOS(id: string, motivo: string): Promise<OrdemServicoDTO> 
 export interface AtualizarOSInput {
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   prioridade?: OSPrioridade;
   responsavelId?: string;
   tecnicoId?: string;
@@ -95,7 +94,6 @@ export interface AtualizarOSInput {
   base?: {
     diagnostico?: string;
     observacoes?: string;
-    solucao?: string;
     kmAtual?: number | null;
     kmFinal?: number | null;
   };

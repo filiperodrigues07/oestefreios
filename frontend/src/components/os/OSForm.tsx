@@ -591,7 +591,6 @@ function OSFormEdit({ id }: { id: string }) {
             <DiagnosticoSection
               diagnostico={os.diagnostico}
               observacoes={os.observacoes}
-              solucao={os.solucao}
               kmAtual={os.kmAtual}
               kmFinal={os.kmFinal}
               podeEditar={podeEditar}

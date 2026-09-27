@@ -1,14 +1,10 @@
 /**
- * ORDEMSERVICO.OBS guarda duas coisas do app: observações e "serviço realizado" (o CHERP não tem
- * coluna própria pra solução). Só com observações, grava texto puro, igual a quem digita direto no
- * CHERP. Com solução, separa as partes com os marcadores [OBSERVACOES] e [SOLUCAO].
+ * ORDEMSERVICO.OBS é o campo "Observação" do CHERP: texto livre, igual a quem digita direto lá.
+ * O app não guarda mais nada estruturado aqui (o antigo "serviço realizado" não tem campo no CHERP).
  */
-export function encodeObsTexto(observacoes?: string, solucao?: string): string | null {
+export function encodeObsTexto(observacoes?: string): string | null {
   const obs = observacoes?.trim() ?? '';
-  const sol = solucao?.trim() ?? '';
-  if (!obs && !sol) return null;
-  if (!sol) return obs;
-  return `[OBSERVACOES]\n${obs}\n[SOLUCAO]\n${sol}`;
+  return obs ? obs : null;
 }
 
 const MARCADOR_OBS = /^\s*\[OBSERVACOES\][ \t]*(?:\n)?/;
@@ -16,11 +12,11 @@ const MARCADOR_SOLUCAO = /(?:\n)?[ \t]*\[SOLUCAO\][ \t]*(?:\n)?/;
 const QUALQUER_MARCADOR = /\[(OBSERVACOES|SOLUCAO)\]/g;
 
 /**
- * Tolerante ao que volta do CHERP: quebra de linha \r\n, linha final cortada e marcadores repetidos
- * (texto salvo de novo enquanto a leitura antiga falhava e mostrava os marcadores na tela). Nunca
- * devolve marcador pra tela; ao salvar de novo, o texto volta ao formato limpo.
+ * Lê OBS gravado por versões antigas do app ([OBSERVACOES]…[SOLUCAO]…), inclusive como volta do CHERP
+ * (\r\n, linha final cortada, marcadores repetidos, cópia feita pelo "Duplicar" do CHERP). O texto que
+ * era "serviço realizado" vai pro fim das observações — nada se perde; ao salvar, o CHERP fica limpo.
  */
-export function decodeObsTexto(raw: unknown): { observacoes?: string; solucao?: string } {
+export function decodeObsTexto(raw: unknown): { observacoes?: string } {
   let texto = raw == null ? '' : String(raw).replace(/\r\n/g, '\n');
   let solucao: string | undefined;
   for (let i = 0; i < 5 && MARCADOR_OBS.test(texto); i++) {
@@ -32,6 +28,11 @@ export function decodeObsTexto(raw: unknown): { observacoes?: string; solucao?: 
       if (resto && solucao === undefined) solucao = resto;
     }
   }
-  const observacoes = texto.replace(QUALQUER_MARCADOR, '').trim();
-  return { observacoes: observacoes || undefined, solucao: solucao || undefined };
+  const observacoes = [texto.replace(QUALQUER_MARCADOR, '').trim(), solucao].filter(Boolean).join('\n');
+  return { observacoes: observacoes || undefined };
+}
+
+/** OBS ainda com marcadores do formato antigo — alvo do script de limpeza (scripts/limparMarcadoresObs.ts). */
+export function temMarcadorAntigo(raw: unknown): boolean {
+  return raw != null && /\[(OBSERVACOES|SOLUCAO)\]/.test(String(raw));
 }

@@ -28,7 +28,6 @@ export const atualizarOSSchema = z
   .object({
     diagnostico: z.string().trim().transform(toUppercase).optional(),
     observacoes: z.string().trim().transform(toUppercase).optional(),
-    solucao: z.string().trim().transform(toUppercase).optional(),
     prioridade: z.enum(OS_PRIORIDADE_VALUES).optional(),
     responsavelId: z.string().trim().min(1).optional(),
     tecnicoId: z.string().trim().min(1).optional(),
@@ -43,7 +42,6 @@ export const atualizarOSSchema = z
       .object({
         diagnostico: z.string().optional(),
         observacoes: z.string().optional(),
-        solucao: z.string().optional(),
         kmAtual: z.number().nullable().optional(),
         kmFinal: z.number().nullable().optional(),
       })

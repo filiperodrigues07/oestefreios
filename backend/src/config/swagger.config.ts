@@ -103,7 +103,7 @@ registry.registerPath({
 registry.registerPath({
   method: 'put',
   path: '/api/os/{id}',
-  summary: 'Atualiza campos editáveis da OS (diagnóstico, observações, solução, prioridade, responsável, técnico).',
+  summary: 'Atualiza campos editáveis da OS (diagnóstico, observação, prioridade, responsável, técnico).',
   security: [{ bearerAuth: [] }],
   request: { body: { content: { 'application/json': { schema: atualizarOSSchema } } } },
   responses: { 200: { description: 'Alterações salvas.' }, 403: { description: 'Sem permissão OS_EDIT.' } },

@@ -57,8 +57,8 @@ describe('normalização em maiúsculas para o CHERP', () => {
     expect(criarOSSchema.parse({ clienteCodigo: '1', equipamentoCodigo: '2', problema: 'ruído no freio' }).problema)
       .toBe('RUÍDO NO FREIO');
 
-    expect(atualizarOSSchema.parse({ diagnostico: 'pastilha gasta', observacoes: 'lado esquerdo', solucao: 'troca realizada' }))
-      .toMatchObject({ diagnostico: 'PASTILHA GASTA', observacoes: 'LADO ESQUERDO', solucao: 'TROCA REALIZADA' });
+    expect(atualizarOSSchema.parse({ diagnostico: 'pastilha gasta', observacoes: 'lado esquerdo' }))
+      .toMatchObject({ diagnostico: 'PASTILHA GASTA', observacoes: 'LADO ESQUERDO' });
 
     expect(adicionarProdutoSchema.parse({ produtoCodigo: '10', descricaoComplementar: 'usar peça reforçada' }).descricaoComplementar)
       .toBe('USAR PEÇA REFORÇADA');

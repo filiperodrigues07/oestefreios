@@ -137,13 +137,6 @@ export function OSDocument({ os, branding }: Props) {
           </View>
         )}
 
-        {os.solucao && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Serviço realizado</Text>
-            <Text style={styles.texto}>{os.solucao}</Text>
-          </View>
-        )}
-
         {os.produtos.length > 0 && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Produtos</Text>

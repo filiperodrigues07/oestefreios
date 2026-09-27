@@ -1,28 +1,32 @@
 import { describe, expect, it } from 'vitest';
-import { decodeObsTexto, encodeObsTexto } from './obsField.js';
+import { decodeObsTexto, encodeObsTexto, temMarcadorAntigo } from './obsField.js';
 
-describe('campo OBS da OS', () => {
-  it('lê o formato que volta do CHERP (\r\n, sem linha final)', () => {
-    expect(decodeObsTexto('[OBSERVACOES]\r\nTESTE DUPLICADO\r\n[SOLUCAO]')).toEqual({ observacoes: 'TESTE DUPLICADO', solucao: undefined });
-    expect(decodeObsTexto('[OBSERVACOES]\r\nFAZER FUNCIONAR\r\n[SOLUCAO]\r\nNADA')).toEqual({ observacoes: 'FAZER FUNCIONAR', solucao: 'NADA' });
-    expect(decodeObsTexto('[OBSERVACOES]\nteste\n[SOLUCAO]\n')).toEqual({ observacoes: 'teste', solucao: undefined });
+describe('campo OBS (Observação do CHERP)', () => {
+  it('grava sempre texto livre, sem marcador', () => {
+    expect(encodeObsTexto('  CLIENTE AGUARDA  ')).toBe('CLIENTE AGUARDA');
+    expect(encodeObsTexto('')).toBeNull();
+    expect(encodeObsTexto(undefined)).toBeNull();
   });
 
-  it('texto digitado direto no CHERP (sem marcador) vira observação', () => {
-    expect(decodeObsTexto('CLIENTE BUSCA SEXTA\r\nLIGAR ANTES')).toEqual({ observacoes: 'CLIENTE BUSCA SEXTA\nLIGAR ANTES', solucao: undefined });
-    expect(decodeObsTexto(null)).toEqual({ observacoes: undefined, solucao: undefined });
+  it('lê o formato antigo que volta do CHERP (\\r\\n, sem linha final) só com o texto', () => {
+    expect(decodeObsTexto('[OBSERVACOES]\r\nTESTE\r\n[SOLUCAO]')).toEqual({ observacoes: 'TESTE' });
+    expect(decodeObsTexto('[OBSERVACOES]\nteste\n[SOLUCAO]\n')).toEqual({ observacoes: 'teste' });
   });
 
-  it('limpa marcadores acumulados por regravação', () => {
-    const sujo = '[OBSERVACOES]\n[OBSERVACOES]\r\nTESTE\r\n[SOLUCAO]\n[SOLUCAO]\nTROCA DE PASTILHA';
-    expect(decodeObsTexto(sujo)).toEqual({ observacoes: 'TESTE', solucao: 'TROCA DE PASTILHA' });
+  it('antigo "serviço realizado" vai pro fim das observações (nada se perde)', () => {
+    expect(decodeObsTexto('[OBSERVACOES]\r\nFAZER FUNCIONAR\r\n[SOLUCAO]\r\nNADA')).toEqual({ observacoes: 'FAZER FUNCIONAR\nNADA' });
+    expect(decodeObsTexto('[OBSERVACOES]\n\n[SOLUCAO]\nSO SOLUCAO')).toEqual({ observacoes: 'SO SOLUCAO' });
   });
 
-  it('sem solução grava texto puro; com solução, marcadores; ida e volta preserva', () => {
-    expect(encodeObsTexto('TESTE', '')).toBe('TESTE');
-    expect(encodeObsTexto('', '')).toBeNull();
-    const gravado = encodeObsTexto('OBS', 'SOLUCAO FEITA')!;
-    expect(decodeObsTexto(gravado.replace(/\n/g, '\r\n'))).toEqual({ observacoes: 'OBS', solucao: 'SOLUCAO FEITA' });
-    expect(decodeObsTexto(encodeObsTexto('', 'SO SOLUCAO'))).toEqual({ observacoes: undefined, solucao: 'SO SOLUCAO' });
+  it('limpa marcadores acumulados e texto digitado direto no CHERP passa intacto', () => {
+    expect(decodeObsTexto('[OBSERVACOES]\n[OBSERVACOES]\r\nTESTE\r\n[SOLUCAO]\n[SOLUCAO]\nTROCA')).toEqual({ observacoes: 'TESTE\nTROCA' });
+    expect(decodeObsTexto('CLIENTE BUSCA SEXTA\r\nLIGAR ANTES')).toEqual({ observacoes: 'CLIENTE BUSCA SEXTA\nLIGAR ANTES' });
+    expect(decodeObsTexto(null)).toEqual({ observacoes: undefined });
+  });
+
+  it('identifica OBS no formato antigo', () => {
+    expect(temMarcadorAntigo('[OBSERVACOES]\r\nX\r\n[SOLUCAO]')).toBe(true);
+    expect(temMarcadorAntigo('TEXTO LIVRE')).toBe(false);
+    expect(temMarcadorAntigo(null)).toBe(false);
   });
 });

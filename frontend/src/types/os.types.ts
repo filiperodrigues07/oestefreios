@@ -53,7 +53,6 @@ export interface OrdemServicoDTO {
   problema: string;
   diagnostico?: string;
   observacoes?: string;
-  solucao?: string;
   produtos: OSItemProduto[];
   servicos: OSItemServico[];
   historico: OSHistoricoEntry[];
