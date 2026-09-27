@@ -27,6 +27,8 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 9, fontWeight: 700, color: CINZA_TEXTO, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 },
   grid2: { flexDirection: 'row', gap: 24 },
   gridCol: { flex: 1 },
+  /** Abertura e Conclusão lado a lado dentro da coluna do Veículo (alinhadas com ela). */
+  datas: { flexDirection: 'row', gap: 12 },
   campoLabel: { fontSize: 8, color: CINZA_CLARO },
   campoValor: { fontSize: 10, marginBottom: 6 },
   texto: { fontSize: 9.5, lineHeight: 1.5, color: '#0f172a' },
@@ -34,11 +36,13 @@ const styles = StyleSheet.create({
   tr: { flexDirection: 'row' },
   th: { padding: 5, color: '#ffffff', fontSize: 8, fontWeight: 700 },
   td: { padding: 5, fontSize: 9, borderBottomWidth: 0.5, borderBottomColor: LINHA },
-  totaisBox: { marginTop: 10, alignSelf: 'flex-end', width: 220 },
-  totaisLinha: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3 },
+  // Largura = colunas "Preço unit." + "Total" da tabela (flex 1+1 de 5); mesmo recuo das células (5):
+  // os valores terminam exatamente na linha da coluna Total.
+  totaisBox: { marginTop: 10, alignSelf: 'flex-end', width: '40%' },
+  totaisLinha: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 3, paddingHorizontal: 5 },
   totaisLabel: { fontSize: 9, color: CINZA_TEXTO },
   totaisValor: { fontSize: 9, fontWeight: 700 },
-  totalGeral: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, padding: 8, borderRadius: 4 },
+  totalGeral: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 4, paddingVertical: 7, paddingHorizontal: 5, borderRadius: 4 },
   totalGeralTexto: { fontSize: 10, fontWeight: 700, color: '#ffffff' },
   assinaturas: { flexDirection: 'row', gap: 40, marginTop: 44 },
   linhaAssinatura: { flex: 1, borderTopWidth: 0.75, borderTopColor: '#94a3b8', paddingTop: 4, textAlign: 'center', fontSize: 8, color: CINZA_TEXTO },
@@ -114,13 +118,15 @@ export function OSDocument({ os, branding }: Props) {
               <Text style={styles.campoLabel}>Prioridade</Text>
               <Text style={styles.campoValor}>{PRIORIDADE_LABEL[os.prioridade] ?? os.prioridade}</Text>
             </View>
-            <View style={styles.gridCol}>
-              <Text style={styles.campoLabel}>Abertura</Text>
-              <Text style={styles.campoValor}>{formatarData(os.dataAbertura)}</Text>
-            </View>
-            <View style={styles.gridCol}>
-              <Text style={styles.campoLabel}>Conclusão</Text>
-              <Text style={styles.campoValor}>{formatarData(os.dataConclusao)}</Text>
+            <View style={[styles.gridCol, styles.datas]}>
+              <View style={styles.gridCol}>
+                <Text style={styles.campoLabel}>Abertura</Text>
+                <Text style={styles.campoValor}>{formatarData(os.dataAbertura)}</Text>
+              </View>
+              <View style={styles.gridCol}>
+                <Text style={styles.campoLabel}>Conclusão</Text>
+                <Text style={styles.campoValor}>{formatarData(os.dataConclusao)}</Text>
+              </View>
             </View>
           </View>
         </View>
