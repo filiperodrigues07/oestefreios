@@ -10,6 +10,8 @@ import {
   OS_DOCUMENT_STATUS_CONFIG,
   OS_DOCUMENT_STATUS_OPTIONS,
   OS_PRIORIDADE_OPTIONS,
+  SITUACAO_FINALIZADA_APP,
+  situacaoDaOS,
 } from '../constants/osStatus.js';
 import { hasPermission } from '../store/authStore.js';
 import { readStoredFilters, writeStoredFilters } from '../utils/filterStorage.js';
@@ -66,7 +68,9 @@ export function OSListPage() {
   const filtrosSalvos = readStoredFilters('os');
   const initialSituacaoDocumento = searchParams.get('situacaoDocumento') ?? filtrosSalvos.get('situacaoDocumento');
   const [situacaoDocumento, setSituacaoDocumento] = useState(() =>
-    initialSituacaoDocumento === '' || (initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)])
+    initialSituacaoDocumento === '' ||
+    (initialSituacaoDocumento === SITUACAO_FINALIZADA_APP && hasPermission('OS_VIEW_FINALIZADAS')) ||
+    (initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)])
       ? initialSituacaoDocumento
       : '0',
   );
@@ -87,6 +91,7 @@ export function OSListPage() {
   const podeEditar = hasPermission('OS_EDIT');
   const podeDuplicar = hasPermission('OS_CREATE');
   const podeExcluir = hasPermission('OS_DELETE');
+  const podeVerFinalizadas = hasPermission('OS_VIEW_FINALIZADAS');
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const [duplicando, setDuplicando] = useState<OrdemServicoDTO | null>(null);
@@ -157,7 +162,8 @@ export function OSListPage() {
     ],
     queryFn: () =>
       listarOS({
-        situacaoDocumento: situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
+        situacaoDocumento: situacaoDocumento === '' || situacaoDocumento === SITUACAO_FINALIZADA_APP ? undefined : Number(situacaoDocumento),
+        somenteFinalizadasApp: situacaoDocumento === SITUACAO_FINALIZADA_APP,
         incluirFinalizadas: true,
         prioridade: prioridade || undefined,
         dataInicial: dataInicial || undefined,
@@ -277,10 +283,7 @@ export function OSListPage() {
       width: '130px',
       sortable: true,
       render: (os) => {
-        const config =
-          os.situacaoDocumento === undefined
-            ? undefined
-            : OS_DOCUMENT_STATUS_CONFIG[os.situacaoDocumento];
+        const config = situacaoDaOS(os);
         return <Badge tone={config?.tone ?? 'neutral'}>{config?.label ?? 'Não informado'}</Badge>;
       },
     },
@@ -359,7 +362,7 @@ export function OSListPage() {
                     ...(dataInicial ? { dataInicial } : {}),
                     ...(dataFinal ? { dataFinal } : {}),
                     situacaoDocumento:
-                      situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
+                      situacaoDocumento === '' || situacaoDocumento === SITUACAO_FINALIZADA_APP ? undefined : Number(situacaoDocumento),
                     prioridade: prioridade || undefined,
                     busca: buscaAtiva || undefined,
                   },
@@ -373,7 +376,7 @@ export function OSListPage() {
                     ...(dataInicial ? { dataInicial } : {}),
                     ...(dataFinal ? { dataFinal } : {}),
                     situacaoDocumento:
-                      situacaoDocumento === '' ? undefined : Number(situacaoDocumento),
+                      situacaoDocumento === '' || situacaoDocumento === SITUACAO_FINALIZADA_APP ? undefined : Number(situacaoDocumento),
                     prioridade: prioridade || undefined,
                     busca: buscaAtiva || undefined,
                   },
@@ -399,13 +402,20 @@ export function OSListPage() {
           activeCount={filtrosAtivos}
           onClear={limparFiltros}
         >
-          <Select
-            label="Situação"
-            placeholder="Todas as situações"
-            value={situacaoDocumento}
-            onChange={(e) => handleSituacaoDocumentoChange(e.target.value)}
-            options={OS_DOCUMENT_STATUS_OPTIONS}
-          />
+          {/* Sem OS_VIEW_FINALIZADAS a lista já vem só com OS em aberto: filtro de situação não se aplica. */}
+          {podeVerFinalizadas && (
+            <Select
+              label="Situação"
+              placeholder="Todas as situações"
+              value={situacaoDocumento}
+              onChange={(e) => handleSituacaoDocumentoChange(e.target.value)}
+              options={[
+                ...OS_DOCUMENT_STATUS_OPTIONS.slice(0, 1),
+                { value: SITUACAO_FINALIZADA_APP, label: 'Finalizada no app' },
+                ...OS_DOCUMENT_STATUS_OPTIONS.slice(1),
+              ]}
+            />
+          )}
           <Select
             className="os-priority-select"
             data-priority={prioridade || undefined}
@@ -495,10 +505,7 @@ export function OSListPage() {
               onSortChange={handleSortChange}
               columnPrefsKey="os"
               renderMobileCard={(os) => {
-                const status =
-                  os.situacaoDocumento === undefined
-                    ? undefined
-                    : OS_DOCUMENT_STATUS_CONFIG[os.situacaoDocumento];
+                const status = situacaoDaOS(os);
                 return (
                   <MobileRecordCard
                     eyebrow={`OS #${os.numero}`}

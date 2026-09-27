@@ -13,6 +13,13 @@ export interface OSListFilter {
   /** Período de abertura (ORDEMSERVICO.DATA) — ambos opcionais e combináveis entre si. */
   dataInicial?: Date;
   dataFinal?: Date;
+  /**
+   * Usuário sem OS_VIEW_FINALIZADAS: só OS em aberto no CHERP que não foram finalizadas/canceladas pelo
+   * app (os_workflow.travado_local). Volume de OS em aberto é pequeno, então dá pra filtrar em memória.
+   */
+  ocultarFinalizadasApp?: boolean;
+  /** Só as finalizadas pelo app que ainda estão em aberto no CHERP (aguardando faturamento lá). */
+  somenteFinalizadasApp?: boolean;
   sortBy?: 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';
   sortOrder?: 'asc' | 'desc';
   page?: number;

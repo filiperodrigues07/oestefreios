@@ -169,7 +169,8 @@ export class OSRepositoryMock implements IOSRepository {
 
   /** Espelha a regra da implementação real: só OS em aberto (nunca concluída/cancelada) — ver OSRepository.firebird.ts. */
   async listar(filter: OSListFilter): Promise<{ items: OrdemServico[]; total: number }> {
-    let filtered = filter.incluirFinalizadas
+    // Igual ao Firebird: os filtros de finalizada no app olham todas as OS em aberto no CHERP, com ou sem trava.
+    let filtered = filter.incluirFinalizadas || filter.ocultarFinalizadasApp || filter.somenteFinalizadasApp
       ? [...OS_LIST]
       : OS_LIST.filter((os) => os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA');
     if (filter.status === 'AGUARDANDO') {
@@ -179,6 +180,10 @@ export class OSRepositoryMock implements IOSRepository {
     }
     if (filter.situacaoDocumento !== undefined) {
       filtered = filtered.filter((os) => os.situacaoDocumento === filter.situacaoDocumento);
+    }
+    if (filter.ocultarFinalizadasApp || filter.somenteFinalizadasApp) {
+      filtered = filtered.filter((os) => (os.situacaoDocumento ?? 0) === 0);
+      filtered = filtered.filter((os) => Boolean(os.travadoLocal) === Boolean(filter.somenteFinalizadasApp));
     }
     if (filter.clienteCodigo) {
       filtered = filtered.filter((os) => os.clienteCodigo === filter.clienteCodigo);

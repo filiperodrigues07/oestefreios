@@ -73,7 +73,13 @@ export async function listOS(
   filter: OSListFilter,
   permissions: Permission[],
 ): Promise<{ items: (OperationalOSDTO | AdminOSDTO)[]; total: number }> {
-  const result = await osRepository.listar(filter);
+  // Sem OS_VIEW_FINALIZADAS, OS finalizada pelo app some da lista (a OS continua abrindo só leitura por link).
+  const verFinalizadas = permissions.includes('OS_VIEW_FINALIZADAS');
+  const result = await osRepository.listar({
+    ...filter,
+    ocultarFinalizadasApp: !verFinalizadas,
+    somenteFinalizadasApp: verFinalizadas && filter.somenteFinalizadasApp,
+  });
   return { items: result.items.map((os) => toOSDTO(os, permissions)), total: result.total };
 }
 

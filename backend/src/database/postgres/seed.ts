@@ -45,6 +45,7 @@ const ROLE_DEFINITIONS: { name: string; description: string; permissions: Permis
     description: 'Abre e edita OS, sem acesso financeiro.',
     permissions: [
       'OS_VIEW',
+      'OS_VIEW_FINALIZADAS',
       'OS_CREATE',
       'OS_EDIT',
       'PRODUCT_VIEW',

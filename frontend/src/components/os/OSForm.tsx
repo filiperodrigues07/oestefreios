@@ -316,8 +316,15 @@ function OSFormEdit({ id }: { id: string }) {
   const statusMutation = useMutation({
     mutationFn: (status: OSStatus) => alterarStatusOS(id, status),
     onMutate: (status) => aplicarOtimista({ status }),
-    onSuccess: async () => {
+    onSuccess: async (_os, status) => {
       await invalidate();
+      // Quem não vê finalizadas: a OS sai da lista dele — volta pra lista em vez de ficar numa OS travada.
+      if ((status === 'CONCLUIDA' || status === 'CANCELADA') && !hasPermission('OS_VIEW_FINALIZADAS')) {
+        showToast(`OS ${status === 'CONCLUIDA' ? 'finalizada' : 'cancelada'}. Ela saiu da sua lista.`, 'success');
+        guard.liberar();
+        navigate('/os', { replace: true });
+        return;
+      }
       showToast('Status alterado.', 'success');
     },
     onError: (err, _status, contexto) => {

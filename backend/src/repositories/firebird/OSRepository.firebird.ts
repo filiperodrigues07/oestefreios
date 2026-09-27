@@ -502,7 +502,14 @@ export class OSRepositoryFirebird implements IOSRepository {
   async listar(filter: OSListFilter): Promise<{ items: OrdemServico[]; total: number }> {
     const conditions: string[] = [];
     const params: unknown[] = [];
-    if (filter.situacaoDocumento !== undefined) {
+    // Finalizada pelo app só existe no Postgres (travado_local): esses dois modos olham só OS em aberto
+    // no CHERP (volume pequeno) e filtram a trava em memória, no caminho de baixo.
+    const filtroFinalizadasApp = Boolean(filter.ocultarFinalizadasApp || filter.somenteFinalizadasApp);
+    if (filtroFinalizadasApp) {
+      if (filter.situacaoDocumento !== undefined && filter.situacaoDocumento !== SITUACAO_ABERTO) return { items: [], total: 0 };
+      conditions.push('OS.SITUACAO = ?');
+      params.push(SITUACAO_ABERTO);
+    } else if (filter.situacaoDocumento !== undefined) {
       // Filtro explícito de situação do documento tem prioridade — nunca combina com a
       // restrição automática de "incluirFinalizadas", senão as duas condições em OS.SITUACAO
       // se anulam (nenhuma linha satisfaz duas igualdades diferentes ao mesmo tempo).
@@ -555,7 +562,7 @@ export class OSRepositoryFirebird implements IOSRepository {
 
     // Caminho rápido (listagem padrão): sem filtro por status/técnico e sem ordenação própria, a página é
     // exatamente FIRST/SKIP da ordem do banco — não precisa trazer todos os cabeçalhos para memória.
-    if (!filter.status && !filter.tecnicoId && !filter.sortBy) {
+    if (!filter.status && !filter.tecnicoId && !filter.sortBy && !filtroFinalizadasApp) {
       const pular = Math.max(0, Math.floor((page - 1) * limit));
       const tamanho = Math.max(1, Math.floor(limit));
       const paginado = HEADER_SELECT.replace('SELECT', `SELECT FIRST ${tamanho} SKIP ${pular}`);
@@ -593,6 +600,8 @@ export class OSRepositoryFirebird implements IOSRepository {
     if (filter.tecnicoId) {
       merged = merged.filter((os) => os.tecnicoId === filter.tecnicoId);
     }
+    if (filter.ocultarFinalizadasApp) merged = merged.filter((os) => !os.travadoLocal);
+    if (filter.somenteFinalizadasApp) merged = merged.filter((os) => os.travadoLocal);
 
     if (filter.sortBy) {
       const direcao = filter.sortOrder === 'desc' ? -1 : 1;

@@ -20,6 +20,20 @@ export const OS_DOCUMENT_STATUS_CONFIG: Record<number, OSStatusConfig> = {
 
 export const OS_DOCUMENT_STATUS_OPTIONS = Object.entries(OS_DOCUMENT_STATUS_CONFIG).map(([value, config]) => ({ value, label: config.label }));
 
+/** Valor do filtro de Situação para "finalizadas no app" (não é uma SITUACAO do CHERP). */
+export const SITUACAO_FINALIZADA_APP = 'app';
+
+const FINALIZADA_APP: OSStatusConfig = { label: 'Finalizada no app', tone: 'success' };
+
+/**
+ * Situação exibida na lista: OS travada pelo app ("Finalizar OS") e ainda em aberto no CHERP aparece
+ * como "Finalizada no app" — distinta de pedido/NF gerado no CHERP (faturada de verdade).
+ */
+export function situacaoDaOS(os: { situacaoDocumento?: number; travadoLocal?: boolean }): OSStatusConfig | undefined {
+  if (os.travadoLocal && (os.situacaoDocumento ?? 0) === 0) return FINALIZADA_APP;
+  return os.situacaoDocumento === undefined ? undefined : OS_DOCUMENT_STATUS_CONFIG[os.situacaoDocumento];
+}
+
 /** Fonte única da verdade para rótulo + cor semântica de cada status de OS. */
 export const OS_STATUS_CONFIG: Record<OSStatus, OSStatusConfig> = {
   ABERTA: { label: 'Em atendimento', tone: 'info' },

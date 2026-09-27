@@ -123,3 +123,42 @@ test.describe('reabrir OS', () => {
     await expect(page.getByText(/OS reaberta \(motivo: Finalizada por engano\)/)).toBeVisible();
   });
 });
+
+test.describe('OS finalizada some para quem não tem a permissão', () => {
+  test('mecânico finaliza e a OS sai da lista dele; admin vê como "Finalizada no app"', async ({ page, browser }) => {
+    await login(page);
+    const id = await criarOS(page, 'SOME DA LISTA');
+
+    const mecanicoPage = await browser.newPage();
+    await login(mecanicoPage, { email: 'mecanico@dev.local', senha: 'Mecanico@123456' });
+    await mecanicoPage.goto(`/os/${id}`);
+    await mecanicoPage.getByRole('button', { name: 'Finalizar OS' }).click();
+    await mecanicoPage.getByRole('dialog', { name: 'Finalizar OS?' }).getByRole('button', { name: 'Finalizar OS' }).click();
+    await expect(mecanicoPage.getByText('OS finalizada. Ela saiu da sua lista.')).toBeVisible();
+    await expect(mecanicoPage).toHaveURL(/\/os$/);
+    await expect(mecanicoPage.locator(`[href="/os/${id}"]`)).toHaveCount(0);
+    await expect(mecanicoPage.getByRole('combobox', { name: 'Situação' })).toHaveCount(0);
+
+    // Link direto continua abrindo, só leitura.
+    await mecanicoPage.goto(`/os/${id}`);
+    await expect(mecanicoPage.getByRole('button', { name: 'Finalizar OS' })).toHaveCount(0);
+    await mecanicoPage.close();
+
+    await page.goto('/os');
+    await page.getByRole('combobox', { name: 'Situação' }).selectOption({ label: 'Finalizada no app' });
+    // Toda linha desse filtro é "Finalizada no app", e a OS que o mecânico finalizou está entre elas.
+    const linhas = page.locator('tbody tr:visible');
+    await expect(linhas.first()).toBeVisible();
+    await expect(linhas.filter({ hasNotText: 'Finalizada no app' })).toHaveCount(0);
+    const ids: string[] = [];
+    const total = await linhas.count();
+    for (let i = 0; i < total; i++) {
+      await linhas.nth(i).click();
+      await page.waitForURL(/\/os\/[0-9a-f-]{36}$/);
+      ids.push(page.url().split('/os/')[1]!);
+      await page.goBack();
+      await expect(linhas.first()).toBeVisible();
+    }
+    expect(ids).toContain(id);
+  });
+});

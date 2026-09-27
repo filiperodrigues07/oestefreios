@@ -116,6 +116,7 @@ export const listarOSQuerySchema = z.object({
   // z.coerce.boolean() usaria JS Boolean(str), que dá `true` até pra "false" (string não-vazia) —
   // query string sempre chega como texto, então precisa comparar o valor, não só a presença.
   incluirFinalizadas: z.enum(['true', 'false']).optional().transform((v) => v === 'true'),
+  somenteFinalizadasApp: z.enum(['true', 'false']).optional().transform((v) => v === 'true'),
   clienteCodigo: z.string().trim().min(1).optional(),
   tecnicoId: z.string().trim().min(1).optional(),
   prioridade: z.enum(OS_PRIORIDADE_VALUES).optional(),

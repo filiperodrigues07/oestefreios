@@ -12,6 +12,8 @@ export interface ListarOSFiltro {
   status?: OSStatus | 'AGUARDANDO';
   situacaoDocumento?: number;
   incluirFinalizadas?: boolean;
+  /** Só OS finalizadas pelo app que seguem em aberto no CHERP (exige OS_VIEW_FINALIZADAS no backend). */
+  somenteFinalizadasApp?: boolean;
   clienteCodigo?: string;
   prioridade?: OSPrioridade;
   busca?: string;
@@ -28,6 +30,7 @@ export function listarOS(filtro: ListarOSFiltro = {}): Promise<PaginatedOS> {
   if (filtro.status) params.set('status', filtro.status);
   if (filtro.situacaoDocumento !== undefined) params.set('situacaoDocumento', String(filtro.situacaoDocumento));
   if (filtro.incluirFinalizadas) params.set('incluirFinalizadas', 'true');
+  if (filtro.somenteFinalizadasApp) params.set('somenteFinalizadasApp', 'true');
   if (filtro.clienteCodigo) params.set('clienteCodigo', filtro.clienteCodigo);
   if (filtro.prioridade) params.set('prioridade', filtro.prioridade);
   if (filtro.busca) params.set('busca', filtro.busca);
