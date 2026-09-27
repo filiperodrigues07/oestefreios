@@ -84,10 +84,11 @@ export function OSMoreActions({ items, loading }: OSMoreActionsProps) {
         }}
         aria-expanded={aberto}
         aria-haspopup="menu"
+        aria-label="Mais ações"
       >
         <ActionIcon name="more" />
-        Mais ações
-        <ActionIcon name="chevronDown" size={14} />
+        <span className={styles.triggerLabel}>Mais ações</span>
+        <span className={styles.triggerChevron}><ActionIcon name="chevronDown" size={14} /></span>
       </Button>
       {aberto && (
         <div className={styles.menu} role="menu" onKeyDown={handleMenuKeyDown}>

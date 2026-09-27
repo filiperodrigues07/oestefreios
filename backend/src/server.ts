@@ -4,6 +4,7 @@ import { closeFirebirdPool } from './database/firebird/pool.js';
 import { pool } from './database/postgres/client.js';
 import { agendarRetencao } from './services/retencao.service.js';
 import { applyStoredFirebirdSettings } from './services/settings.service.js';
+import { processQueuedOsMessages } from './services/osCommunication.service.js';
 import { logger } from './utils/logger.js';
 
 const host = env.HOST ?? (env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0');
@@ -21,10 +22,23 @@ applyStoredFirebirdSettings().catch((err) => {
 
 agendarRetencao();
 
+let processandoMensagens = false;
+async function processarMensagens(): Promise<void> {
+  if (processandoMensagens) return;
+  processandoMensagens = true;
+  try { await processQueuedOsMessages(); }
+  catch (err) { logger.warn({ err }, 'Fila de avisos da OS indisponível'); }
+  finally { processandoMensagens = false; }
+}
+const osMessageTimer = setInterval(() => { void processarMensagens(); }, 15_000);
+osMessageTimer.unref();
+void processarMensagens();
+
 let encerrando = false;
 async function shutdown(signal: string) {
   if (encerrando) return;
   encerrando = true;
+  clearInterval(osMessageTimer);
   logger.info(`Recebido ${signal}, encerrando graciosamente...`);
   // Se algo travar (conexão keep-alive, query longa), força a saída antes do systemd matar com SIGKILL.
   setTimeout(() => {

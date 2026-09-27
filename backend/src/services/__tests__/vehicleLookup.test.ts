@@ -1,9 +1,24 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DadosApiVehicleProvider, mapDadosApiResponse } from '../../providers/DadosApiVehicleProvider.js';
-import { isValidPlate, normalizePlate, quotaFromUsed } from '../vehicleLookup.service.js';
+import { env } from '../../config/env.js';
+import { isValidPlate, lookupVehiclePlate, normalizePlate, quotaFromUsed } from '../vehicleLookup.service.js';
 
 describe('vehicle lookup', () => {
   afterEach(() => vi.unstubAllGlobals());
+  it('bloqueia a consulta desativada antes de chamar o provedor', async () => {
+    const enabled = env.VEHICLE_LOOKUP_ENABLED;
+    env.VEHICLE_LOOKUP_ENABLED = false;
+    const provider = { name: 'teste', lookup: vi.fn() };
+    try {
+      await expect(lookupVehiclePlate('ABC1234', provider)).rejects.toMatchObject({
+        code: 'VEHICLE_LOOKUP_DISABLED',
+        statusCode: 503,
+      });
+      expect(provider.lookup).not.toHaveBeenCalled();
+    } finally {
+      env.VEHICLE_LOOKUP_ENABLED = enabled;
+    }
+  });
   it.each([
     ['ABC-1234', 'ABC1234'],
     ['abc1d23', 'ABC1D23'],

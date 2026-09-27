@@ -68,6 +68,9 @@ async function findCached(client: Pick<PoolClient, 'query'>, plate: string): Pro
 }
 
 export async function lookupVehiclePlate(rawPlate: string, provider: VehiclePlateProvider = PROVIDER): Promise<VehicleLookupResponse> {
+  if (!env.VEHICLE_LOOKUP_ENABLED) {
+    throw new AppError('VEHICLE_LOOKUP_DISABLED', 'A consulta automática de placa está indisponível. Cadastre o veículo manualmente.', 503);
+  }
   const plate = normalizePlate(rawPlate);
   if (!isValidPlate(plate)) throw new AppError('INVALID_PLATE', 'Informe uma placa válida.', 400);
 

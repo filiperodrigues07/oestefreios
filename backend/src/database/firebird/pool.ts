@@ -87,7 +87,7 @@ export async function firebirdQuery<T = FirebirdRow>(sql: string, params: unknow
   const inicio = performance.now();
   const db = await acquireConnection();
   return new Promise((resolve, reject) => {
-    db.query(sql, params, (queryErr, result) => {
+    const finish = (queryErr: Error | null, result?: unknown) => {
       db.detach();
       logSeLenta(sql, inicio, 'query');
       if (queryErr) {
@@ -95,7 +95,26 @@ export async function firebirdQuery<T = FirebirdRow>(sql: string, params: unknow
         return reject(new ExternalServiceError());
       }
       resolve(asRows(result).map(decodeLatin1Row) as T[]);
-    }, { timeout: 15_000 });
+    };
+
+    if (!/^\s*SELECT\b/i.test(sql)) {
+      db.query(sql, params, finish, { timeout: 15_000 });
+      return;
+    }
+
+    // db.query usa READ COMMITTED NO RECORD_VERSION e espera escritas ainda abertas no CHERP.
+    // Nesta biblioteca, READ_UNCOMMITTED equivale ao TPB READ COMMITTED + REC_VERSION:
+    // a leitura usa somente a ultima versao confirmada, sem expor dados nao confirmados.
+    db.transaction(Firebird.ISOLATION_READ_UNCOMMITTED, (trErr, transaction) => {
+      if (trErr) return finish(trErr);
+      transaction.query(sql, params, (queryErr, result) => {
+        if (queryErr) {
+          transaction.rollback(() => finish(queryErr));
+          return;
+        }
+        transaction.commit((commitErr) => finish(commitErr, result));
+      }, { timeout: 15_000 });
+    });
   });
 }
 

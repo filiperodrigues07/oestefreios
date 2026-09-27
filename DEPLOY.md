@@ -337,6 +337,12 @@ mesmo deploy (remova numa versão seguinte, quando nada mais usar).
 
 Sem o layout de releases, o `deploy.sh` usa o fluxo antigo (`git pull` + build no lugar), sem rollback.
 
+### WhatsApp e e-mail das ordens de serviço
+
+O deploy aplica a migration da fila/histórico de mensagens antes de reiniciar o backend. Para habilitar WhatsApp na VPS, instale Docker Engine com Compose e crie `/opt/oeste-freios-app/shared/evolution.env` com as credenciais da produção. O `deploy.sh` sobe ou atualiza a Evolution automaticamente quando esse arquivo existe, preservando os volumes entre releases. A porta 8080 fica restrita a `127.0.0.1`. O procedimento completo, inclusive o primeiro QR Code, está em [deploy/evolution-README.md](deploy/evolution-README.md).
+
+Depois do deploy, configure a conexão em **Configurações > WhatsApp**, teste um envio manual pela OS e só então ative os avisos automáticos por status. Para e-mail, configure e teste o SMTP em **Configurações > E-mail**. O número do WhatsApp precisa estar autorizado no cliente; gatilhos automáticos começam desligados.
+
 ### Deploy atômico: migração única do layout antigo
 
 Faça uma vez, num horário tranquilo. A indisponibilidade é só o restart do passo 4.

@@ -82,6 +82,15 @@ export const consultaLimiter = rateLimit({
   handler: (_req, res) => failure(res, 'RATE_LIMITED', 'Muitas consultas em pouco tempo. Aguarde alguns minutos.', 429),
 });
 
+export const osMessageLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 12,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: chavePorUsuario,
+  handler: (_req, res) => failure(res, 'RATE_LIMITED', 'Muitas mensagens em pouco tempo. Aguarde alguns minutos.', 429),
+});
+
 /** Relatórios, exportações e PDFs: consultas pesadas ao CHERP e geração de arquivo em memória. */
 export const exportLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,

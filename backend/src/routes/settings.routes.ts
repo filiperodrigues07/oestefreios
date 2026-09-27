@@ -19,6 +19,9 @@ import { validate } from '../middlewares/validate.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { success } from '../utils/apiResponse.js';
 import { getSistemaStatus } from '../services/sistema.service.js';
+import { createEvolutionInstance, getEvolutionConnection, getEvolutionQr } from '../services/evolution.service.js';
+import { getWhatsappSettingsMasked, saveWhatsappSettings, whatsappSettingsSchema } from '../services/whatsappSettings.service.js';
+import { requestContext } from '../utils/requestContext.js';
 import {
   firebirdSettingsSchema,
   geralSettingsSchema,
@@ -52,3 +55,15 @@ settingsRouter.put('/geral', validate(geralSettingsSchema), asyncHandler(saveGer
 
 settingsRouter.get('/integracoes', asyncHandler(getIntegracoesSettingsHandler));
 settingsRouter.put('/integracoes', validate(integracoesSettingsSchema), asyncHandler(saveIntegracoesSettingsHandler));
+
+settingsRouter.get('/whatsapp', asyncHandler(async (_req, res) => success(res, await getWhatsappSettingsMasked())));
+settingsRouter.put('/whatsapp', validate(whatsappSettingsSchema), asyncHandler(async (req, res) => {
+  await saveWhatsappSettings(req.body, req.user!, requestContext(req));
+  success(res, await getWhatsappSettingsMasked(), 'WhatsApp configurado.');
+}));
+settingsRouter.get('/whatsapp/status', asyncHandler(async (_req, res) => success(res, await getEvolutionConnection())));
+settingsRouter.get('/whatsapp/qr', asyncHandler(async (_req, res) => success(res, await getEvolutionQr())));
+settingsRouter.post('/whatsapp/instance', asyncHandler(async (_req, res) => {
+  await createEvolutionInstance();
+  success(res, null, 'Instância criada. Agora conecte o WhatsApp pelo QR Code.', 201);
+}));

@@ -17,6 +17,8 @@ import { detectarTipoImagem } from '../utils/imageSignature.js';
 import type { RequestContext } from '../utils/requestContext.js';
 import { recordAudit } from './auditLog.service.js';
 import { assertValidTransition } from './osWorkflow.js';
+import { enqueueStatusMessages } from './osCommunication.service.js';
+import { logger } from '../utils/logger.js';
 
 function historicoEntry(evento: string, usuario: AuthenticatedUser): OSHistoricoEntry {
   return { timestamp: new Date().toISOString(), evento, usuarioNome: usuario.name };
@@ -132,6 +134,9 @@ export async function criarOS(
   });
 
   await auditOS('OS_CREATED', novo.id, usuario, ctx, { after: input });
+
+  try { await enqueueStatusMessages(novo, 'ABERTA'); }
+  catch (error) { logger.warn({ err: error, osId: novo.id }, 'Não foi possível enfileirar aviso de abertura da OS'); }
 
   return toOSDTO(novo, usuario.permissions);
 }
@@ -355,6 +360,10 @@ export async function alterarStatusOS(
   const atualizado = await osRepository.atualizar(id, patch);
 
   await auditOS('OS_STATUS_CHANGED', id, usuario, ctx, { before: atual.status, after: novoStatus });
+
+  // A mudança da OS já foi salva. Falha no aviso nunca desfaz o status.
+  try { await enqueueStatusMessages(atualizado, novoStatus); }
+  catch (error) { logger.warn({ err: error, osId: id }, 'Não foi possível enfileirar aviso da OS'); }
 
   return toOSDTO(atualizado, usuario.permissions);
 }

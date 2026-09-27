@@ -138,7 +138,10 @@ export function getUserErrorMessage(error: unknown, fallback: string): string {
   }
   // Códigos operacionais do backend têm textos escritos para o usuário e indicam o que corrigir.
   if (
-    (details.code === 'VALIDATION_ERROR' || details.code === 'CLIENT_HAS_LINKS' || details.code === 'VEHICLE_HAS_LINKS') &&
+    (details.code === 'VALIDATION_ERROR' || details.code === 'CLIENT_HAS_LINKS' || details.code === 'VEHICLE_HAS_LINKS' ||
+      ['WHATSAPP_NOT_CONFIGURED', 'WHATSAPP_UNAVAILABLE', 'WHATSAPP_AUTH_FAILED', 'WHATSAPP_INSTANCE_MISSING',
+        'SMTP_NOT_CONFIGURED', 'EMAIL_SEND_FAILED', 'WHATSAPP_SEND_FAILED', 'MESSAGE_ALREADY_PROCESSED',
+        'MESSAGE_RECENTLY_SENT', 'FINANCIAL_PERMISSION_REQUIRED'].includes(String(details.code))) &&
     typeof details.message === 'string' && details.message.trim()
   ) return details.message;
   const presentation = getErrorPresentation(error);

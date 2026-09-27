@@ -111,6 +111,33 @@ export function alterarStatusOS(id: string, status: OSStatus): Promise<OrdemServ
   });
 }
 
+export type OsMessageType = 'aberta' | 'aguardando_cliente' | 'aguardando_peca' | 'pronta' | 'resumo_financeiro';
+export type OsMessageChannel = 'whatsapp' | 'email';
+export interface OsMessagePreview {
+  clientName: string;
+  whatsapp: string | null;
+  email: string | null;
+  whatsappConsent: boolean;
+  messages: Partial<Record<OsMessageType, string>>;
+}
+export interface OsMessageHistoryItem {
+  id: string;
+  channel: OsMessageChannel;
+  messageType: OsMessageType;
+  recipient: string;
+  body: string | null;
+  state: string;
+  errorCode: string | null;
+  source: 'manual' | 'automatic';
+  createdAt: string;
+}
+export const getOsMessagePreview = (id: string) => apiFetch<OsMessagePreview>(`/os/${id}/mensagem`);
+export const getOsMessageHistory = (id: string) => apiFetch<OsMessageHistoryItem[]>(`/os/${id}/mensagem/historico`);
+export const sendOsMessage = (id: string, channel: OsMessageChannel, type: OsMessageType, consent: boolean, attachPdf = false) =>
+  apiFetch<{ id: string; state: string }>(`/os/${id}/mensagem`, { method: 'POST', body: { channel, type, consent, attachPdf }, queueOffline: false });
+export const revokeOsWhatsappConsent = (id: string) =>
+  apiFetch<null>(`/os/${id}/mensagem/revogar-whatsapp`, { method: 'POST', queueOffline: false });
+
 export function adicionarProdutoOS(
   id: string,
   produtoCodigo: string,

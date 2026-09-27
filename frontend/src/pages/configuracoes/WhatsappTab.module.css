@@ -1,0 +1,19 @@
+.page { display:flex; flex-direction:column; gap:var(--space-4); min-width:0; }
+.card { width:100%; }
+.loading { display:flex; flex-direction:column; gap:var(--space-3); width:100%; }
+.brandMark { display:block; width:42px; height:42px; flex-shrink:0; }
+.statusRow { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:var(--space-2); margin-bottom:var(--space-4); padding:var(--space-3) var(--space-4); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-neutral-surface); font-size:var(--font-size-sm); }
+.actions { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:var(--space-3); }
+.actions button { min-height:46px; }
+.feedback { margin:var(--space-3) 0 0; font-size:var(--font-size-sm); overflow-wrap:anywhere; }
+.qr { display:flex; flex-direction:column; align-items:flex-start; gap:var(--space-2); margin-top:var(--space-4); }
+.qr img { display:block; width:min(100%,280px); background:#fff; padding:10px; border-radius:var(--radius-md); }
+.qr p { margin:0; font-size:var(--font-size-sm); }
+.variables { padding:var(--space-3) var(--space-4); border:1px solid var(--color-border); border-radius:var(--radius-md); background:var(--color-neutral-surface); color:var(--color-text-secondary); font-size:var(--font-size-sm); line-height:1.7; }
+.variables code { white-space:nowrap; color:var(--color-text-primary); }
+.textarea { display:block; width:100%; min-height:90px; padding:var(--space-3); border:1px solid var(--color-border); border-radius:var(--radius-sm); background:var(--color-surface); color:var(--color-text-primary); font:inherit; resize:vertical; }
+.textarea:focus-visible { outline:2px solid var(--color-primary); outline-offset:2px; }
+.switches { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:var(--space-3); margin-top:var(--space-3); }
+.switches label { display:flex; align-items:center; gap:var(--space-2); min-height:44px; padding:var(--space-2) var(--space-3); border:1px solid var(--color-border); border-radius:var(--radius-sm); font-size:var(--font-size-sm); cursor:pointer; }
+.switches input { flex-shrink:0; accent-color:var(--color-primary); }
+@media (max-width:899px) { .actions,.switches { grid-template-columns:1fr; } }

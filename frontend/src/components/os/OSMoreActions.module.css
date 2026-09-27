@@ -64,6 +64,11 @@
 }
 
 @media (max-width: 600px) {
+  .triggerLabel,
+  .triggerChevron {
+    display: none;
+  }
+
   .menu {
     left: auto;
     right: 0;
