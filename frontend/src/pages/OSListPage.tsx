@@ -11,6 +11,7 @@ import {
   OS_DOCUMENT_STATUS_OPTIONS,
   OS_PRIORIDADE_OPTIONS,
   SITUACAO_ATENDIMENTO_CONFIG,
+  SITUACAO_ATENDIMENTO_CURTA,
   SITUACAO_ATENDIMENTO_OPTIONS,
   SITUACAO_FINALIZADA_APP,
   situacaoDaOS,
@@ -253,15 +254,15 @@ export function OSListPage() {
       key: 'numero',
       header: 'OS',
       mono: true,
-      width: '76px',
+      width: '68px',
       sortable: true,
       render: (os) => `#${os.numero}`,
     },
     {
       key: 'clienteCodigo',
-      header: 'Cód. cliente',
+      header: 'Cód. cli.',
       mono: true,
-      width: '100px',
+      width: '82px',
       render: (os) => os.clienteCodigo,
     },
     {
@@ -272,16 +273,16 @@ export function OSListPage() {
     },
     {
       key: 'veiculoCodigo',
-      header: 'Cód. veículo',
+      header: 'Cód. veíc.',
       mono: true,
-      width: '100px',
+      width: '86px',
       render: (os) => os.equipamentoCodigo,
     },
     {
       key: 'equipamentoDescricao',
       header: 'Placa',
       mono: true,
-      width: '110px',
+      width: '96px',
       sortable: true,
       render: (os) => os.equipamentoDescricao ?? '—',
     },
@@ -289,14 +290,14 @@ export function OSListPage() {
       key: 'dataAbertura',
       header: 'Abertura',
       mono: true,
-      width: '108px',
+      width: '98px',
       sortable: true,
       render: (os) => new Date(os.dataAbertura).toLocaleDateString('pt-BR'),
     },
     {
       key: 'situacaoDocumento',
       header: 'Situação',
-      width: '130px',
+      width: '112px',
       sortable: true,
       render: (os) => {
         const config = situacaoDaOS(os);
@@ -305,17 +306,19 @@ export function OSListPage() {
     },
     {
       key: 'situacaoAtendimento',
-      header: 'Sit. atendimento',
-      width: '150px',
+      header: 'Sit. atend.',
+      width: '124px',
       render: (os) => {
-        const config = os.situacaoAtendimentoCodigo ? SITUACAO_ATENDIMENTO_CONFIG[os.situacaoAtendimentoCodigo] : undefined;
-        return config ? <Badge tone={config.tone}>{config.label}</Badge> : <span aria-label="Não informada">—</span>;
+        const codigo = os.situacaoAtendimentoCodigo;
+        const config = codigo ? SITUACAO_ATENDIMENTO_CONFIG[codigo] : undefined;
+        if (!config) return <span aria-label="Não informada">—</span>;
+        return <span title={config.label}><Badge tone={config.tone}>{SITUACAO_ATENDIMENTO_CURTA[codigo!] ?? config.label}</Badge></span>;
       },
     },
     {
       key: 'prioridade',
       header: 'Prioridade',
-      width: '108px',
+      width: '100px',
       sortable: true,
       render: (os) => <PriorityBadge priority={os.prioridade} />,
     },

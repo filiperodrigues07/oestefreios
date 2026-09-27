@@ -33,6 +33,16 @@ export const SITUACAO_ATENDIMENTO_CONFIG: Record<string, OSStatusConfig> = {
   '000006': { label: 'Encerrada', tone: 'neutral' },
 };
 
+/** Rótulo curto pra coluna da lista (o completo vai no title); tabela com muitas colunas em 1366px. */
+export const SITUACAO_ATENDIMENTO_CURTA: Record<string, string> = {
+  '000001': 'Em atendimento',
+  '000002': 'Ag. retorno',
+  '000003': 'Ag. peças',
+  '000004': 'Pronta',
+  '000005': 'Entregue',
+  '000006': 'Encerrada',
+};
+
 export const SITUACAO_ATENDIMENTO_OPTIONS = Object.entries(SITUACAO_ATENDIMENTO_CONFIG).map(([value, config]) => ({ value, label: config.label }));
 
 /** Valor do filtro de Situação para "finalizadas no app" (não é uma SITUACAO do CHERP). */
