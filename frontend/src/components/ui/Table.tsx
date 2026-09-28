@@ -1,15 +1,21 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent, type ReactNode } from 'react';
 import { flushSync } from 'react-dom';
+import { useAuthStore } from '../../store/authStore.js';
 import {
+  alternarVisivel,
   applyOrder,
   clampWidth,
   clearPrefs,
+  EMPTY_PREFS,
   hasCustomPrefs,
   loadPrefs,
   MIN_COLUMN_WIDTH,
+  moverColuna,
+  prefsKey,
   savePrefs,
   type ColumnPrefs,
 } from './columnLayout.js';
+import { ColumnChooser } from './ColumnChooser.js';
 import styles from './Table.module.css';
 
 export interface TableColumn<T> {
@@ -36,7 +42,10 @@ interface TableProps<T> {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   onSortChange?: (key: string) => void;
-  /** Chave única (por tela) — liga redimensionar/reordenar colunas tipo planilha, persistido no navegador. */
+  /**
+   * Chave única (por tela) — liga redimensionar, reordenar e escolher colunas tipo planilha. Salvo no
+   * navegador por usuário (computador da oficina é compartilhado); nunca sincroniza entre dispositivos.
+   */
   columnPrefsKey?: string;
   /** Conteúdo resumido do cartão no mobile. O desktop continua usando as colunas da tabela. */
   renderMobileCard?: (row: T) => ReactNode;
@@ -44,10 +53,13 @@ interface TableProps<T> {
   stale?: boolean;
 }
 
-const EMPTY_PREFS: ColumnPrefs = { order: [], widths: {} };
 const AUTO_COLUMN_MIN = 120;
 const STEP = 8;
 const STEP_LARGE = 32;
+/** Deslocamento mínimo pra um clique no cabeçalho virar arraste (abaixo disso continua sendo "ordenar"). */
+const LIMIAR_ARRASTE = 6;
+/** Perto da borda da tabela durante o arraste: rola sozinho pra alcançar colunas fora da tela. */
+const BORDA_AUTOSCROLL = 48;
 
 /** Cliques que pertencem a um controle dentro da linha (botão, link, campo) não abrem o cadastro. */
 const INTERACTIVE = 'a, button, input, select, textarea, label, [data-row-action]';
@@ -69,14 +81,14 @@ function larguraPadrao(width?: string): number | undefined {
 
 /**
  * Tabela genérica (cabeçalho fixo, coluna ordenável por clique, linha com hover/clique) —
- * base compartilhada por Produtos, Clientes, Veículos, OS e Usuários. Com `columnPrefsKey`, também permite
- * redimensionar (arrastar a borda do cabeçalho) e reordenar colunas (arrastar o cabeçalho) tipo planilha,
- * lembrando por navegador via localStorage — nunca sincroniza entre dispositivos/usuários.
+ * base compartilhada por Produtos, Clientes, Veículos, OS e Usuários. Com `columnPrefsKey`, vira planilha:
+ * - arrastar a borda do cabeçalho muda a largura (duplo clique ajusta ao conteúdo; setas no teclado);
+ * - arrastar o cabeçalho muda a ordem (linha azul mostra onde cai; Esc cancela; rola sozinho na borda);
+ * - botão "Colunas" escolhe quais aparecem e reordena pelo teclado.
  *
- * Redimensionar: enquanto ninguém mexeu nas larguras, a tabela usa o layout automático do navegador (como
- * sempre foi). No primeiro ajuste as larguras atuais são "congeladas" (nada pula) e a tabela passa a
- * `table-layout: fixed`: mexer numa coluna não empurra nem encolhe as outras. Durante o arraste a largura
- * vai direto no <col> (sem re-render das linhas) e só é gravada ao soltar.
+ * Largura: enquanto ninguém mexeu, a tabela usa o layout automático do navegador. No primeiro ajuste as
+ * larguras atuais são "congeladas" (nada pula) e a tabela passa a `table-layout: fixed`. Durante o arraste
+ * a largura vai direto no <col> (sem re-render das linhas) e só é gravada ao soltar.
  */
 export function Table<T>({
   columns,
@@ -91,32 +103,44 @@ export function Table<T>({
   renderMobileCard,
   stale = false,
 }: TableProps<T>) {
-  const [prefs, setPrefs] = useState<ColumnPrefs>(() => (columnPrefsKey ? (loadPrefs(columnPrefsKey) ?? EMPTY_PREFS) : EMPTY_PREFS));
-  const [dragOverKey, setDragOverKey] = useState<string | null>(null);
+  const userId = useAuthStore((s) => s.user?.id);
+  const chaveSalva = columnPrefsKey ? prefsKey(columnPrefsKey, userId) : undefined;
+  const carregar = (): ColumnPrefs => (chaveSalva ? (loadPrefs(chaveSalva, columnPrefsKey) ?? EMPTY_PREFS) : EMPTY_PREFS);
+
+  const [prefs, setPrefs] = useState<ColumnPrefs>(carregar);
   const prefsRef = useRef(prefs);
   useEffect(() => {
     prefsRef.current = prefs;
   }, [prefs]);
+  const [arrastando, setArrastando] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
   const guideRef = useRef<HTMLDivElement>(null);
+  const guideLabelRef = useRef<HTMLSpanElement>(null);
+  const marcadorRef = useRef<HTMLDivElement>(null);
+  const fantasmaRef = useRef<HTMLDivElement>(null);
   const colRefs = useRef<Record<string, HTMLTableColElement | null>>({});
-  const dragKey = useRef<string | null>(null);
   const resizeAtivo = useRef(false);
+  const ignorarProximoClique = useRef(false);
   const ultimoToqueNaAlca = useRef<{ key: string; em: number } | null>(null);
 
-  // Troca de tela/aba com outra chave: recarrega a preferência daquela tabela.
-  const chaveCarregada = useRef(columnPrefsKey);
+  // Troca de tela/aba/usuário: recarrega a preferência daquela tabela.
+  const chaveCarregada = useRef(chaveSalva);
   useEffect(() => {
-    if (chaveCarregada.current === columnPrefsKey) return;
-    chaveCarregada.current = columnPrefsKey;
-    setPrefs(columnPrefsKey ? (loadPrefs(columnPrefsKey) ?? EMPTY_PREFS) : EMPTY_PREFS);
-  }, [columnPrefsKey]);
+    if (chaveCarregada.current === chaveSalva) return;
+    chaveCarregada.current = chaveSalva;
+    setPrefs(carregar());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chaveSalva]);
 
-  const displayColumns = useMemo(() => {
-    const moveis = columns.filter((col) => !travada(col));
-    return [...applyOrder(moveis, prefs.order), ...columns.filter((col) => travada(col))];
-  }, [columns, prefs.order]);
+  const moveisOrdenadas = useMemo(
+    () => applyOrder(columns.filter((col) => !travada(col)), prefs.order),
+    [columns, prefs.order],
+  );
+  const displayColumns = useMemo(
+    () => [...moveisOrdenadas.filter((col) => !prefs.hidden.includes(col.key)), ...columns.filter((col) => travada(col))],
+    [moveisOrdenadas, columns, prefs.hidden],
+  );
   const widths = prefs.widths;
   const fixed = Boolean(columnPrefsKey) && displayColumns.some((col) => widths[col.key] !== undefined);
   const larguraDaColuna = (col: TableColumn<T>): number | undefined =>
@@ -126,13 +150,20 @@ export function Table<T>({
 
   function persistir(proximo: ColumnPrefs) {
     setPrefs(proximo);
-    if (columnPrefsKey) savePrefs(columnPrefsKey, proximo);
+    if (chaveSalva) savePrefs(chaveSalva, proximo);
   }
 
   function restaurarColunas() {
-    if (columnPrefsKey) clearPrefs(columnPrefsKey);
+    if (chaveSalva) {
+      clearPrefs(chaveSalva);
+      // Sem isso, "restaurar" cairia de novo na preferência antiga (compartilhada) do navegador.
+      savePrefs(chaveSalva, EMPTY_PREFS);
+    }
     setPrefs(EMPTY_PREFS);
   }
+
+  /** Ordem completa das colunas móveis (inclusive escondidas) — base pra mover sem perder as ocultas. */
+  const ordemCompleta = () => moveisOrdenadas.map((col) => col.key);
 
   /** Mede todas as colunas hoje na tela e as grava como larguras explícitas, sem nada mudar de tamanho. */
   function congelarLarguras() {
@@ -157,7 +188,7 @@ export function Table<T>({
 
   function definirLargura(col: TableColumn<T>, largura: number) {
     const atual = prefsRef.current;
-    persistir({ order: atual.order, widths: { ...atual.widths, [col.key]: clampWidth(largura) } });
+    persistir({ ...atual, widths: { ...atual.widths, [col.key]: clampWidth(largura) } });
   }
 
   function iniciarRedimensionamento(event: PointerEvent<HTMLSpanElement>, col: TableColumn<T>) {
@@ -208,6 +239,7 @@ export function Table<T>({
       colEl.style.width = `${proxima}px`;
       atualizarLarguraDaTabela();
       if (guia) guia.style.transform = `translateX(${esquerdaInicial + proxima}px)`;
+      if (guideLabelRef.current) guideLabelRef.current.textContent = `${proxima} px`;
     };
     const limpar = () => {
       handle.removeEventListener('pointermove', mover);
@@ -291,29 +323,131 @@ export function Table<T>({
     }
   }
 
-  function aoComecarArrastarColuna(event: DragEvent<HTMLTableCellElement>, key: string) {
-    if (!columnPrefsKey || resizeAtivo.current) {
-      event.preventDefault();
-      return;
-    }
-    dragKey.current = key;
-    event.dataTransfer.effectAllowed = 'move';
-    // Firefox só inicia o arraste se algum dado for definido.
-    event.dataTransfer.setData('text/plain', key);
+  /**
+   * Arrastar o cabeçalho pra mudar a ordem (ponteiro, não o drag-and-drop nativo): o cabeçalho acompanha
+   * o mouse, a linha azul mostra onde vai cair e a tabela rola sozinha perto da borda. Movimento menor que
+   * LIMIAR_ARRASTE continua sendo clique (ordenar). Esc cancela.
+   */
+  function iniciarArrasteDeColuna(event: PointerEvent<HTMLTableCellElement>, col: TableColumn<T>) {
+    if (!columnPrefsKey || travada(col) || resizeAtivo.current) return;
+    if (event.pointerType !== 'mouse' || event.button !== 0) return;
+    const wrapper = wrapperRef.current;
+    const marcador = marcadorRef.current;
+    const fantasma = fantasmaRef.current;
+    if (!wrapper || !marcador || !fantasma) return;
+
+    const xInicial = event.clientX;
+    const yInicial = event.clientY;
+    let ativo = false;
+    let destino = -1;
+    let ultimoX = event.clientX;
+    let rolagem = 0;
+
+    const visiveisMoveis = () =>
+      [...(tableRef.current?.querySelectorAll<HTMLElement>('thead th[data-col][data-movel="1"]') ?? [])];
+
+    /** Índice de inserção entre as colunas visíveis, pela metade de cada cabeçalho. */
+    const calcularDestino = (x: number) => {
+      const ths = visiveisMoveis();
+      let indice = ths.length;
+      for (let i = 0; i < ths.length; i++) {
+        const r = ths[i]!.getBoundingClientRect();
+        if (x < r.left + r.width / 2) {
+          indice = i;
+          break;
+        }
+      }
+      const ref = ths[Math.min(indice, ths.length - 1)];
+      if (ref) {
+        const r = ref.getBoundingClientRect();
+        const borda = indice < ths.length ? r.left : r.right;
+        marcador.style.transform = `translateX(${borda - wrapper.getBoundingClientRect().left + wrapper.scrollLeft}px)`;
+      }
+      destino = indice;
+    };
+
+    const rolarNaBorda = () => {
+      rolagem = 0;
+      if (!ativo) return;
+      const r = wrapper.getBoundingClientRect();
+      const passo = ultimoX < r.left + BORDA_AUTOSCROLL ? -14 : ultimoX > r.right - BORDA_AUTOSCROLL ? 14 : 0;
+      if (passo !== 0) {
+        wrapper.scrollLeft += passo;
+        calcularDestino(ultimoX);
+        rolagem = requestAnimationFrame(rolarNaBorda);
+      }
+    };
+
+    const mover = (ev: globalThis.PointerEvent) => {
+      ultimoX = ev.clientX;
+      if (!ativo) {
+        if (Math.hypot(ev.clientX - xInicial, ev.clientY - yInicial) < LIMIAR_ARRASTE) return;
+        ativo = true;
+        setArrastando(col.key);
+        fantasma.textContent = col.header;
+        fantasma.style.display = 'block';
+        marcador.style.display = 'block';
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+      }
+      fantasma.style.transform = `translate(${ev.clientX + 12}px, ${ev.clientY + 12}px)`;
+      calcularDestino(ev.clientX);
+      if (!rolagem) rolagem = requestAnimationFrame(rolarNaBorda);
+    };
+
+    const limpar = () => {
+      window.removeEventListener('pointermove', mover);
+      window.removeEventListener('pointerup', soltar);
+      window.removeEventListener('keydown', teclar, true);
+      if (rolagem) cancelAnimationFrame(rolagem);
+      fantasma.style.display = 'none';
+      marcador.style.display = 'none';
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      setArrastando(null);
+    };
+
+    const soltar = () => {
+      limpar();
+      if (!ativo) return;
+      // O clique que o navegador dispara ao soltar não pode virar "ordenar por esta coluna".
+      ignorarProximoClique.current = true;
+      window.setTimeout(() => {
+        ignorarProximoClique.current = false;
+      }, 0);
+      const chavesVisiveis = visiveisMoveis().map((el) => el.dataset.col!);
+      if (destino < 0) return;
+      // Destino é entre as visíveis; traduz pra posição na ordem completa (que inclui as escondidas).
+      const ordem = ordemCompleta();
+      const antesDe = chavesVisiveis[destino];
+      const posicao = antesDe ? ordem.indexOf(antesDe) : ordem.indexOf(chavesVisiveis[chavesVisiveis.length - 1]!) + 1;
+      const nova = moverColuna(ordem, col.key, posicao);
+      if (nova !== ordem) persistir({ ...prefsRef.current, order: nova });
+    };
+
+    const teclar = (ev: globalThis.KeyboardEvent) => {
+      if (ev.key !== 'Escape') return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      ativo = false;
+      limpar();
+    };
+
+    window.addEventListener('pointermove', mover);
+    window.addEventListener('pointerup', soltar);
+    window.addEventListener('keydown', teclar, true);
   }
 
-  function aoSoltarColuna(targetKey: string) {
-    setDragOverKey(null);
-    if (!columnPrefsKey || !dragKey.current || dragKey.current === targetKey) return;
-    const atual = displayColumns.filter((c) => !travada(c)).map((c) => c.key);
-    const de = atual.indexOf(dragKey.current);
-    const para = atual.indexOf(targetKey);
-    dragKey.current = null;
-    if (de === -1 || para === -1) return;
-    const proxima = [...atual];
-    proxima.splice(de, 1);
-    proxima.splice(para, 0, atual[de]!);
-    persistir({ order: proxima, widths: prefsRef.current.widths });
+  function moverPeloSeletor(key: string, direcao: -1 | 1) {
+    const ordem = ordemCompleta();
+    const de = ordem.indexOf(key);
+    const nova = moverColuna(ordem, key, direcao === 1 ? de + 2 : de - 1);
+    if (nova !== ordem) persistir({ ...prefsRef.current, order: nova });
+  }
+
+  function alternarColuna(key: string) {
+    const atual = prefsRef.current;
+    persistir({ ...atual, hidden: alternarVisivel(atual.hidden, key, ordemCompleta()) });
   }
 
   function aoClicarNaLinha(row: T, event: MouseEvent<HTMLElement>) {
@@ -333,11 +467,15 @@ export function Table<T>({
 
   return (
     <div className={stale ? `${styles.root} ${styles.stale}` : styles.root} aria-busy={stale || undefined}>
-      {columnPrefsKey && hasCustomPrefs(prefs) && (
+      {columnPrefsKey && (
         <div className={styles.toolbar}>
-          <button type="button" className={styles.resetButton} onClick={restaurarColunas}>
-            Restaurar colunas
-          </button>
+          <ColumnChooser
+            itens={moveisOrdenadas.map((col) => ({ key: col.key, label: col.header, visivel: !prefs.hidden.includes(col.key) }))}
+            onAlternar={alternarColuna}
+            onMover={moverPeloSeletor}
+            onRestaurar={restaurarColunas}
+            personalizado={hasCustomPrefs(prefs)}
+          />
         </div>
       )}
       <div className={styles.wrapper} ref={wrapperRef}>
@@ -410,26 +548,19 @@ export function Table<T>({
                 const isSorted = sortBy === col.key;
                 const clickable = col.sortable && onSortChange;
                 const bloqueada = travada(col);
+                const movel = Boolean(columnPrefsKey) && !bloqueada;
                 return (
                   <th
                     key={col.key}
                     data-col={col.key}
-                    draggable={Boolean(columnPrefsKey) && !bloqueada}
-                    onDragStart={(event) => aoComecarArrastarColuna(event, col.key)}
-                    onDragOver={(event) => {
-                      if (!columnPrefsKey || !dragKey.current || bloqueada) return;
-                      event.preventDefault();
-                      setDragOverKey(col.key);
-                    }}
-                    onDragLeave={() => setDragOverKey((atual) => (atual === col.key ? null : atual))}
-                    onDragEnd={() => setDragOverKey(null)}
-                    onDrop={() => aoSoltarColuna(col.key)}
+                    data-movel={movel ? '1' : undefined}
+                    onPointerDown={movel ? (event) => iniciarArrasteDeColuna(event, col) : undefined}
                     className={[
                       styles.th,
                       col.align === 'right' ? styles.alignRight : '',
                       clickable ? styles.sortable : '',
-                      columnPrefsKey && !bloqueada ? styles.thDraggable : '',
-                      dragOverKey === col.key ? styles.thDragOver : '',
+                      movel ? styles.thDraggable : '',
+                      arrastando === col.key ? styles.thArrastando : '',
                       bloqueada ? styles.lockedCell : '',
                       semQuebra(col) ? styles.nowrap : '',
                     ]
@@ -437,9 +568,17 @@ export function Table<T>({
                       .join(' ')}
                     style={!fixed && col.width ? { width: col.width } : undefined}
                     aria-sort={isSorted ? (sortOrder === 'desc' ? 'descending' : 'ascending') : undefined}
+                    title={movel ? 'Arraste para mudar a ordem' : undefined}
                   >
                     {clickable ? (
-                      <button type="button" className={styles.thButton} onClick={() => onSortChange(col.key)}>
+                      <button
+                        type="button"
+                        className={styles.thButton}
+                        onClick={() => {
+                          if (ignorarProximoClique.current) return;
+                          onSortChange(col.key);
+                        }}
+                      >
                         {col.header}
                         <span className={styles.sortIcon} aria-hidden="true">
                           {isSorted ? (sortOrder === 'desc' ? '↓' : '↑') : '↕'}
@@ -448,7 +587,7 @@ export function Table<T>({
                     ) : (
                       <span className={styles.thContent}>{col.header}</span>
                     )}
-                    {columnPrefsKey && !bloqueada && (
+                    {movel && (
                       <span
                         className={styles.resizeHandle}
                         role="separator"
@@ -457,7 +596,6 @@ export function Table<T>({
                         aria-valuemin={MIN_COLUMN_WIDTH}
                         aria-valuenow={widths[col.key]}
                         tabIndex={0}
-                        draggable={false}
                         title="Arraste para ajustar a largura. Duplo clique ajusta ao conteúdo."
                         onPointerDown={(event) => iniciarRedimensionamento(event, col)}
                         onKeyDown={(event) => aoTeclarNaAlca(event, col, indice)}
@@ -503,6 +641,7 @@ export function Table<T>({
                         col.mono ? styles.mono : '',
                         travada(col) ? styles.lockedCell : '',
                         semQuebra(col) ? styles.nowrap : '',
+                        arrastando === col.key ? styles.tdArrastando : '',
                       ]
                         .filter(Boolean)
                         .join(' ')}
@@ -516,8 +655,12 @@ export function Table<T>({
             ))}
           </tbody>
         </table>
-        <div ref={guideRef} className={styles.guide} aria-hidden="true" />
+        <div ref={guideRef} className={styles.guide} aria-hidden="true">
+          <span ref={guideLabelRef} className={styles.guideLabel} />
+        </div>
+        <div ref={marcadorRef} className={styles.marcador} aria-hidden="true" />
       </div>
+      <div ref={fantasmaRef} className={styles.fantasma} aria-hidden="true" />
     </div>
   );
 }

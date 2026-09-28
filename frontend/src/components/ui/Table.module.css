@@ -118,13 +118,53 @@
 
 .thDraggable {
   position: relative;
+  cursor: grab;
 }
 .thDraggable:hover {
   background: var(--color-surface);
 }
 
-.thDragOver {
-  box-shadow: inset 2px 0 0 var(--color-primary);
+/* Coluna sendo arrastada fica esmaecida no lugar de origem até soltar. */
+.thArrastando,
+.tdArrastando {
+  opacity: 0.35;
+}
+
+/* Linha azul que mostra onde a coluna vai cair. */
+.marcador {
+  display: none;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 3px;
+  margin-left: -1px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-surface);
+  pointer-events: none;
+  z-index: 4;
+}
+
+/* Cabeçalho que acompanha o mouse durante o arraste. */
+.fantasma {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-toast);
+  padding: 6px 12px;
+  border: 1px solid var(--color-primary);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-elevated);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  box-shadow: var(--shadow-lg);
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 /* Área de clique de 10 px, traço visível de 2 px só no hover/foco/arraste. */
@@ -178,11 +218,24 @@
   left: 0;
   width: 2px;
   margin-left: -1px;
-  background: var(--color-primary);
-  opacity: 0.6;
+  background: color-mix(in srgb, var(--color-primary) 60%, transparent);
   pointer-events: none;
   z-index: 3;
   will-change: transform;
+}
+
+/* Largura atual enquanto arrasta a borda. */
+.guideLabel {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .thContent {
@@ -319,6 +372,10 @@ tbody tr:last-child .td {
 }
 
 @media (max-width: 899px) {
+  /* Celular mostra cartões, não colunas: o seletor de colunas não se aplica. */
+  .toolbar {
+    display: none;
+  }
   .wrapper {
     margin-inline: 0;
     overflow-x: visible;
