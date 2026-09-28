@@ -109,6 +109,9 @@ export async function criarOS(
   if (!cliente) {
     throw new ValidationError(`Cliente com código "${input.clienteCodigo}" não encontrado.`);
   }
+  if (cliente.ativo === false) {
+    throw new ValidationError('Cliente inativo no CHERP. Ative o cadastro antes de abrir a OS.');
+  }
   const equipamento = await equipamentoRepository.buscarPorCodigo(input.equipamentoCodigo);
   if (!equipamento) {
     throw new ValidationError(`Equipamento com código "${input.equipamentoCodigo}" não encontrado.`);
