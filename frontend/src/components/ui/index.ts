@@ -34,6 +34,7 @@ export { PageHeader } from './PageHeader.js';
 export { ResultsSummary } from './ResultsSummary.js';
 export { EditButton } from './EditButton.js';
 export { RowActionButton } from './RowActionButton.js';
+export { RowActionsMenu, type RowActionItem } from './RowActionsMenu.js';
 export { PrintButton } from './PrintButton.js';
 export { ExportButtons } from './ExportButtons.js';
 export { RequiredMark } from './RequiredMark.js';
