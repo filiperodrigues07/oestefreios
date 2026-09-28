@@ -17,11 +17,15 @@ export interface MoreActionItem {
 interface OSMoreActionsProps {
   items: MoreActionItem[];
   loading?: boolean;
+  /** Rótulo do botão (some no celular, fica só o ícone). Padrão: "Mais ações". */
+  label?: string;
+  icon?: IconName;
+  className?: string;
 }
 
 /** Menu "Mais ações": ações secundárias da OS saem da barra pra ela não virar uma fileira de botões.
  * Ação perigosa (danger) fica sempre por último, separada. Teclado igual ao ExportButtons. */
-export function OSMoreActions({ items, loading }: OSMoreActionsProps) {
+export function OSMoreActions({ items, loading, label = 'Mais ações', icon = 'more', className }: OSMoreActionsProps) {
   const [aberto, setAberto] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -68,7 +72,7 @@ export function OSMoreActions({ items, loading }: OSMoreActionsProps) {
   }
 
   return (
-    <div className={styles.wrapper} ref={wrapperRef}>
+    <div className={`${styles.wrapper} ${className ?? ''}`} ref={wrapperRef}>
       <Button
         ref={triggerRef}
         type="button"
@@ -84,10 +88,10 @@ export function OSMoreActions({ items, loading }: OSMoreActionsProps) {
         }}
         aria-expanded={aberto}
         aria-haspopup="menu"
-        aria-label="Mais ações"
+        aria-label={label}
       >
-        <ActionIcon name="more" />
-        <span className={styles.triggerLabel}>Mais ações</span>
+        <ActionIcon name={icon} />
+        <span className={styles.triggerLabel}>{label}</span>
         <span className={styles.triggerChevron}><ActionIcon name="chevronDown" size={14} /></span>
       </Button>
       {aberto && (

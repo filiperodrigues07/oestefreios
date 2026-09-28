@@ -2,7 +2,9 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { prefetchOS } from '../routes/prefetch.js';
-import { baixarOSPdf, duplicarOS, excluirOS, listarOS, type OSSortBy } from '../api/os.api.js';
+import { baixarOSPdf, duplicarOS, excluirOS, listarOS, type OsMessageChannel, type OSSortBy } from '../api/os.api.js';
+import { OSMessageDialog } from '../components/os/OSMessageDialog.js';
+import { getUserErrorMessage } from '../utils/errorPresentation.js';
 import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import { baixarRelatorioOS } from '../api/relatorios.api.js';
 import { CurrencyCell } from '../components/ui/CurrencyCell.js';
@@ -32,10 +34,10 @@ import {
   MobileFab,
   PageHeader,
   Pagination,
-  PrintButton,
   ReasonDialog,
   RefreshButton,
-  RowActionButton,
+  RowActionsMenu,
+  type RowActionItem,
   ResultsSummary,
   SearchInput,
   ResponsiveFilters,
@@ -103,6 +105,25 @@ export function OSListPage() {
   const { showToast } = useToast();
   const [duplicando, setDuplicando] = useState<OrdemServicoDTO | null>(null);
   const [excluindo, setExcluindo] = useState<OrdemServicoDTO | null>(null);
+  const [enviando, setEnviando] = useState<{ os: OrdemServicoDTO; canal: OsMessageChannel } | null>(null);
+  const podeEnviar = hasPermission('OS_CHANGE_STATUS');
+
+  // Coluna Ações = lápis + "⋯": imprimir, enviar e gerenciar ficam no menu, a coluna não cresce a cada ação nova.
+  const acoesDaOS = (os: OrdemServicoDTO): RowActionItem[] => [
+    { key: 'print', label: 'Imprimir / baixar PDF', icon: 'print', onSelect: () => baixarOSPdf(os.id, os.numero).catch((err: unknown) => {
+      showToast(getUserErrorMessage(err, 'Não foi possível gerar o PDF.'), 'danger');
+    }) },
+    ...(podeEnviar
+      ? [
+          { key: 'whatsapp', label: 'Enviar por WhatsApp', icon: 'whatsapp' as const, onSelect: () => setEnviando({ os, canal: 'whatsapp' }) },
+          { key: 'email', label: 'Enviar por e-mail', icon: 'mail' as const, onSelect: () => setEnviando({ os, canal: 'email' }) },
+        ]
+      : []),
+    ...(podeDuplicar ? [{ key: 'duplicate', label: 'Duplicar OS', icon: 'copy' as const, separar: true, onSelect: () => setDuplicando(os) }] : []),
+    ...(osExcluivel(os)
+      ? [{ key: 'delete', label: 'Excluir OS', icon: 'delete' as const, danger: true, separar: !podeDuplicar, onSelect: () => setExcluindo(os) }]
+      : []),
+  ];
 
   // Mesma regra do backend (assertNaoFinalizada): só OS aberta pode ser excluída.
   const osExcluivel = (os: OrdemServicoDTO) =>
@@ -347,20 +368,11 @@ export function OSListPage() {
       key: 'acoes',
       header: 'Ações',
       align: 'right' as const,
-      width: `${48 + (podeEditar ? 44 : 0) + (podeDuplicar ? 44 : 0) + (podeExcluir ? 44 : 0)}px`,
+      width: `${podeEditar ? 104 : 64}px`,
       render: (os: OrdemServicoDTO) => (
         <div style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
-          <PrintButton
-            label={`Imprimir OS #${os.numero}`}
-            onImprimir={() => baixarOSPdf(os.id, os.numero)}
-          />
           {podeEditar && <EditButton to={`/os/${os.id}`} label={`Editar OS #${os.numero}`} />}
-          {podeDuplicar && (
-            <RowActionButton icon="copy" label={`Duplicar OS #${os.numero}`} onClick={() => setDuplicando(os)} />
-          )}
-          {osExcluivel(os) && (
-            <RowActionButton icon="delete" tone="danger" label={`Excluir OS #${os.numero}`} onClick={() => setExcluindo(os)} />
-          )}
+          <RowActionsMenu label={`Ações da OS #${os.numero}`} items={acoesDaOS(os)} />
         </div>
       ),
     },
@@ -583,19 +595,10 @@ export function OSListPage() {
                     ]}
                     actions={
                       <>
-                        <PrintButton
-                          label={`Imprimir OS #${os.numero}`}
-                          onImprimir={() => baixarOSPdf(os.id, os.numero)}
-                        />
                         {podeEditar && (
                           <EditButton to={`/os/${os.id}`} label={`Editar OS #${os.numero}`} />
                         )}
-                        {podeDuplicar && (
-                          <RowActionButton icon="copy" label={`Duplicar OS #${os.numero}`} onClick={() => setDuplicando(os)} />
-                        )}
-                        {osExcluivel(os) && (
-                          <RowActionButton icon="delete" tone="danger" label={`Excluir OS #${os.numero}`} onClick={() => setExcluindo(os)} />
-                        )}
+                        <RowActionsMenu label={`Ações da OS #${os.numero}`} items={acoesDaOS(os)} />
                       </>
                     }
                   />
@@ -635,6 +638,20 @@ export function OSListPage() {
         onCancel={() => setExcluindo(null)}
         onConfirm={(motivo) => excluindo && excluirMutation.mutate({ os: excluindo, motivo })}
       />
+      {enviando && (
+        <OSMessageDialog
+          key={`${enviando.os.id}-${enviando.canal}`}
+          id={enviando.os.id}
+          clientCode={enviando.os.clienteCodigo}
+          channel={enviando.canal}
+          defaultType={
+            enviando.os.status === 'AGUARDANDO_CLIENTE' ? 'aguardando_cliente'
+              : enviando.os.status === 'AGUARDANDO_PECA' ? 'aguardando_peca'
+                : enviando.os.status === 'CONCLUIDA' ? 'pronta' : 'aberta'
+          }
+          onClose={() => setEnviando(null)}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { baixarOSPdf } from '../../api/os.api.js';
 import { getUserErrorMessage } from '../../utils/errorPresentation.js';
 import { ActionIcon, Button, ConfirmDialog, LinkButton, PriorityBadge, ReasonDialog, useToast } from '../ui/index.js';
@@ -39,6 +38,8 @@ interface OSFormHeaderProps {
   canReopen: boolean;
   onReabrir: (motivo: string) => void;
   reabrindo: boolean;
+  /** Abre o envio da OS ao cliente; ausente quando o usuário não pode enviar. */
+  onEnviar?: (canal: 'whatsapp' | 'email') => void;
 }
 
 export function OSFormHeader({
@@ -67,6 +68,7 @@ export function OSFormHeader({
   canReopen,
   onReabrir,
   reabrindo,
+  onEnviar,
 }: OSFormHeaderProps) {
   const [confirmandoReabrir, setConfirmandoReabrir] = useState(false);
   const cherpDizMais = situacaoAtendimentoCodigo === '000004' || situacaoAtendimentoCodigo === '000005' || situacaoAtendimentoCodigo === '000006';
@@ -75,13 +77,7 @@ export function OSFormHeader({
   const [confirmandoDuplicar, setConfirmandoDuplicar] = useState(false);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const transitions = [status, ...ALLOWED_TRANSITIONS[status]];
-
-  function handleVoltar() {
-    showToast('OS salva com sucesso.', 'success');
-    navigate('/os');
-  }
 
   async function handleImprimir() {
     setImprimindo(true);
@@ -93,6 +89,15 @@ export function OSFormHeader({
       setImprimindo(false);
     }
   }
+
+  // Imprimir e mandar pro cliente num botão só: a barra não cresce com os canais de envio.
+  const enviarItems: MoreActionItem[] = [
+    { key: 'print', label: 'Imprimir / baixar PDF', icon: 'print', disabled: imprimindo, onSelect: () => { void handleImprimir(); } },
+    ...(onEnviar ? [
+      { key: 'whatsapp', label: 'Enviar por WhatsApp', icon: 'whatsapp' as const, onSelect: () => onEnviar('whatsapp') },
+      { key: 'email', label: 'Enviar por e-mail', icon: 'mail' as const, onSelect: () => onEnviar('email') },
+    ] : []),
+  ];
 
   const moreItems: MoreActionItem[] = [
     { key: 'refresh', label: 'Recarregar dados', icon: 'update', disabled: refreshing, onSelect: onRefresh },
@@ -115,10 +120,9 @@ export function OSFormHeader({
         </div>
       </div>
       <div className={styles.actions}>
-        <Button type="button" variant="secondary" size="sm" className={styles.backButton} onClick={handleVoltar}><ActionIcon name="back" />Voltar</Button>
         {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <div className={styles.finalizeAction}><FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} /></div>}
         {canReopen && <Button type="button" size="sm" loading={reabrindo} onClick={() => setConfirmandoReabrir(true)}><ActionIcon name="update" />Reabrir OS</Button>}
-        <Button type="button" variant="secondary" size="sm" className={styles.printButton} onClick={handleImprimir} loading={imprimindo}><ActionIcon name="print" />Imprimir</Button>
+        <OSMoreActions items={enviarItems} loading={imprimindo} label={onEnviar ? 'Imprimir / Enviar' : 'Imprimir'} icon="print" className={styles.sendMenu} />
         <OSMoreActions items={moreItems} loading={refreshing || duplicando || excluindo} />
       </div>
     </div>

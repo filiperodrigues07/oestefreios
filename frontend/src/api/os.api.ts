@@ -116,6 +116,7 @@ export type OsMessageChannel = 'whatsapp' | 'email';
 export interface OsMessagePreview {
   clientName: string;
   whatsapp: string | null;
+  whatsappIssue: 'missing' | 'invalid' | null;
   email: string | null;
   whatsappConsent: boolean;
   messages: Partial<Record<OsMessageType, string>>;

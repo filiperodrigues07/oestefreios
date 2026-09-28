@@ -550,16 +550,13 @@ function OSFormEdit({ id }: { id: string }) {
         canReopen={hasPermission('OS_REOPEN') && Boolean(os.travadoLocal) && (os.situacaoDocumento ?? 0) === 0}
         onReabrir={(motivo) => reabrirMutation.mutate(motivo)}
         reabrindo={reabrirMutation.isPending}
+        onEnviar={hasPermission('OS_CHANGE_STATUS') ? setMessageChannel : undefined}
       />
 
       {/* Resumo fixo — some quem é o cliente/veículo mesmo fora da aba "Dados". */}
       <div className={styles.contextBar}>
         <span className={styles.clientContext}>
           <span className={styles.contextIdentity}><small>Cliente</small><strong>{nomeCliente}</strong></span>
-          {hasPermission('OS_CHANGE_STATUS') && <span className={styles.contactActions} role="group" aria-label="Enviar OS ao cliente">
-            <button type="button" onClick={() => setMessageChannel('whatsapp')} aria-label={`Enviar OS #${os.numero} por WhatsApp`} title="Enviar por WhatsApp"><span className={styles.whatsappGlyph} aria-hidden="true" /></button>
-            <button type="button" onClick={() => setMessageChannel('email')} aria-label={`Enviar OS #${os.numero} por e-mail`} title="Enviar por e-mail"><ActionIcon name="mail" size={20} /></button>
-          </span>}
         </span>
         <span><small>Veículo</small><strong>{descricaoVeiculo}</strong></span>
       </div>
@@ -706,7 +703,7 @@ function OSFormEdit({ id }: { id: string }) {
         }}
       />
       {guard.dialog}
-      {messageChannel && <OSMessageDialog key={messageChannel} id={id} channel={messageChannel}
+      {messageChannel && <OSMessageDialog key={messageChannel} id={id} clientCode={os.clienteCodigo} channel={messageChannel}
         defaultType={os.status === 'AGUARDANDO_CLIENTE' ? 'aguardando_cliente' : os.status === 'AGUARDANDO_PECA' ? 'aguardando_peca' : os.status === 'CONCLUIDA' ? 'pronta' : 'aberta'}
         onClose={() => setMessageChannel(null)} />}
     </div>
