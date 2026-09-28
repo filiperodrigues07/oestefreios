@@ -703,7 +703,7 @@ function OSFormEdit({ id }: { id: string }) {
         }}
       />
       {guard.dialog}
-      {messageChannel && <OSMessageDialog key={messageChannel} id={id} channel={messageChannel}
+      {messageChannel && <OSMessageDialog key={messageChannel} id={id} clientCode={os.clienteCodigo} channel={messageChannel}
         defaultType={os.status === 'AGUARDANDO_CLIENTE' ? 'aguardando_cliente' : os.status === 'AGUARDANDO_PECA' ? 'aguardando_peca' : os.status === 'CONCLUIDA' ? 'pronta' : 'aberta'}
         onClose={() => setMessageChannel(null)} />}
     </div>

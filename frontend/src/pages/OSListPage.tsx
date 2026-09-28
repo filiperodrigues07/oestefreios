@@ -642,6 +642,7 @@ export function OSListPage() {
         <OSMessageDialog
           key={`${enviando.os.id}-${enviando.canal}`}
           id={enviando.os.id}
+          clientCode={enviando.os.clienteCodigo}
           channel={enviando.canal}
           defaultType={
             enviando.os.status === 'AGUARDANDO_CLIENTE' ? 'aguardando_cliente'

@@ -94,12 +94,14 @@ function recipient(channel: Channel, client: { celular?: string; telefone?: stri
 export async function getOsMessagePreview(id: string, permissions: Permission[]) {
   const { os, client } = await loadContext(id);
   const settings = await getWhatsappSettings();
+  const whatsapp = recipient('whatsapp', client);
   const [preference] = await db.select().from(clientNotificationPreferences).where(eq(clientNotificationPreferences.clientCode, os.clienteCodigo));
   const messages = Object.fromEntries(MESSAGE_TYPES.filter((type) => type !== 'resumo_financeiro' || permissions.includes('FINANCIAL_VIEW'))
     .map((type) => [type, renderOsMessage(settings.templates[type], os, client.nome, type)]));
   return {
     clientName: client.nome,
-    whatsapp: recipient('whatsapp', client),
+    whatsapp,
+    whatsappIssue: whatsapp ? null : client.celular?.trim() ? 'invalid' : 'missing',
     email: recipient('email', client),
     whatsappConsent: preference?.whatsappConsent ?? false,
     messages,
