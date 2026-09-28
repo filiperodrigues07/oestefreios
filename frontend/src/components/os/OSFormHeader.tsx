@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
 import { baixarOSPdf } from '../../api/os.api.js';
 import { getUserErrorMessage } from '../../utils/errorPresentation.js';
 import { ActionIcon, Button, ConfirmDialog, LinkButton, PriorityBadge, ReasonDialog, useToast } from '../ui/index.js';
@@ -75,13 +74,7 @@ export function OSFormHeader({
   const [confirmandoDuplicar, setConfirmandoDuplicar] = useState(false);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
   const { showToast } = useToast();
-  const navigate = useNavigate();
   const transitions = [status, ...ALLOWED_TRANSITIONS[status]];
-
-  function handleVoltar() {
-    showToast('OS salva com sucesso.', 'success');
-    navigate('/os');
-  }
 
   async function handleImprimir() {
     setImprimindo(true);
@@ -115,7 +108,6 @@ export function OSFormHeader({
         </div>
       </div>
       <div className={styles.actions}>
-        <Button type="button" variant="secondary" size="sm" className={styles.backButton} onClick={handleVoltar}><ActionIcon name="back" />Voltar</Button>
         {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <div className={styles.finalizeAction}><FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} /></div>}
         {canReopen && <Button type="button" size="sm" loading={reabrindo} onClick={() => setConfirmandoReabrir(true)}><ActionIcon name="update" />Reabrir OS</Button>}
         <Button type="button" variant="secondary" size="sm" className={styles.printButton} onClick={handleImprimir} loading={imprimindo}><ActionIcon name="print" />Imprimir</Button>

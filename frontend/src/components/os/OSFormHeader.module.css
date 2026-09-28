@@ -41,8 +41,7 @@
   .actions > * { flex: 0 0 auto; min-width: 0; }
   .finalizeAction { position: absolute; top: 0; right: 0; z-index: 1; }
   .finalizeAction button { min-height: 44px; padding-inline: 10px; }
-  .backButton, .printButton { width: auto; min-width: 0; padding-inline: 8px; gap: 4px; }
-  .backButton { padding-inline: 6px; }
+  .printButton { width: auto; min-width: 0; padding-inline: 8px; gap: 4px; }
   .actions > :last-child > button { width: 44px; min-width: 44px; padding-inline: 0; justify-content: center; }
 }
 
