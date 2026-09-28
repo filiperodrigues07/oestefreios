@@ -90,7 +90,7 @@ export function ProdutosPage() {
   const colunasProdutos: TableColumn<ProdutoDTO>[] = [
     {
       key: 'codigo',
-      header: 'Código interno',
+      header: 'Código',
       render: (p) => p.codigo,
       mono: true,
       sortable: true,
