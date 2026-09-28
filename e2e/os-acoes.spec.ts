@@ -34,4 +34,24 @@ for (const [nome, viewport] of [['desktop', { width: 1440, height: 900 }], ['cel
     await expect(menu).toBeHidden();
     await expect(botao).toBeFocused();
   });
+
+  test(`cabeçalho da OS: Imprimir / Enviar num botão só (${nome})`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    await login(page);
+    await page.goto('/os?situacaoDocumento=');
+    await page.getByRole('link', { name: /^Editar OS #/ }).first().click();
+
+    const botao = page.getByRole('button', { name: 'Imprimir / Enviar' });
+    await expect(botao).toBeVisible();
+    // Os ícones soltos ao lado do cliente saíram: enviar fica só no menu.
+    await expect(page.getByRole('group', { name: 'Enviar OS ao cliente' })).toHaveCount(0);
+
+    await botao.click();
+    const menu = page.getByRole('menu');
+    await expect(menu.getByRole('menuitem')).toHaveText(['Imprimir / baixar PDF', 'Enviar por WhatsApp', 'Enviar por e-mail']);
+    await page.screenshot({ path: `test-results/os-cabecalho-${nome}.png` });
+
+    await menu.getByRole('menuitem', { name: 'Enviar por WhatsApp' }).click();
+    await expect(page.getByRole('dialog', { name: 'Enviar OS por WhatsApp' })).toBeVisible();
+  });
 }
