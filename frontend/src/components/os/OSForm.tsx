@@ -25,7 +25,7 @@ import { handleMutationError } from '../../pwa/offlineErrorToast.js';
 import { OfflineQueuedError } from '../../pwa/OfflineQueuedError.js';
 import { hasPermission, useAuthStore } from '../../store/authStore.js';
 import { draftKey } from '../../utils/drafts.js';
-import { getErrorPresentation } from '../../utils/errorPresentation.js';
+import { getErrorPresentation, getUserErrorMessage } from '../../utils/errorPresentation.js';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
 import { type OrdemServicoDTO, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
@@ -69,9 +69,8 @@ function osTabLabel(icon: 'clipboard' | 'items' | 'diagnosis' | 'photo' | 'histo
 }
 
 function mensagemErroCriacao(error: unknown): string {
-  if (error instanceof ApiError && error.code === 'CRYPTO_UNAVAILABLE') return error.message;
   const presentation = getErrorPresentation(error);
-  return `${presentation.title}. ${presentation.description}`;
+  return getUserErrorMessage(error, `${presentation.title}. ${presentation.description}`);
 }
 
 /** Tela única de Ordem de Serviço — criação e edição compartilham a mesma estrutura visual. */

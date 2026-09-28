@@ -50,6 +50,15 @@ export async function consultarCep(cep: string) {
 
 export async function atualizarCliente(codigo: string, input: ClienteInput, usuario: AuthenticatedUser, ctx: RequestContext = {}): Promise<Cliente> {
   const before = await getClienteByCodigo(codigo);
+  const documentoMudou = input.documento.replace(/\D/g, '') !== (before.documento ?? '').replace(/\D/g, '');
+  const existente = documentoMudou ? await clienteRepository.buscarPorDocumento(input.documento) : null;
+  if (existente && existente.codigo !== codigo) {
+    throw new ConflictError(
+      `Já existe um cliente cadastrado com o documento "${input.documento}".`,
+      'CLIENT_DUPLICATE',
+      { codigo: existente.codigo, nome: existente.nome },
+    );
+  }
   const cliente = await clienteRepository.atualizar(codigo, input);
   await auditCliente('CLIENTE_UPDATED', codigo, usuario, ctx, { before, after: cliente });
   return cliente;
