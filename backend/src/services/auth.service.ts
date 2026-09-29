@@ -45,6 +45,8 @@ function toLoginResponse(user: UserWithRole, accessToken: string): LoginResponse
       permissions: user.permissions,
       mustChangePassword: user.mustChangePassword,
       cherpUsuarioChave: user.cherpUsuarioChave ?? undefined,
+      osStatusFixo: user.osStatusFixo,
+      osSituacaoAtendimentoFixa: user.osSituacaoAtendimentoFixa,
       isSuperAdmin: user.isSuperAdmin,
     },
   };

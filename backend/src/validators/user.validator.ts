@@ -7,6 +7,8 @@ export const userIdParamSchema = z.object({
 });
 
 const permissionsSchema = z.array(z.enum(PERMISSIONS)).optional();
+const osStatusFixoSchema = z.number().int().min(0).max(6).nullable().optional();
+const osSituacaoAtendimentoFixaSchema = z.enum(['000001', '000002', '000003', '000004', '000005', '000006']).nullable().optional();
 
 export const createUserSchema = z.object({
   name: z.string().trim().min(1, 'Nome é obrigatório.'),
@@ -17,6 +19,8 @@ export const createUserSchema = z.object({
   permissions: permissionsSchema,
   password: securePasswordSchema.optional(),
   cherpUsuarioChave: z.number().int().positive().nullable().optional(),
+  osStatusFixo: osStatusFixoSchema,
+  osSituacaoAtendimentoFixa: osSituacaoAtendimentoFixaSchema,
 });
 
 export const updateUserSchema = z.object({
@@ -26,4 +30,6 @@ export const updateUserSchema = z.object({
   isActive: z.boolean().optional(),
   permissions: permissionsSchema,
   cherpUsuarioChave: z.number().int().positive().nullable().optional(),
+  osStatusFixo: osStatusFixoSchema,
+  osSituacaoAtendimentoFixa: osSituacaoAtendimentoFixaSchema,
 });

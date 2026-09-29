@@ -165,7 +165,8 @@
 }
 
 .userStatus {
-  align-items: flex-start;
+  align-items: center;
+  text-align: center;
 }
 
 .userText span,
@@ -230,6 +231,7 @@
   .userStatus {
     flex-direction: row;
     align-items: center;
+    text-align: left;
     flex-wrap: wrap;
   }
   .userAction button {

@@ -16,6 +16,8 @@ export interface UserWithRole {
   mustChangePassword: boolean;
   sessionVersion: number;
   cherpUsuarioChave: number | null;
+  osStatusFixo: number | null;
+  osSituacaoAtendimentoFixa: string | null;
   isSuperAdmin: boolean;
 }
 
@@ -29,6 +31,8 @@ export interface UserRow {
   roleName: string;
   mustChangePassword: boolean;
   cherpUsuarioChave: number | null;
+  osStatusFixo: number | null;
+  osSituacaoAtendimentoFixa: string | null;
   isSuperAdmin: boolean;
   createdAt: Date;
 }
@@ -47,6 +51,8 @@ export interface CreateUserData {
   isActive: boolean;
   mustChangePassword?: boolean;
   cherpUsuarioChave?: number | null;
+  osStatusFixo?: number | null;
+  osSituacaoAtendimentoFixa?: string | null;
 }
 
 export interface UpdateUserData {
@@ -57,6 +63,8 @@ export interface UpdateUserData {
   isActive?: boolean;
   mustChangePassword?: boolean;
   cherpUsuarioChave?: number | null;
+  osStatusFixo?: number | null;
+  osSituacaoAtendimentoFixa?: string | null;
 }
 
 const USER_ROW_SELECT = {
@@ -67,6 +75,8 @@ const USER_ROW_SELECT = {
   isActive: users.isActive,
   mustChangePassword: users.mustChangePassword,
   cherpUsuarioChave: users.cherpUsuarioChave,
+  osStatusFixo: users.osStatusFixo,
+  osSituacaoAtendimentoFixa: users.osSituacaoAtendimentoFixa,
   isSuperAdmin: users.isSuperAdmin,
   roleId: roles.id,
   roleName: roles.name,
@@ -86,6 +96,8 @@ export class UserRepository {
         mustChangePassword: users.mustChangePassword,
         sessionVersion: users.sessionVersion,
         cherpUsuarioChave: users.cherpUsuarioChave,
+        osStatusFixo: users.osStatusFixo,
+        osSituacaoAtendimentoFixa: users.osSituacaoAtendimentoFixa,
         isSuperAdmin: users.isSuperAdmin,
         roleId: roles.id,
         roleName: roles.name,
@@ -112,6 +124,8 @@ export class UserRepository {
         mustChangePassword: users.mustChangePassword,
         sessionVersion: users.sessionVersion,
         cherpUsuarioChave: users.cherpUsuarioChave,
+        osStatusFixo: users.osStatusFixo,
+        osSituacaoAtendimentoFixa: users.osSituacaoAtendimentoFixa,
         isSuperAdmin: users.isSuperAdmin,
         roleId: roles.id,
         roleName: roles.name,
@@ -124,6 +138,11 @@ export class UserRepository {
 
     const perms = await this.getUserPermissions(row.id);
     return { ...row, permissions: perms };
+  }
+
+  async getFixedOSFilters(userId: string): Promise<{ osStatusFixo: number | null; osSituacaoAtendimentoFixa: string | null }> {
+    const [row] = await db.select({ osStatusFixo: users.osStatusFixo, osSituacaoAtendimentoFixa: users.osSituacaoAtendimentoFixa }).from(users).where(eq(users.id, userId));
+    return row ?? { osStatusFixo: null, osSituacaoAtendimentoFixa: null };
   }
 
   async updatePasswordHash(userId: string, passwordHash: string): Promise<void> {
@@ -231,6 +250,8 @@ export class UserRepository {
         isActive: data.isActive,
         mustChangePassword: data.mustChangePassword ?? false,
         cherpUsuarioChave: data.cherpUsuarioChave ?? null,
+        osStatusFixo: data.osStatusFixo ?? null,
+        osSituacaoAtendimentoFixa: data.osSituacaoAtendimentoFixa ?? null,
       })
       .returning({ id: users.id });
     return row!.id;
@@ -248,6 +269,8 @@ export class UserRepository {
           isActive: data.isActive,
           mustChangePassword: data.mustChangePassword ?? false,
           cherpUsuarioChave: data.cherpUsuarioChave ?? null,
+          osStatusFixo: data.osStatusFixo ?? null,
+          osSituacaoAtendimentoFixa: data.osSituacaoAtendimentoFixa ?? null,
         })
         .returning({ id: users.id });
       const permissionRows = await tx

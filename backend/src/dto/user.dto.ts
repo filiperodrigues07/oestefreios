@@ -13,6 +13,8 @@ export interface UserSummaryDTO {
   isCustom: boolean;
   mustChangePassword: boolean;
   cherpUsuarioChave: number | null;
+  osStatusFixo: number | null;
+  osSituacaoAtendimentoFixa: string | null;
   createdAt: string;
 }
 

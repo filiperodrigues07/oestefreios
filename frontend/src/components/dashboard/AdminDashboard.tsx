@@ -6,17 +6,17 @@ import { OS_DOCUMENT_STATUS_CONFIG, OS_PRIORITY_CONFIG } from '../../constants/o
 import { calendarDateValue } from '../../utils/calendarDate.js';
 import type { DashboardGranularidade, DashboardSerieDTO } from '../../types/dashboard.types.js';
 import type { OSPrioridade } from '../../types/os.types.js';
-import { EmptyState, ErrorState, PriorityBadge, RefreshButton, Skeleton, StatusBadge } from '../ui/index.js';
+import { ActionIcon, EmptyState, ErrorState, PriorityBadge, RefreshButton, Skeleton, StatusBadge } from '../ui/index.js';
 import styles from './AdminDashboard.module.css';
 
 type QuickPeriod = 'hoje' | '7dias' | '30dias' | 'mes' | 'personalizado';
 
-const KPI_CONFIG: Array<{ key: 'total' | 'abertas' | 'geradoPedido' | 'geradoNF' | 'encerradas'; label: string; icon: string; className?: string }> = [
-  { key: 'total', label: 'Total de OS', icon: '⌂', className: styles.kpiTotal },
-  { key: 'abertas', label: 'Abertas', icon: '▤', className: styles.kpiOpen },
-  { key: 'geradoPedido', label: 'Gerado Ped.', icon: '◷', className: styles.kpiWaiting },
-  { key: 'geradoNF', label: 'Gerado NF', icon: '✓', className: styles.kpiDone },
-  { key: 'encerradas', label: 'Encerradas', icon: '×' },
+const KPI_CONFIG: Array<{ key: 'total' | 'abertas' | 'geradoPedido' | 'geradoNF' | 'encerradas'; label: string; icon: 'clipboard' | 'items' | 'history' | 'receipt' | 'ready'; className?: string }> = [
+  { key: 'total', label: 'Total de OS', icon: 'clipboard', className: styles.kpiTotal },
+  { key: 'abertas', label: 'Abertas', icon: 'items', className: styles.kpiOpen },
+  { key: 'geradoPedido', label: 'Gerado Ped.', icon: 'history', className: styles.kpiWaiting },
+  { key: 'geradoNF', label: 'Gerado NF', icon: 'receipt', className: styles.kpiDone },
+  { key: 'encerradas', label: 'Encerradas', icon: 'ready' },
 ];
 
 const PRIORITY_ORDER: OSPrioridade[] = ['ALTA', 'MEDIA', 'NORMAL', 'BAIXA'];
@@ -153,7 +153,7 @@ export function AdminDashboard() {
         <RefreshButton onClick={() => { void refetch(); }} loading={isFetching} />
       </div>
     </header>
-    <section className={styles.kpis}>{KPI_CONFIG.map((item) => <button key={item.key} className={`${styles.kpi} ${item.className}`} onClick={() => navigateStatus(item.key)}><span className={styles.kpiIcon}>{item.icon}</span><span className={styles.kpiLabel}>{item.label}</span><strong>{values[item.key].toLocaleString('pt-BR')}</strong><small>{item.key === 'total' ? 'no período selecionado' : `${data.total ? Math.round((values[item.key] / data.total) * 100) : 0}% do total`}</small><b>›</b></button>)}</section>
+    <section className={styles.kpis}>{KPI_CONFIG.map((item) => <button key={item.key} className={`${styles.kpi} ${item.className}`} onClick={() => navigateStatus(item.key)}><span className={styles.kpiIcon}><ActionIcon name={item.icon} size={21} /></span><span className={styles.kpiLabel}>{item.label}</span><strong>{values[item.key].toLocaleString('pt-BR')}</strong><small>{item.key === 'total' ? 'no período selecionado' : `${data.total ? Math.round((values[item.key] / data.total) * 100) : 0}% do total`}</small><b>›</b></button>)}</section>
     <section className={styles.topGrid}>
       <article className={styles.panel}><header><div><h2>Evolução das Ordens de Serviço</h2><p>Eventos no período; fechamentos podem ser de OS abertas antes</p></div><select value={granularidade} onChange={(e) => setGranularidade(e.target.value as DashboardGranularidade)}><option value="diario">Diário</option><option value="semanal">Semanal</option><option value="mensal">Mensal</option></select></header><div className={styles.legendInline}><span className={styles.openMark} />Aberturas <span className={styles.doneMark} />Fechamentos</div><EvolutionChart series={data.evolucao} /></article>
       <article className={styles.panel}><header><div><h2>Status atual do documento</h2><p>OS abertas no período, classificadas pelo status de hoje no CHERP</p></div></header><Donut total={data.total} counts={data.countsBySituacaoDocumento} /></article>

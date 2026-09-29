@@ -27,7 +27,7 @@ export async function listOSHandler(req: Request, res: Response) {
     page?: number;
     limit?: number;
   };
-  const result = await osService.listOS(filter, req.user!.permissions);
+  const result = await osService.listOS(filter, req.user!.permissions, req.user!.id);
   success(res, result);
 }
 

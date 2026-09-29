@@ -18,7 +18,7 @@ import {
   SITUACAO_FINALIZADA_APP,
   situacaoDaOS,
 } from '../constants/osStatus.js';
-import { hasPermission } from '../store/authStore.js';
+import { hasPermission, useAuthStore } from '../store/authStore.js';
 import { readStoredFilters, writeStoredFilters } from '../utils/filterStorage.js';
 import {
   ActionIcon,
@@ -70,23 +70,29 @@ function formatMoney(value: number): string {
 /** Lista de OS abertas: filtros inteligentes (busca livre + status + prioridade) e colunas ordenáveis. */
 export function OSListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const usuario = useAuthStore((state) => state.user);
+  const statusFixo = usuario?.osStatusFixo == null ? null : String(usuario.osStatusFixo);
+  const atendimentoFixo = usuario?.osSituacaoAtendimentoFixa ?? null;
   const filtrosSalvos = readStoredFilters('os');
   const initialSituacaoDocumento = searchParams.get('situacaoDocumento') ?? filtrosSalvos.get('situacaoDocumento');
-  const [situacaoDocumento, setSituacaoDocumento] = useState(() =>
+  const [situacaoDocumentoSelecionada, setSituacaoDocumento] = useState(() => statusFixo ?? (
     initialSituacaoDocumento === '' ||
     (initialSituacaoDocumento === SITUACAO_FINALIZADA_APP && hasPermission('OS_VIEW_FINALIZADAS')) ||
     (initialSituacaoDocumento !== null && OS_DOCUMENT_STATUS_CONFIG[Number(initialSituacaoDocumento)])
       ? initialSituacaoDocumento
-      : '0',
-  );
+      : '0'
+  ));
   const [prioridade, setPrioridade] = useState<OSPrioridade | ''>(() => {
     const value = searchParams.get('prioridade') ?? filtrosSalvos.get('prioridade');
     return value && OS_PRIORIDADE_OPTIONS.some((o) => o.value === value) ? (value as OSPrioridade) : '';
   });
-  const [situacaoAtendimento, setSituacaoAtendimento] = useState(() => {
+  const [situacaoAtendimentoSelecionada, setSituacaoAtendimento] = useState(() => {
+    if (atendimentoFixo) return atendimentoFixo;
     const value = searchParams.get('situacaoAtendimento') ?? filtrosSalvos.get('situacaoAtendimento');
     return value && SITUACAO_ATENDIMENTO_CONFIG[value] ? value : '';
   });
+  const situacaoDocumento = statusFixo ?? situacaoDocumentoSelecionada;
+  const situacaoAtendimento = atendimentoFixo ?? situacaoAtendimentoSelecionada;
   const [dataInicial, setDataInicial] = useState(() => searchParams.get('dataInicial') ?? filtrosSalvos.get('dataInicial') ?? '');
   const [dataFinal, setDataFinal] = useState(() => searchParams.get('dataFinal') ?? filtrosSalvos.get('dataFinal') ?? '');
   const [busca, setBusca] = useState(() => searchParams.get('busca') ?? filtrosSalvos.get('busca') ?? '');
@@ -219,9 +225,9 @@ export function OSListPage() {
     Number(Boolean(dataInicial) || Boolean(dataFinal));
 
   function limparFiltros() {
-    setSituacaoDocumento('');
+    setSituacaoDocumento(statusFixo ?? '');
     setPrioridade('');
-    setSituacaoAtendimento('');
+    setSituacaoAtendimento(atendimentoFixo ?? '');
     setDataInicial('');
     setDataFinal('');
     setBusca('');
@@ -445,9 +451,10 @@ export function OSListPage() {
           {/* Sem OS_VIEW_FINALIZADAS a lista já vem só com OS em aberto: filtro de situação não se aplica. */}
           {podeVerFinalizadas && (
             <Select
-              label="Status"
+              label={statusFixo !== null ? 'Status (fixo)' : 'Status'}
               placeholder="Todos os status"
               value={situacaoDocumento}
+              disabled={statusFixo !== null}
               onChange={(e) => handleSituacaoDocumentoChange(e.target.value)}
               options={[
                 ...OS_DOCUMENT_STATUS_OPTIONS.slice(0, 1),
@@ -457,9 +464,10 @@ export function OSListPage() {
             />
           )}
           <Select
-            label="Sit. atendimento"
+            label={atendimentoFixo !== null ? 'Sit. atendimento (fixo)' : 'Sit. atendimento'}
             placeholder="Todas"
             value={situacaoAtendimento}
+            disabled={atendimentoFixo !== null}
             onChange={(e) => handleSituacaoAtendimentoChange(e.target.value)}
             options={SITUACAO_ATENDIMENTO_OPTIONS}
           />

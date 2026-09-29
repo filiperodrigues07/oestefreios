@@ -12,6 +12,8 @@ export interface UserSummaryDTO {
   isCustom: boolean;
   mustChangePassword: boolean;
   cherpUsuarioChave: number | null;
+  osStatusFixo: number | null;
+  osSituacaoAtendimentoFixa: string | null;
   createdAt: string;
 }
 
@@ -36,6 +38,8 @@ export interface CreateUserInput {
   permissions?: Permission[];
   password?: string;
   cherpUsuarioChave?: number | null;
+  osStatusFixo?: number | null;
+  osSituacaoAtendimentoFixa?: string | null;
 }
 
 export interface UpdateUserInput {
@@ -45,4 +49,6 @@ export interface UpdateUserInput {
   isActive?: boolean;
   permissions?: Permission[];
   cherpUsuarioChave?: number | null;
+  osStatusFixo?: number | null;
+  osSituacaoAtendimentoFixa?: string | null;
 }

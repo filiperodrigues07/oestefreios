@@ -20,6 +20,8 @@ describe('reenvio de alteração offline', () => {
       roleName: 'Técnico',
       permissions: ['OS_EDIT'],
       mustChangePassword: false,
+      osStatusFixo: null,
+      osSituacaoAtendimentoFixa: null,
       isSuperAdmin: false,
     });
 

@@ -96,7 +96,7 @@ test('avisa sobre foto incompatível antes de enviar', async ({ page }) => {
 test('alinha resumo financeiro com painel de itens', async ({ page }) => {
   mockApi(page);
   await page.goto(`/os/${OS_ID}?tab=itens`);
-  const painel = page.locator('section[class*="itemsSection"] > div').first();
+  const painel = page.locator('section[class*="itemsSection"] > div:visible').first();
   const resumo = page.locator('section[class*="financialSummary"]');
   await expect(painel).toBeVisible();
   await expect(resumo).toBeVisible();

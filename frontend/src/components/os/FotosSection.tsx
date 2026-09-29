@@ -20,6 +20,14 @@ interface FotosSectionProps {
 const MAX_UPLOAD_BYTES = 7.5 * 1024 * 1024; // margem para o corpo multipart no limite de 8 MB do proxy
 const FORMATOS_ACEITOS = new Set(['image/png', 'image/jpeg', 'image/webp']);
 
+/** No app instalado no iOS, o seletor nativo oferece "Tirar foto" sem forçar capture. */
+function capturaDiretaDisponivel(): boolean {
+  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const instalado = window.matchMedia('(display-mode: standalone)').matches
+    || (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return !ios || !instalado;
+}
+
 function FotoCard({ id, imagem, podeEditar, onExcluir, excluindo }: {
   id: string;
   imagem: OSImagemDTO;
@@ -136,6 +144,14 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
   const [confirmando, setConfirmando] = useState<OSImagemDTO | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const arquivoInputRef = useRef<HTMLInputElement>(null);
+  const capturaDireta = capturaDiretaDisponivel();
+
+  function abrirSeletor(input: HTMLInputElement | null) {
+    if (!input) return;
+    // Limpa antes de abrir: após "Usar foto" o arquivo continua associado ao input até o upload.
+    input.value = '';
+    input.click();
+  }
 
   async function enviarArquivos(files: FileList | null) {
     if (!files || files.length === 0) return;
@@ -191,12 +207,9 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
             ref={cameraInputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
-            capture="environment"
+            capture={capturaDireta ? "environment" : undefined}
             hidden
-            onChange={(e) => {
-              void enviarArquivos(e.target.files);
-              e.target.value = '';
-            }}
+            onChange={(e) => { void enviarArquivos(e.target.files); }}
           />
           <input
             ref={arquivoInputRef}
@@ -204,16 +217,13 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
             accept="image/jpeg,image/png,image/webp"
             multiple
             hidden
-            onChange={(e) => {
-              void enviarArquivos(e.target.files);
-              e.target.value = '';
-            }}
+            onChange={(e) => { void enviarArquivos(e.target.files); }}
           />
-          <Button size="sm" variant="secondary" loading={enviando} onClick={() => cameraInputRef.current?.click()}>
+          <Button size="sm" variant="secondary" loading={enviando} onClick={() => abrirSeletor(cameraInputRef.current)}>
             <ActionIcon name="camera" />
             Tirar foto
           </Button>
-          <Button size="sm" variant="secondary" loading={enviando} onClick={() => arquivoInputRef.current?.click()}>
+          <Button size="sm" variant="secondary" loading={enviando} onClick={() => abrirSeletor(arquivoInputRef.current)}>
             Enviar arquivo
           </Button>
         </div>

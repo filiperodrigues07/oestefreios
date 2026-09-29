@@ -25,6 +25,8 @@ export interface CreateUserInput {
   permissions?: Permission[];
   password?: string;
   cherpUsuarioChave?: number | null;
+  osStatusFixo?: number | null;
+  osSituacaoAtendimentoFixa?: string | null;
 }
 
 export interface UpdateUserInput {
@@ -34,6 +36,8 @@ export interface UpdateUserInput {
   isActive?: boolean;
   permissions?: Permission[];
   cherpUsuarioChave?: number | null;
+  osStatusFixo?: number | null;
+  osSituacaoAtendimentoFixa?: string | null;
 }
 
 /** Convite expira em 72h — mais folgado que o reset comum (45min), pois é a primeira senha do usuário. */
@@ -81,6 +85,8 @@ async function toSummaryDTO(row: UserRow): Promise<UserSummaryDTO> {
     isCustom,
     mustChangePassword: row.mustChangePassword,
     cherpUsuarioChave: row.cherpUsuarioChave,
+    osStatusFixo: row.osStatusFixo,
+    osSituacaoAtendimentoFixa: row.osSituacaoAtendimentoFixa,
     createdAt: row.createdAt.toISOString(),
   };
 }
@@ -111,6 +117,8 @@ export async function listUsers(actor?: AuthenticatedUser): Promise<UserSummaryD
       isCustom: !setsEqual(permissions, permissionsByRole.get(row.roleId) ?? []),
       mustChangePassword: row.mustChangePassword,
       cherpUsuarioChave: row.cherpUsuarioChave,
+      osStatusFixo: row.osStatusFixo,
+      osSituacaoAtendimentoFixa: row.osSituacaoAtendimentoFixa,
       createdAt: row.createdAt.toISOString(),
     };
   });
@@ -202,6 +210,8 @@ export async function createUser(
     isActive: input.isActive ?? true,
     mustChangePassword: Boolean(input.password),
     cherpUsuarioChave: input.cherpUsuarioChave,
+    osStatusFixo: input.osStatusFixo,
+    osSituacaoAtendimentoFixa: input.osSituacaoAtendimentoFixa,
   }, input.permissions ?? preset);
 
   await auditUser('USER_CREATED', actor, userId, ctx, { name: input.name, email, roleName: role.name, cherpUsuarioChave: input.cherpUsuarioChave });
@@ -244,13 +254,15 @@ export async function updateUser(
     roleId: input.roleId,
     isActive: input.isActive,
     cherpUsuarioChave: input.cherpUsuarioChave,
+    osStatusFixo: input.osStatusFixo,
+    osSituacaoAtendimentoFixa: input.osSituacaoAtendimentoFixa,
   });
 
   if (input.permissions) {
     await userRepository.setPermissions(id, input.permissions);
   }
 
-  const securityChanged = input.roleId !== undefined || input.isActive !== undefined || input.permissions !== undefined;
+  const securityChanged = input.roleId !== undefined || input.isActive !== undefined || input.permissions !== undefined || input.osStatusFixo !== undefined || input.osSituacaoAtendimentoFixa !== undefined;
   if (securityChanged) {
     await userRepository.bumpSessionVersion(id);
     await refreshTokenRepository.revokeAllForUser(id);

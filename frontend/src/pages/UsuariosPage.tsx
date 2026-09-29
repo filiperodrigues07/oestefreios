@@ -27,6 +27,7 @@ import {
   type TableColumn,
 } from '../components/ui/index.js';
 import { hasPermission } from '../store/authStore.js';
+import { OS_DOCUMENT_STATUS_OPTIONS, SITUACAO_ATENDIMENTO_OPTIONS } from '../constants/osStatus.js';
 import { PERMISSION_GROUPS, PERMISSION_LABELS, type Permission } from '../types/auth.types.js';
 import type { RoleOptionDTO, UserSummaryDTO } from '../types/user.types.js';
 import { isSecurePassword, PASSWORD_RULES } from '../utils/passwordPolicy.js';
@@ -294,6 +295,8 @@ interface FormState {
   isActive: boolean;
   permissions: Permission[];
   cherpUsuarioChave: string;
+  osStatusFixo: string;
+  osSituacaoAtendimentoFixa: string;
   definirSenha: boolean;
   password: string;
   passwordConfirmation: string;
@@ -301,7 +304,7 @@ interface FormState {
 
 function formVazio(roles: RoleOptionDTO[]): FormState {
   const primeiro = roles[0];
-  return { name: '', email: '', roleId: primeiro?.id ?? '', isActive: true, permissions: primeiro?.permissions ?? [], cherpUsuarioChave: '', definirSenha: false, password: '', passwordConfirmation: '' };
+  return { name: '', email: '', roleId: primeiro?.id ?? '', isActive: true, permissions: primeiro?.permissions ?? [], cherpUsuarioChave: '', osStatusFixo: '', osSituacaoAtendimentoFixa: '', definirSenha: false, password: '', passwordConfirmation: '' };
 }
 
 function formDeUsuario(usuario: UserSummaryDTO): FormState {
@@ -312,6 +315,8 @@ function formDeUsuario(usuario: UserSummaryDTO): FormState {
     isActive: usuario.isActive,
     permissions: usuario.permissions,
     cherpUsuarioChave: usuario.cherpUsuarioChave ? String(usuario.cherpUsuarioChave) : '',
+    osStatusFixo: usuario.osStatusFixo == null ? '' : String(usuario.osStatusFixo),
+    osSituacaoAtendimentoFixa: usuario.osSituacaoAtendimentoFixa ?? '',
     definirSenha: false,
     password: '',
     passwordConfirmation: '',
@@ -355,6 +360,8 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
         isActive: form.isActive,
         permissions: form.permissions,
         cherpUsuarioChave: form.cherpUsuarioChave ? Number(form.cherpUsuarioChave) : null,
+        osStatusFixo: form.osStatusFixo === '' ? null : Number(form.osStatusFixo),
+        osSituacaoAtendimentoFixa: form.osSituacaoAtendimentoFixa || null,
         ...(!usuario && form.definirSenha ? { password: form.password } : {}),
       };
       return usuario ? updateUser(usuario.id, payload) : createUser(payload);
@@ -449,6 +456,24 @@ function UsuarioFormModal({ open, usuario, roles, onClose, onSaved }: UsuarioFor
               label="Usuário ativo"
               checked={form.isActive}
               onChange={(e) => setForm({ ...form, isActive: e.target.checked })}
+            />
+          </div>
+        </Card>
+
+        <Card>
+          <h3 className={styles.cardTitle}>Filtros fixos da lista de OS</h3>
+          <div className={styles.fieldsCol}>
+            <Select
+              label="Status"
+              value={form.osStatusFixo}
+              options={[{ value: '', label: 'Não fixar' }, ...OS_DOCUMENT_STATUS_OPTIONS]}
+              onChange={(e) => setForm({ ...form, osStatusFixo: e.target.value })}
+            />
+            <Select
+              label="Situação de atendimento"
+              value={form.osSituacaoAtendimentoFixa}
+              options={[{ value: '', label: 'Não fixar' }, ...SITUACAO_ATENDIMENTO_OPTIONS]}
+              onChange={(e) => setForm({ ...form, osSituacaoAtendimentoFixa: e.target.value })}
             />
           </div>
         </Card>

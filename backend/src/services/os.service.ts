@@ -1,4 +1,5 @@
 import { toOSDTO } from '../dto/mappers/os.mapper.js';
+import { userRepository } from '../repositories/postgres/UserRepository.js';
 import type { AdminOSDTO, OperationalOSDTO } from '../dto/os.dto.js';
 import { ConflictError } from '../errors/ConflictError.js';
 import { NotFoundError } from '../errors/NotFoundError.js';
@@ -74,13 +75,17 @@ function assertNaoFinalizada(os: OrdemServico): void {
 export async function listOS(
   filter: OSListFilter,
   permissions: Permission[],
+  userId?: string,
 ): Promise<{ items: (OperationalOSDTO | AdminOSDTO)[]; total: number }> {
   // Sem OS_VIEW_FINALIZADAS, OS finalizada pelo app some da lista (a OS continua abrindo só leitura por link).
   const verFinalizadas = permissions.includes('OS_VIEW_FINALIZADAS');
+  const fixed = userId ? await userRepository.getFixedOSFilters(userId) : null;
   const result = await osRepository.listar({
     ...filter,
+    ...(fixed?.osStatusFixo != null ? { situacaoDocumento: fixed.osStatusFixo } : {}),
+    ...(fixed?.osSituacaoAtendimentoFixa ? { situacaoAtendimento: fixed.osSituacaoAtendimentoFixa } : {}),
     ocultarFinalizadasApp: !verFinalizadas,
-    somenteFinalizadasApp: verFinalizadas && filter.somenteFinalizadasApp,
+    somenteFinalizadasApp: verFinalizadas && fixed?.osStatusFixo == null && filter.somenteFinalizadasApp,
   });
   return { items: result.items.map((os) => toOSDTO(os, permissions)), total: result.total };
 }

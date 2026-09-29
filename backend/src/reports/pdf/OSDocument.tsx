@@ -110,6 +110,16 @@ export function OSDocument({ os, branding }: Props) {
               <Text style={styles.campoValor}>{os.equipamentoDescricao || os.equipamentoCodigo}</Text>
               <Text style={styles.campoLabel}>Código</Text>
               <Text style={styles.campoValor}>{os.equipamentoCodigo}</Text>
+              <View style={styles.datas}>
+                <View style={styles.gridCol}>
+                  <Text style={styles.campoLabel}>KM inicial</Text>
+                  <Text style={styles.campoValor}>{os.kmAtual !== undefined ? os.kmAtual.toLocaleString('pt-BR') : '—'}</Text>
+                </View>
+                <View style={styles.gridCol}>
+                  <Text style={styles.campoLabel}>KM final</Text>
+                  <Text style={styles.campoValor}>{os.kmFinal !== undefined ? os.kmFinal.toLocaleString('pt-BR') : '—'}</Text>
+                </View>
+              </View>
             </View>
           </View>
 
@@ -155,7 +165,7 @@ export function OSDocument({ os, branding }: Props) {
               </View>
               {os.produtos.map((p, i) => (
                 <View key={p.produtoCodigo} style={[styles.tr, { backgroundColor: i % 2 === 1 ? LINHA_ALT : '#ffffff' }]}>
-                  <Text style={[styles.td, { flex: 2 }]}>{p.descricao}</Text>
+                  <Text style={[styles.td, { flex: 2 }]}>{p.descricao}{p.descricaoComplementar?.trim() ? ` — ${p.descricaoComplementar.trim()}` : ''}</Text>
                   <Text style={[styles.td, { flex: 1, textAlign: 'right' }]}>{p.quantidade}</Text>
                   {financeiro && 'precoUnitario' in p && (
                     <Text style={[styles.td, { flex: 1, textAlign: 'right' }]}>
@@ -183,7 +193,7 @@ export function OSDocument({ os, branding }: Props) {
               </View>
               {os.servicos.map((s, i) => (
                 <View key={s.servicoCodigo} style={[styles.tr, { backgroundColor: i % 2 === 1 ? LINHA_ALT : '#ffffff' }]}>
-                  <Text style={[styles.td, { flex: 2 }]}>{s.descricao}</Text>
+                  <Text style={[styles.td, { flex: 2 }]}>{s.descricao}{s.descricaoComplementar?.trim() ? ` — ${s.descricaoComplementar.trim()}` : ''}</Text>
                   <Text style={[styles.td, { flex: 1, textAlign: 'right' }]}>{s.quantidade}</Text>
                   {financeiro && 'valorUnitario' in s && (
                     <Text style={[styles.td, { flex: 1, textAlign: 'right' }]}>
