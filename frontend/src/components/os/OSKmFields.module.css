@@ -1,10 +1,145 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: var(--space-3);
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
 }
-.grid label { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; font-size: var(--font-size-sm); font-weight: 600; }
-.grid input { width: 100%; height: 40px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-surface); color: var(--color-text-primary); padding: 0 var(--space-3); font: inherit; }
-.grid input:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 1px; }
-.warning { margin: var(--space-2) 0 0; color: var(--color-warning-text, #d97706); font-size: var(--font-size-sm); }
-@media (max-width: 480px) { .grid { grid-template-columns: 1fr; } }
+.grid.comAcao {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+}
+
+.field {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 6px;
+}
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+}
+
+.inputWrap {
+  position: relative;
+}
+.inputWrap input {
+  width: 100%;
+  height: 44px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  padding: 0 44px 0 var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-input);
+  font-variant-numeric: tabular-nums;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.inputWrap input::placeholder {
+  color: var(--color-text-muted);
+}
+.inputWrap input:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-surface);
+}
+.inputWrap input[aria-invalid='true'] {
+  border-color: var(--color-warning);
+}
+.inputWrap input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.unidade {
+  position: absolute;
+  top: 50%;
+  right: var(--space-3);
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  pointer-events: none;
+}
+
+.acao > * {
+  min-height: 44px;
+}
+
+.dica {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+.dica strong {
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.aviso {
+  color: var(--color-warning);
+  font-weight: 600;
+}
+
+/* Seção "Quilometragem" da OS aberta (OSKmSection). */
+.cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+}
+.titulo {
+  margin: 0;
+  font-size: 14px;
+}
+.estado {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+.estado.pendente {
+  color: var(--color-warning);
+  font-weight: 600;
+}
+
+.leitura {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+.leitura div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  padding: var(--space-2) var(--space-3);
+}
+.leitura dt {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+.leitura dd {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .grid,
+  .grid.comAcao {
+    grid-template-columns: 1fr;
+  }
+  .acao > * {
+    width: 100%;
+  }
+  .leitura {
+    grid-template-columns: 1fr 1fr;
+  }
+}

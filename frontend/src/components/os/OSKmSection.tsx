@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { readDraft, removeDraft, writeDraft } from '../../utils/drafts.js';
-import { Button, Modal } from '../ui/index.js';
-import { OSKmFields, parseKm } from './OSKmFields.js';
+import { ActionIcon, Button, Modal } from '../ui/index.js';
+import { formatarKm, OSKmFields, parseKm } from './OSKmFields.js';
+import styles from './OSKmFields.module.css';
 import type { DiagnosticoSaveResult } from './DiagnosticoSection.js';
 
 interface KmDraft { kmAtual: string; kmFinal: string }
@@ -76,8 +77,11 @@ export function OSKmSection({ kmAtual, kmFinal, podeEditar, salvando, draftStora
 
   const atual = parseKm(inicial);
   const fim = parseKm(final);
-  return <section>
-    <h2>Quilometragem</h2>
+  return <div>
+    <div className={styles.cabecalho}>
+      <h2 className={styles.titulo}>Quilometragem</h2>
+      {podeEditar && dirty && <span className={`${styles.estado} ${styles.pendente}`} role="status">Alterações não salvas</span>}
+    </div>
     {podeEditar ? <>
       {draftPendente && <div role="status" className="draft-banner">
         <span>Há um rascunho de KM não salvo.</span>
@@ -97,10 +101,15 @@ export function OSKmSection({ kmAtual, kmFinal, podeEditar, salvando, draftStora
         </span>
       </div>}
       <OSKmFields kmAtual={inicial} kmFinal={final} onKmAtualChange={(v) => change(setInicial, v)}
-        onKmFinalChange={(v) => change(setFinal, v)} disabled={salvando} />
-      <Button size="sm" loading={salvando} disabled={!dirty || atual === undefined || fim === undefined}
-        onClick={() => void salvar()}>Salvar KM</Button>
-    </> : <p>KM inicial: {kmAtual ?? 'Não informado'} · KM final: {kmFinal ?? 'Não informado'}</p>}
+        onKmFinalChange={(v) => change(setFinal, v)} disabled={salvando}
+        acao={<Button loading={salvando} disabled={!dirty || atual === undefined || fim === undefined}
+          onClick={() => void salvar()}><ActionIcon name="save" />Salvar KM</Button>} />
+    </> : <dl className={styles.leitura}>
+      <div><dt>KM inicial</dt><dd>{kmAtual !== undefined ? formatarKm(kmAtual) : 'Não informado'}</dd></div>
+      <div><dt>KM final</dt><dd>{kmFinal !== undefined ? formatarKm(kmFinal) : 'Não informado'}</dd></div>
+      {kmAtual !== undefined && kmFinal !== undefined && kmFinal >= kmAtual
+        && <div><dt>Percorrido</dt><dd>{formatarKm(kmFinal - kmAtual)}</dd></div>}
+    </dl>}
     <Modal open={conflito} title="Outro usuário alterou os KM desta OS" onClose={() => setConflito(false)}
       footer={<>
         <Button variant="secondary" onClick={() => { setConflito(false); setDirty(false); if (draftStorageKey) removeDraft(draftStorageKey); }}>Usar a versão atual</Button>
@@ -108,5 +117,5 @@ export function OSKmSection({ kmAtual, kmFinal, podeEditar, salvando, draftStora
       </>}>
       <p>Os KM mudaram enquanto você editava. Confira os valores antes de escolher.</p>
     </Modal>
-  </section>;
+  </div>;
 }
