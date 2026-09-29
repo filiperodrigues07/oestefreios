@@ -28,9 +28,16 @@ function capturaDiretaDisponivel(): boolean {
   return !ios || !instalado;
 }
 
-function FotoCard({ id, imagem, podeEditar, onExcluir, excluindo }: {
+/** Nome sequencial ("Img. 3") — igual ao do PDF da OS; descrição só entra se foi escrita à mão. */
+function nomeDaFoto(imagem: OSImagemDTO, numero: number): string {
+  const descricao = imagem.descricao?.trim();
+  return descricao && descricao !== imagem.nomeArquivo ? `Img. ${numero} · ${descricao}` : `Img. ${numero}`;
+}
+
+function FotoCard({ id, imagem, numero, podeEditar, onExcluir, excluindo }: {
   id: string;
   imagem: OSImagemDTO;
+  numero: number;
   podeEditar: boolean;
   onExcluir: () => void;
   excluindo: boolean;
@@ -99,7 +106,7 @@ function FotoCard({ id, imagem, podeEditar, onExcluir, excluindo }: {
     };
   }, [id, imagem.identificador, aberta, tentativaCompleta]);
 
-  const nome = imagem.descricao || imagem.nomeArquivo;
+  const nome = nomeDaFoto(imagem, numero);
   return (
     <div ref={cardRef} className={styles.card}>
       {erroMiniatura ? (
@@ -266,8 +273,8 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
 
       {!isLoading && !isError && imagens && imagens.length > 0 && (
         <div className={styles.grid}>
-          {imagens.map((img) => (
-            <FotoCard key={`${id}:${img.identificador}`} id={id} imagem={img} podeEditar={podeEditar}
+          {imagens.map((img, indice) => (
+            <FotoCard key={`${id}:${img.identificador}`} id={id} imagem={img} numero={indice + 1} podeEditar={podeEditar}
               excluindo={excluindoId === img.identificador} onExcluir={() => setConfirmando(img)} />
           ))}
         </div>
@@ -276,7 +283,7 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
       <ConfirmDialog
         open={confirmando !== null}
         title="Remover foto?"
-        description={`"${confirmando?.descricao || confirmando?.nomeArquivo}" será removida da OS.`}
+        description={`"${confirmando && imagens ? nomeDaFoto(confirmando, imagens.indexOf(confirmando) + 1) : ''}" será removida da OS.`}
         confirmLabel="Remover"
         danger
         loading={excluindoId !== null}

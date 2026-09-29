@@ -449,6 +449,12 @@ export async function adicionarProdutoOS(
   if (!produto) {
     throw new ValidationError(`Produto com código "${produtoCodigo}" não encontrado.`);
   }
+  // Sem registro de estoque no CHERP (disponivel ausente) também é zerado.
+  if ((produto.disponivel ?? 0) <= 0) {
+    throw new ValidationError(
+      `"${produto.descricao}" está com estoque zerado e não pode ser lançado. Verifique com o responsável pelo estoque.`,
+    );
+  }
 
   const precoUnitario =
     usuario.permissions.includes('FINANCIAL_EDIT') && precoUnitarioOverride !== undefined
@@ -795,6 +801,14 @@ export async function buscarImagemOS(
   identificador: string,
 ): Promise<{ buffer: Buffer; nomeArquivo: string }> {
   await getOSOrThrow(id);
+  return buscarImagemOSJaValidada(id, identificador);
+}
+
+/** Para quem já validou a OS (ex.: PDF com várias fotos) e não quer reconsultá-la a cada imagem. */
+export async function buscarImagemOSJaValidada(
+  id: string,
+  identificador: string,
+): Promise<{ buffer: Buffer; nomeArquivo: string }> {
   const imagem = await osRepository.buscarImagem(id, identificador);
   if (!imagem) {
     throw new NotFoundError('Imagem não encontrada nesta OS.', 'OS_IMAGE_NOT_FOUND');

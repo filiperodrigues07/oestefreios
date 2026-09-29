@@ -52,7 +52,8 @@ export async function login(page: Page, usuario: { email: string; senha: string 
   await page.getByLabel('Senha', { exact: true }).fill(usuario.senha);
   await page.getByRole('button', { name: /entrar/i }).click();
   // Primeiro login com o servidor recém-subido (hash de senha + compilação do Vite) passa dos 5s.
-  await expect(page).toHaveURL(/\/$/, { timeout: 20_000 });
+  // Perfil sem dashboard (mecânico) cai direto na lista de OS.
+  await expect(page).toHaveURL(/\/(os(\?.*)?)?$/, { timeout: 20_000 });
 }
 
 /** Cria uma OS pelo caminho real da tela (a placa "ABC-1234" do mock já traz o cliente) e devolve o id. */

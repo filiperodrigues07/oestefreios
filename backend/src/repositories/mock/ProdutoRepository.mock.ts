@@ -22,6 +22,7 @@ const PRODUTOS: Produto[] = [
   { codigo: '00012356', descricao: 'Óleo de câmbio (litro)', unidade: 'L', disponivel: 120, precoUnitario: 45, custo: 29 },
   { codigo: '00012357', descricao: 'Filtro de combustível', unidade: 'UN', disponivel: 25, precoUnitario: 38, custo: 22 },
   { codigo: '00012358', descricao: 'Correia do alternador', unidade: 'UN', disponivel: 14, precoUnitario: 75, custo: 46 },
+  { codigo: '00012359', descricao: 'Junta do cabeçote', unidade: 'UN', disponivel: 0, precoUnitario: 140, custo: 90 },
 ];
 
 export class ProdutoRepositoryMock implements IProdutoRepository {

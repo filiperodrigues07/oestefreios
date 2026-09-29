@@ -2,3 +2,8 @@
 .error { color: var(--color-danger, #dc2626); }
 .openLink { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 12px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); text-decoration: none; }
 @media (max-width: 520px) { .preview { min-height: 58vh; } }
+.loading { display: flex; min-height: 50vh; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-3); color: var(--color-text-secondary); text-align: center; }
+.loading small { font-size: var(--font-size-xs); }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--color-border); border-top-color: var(--color-primary); border-radius: 50%; animation: girar 0.8s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 2.4s; } }

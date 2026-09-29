@@ -80,12 +80,12 @@ test('mostra erro amigável ao falhar criação', async ({ page }) => {
 test('carrega miniaturas sob demanda e foto completa ao abrir', async ({ page }) => {
   const calls = mockApi(page);
   await page.goto(`/os/${OS_ID}?tab=fotos`);
-  await expect(page.getByRole('button', { name: 'Abrir foto Foto 0' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Abrir foto Img. 1 · Foto 0' })).toBeVisible();
   expect(calls.miniaturas).toBeGreaterThan(0);
   expect(calls.miniaturas).toBeLessThan(20);
   expect(calls.completas).toBe(0);
-  await page.getByRole('button', { name: 'Abrir foto Foto 0' }).click();
-  await expect(page.getByRole('dialog', { name: 'Foto 0' }).getByRole('img', { name: 'Foto 0' })).toBeVisible();
+  await page.getByRole('button', { name: 'Abrir foto Img. 1 · Foto 0' }).click();
+  await expect(page.getByRole('dialog', { name: 'Img. 1 · Foto 0' }).getByRole('img', { name: 'Img. 1 · Foto 0' })).toBeVisible();
   expect(calls.completas).toBe(1);
 });
 

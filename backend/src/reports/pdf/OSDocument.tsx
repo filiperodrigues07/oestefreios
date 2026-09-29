@@ -47,10 +47,13 @@ const styles = StyleSheet.create({
   totalGeralTexto: { fontSize: 10, fontWeight: 700, color: '#ffffff' },
   assinaturas: { flexDirection: 'row', gap: 40, marginTop: 44 },
   linhaAssinatura: { flex: 1, borderTopWidth: 0.75, borderTopColor: '#94a3b8', paddingTop: 4, textAlign: 'center', fontSize: 8, color: CINZA_TEXTO },
-  photoTitle: { fontSize: 14, fontWeight: 700, marginBottom: 16 },
-  photoBox: { height: 345, marginBottom: 16, borderBottomWidth: 0.5, borderBottomColor: LINHA },
-  photoCaption: { fontSize: 9, color: CINZA_TEXTO, marginBottom: 6 },
-  photoImage: { width: '100%', height: 305, objectFit: 'contain' },
+  photoTitle: { fontSize: 12, fontWeight: 700, marginBottom: 10 },
+  // 2 colunas x 3 linhas por página (~259pt de largura cada): 6 fotos por folha em vez de 2.
+  photoGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  photoBox: { width: '48.5%', height: 226, marginBottom: 8 },
+  photoCaption: { fontSize: 8, color: CINZA_TEXTO, marginBottom: 4 },
+  photoCaptionNumero: { fontWeight: 700, color: '#0f172a' },
+  photoImage: { width: '100%', height: 202, objectFit: 'contain', borderWidth: 0.5, borderColor: LINHA },
   footer: {
     position: 'absolute',
     bottom: 20,
@@ -77,6 +80,14 @@ function temFinanceiro(os: OperationalOSDTO | AdminOSDTO): os is AdminOSDTO {
 }
 
 /** Documento de impressão de uma OS — cabeçalho, cliente/veículo, diagnóstico, itens e assinatura. */
+const FOTOS_POR_PAGINA = 6;
+
+/** Descrição só quando a pessoa escreveu uma; se for igual ao nome do arquivo enviado, não repete. */
+function legendaFoto(foto: OSFotoPdf): string {
+  const descricao = foto.descricao?.trim();
+  return descricao && descricao !== foto.nomeArquivo ? descricao : '';
+}
+
 export function OSDocument({ os, branding, fotos = [] }: Props) {
   const corDestaque = /^#[0-9a-fA-F]{6}$/.test(branding.corDestaque) ? branding.corDestaque : '#0369a1';
   const financeiro = temFinanceiro(os);
@@ -241,21 +252,30 @@ export function OSDocument({ os, branding, fotos = [] }: Props) {
           <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
       </Page>
-      {Array.from({ length: Math.ceil(fotos.length / 2) }, (_, pageIndex) => (
-        <Page key={pageIndex} size="A4" style={styles.page}>
-          <Text style={styles.photoTitle}>OS #{os.numero} · Fotos ({pageIndex * 2 + 1}–{Math.min((pageIndex + 1) * 2, fotos.length)} de {fotos.length})</Text>
-          {fotos.slice(pageIndex * 2, pageIndex * 2 + 2).map((foto, index) => (
-            <View key={`${pageIndex}-${index}`} style={styles.photoBox} wrap={false}>
-              <Text style={styles.photoCaption}>{pageIndex * 2 + index + 1}. {foto.descricao || foto.nomeArquivo} · {foto.nomeArquivo} · {formatarData(foto.data)}</Text>
-              <Image src={foto.src} style={styles.photoImage} />
+      {Array.from({ length: Math.ceil(fotos.length / FOTOS_POR_PAGINA) }, (_, pageIndex) => {
+        const inicio = pageIndex * FOTOS_POR_PAGINA;
+        return (
+          <Page key={pageIndex} size="A4" style={styles.page}>
+            <Text style={styles.photoTitle}>OS #{os.numero} · Fotos ({inicio + 1}–{Math.min(inicio + FOTOS_POR_PAGINA, fotos.length)} de {fotos.length})</Text>
+            <View style={styles.photoGrid}>
+              {fotos.slice(inicio, inicio + FOTOS_POR_PAGINA).map((foto, index) => (
+                <View key={`${pageIndex}-${index}`} style={styles.photoBox} wrap={false}>
+                  {/* Nome sequencial (Img. 1, Img. 2...): o nome do arquivo enviado (WhatsApp Image...) não ajuda quem lê. */}
+                  <Text style={styles.photoCaption}>
+                    <Text style={styles.photoCaptionNumero}>Img. {inicio + index + 1}</Text>
+                    {legendaFoto(foto) ? ` · ${legendaFoto(foto)}` : ''}
+                  </Text>
+                  <Image src={foto.src} style={styles.photoImage} />
+                </View>
+              ))}
             </View>
-          ))}
-          <View style={styles.footer} fixed>
-            <Text>Gerado em {new Date().toLocaleString('pt-BR')}</Text>
-            <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
-          </View>
-        </Page>
-      ))}
+            <View style={styles.footer} fixed>
+              <Text>Gerado em {new Date().toLocaleString('pt-BR')}</Text>
+              <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
+            </View>
+          </Page>
+        );
+      })}
     </Document>
   );
 }
