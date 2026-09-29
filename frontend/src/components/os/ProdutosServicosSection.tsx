@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { getProdutoByCodigo, searchProdutos } from '../../api/produtos.api.js';
 import { getServicoByCodigo, searchServicos } from '../../api/servicos.api.js';
 import { ApiError } from '../../api/httpClient.js';
+import { hasPermission } from '../../store/authStore.js';
 import { Checkbox } from '../ui/index.js';
 import { ItemGrid, type ItemGridCandidate, type ItemGridRow } from './ItemGrid.js';
 import type { OSItemProduto, OSItemServico } from '../../types/os.types.js';
@@ -90,7 +91,9 @@ export function ProdutosServicosSection({
   onRemoverServico,
 }: ProdutosServicosSectionProps) {
   const [grupoMobile, setGrupoMobile] = useState<'produtos' | 'servicos'>('produtos');
-  const [somenteComSaldo, setSomenteComSaldo] = useState(false);
+  const [filtroSaldoAtivo, setFiltroSaldoAtivo] = useState(true);
+  const podeDesativarFiltroSaldo = hasPermission('SYSTEM_SETTINGS');
+  const somenteComSaldo = !podeDesativarFiltroSaldo || filtroSaldoAtivo;
   const produtosGrid: ItemGridRow[] = produtos.map((p) => ({
     itemId: p.itemId,
     codigo: p.produtoCodigo,
@@ -141,7 +144,8 @@ export function ProdutosServicosSection({
           <Checkbox
             label="Somente produtos com saldo"
             checked={somenteComSaldo}
-            onChange={(e) => setSomenteComSaldo(e.target.checked)}
+            onChange={(e) => setFiltroSaldoAtivo(e.target.checked)}
+            disabled={!podeDesativarFiltroSaldo}
             className={styles.saldoCheckbox}
           />
         )}
