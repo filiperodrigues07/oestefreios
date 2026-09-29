@@ -14,7 +14,7 @@ interface PaginatedProdutos {
  * Sem termo digitado (F8/campo vazio), devolve a primeira página do catálogo em vez de exigir digitação.
  */
 export function searchProdutos(query: string, somenteComSaldo = false): Promise<PaginatedProdutos> {
-  const params = new URLSearchParams({ limit: '10' });
+  const params = new URLSearchParams({ limit: '30' });
   const termo = query.trim();
   if (termo.length > 0) {
     const isCodigo = /^\d+$/.test(termo);

@@ -1,5 +1,6 @@
 import type { PaginatedResult, Produto, SearchQuery } from '../../types/cherp.types.js';
 import { sortByField } from '../../utils/sortItems.js';
+import { matchesCatalogSearch } from '../../utils/catalogSearch.js';
 import type { IProdutoRepository } from '../interfaces/IProdutoRepository.js';
 
 /**
@@ -32,18 +33,13 @@ export class ProdutoRepositoryMock implements IProdutoRepository {
   }
 
   async buscarPorDescricao(descricao: string): Promise<Produto[]> {
-    const termo = descricao.toLowerCase();
-    return PRODUTOS.filter((p) => p.descricao.toLowerCase().includes(termo));
+    return PRODUTOS.filter((p) => matchesCatalogSearch(descricao, [p.descricao]));
   }
 
   async buscar(query: SearchQuery): Promise<PaginatedResult<Produto>> {
     let filtered = PRODUTOS;
-    if (query.codigo) {
-      filtered = filtered.filter((p) => p.codigo === query.codigo);
-    } else if (query.descricao) {
-      const termo = query.descricao.toLowerCase();
-      filtered = filtered.filter((p) => p.descricao.toLowerCase().includes(termo));
-    }
+    const termo = query.busca ?? query.codigo ?? query.descricao;
+    if (termo) filtered = filtered.filter((p) => matchesCatalogSearch(termo, [p.codigo, p.descricao, p.categoria, p.tipo]));
     if (query.saldoModo === 'com_saldo') {
       filtered = filtered.filter((p) => (p.disponivel ?? 0) > 0);
     } else if (query.saldoModo === 'sem_saldo') {

@@ -1,5 +1,5 @@
 import { firebirdQuery } from '../../database/firebird/pool.js';
-import { toLatin1SearchParam } from '../../database/firebird/encoding.js';
+import { catalogSearchCondition, catalogTextColumn } from './catalogSearch.js';
 import { NotImplementedError } from '../../errors/NotImplementedError.js';
 import type { PaginatedResult, Produto, SearchQuery } from '../../types/cherp.types.js';
 import type { IProdutoRepository } from '../interfaces/IProdutoRepository.js';
@@ -52,32 +52,11 @@ const QUERY_BUSCAR_POR_CODIGO: string | null = `
   WHERE P.ATIVO = 1 AND P.TIPO <> 9 AND TRIM(LEADING '0' FROM P.CODIGO) = TRIM(LEADING '0' FROM ?)
 `;
 
-const QUERY_BUSCAR_POR_DESCRICAO: string | null = `
-  SELECT ${PRODUTO_SELECT}
-  WHERE P.ATIVO = 1 AND P.TIPO <> 9 AND UPPER(P.DESCRICAO) LIKE ?
-`;
-
-// Busca livre — mesmo padrão unificado usado em OS/Clientes: um termo só casa contra código,
-// descrição ou categoria de uma vez (OR), sem precisar adivinhar se é dígito ou texto.
-// CODIGO por LIKE (não igualdade): usuário digita sem os zeros à esquerda do código real do CHERP
-// (ex. "1258" pro código real "001258") — igualdade exata nunca batia, buscar sempre voltava vazio.
-const BUSCA_CONDICAO = `
-  (
-    ? IS NULL OR (
-      UPPER(CAST(P.CODIGO AS VARCHAR(50))) LIKE ?
-      OR UPPER(P.DESCRICAO) LIKE ?
-      OR UPPER(G.DESCRICAO) LIKE ?
-      OR UPPER(PT.DESCRICAO) LIKE ?
-    )
-  )
-`;
-
-// Parâmetros: limit, skip, busca|null x4 (ver buscar() abaixo). Sem ORDER BY fixo — buscar()
-// completa com a coluna/direção validadas pelo zod (sortBy/sortOrder).
+// A condição da busca é montada por palavra em catalogSearchCondition.
+// Paginação e ordenação são completadas em buscar() após os filtros por palavra.
 const QUERY_BUSCAR_PAGINADO_BASE: string | null = `
   SELECT FIRST ? SKIP ? ${PRODUTO_SELECT}
   WHERE P.ATIVO = 1 AND P.TIPO <> 9
-    AND ${BUSCA_CONDICAO}
 `;
 
 const QUERY_CONTAR_TOTAL: string | null = `
@@ -86,7 +65,6 @@ const QUERY_CONTAR_TOTAL: string | null = `
   LEFT JOIN GRUPOPRODUTO G ON G.CHAVE = P.CHAVEGRUPO
   LEFT JOIN PRODUTOTIPO PT ON PT.CODIGO = P.TIPO AND PT.ATIVO = 1
   WHERE P.ATIVO = 1 AND P.TIPO <> 9
-    AND ${BUSCA_CONDICAO}
 `;
 
 /** sortBy/sortOrder já vêm validados por enum no zod (search.validator.ts) — seguro interpolar direto. */
@@ -136,8 +114,8 @@ export class ProdutoRepositoryFirebird implements IProdutoRepository {
   }
 
   async buscarPorDescricao(descricao: string): Promise<Produto[]> {
-    if (!QUERY_BUSCAR_POR_DESCRICAO) throw new NotImplementedError('ProdutoRepository.buscarPorDescricao');
-    const rows = await firebirdQuery(QUERY_BUSCAR_POR_DESCRICAO, [toLatin1SearchParam(descricao)]);
+    const busca = catalogSearchCondition(descricao, ['P.DESCRICAO', 'G.DESCRICAO', 'PT.DESCRICAO']);
+    const rows = await firebirdQuery(`SELECT ${PRODUTO_SELECT} WHERE P.ATIVO = 1 AND P.TIPO <> 9 AND ${busca.clause}`, busca.params);
     return rows.map(mapRowToProduto);
   }
 
@@ -150,9 +128,7 @@ export class ProdutoRepositoryFirebird implements IProdutoRepository {
     // quem ainda manda um dos dois — o termo efetivo é o primeiro que vier preenchido.
     const termo = query.busca ?? query.codigo ?? query.descricao ?? null;
     const buscaFlag = termo ? termo.trim() : null;
-    const buscaCodigoLike = buscaFlag ? Buffer.from(`%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`, 'latin1') : null;
-    const buscaTextoLike = buscaFlag ? toLatin1SearchParam(buscaFlag) : null;
-    const buscaParams = [buscaFlag, buscaCodigoLike, buscaTextoLike, buscaTextoLike, buscaTextoLike];
+    const busca = catalogSearchCondition(buscaFlag ?? '', ['P.DESCRICAO', 'G.DESCRICAO', 'PT.DESCRICAO']);
     const tipoClause = query.tipoCodigo === undefined
       ? ''
       : ` AND P.TIPO ${query.tipoModo === 'exceto' ? '<>' : '='} ?`;
@@ -168,12 +144,14 @@ export class ProdutoRepositoryFirebird implements IProdutoRepository {
       }
     })();
     const extraClause = `${tipoClause}${saldoClause}`;
-    const params = query.tipoCodigo === undefined ? buscaParams : [...buscaParams, query.tipoCodigo];
-    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE}${extraClause} ORDER BY ${buildOrderBy(query)}`;
+    const params = query.tipoCodigo === undefined ? busca.params : [...busca.params, query.tipoCodigo];
+    const relevancia = buscaFlag && (query.busca || query.descricao) ? `CASE WHEN ${catalogTextColumn('P.DESCRICAO')} LIKE ? THEN 0 ELSE 1 END, ` : '';
+    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE} AND ${busca.clause}${extraClause} ORDER BY ${relevancia}${buildOrderBy(query)}`;
+    const pageParams = [limit, skip, ...params, ...(relevancia ? [`%${buscaFlag!}%`] : [])];
 
     const [rows, countRows] = await Promise.all([
-      firebirdQuery(queryPaginada, [limit, skip, ...params]),
-      firebirdQuery<{ TOTAL: number }>(`${QUERY_CONTAR_TOTAL}${extraClause}`, params),
+      firebirdQuery(queryPaginada, pageParams),
+      firebirdQuery<{ TOTAL: number }>(`${QUERY_CONTAR_TOTAL} AND ${busca.clause}${extraClause}`, params),
     ]);
 
     return {

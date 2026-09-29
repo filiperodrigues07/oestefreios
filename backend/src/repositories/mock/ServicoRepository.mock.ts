@@ -1,5 +1,6 @@
 import type { PaginatedResult, SearchQuery, Servico } from '../../types/cherp.types.js';
 import { sortByField } from '../../utils/sortItems.js';
+import { matchesCatalogSearch } from '../../utils/catalogSearch.js';
 import type { IServicoRepository } from '../interfaces/IServicoRepository.js';
 
 /**
@@ -31,8 +32,7 @@ export class ServicoRepositoryMock implements IServicoRepository {
   }
 
   async buscarPorDescricao(descricao: string): Promise<Servico[]> {
-    const termo = descricao.toLowerCase();
-    return SERVICOS.filter((s) => s.descricao.toLowerCase().includes(termo));
+    return SERVICOS.filter((s) => matchesCatalogSearch(descricao, [s.descricao]));
   }
 
   async buscar(query: SearchQuery): Promise<PaginatedResult<Servico>> {
@@ -40,12 +40,8 @@ export class ServicoRepositoryMock implements IServicoRepository {
     if (query.tipoServicoCodigo) {
       filtered = filtered.filter((s) => s.tipoServicoCodigo === query.tipoServicoCodigo);
     }
-    if (query.codigo) {
-      filtered = filtered.filter((s) => s.codigo === query.codigo);
-    } else if (query.descricao) {
-      const termo = query.descricao.toLowerCase();
-      filtered = filtered.filter((s) => s.descricao.toLowerCase().includes(termo));
-    }
+    const termo = query.busca ?? query.codigo ?? query.descricao;
+    if (termo) filtered = filtered.filter((s) => matchesCatalogSearch(termo, [s.codigo, s.descricao, s.categoria, s.tipoServicoCodigo]));
 
     const sortBy = query.sortBy === 'codigo' ? 'codigo' : 'descricao';
     filtered = sortByField(filtered, sortBy, query.sortOrder ?? 'asc', (item, field) => item[field]);

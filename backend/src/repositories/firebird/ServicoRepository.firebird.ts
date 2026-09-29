@@ -1,5 +1,5 @@
 import { firebirdQuery } from '../../database/firebird/pool.js';
-import { toLatin1SearchParam } from '../../database/firebird/encoding.js';
+import { catalogSearchCondition, catalogTextColumn } from './catalogSearch.js';
 import { NotImplementedError } from '../../errors/NotImplementedError.js';
 import type { PaginatedResult, SearchQuery, Servico } from '../../types/cherp.types.js';
 import type { IServicoRepository } from '../interfaces/IServicoRepository.js';
@@ -37,30 +37,11 @@ const QUERY_BUSCAR_POR_CODIGO: string | null = `
   WHERE P.ATIVO = 1 AND P.TIPO = 9 AND TRIM(LEADING '0' FROM P.CODIGO) = TRIM(LEADING '0' FROM ?)
 `;
 
-const QUERY_BUSCAR_POR_DESCRICAO: string | null = `
-  SELECT ${SERVICO_SELECT}
-  WHERE P.ATIVO = 1 AND P.TIPO = 9 AND UPPER(P.DESCRICAO) LIKE ?
-`;
-
-// Busca livre — mesmo padrão unificado de OS/Clientes/Produtos: um termo só casa contra código,
-// descrição ou categoria de uma vez (OR). CODIGO por LIKE — ver ProdutoRepository.firebird.ts.
-const BUSCA_CONDICAO = `
-  (
-    ? IS NULL OR (
-      UPPER(CAST(P.CODIGO AS VARCHAR(50))) LIKE ?
-      OR UPPER(P.DESCRICAO) LIKE ?
-      OR UPPER(G.DESCRICAO) LIKE ?
-      OR UPPER(TS.CODIGO) LIKE ?
-    )
-  )
-`;
-
-// Parâmetros: limit, skip, busca|null x4 (ver buscar() abaixo). Sem ORDER BY fixo — buscar()
-// completa com a coluna/direção validadas pelo zod (sortBy/sortOrder).
+// A condição da busca é montada por palavra em catalogSearchCondition.
+// Paginação e ordenação são completadas em buscar() após os filtros por palavra.
 const QUERY_BUSCAR_PAGINADO_BASE: string | null = `
   SELECT FIRST ? SKIP ? ${SERVICO_SELECT}
   WHERE P.ATIVO = 1 AND P.TIPO = 9
-    AND ${BUSCA_CONDICAO}
 `;
 
 const QUERY_CONTAR_TOTAL: string | null = `
@@ -69,7 +50,6 @@ const QUERY_CONTAR_TOTAL: string | null = `
   LEFT JOIN GRUPOPRODUTO G ON G.CHAVE = P.CHAVEGRUPO
   LEFT JOIN PRODTIPOSERV TS ON TS.CHAVE = P.CHAVETIPOSERV
   WHERE P.ATIVO = 1 AND P.TIPO = 9
-    AND ${BUSCA_CONDICAO}
 `;
 
 /** sortBy/sortOrder já vêm validados por enum no zod (search.validator.ts) — seguro interpolar direto. */
@@ -111,8 +91,8 @@ export class ServicoRepositoryFirebird implements IServicoRepository {
   }
 
   async buscarPorDescricao(descricao: string): Promise<Servico[]> {
-    if (!QUERY_BUSCAR_POR_DESCRICAO) throw new NotImplementedError('ServicoRepository.buscarPorDescricao');
-    const rows = await firebirdQuery(QUERY_BUSCAR_POR_DESCRICAO, [toLatin1SearchParam(descricao)]);
+    const busca = catalogSearchCondition(descricao, ['P.DESCRICAO', 'G.DESCRICAO', 'TS.CODIGO']);
+    const rows = await firebirdQuery(`SELECT ${SERVICO_SELECT} WHERE P.ATIVO = 1 AND P.TIPO = 9 AND ${busca.clause}`, busca.params);
     return rows.map(mapRowToServico);
   }
 
@@ -123,16 +103,16 @@ export class ServicoRepositoryFirebird implements IServicoRepository {
     const skip = (page - 1) * limit;
     const termo = query.busca ?? query.codigo ?? query.descricao ?? null;
     const buscaFlag = termo ? termo.trim() : null;
-    const buscaCodigoLike = buscaFlag ? Buffer.from(`%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`, 'latin1') : null;
-    const buscaTextoLike = buscaFlag ? toLatin1SearchParam(buscaFlag) : null;
-    const buscaParams = [buscaFlag, buscaCodigoLike, buscaTextoLike, buscaTextoLike, buscaTextoLike];
+    const busca = catalogSearchCondition(buscaFlag ?? '', ['P.DESCRICAO', 'G.DESCRICAO', 'TS.CODIGO']);
     const tipoClause = query.tipoServicoCodigo ? ' AND TS.CODIGO = ?' : '';
-    const params = query.tipoServicoCodigo ? [...buscaParams, query.tipoServicoCodigo] : buscaParams;
-    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE}${tipoClause} ORDER BY ${buildOrderBy(query)}`;
+    const params = query.tipoServicoCodigo ? [...busca.params, query.tipoServicoCodigo] : busca.params;
+    const relevancia = buscaFlag && (query.busca || query.descricao) ? `CASE WHEN ${catalogTextColumn('P.DESCRICAO')} LIKE ? THEN 0 ELSE 1 END, ` : '';
+    const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE} AND ${busca.clause}${tipoClause} ORDER BY ${relevancia}${buildOrderBy(query)}`;
+    const pageParams = [limit, skip, ...params, ...(relevancia ? [`%${buscaFlag!}%`] : [])];
 
     const [rows, countRows] = await Promise.all([
-      firebirdQuery(queryPaginada, [limit, skip, ...params]),
-      firebirdQuery<{ TOTAL: number }>(`${QUERY_CONTAR_TOTAL}${tipoClause}`, params),
+      firebirdQuery(queryPaginada, pageParams),
+      firebirdQuery<{ TOTAL: number }>(`${QUERY_CONTAR_TOTAL} AND ${busca.clause}${tipoClause}`, params),
     ]);
 
     return { items: rows.map(mapRowToServico), page, limit, total: Number(countRows[0]?.TOTAL ?? 0) };

@@ -61,7 +61,7 @@ test.describe('fluxo crítico da OS', () => {
     await criarOS(page);
     await abrirAba(page, /Produtos/);
 
-    const codigo = page.getByPlaceholder('Código exato + Enter').first();
+    const codigo = page.getByPlaceholder('Cód. CH + Enter').first();
     await codigo.fill('00012345');
     await codigo.press('Enter');
     await page.getByRole('button', { name: 'Adicionar' }).click();

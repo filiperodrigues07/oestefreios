@@ -22,7 +22,8 @@ describe('filtro de tipo no catálogo de produtos', () => {
     const [sqlContagem, paramsContagem] = vi.mocked(firebirdQuery).mock.calls[1]!;
     expect(sqlPagina).toContain(`AND P.TIPO ${operador} ?`);
     expect(sqlContagem).toContain(`AND P.TIPO ${operador} ?`);
-    expect(paramsPagina?.slice(-1)).toEqual([2]);
+    expect(paramsPagina?.at(-2)).toBe(2);
+    expect(paramsPagina?.at(-1)).toBe('%filtro%');
     expect(paramsContagem?.slice(-1)).toEqual([2]);
     expect(paramsPagina?.slice(0, 2)).toEqual([20, 20]);
   });
