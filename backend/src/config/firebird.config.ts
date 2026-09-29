@@ -13,5 +13,8 @@ export const firebirdOptions = {
   password: env.FIREBIRD_PASSWORD,
   lowercase_keys: false,
   pageSize: 4096,
+  // Fotos usam BLOBs grandes; blocos de 1 KB causam milhares de viagens pela rede ao CHERP.
+  blobChunkSize: 65_535,
+  blobReadChunkSize: 65_535,
   connectTimeout: 8_000,
 };
