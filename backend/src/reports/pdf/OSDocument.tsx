@@ -164,7 +164,7 @@ export function OSDocument({ os, branding }: Props) {
                 {financeiro && <Text style={[styles.th, { flex: 1, textAlign: 'right' }]}>Total</Text>}
               </View>
               {os.produtos.map((p, i) => (
-                <View key={p.produtoCodigo} style={[styles.tr, { backgroundColor: i % 2 === 1 ? LINHA_ALT : '#ffffff' }]}>
+                <View key={p.itemId ?? i} style={[styles.tr, { backgroundColor: i % 2 === 1 ? LINHA_ALT : '#ffffff' }]}>
                   <Text style={[styles.td, { flex: 2 }]}>{p.descricao}{p.descricaoComplementar?.trim() ? ` — ${p.descricaoComplementar.trim()}` : ''}</Text>
                   <Text style={[styles.td, { flex: 1, textAlign: 'right' }]}>{p.quantidade}</Text>
                   {financeiro && 'precoUnitario' in p && (
@@ -192,7 +192,7 @@ export function OSDocument({ os, branding }: Props) {
                 {financeiro && <Text style={[styles.th, { flex: 1, textAlign: 'right' }]}>Total</Text>}
               </View>
               {os.servicos.map((s, i) => (
-                <View key={s.servicoCodigo} style={[styles.tr, { backgroundColor: i % 2 === 1 ? LINHA_ALT : '#ffffff' }]}>
+                <View key={s.itemId ?? i} style={[styles.tr, { backgroundColor: i % 2 === 1 ? LINHA_ALT : '#ffffff' }]}>
                   <Text style={[styles.td, { flex: 2 }]}>{s.descricao}{s.descricaoComplementar?.trim() ? ` — ${s.descricaoComplementar.trim()}` : ''}</Text>
                   <Text style={[styles.td, { flex: 1, textAlign: 'right' }]}>{s.quantidade}</Text>
                   {financeiro && 'valorUnitario' in s && (

@@ -1,5 +1,11 @@
 import { randomUUID } from 'node:crypto';
-import type { OrdemServico, OSItemProduto, OSItemServico, OSPrioridade, OSStatus } from '../../types/cherp.types.js';
+import type {
+  OrdemServico,
+  OSItemProduto,
+  OSItemServico,
+  OSPrioridade,
+  OSStatus,
+} from '../../types/cherp.types.js';
 import type {
   IOSRepository,
   OSDashboardFilter,
@@ -34,11 +40,19 @@ function horasAtras(h: number): string {
 }
 
 function item(produto: Omit<OSItemProduto, 'total'>): OSItemProduto {
-  return { ...produto, total: produto.precoUnitario !== undefined ? produto.precoUnitario * produto.quantidade : undefined };
+  return {
+    ...produto,
+    total:
+      produto.precoUnitario !== undefined ? produto.precoUnitario * produto.quantidade : undefined,
+  };
 }
 
 function servicoItem(servico: Omit<OSItemServico, 'total'>): OSItemServico {
-  return { ...servico, total: servico.valorUnitario !== undefined ? servico.valorUnitario * servico.quantidade : undefined };
+  return {
+    ...servico,
+    total:
+      servico.valorUnitario !== undefined ? servico.valorUnitario * servico.quantidade : undefined,
+  };
 }
 
 interface SeedOSInput {
@@ -76,23 +90,37 @@ function seedOS(input: SeedOSInput): OrdemServico {
     servicos,
     historico: [{ timestamp: dataAbertura, evento: 'OS criada', usuarioNome: 'Atendente (dev)' }],
     dataAbertura,
-    dataConclusao: input.concluidaHaHoras !== undefined ? horasAtras(input.concluidaHaHoras) : undefined,
-    situacaoDocumento: input.situacaoDocumento ?? (input.status === 'CONCLUIDA' ? 1 : input.status === 'CANCELADA' ? 6 : 0),
+    dataConclusao:
+      input.concluidaHaHoras !== undefined ? horasAtras(input.concluidaHaHoras) : undefined,
+    situacaoDocumento:
+      input.situacaoDocumento ??
+      (input.status === 'CONCLUIDA' ? 1 : input.status === 'CANCELADA' ? 6 : 0),
     faturamento,
   };
 }
 
 /** Mock não tem TABELAS: deriva a situação de atendimento do status, igual ao que o Firebird grava. */
 const SITUACAO_ATENDIMENTO_MOCK: Partial<Record<OSStatus, string>> = {
-  ABERTA: '000001', EM_ANALISE: '000001', EM_ANDAMENTO: '000001',
-  AGUARDANDO_CLIENTE: '000002', AGUARDANDO_PECA: '000003', CONCLUIDA: '000004',
+  ABERTA: '000001',
+  EM_ANALISE: '000001',
+  EM_ANDAMENTO: '000001',
+  AGUARDANDO_CLIENTE: '000002',
+  AGUARDANDO_PECA: '000003',
+  CONCLUIDA: '000004',
 };
 function comSituacaoAtendimento(os: OrdemServico): OrdemServico {
-  return os.situacaoAtendimentoCodigo ? os : { ...os, situacaoAtendimentoCodigo: SITUACAO_ATENDIMENTO_MOCK[os.status] };
+  return os.situacaoAtendimentoCodigo
+    ? os
+    : { ...os, situacaoAtendimentoCodigo: SITUACAO_ATENDIMENTO_MOCK[os.status] };
 }
 
 /** Itens removidos por OS (chave id:tipo:codigo) — espelha as linhas ATIVO = 0 do CHERP. */
 const REMOVIDOS = new Map<string, OSItemProduto | OSItemServico>();
+let proximoItemId = 1;
+function atribuirIds(os: OrdemServico): OrdemServico {
+  for (const item of [...os.produtos, ...os.servicos]) item.itemId ??= proximoItemId++;
+  return os;
+}
 
 const OS_LIST: OrdemServico[] = [
   seedOS({
@@ -103,8 +131,26 @@ const OS_LIST: OrdemServico[] = [
     prioridade: 'NORMAL',
     problema: 'Barulho estranho no motor ao acelerar',
     abertaHaHoras: 6,
-    produtos: [item({ produtoCodigo: '00012349', descricao: 'Correia dentada', unidade: 'UN', quantidade: 1, precoUnitario: 180, desconto: 0 })],
-    servicos: [servicoItem({ servicoCodigo: '5016', descricao: 'Troca de correia dentada', unidade: 'SERV', quantidade: 1, valorUnitario: 280, desconto: 0 })],
+    produtos: [
+      item({
+        produtoCodigo: '00012349',
+        descricao: 'Correia dentada',
+        unidade: 'UN',
+        quantidade: 1,
+        precoUnitario: 180,
+        desconto: 0,
+      }),
+    ],
+    servicos: [
+      servicoItem({
+        servicoCodigo: '5016',
+        descricao: 'Troca de correia dentada',
+        unidade: 'SERV',
+        quantidade: 1,
+        valorUnitario: 280,
+        desconto: 0,
+      }),
+    ],
   }),
   seedOS({
     numero: 1230,
@@ -115,8 +161,26 @@ const OS_LIST: OrdemServico[] = [
     problema: 'Freio traseiro raspando',
     abertaHaHoras: 72,
     concluidaHaHoras: 48,
-    produtos: [item({ produtoCodigo: '00012350', descricao: 'Pastilha de freio traseira', unidade: 'JG', quantidade: 1, precoUnitario: 190, desconto: 0 })],
-    servicos: [servicoItem({ servicoCodigo: '5014', descricao: 'Troca de pastilha de freio', unidade: 'SERV', quantidade: 1, valorUnitario: 150, desconto: 0 })],
+    produtos: [
+      item({
+        produtoCodigo: '00012350',
+        descricao: 'Pastilha de freio traseira',
+        unidade: 'JG',
+        quantidade: 1,
+        precoUnitario: 190,
+        desconto: 0,
+      }),
+    ],
+    servicos: [
+      servicoItem({
+        servicoCodigo: '5014',
+        descricao: 'Troca de pastilha de freio',
+        unidade: 'SERV',
+        quantidade: 1,
+        valorUnitario: 150,
+        desconto: 0,
+      }),
+    ],
   }),
   seedOS({
     numero: 1231,
@@ -127,8 +191,26 @@ const OS_LIST: OrdemServico[] = [
     problema: 'Revisão dos 20.000km',
     abertaHaHoras: 120,
     concluidaHaHoras: 96,
-    produtos: [item({ produtoCodigo: '00012345', descricao: 'Filtro de óleo', unidade: 'UN', quantidade: 1, precoUnitario: 50, desconto: 0 })],
-    servicos: [servicoItem({ servicoCodigo: '5015', descricao: 'Revisão completa', unidade: 'SERV', quantidade: 1, valorUnitario: 350, desconto: 0 })],
+    produtos: [
+      item({
+        produtoCodigo: '00012345',
+        descricao: 'Filtro de óleo',
+        unidade: 'UN',
+        quantidade: 1,
+        precoUnitario: 50,
+        desconto: 0,
+      }),
+    ],
+    servicos: [
+      servicoItem({
+        servicoCodigo: '5015',
+        descricao: 'Revisão completa',
+        unidade: 'SERV',
+        quantidade: 1,
+        valorUnitario: 350,
+        desconto: 0,
+      }),
+    ],
   }),
   seedOS({
     numero: 1232,
@@ -147,7 +229,16 @@ const OS_LIST: OrdemServico[] = [
     prioridade: 'ALTA',
     problema: 'Amortecedor dianteiro vazando',
     abertaHaHoras: 30,
-    produtos: [item({ produtoCodigo: '00012351', descricao: 'Amortecedor dianteiro', unidade: 'UN', quantidade: 2, precoUnitario: 320, desconto: 0 })],
+    produtos: [
+      item({
+        produtoCodigo: '00012351',
+        descricao: 'Amortecedor dianteiro',
+        unidade: 'UN',
+        quantidade: 2,
+        precoUnitario: 320,
+        desconto: 0,
+      }),
+    ],
   }),
   seedOS({
     numero: 1229,
@@ -174,17 +265,20 @@ let nextNumero = 1236;
 export class OSRepositoryMock implements IOSRepository {
   async buscarPorId(id: string): Promise<OrdemServico | null> {
     const os = OS_LIST.find((o) => o.id === id);
-    return os ? comSituacaoAtendimento(os) : null;
+    return os ? comSituacaoAtendimento(atribuirIds(os)) : null;
   }
 
   /** Espelha a regra da implementação real: só OS em aberto (nunca concluída/cancelada) — ver OSRepository.firebird.ts. */
   async listar(filter: OSListFilter): Promise<{ items: OrdemServico[]; total: number }> {
     // Igual ao Firebird: os filtros de finalizada no app olham todas as OS em aberto no CHERP, com ou sem trava.
-    let filtered = filter.incluirFinalizadas || filter.ocultarFinalizadasApp || filter.somenteFinalizadasApp
-      ? [...OS_LIST]
-      : OS_LIST.filter((os) => os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA');
+    let filtered =
+      filter.incluirFinalizadas || filter.ocultarFinalizadasApp || filter.somenteFinalizadasApp
+        ? [...OS_LIST]
+        : OS_LIST.filter((os) => os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA');
     if (filter.status === 'AGUARDANDO') {
-      filtered = filtered.filter((os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE');
+      filtered = filtered.filter(
+        (os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE',
+      );
     } else if (filter.status) {
       filtered = filtered.filter((os) => os.status === filter.status);
     }
@@ -193,7 +287,9 @@ export class OSRepositoryMock implements IOSRepository {
     }
     if (filter.ocultarFinalizadasApp || filter.somenteFinalizadasApp) {
       filtered = filtered.filter((os) => (os.situacaoDocumento ?? 0) === 0);
-      filtered = filtered.filter((os) => Boolean(os.travadoLocal) === Boolean(filter.somenteFinalizadasApp));
+      filtered = filtered.filter(
+        (os) => Boolean(os.travadoLocal) === Boolean(filter.somenteFinalizadasApp),
+      );
     }
     if (filter.clienteCodigo) {
       filtered = filtered.filter((os) => os.clienteCodigo === filter.clienteCodigo);
@@ -211,7 +307,9 @@ export class OSRepositoryMock implements IOSRepository {
     }
     filtered = filtered.map(comSituacaoAtendimento);
     if (filter.situacaoAtendimento) {
-      filtered = filtered.filter((os) => os.situacaoAtendimentoCodigo === filter.situacaoAtendimento);
+      filtered = filtered.filter(
+        (os) => os.situacaoAtendimentoCodigo === filter.situacaoAtendimento,
+      );
     }
     const page = filter.page ?? 1;
     const limit = filter.limit ?? 20;
@@ -220,7 +318,9 @@ export class OSRepositoryMock implements IOSRepository {
   }
 
   async listarCabecalhos(situacaoDocumento?: number): Promise<OrdemServico[]> {
-    return OS_LIST.filter((os) => situacaoDocumento === undefined || os.situacaoDocumento === situacaoDocumento);
+    return OS_LIST.filter(
+      (os) => situacaoDocumento === undefined || os.situacaoDocumento === situacaoDocumento,
+    );
   }
 
   async listarParaDashboard(filter: OSDashboardFilter): Promise<OrdemServico[]> {
@@ -229,7 +329,10 @@ export class OSRepositoryMock implements IOSRepository {
     return OS_LIST.filter((os) => {
       const abertaNoPeriodo = new Date(os.dataAbertura).getTime();
       const concluidaNoPeriodo = os.dataConclusao ? new Date(os.dataConclusao).getTime() : NaN;
-      return (abertaNoPeriodo >= inicio && abertaNoPeriodo <= fim) || (concluidaNoPeriodo >= inicio && concluidaNoPeriodo <= fim);
+      return (
+        (abertaNoPeriodo >= inicio && abertaNoPeriodo <= fim) ||
+        (concluidaNoPeriodo >= inicio && concluidaNoPeriodo <= fim)
+      );
     });
   }
 
@@ -240,19 +343,37 @@ export class OSRepositoryMock implements IOSRepository {
       const data = filter.dataReferencia === 'conclusao' ? os.dataConclusao : os.dataAbertura;
       if (!data) return false;
       const timestamp = new Date(data).getTime();
-      return timestamp >= inicio && timestamp <= fim && (filter.situacaoDocumento === undefined || os.situacaoDocumento === filter.situacaoDocumento);
+      return (
+        timestamp >= inicio &&
+        timestamp <= fim &&
+        (filter.situacaoDocumento === undefined ||
+          os.situacaoDocumento === filter.situacaoDocumento)
+      );
     });
   }
 
   async buscarParaDashboard(termo: string): Promise<OrdemServico[]> {
     const needle = termo.toLocaleLowerCase('pt-BR');
-    return OS_LIST.filter((os) => [String(os.numero), os.clienteNome, os.clienteCodigo, os.equipamentoDescricao, os.equipamentoCodigo].some((value) => value?.toLocaleLowerCase('pt-BR').includes(needle))).slice(0, 8);
+    return OS_LIST.filter((os) =>
+      [
+        String(os.numero),
+        os.clienteNome,
+        os.clienteCodigo,
+        os.equipamentoDescricao,
+        os.equipamentoCodigo,
+      ].some((value) => value?.toLocaleLowerCase('pt-BR').includes(needle)),
+    ).slice(0, 8);
   }
 
   async criar(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico> {
     // O CHERP real gera o NRODAV (ATUALIZARNUMERODAV) a cada OS nova, nunca herda de outra.
     const numero = nextNumero++;
-    const novo: OrdemServico = { ...os, id: randomUUID(), numero, nroDav: String(numero).padStart(13, '0') };
+    const novo: OrdemServico = {
+      ...os,
+      id: randomUUID(),
+      numero,
+      nroDav: String(numero).padStart(13, '0'),
+    };
     OS_LIST.push(novo);
     return novo;
   }
@@ -270,50 +391,85 @@ export class OSRepositoryMock implements IOSRepository {
     const atual = OS_LIST[idx]!;
     // Espelha o soft delete do CHERP: guarda o item que saiu pra buscar*Removido (Desfazer).
     for (const item of atual.produtos) {
-      if (patch.produtos && !patch.produtos.some((p) => p.produtoCodigo === item.produtoCodigo)) {
+      if (patch.produtos && !patch.produtos.some((p) => p.itemId === item.itemId)) {
+        REMOVIDOS.set(`${id}:produto:${item.itemId}`, item);
         REMOVIDOS.set(`${id}:produto:${item.produtoCodigo}`, item);
       }
     }
     for (const item of atual.servicos) {
-      if (patch.servicos && !patch.servicos.some((s) => s.servicoCodigo === item.servicoCodigo)) {
+      if (patch.servicos && !patch.servicos.some((s) => s.itemId === item.itemId)) {
+        REMOVIDOS.set(`${id}:servico:${item.itemId}`, item);
         REMOVIDOS.set(`${id}:servico:${item.servicoCodigo}`, item);
       }
     }
     const atualizado: OrdemServico = { ...atual, ...patch };
     // Espelha o Firebird: CONCLUIDA/CANCELADA pelo app trava só do lado do app (os_workflow.travado_local).
-    if (patch.status !== undefined) atualizado.travadoLocal = patch.status === 'CONCLUIDA' || patch.status === 'CANCELADA';
-    OS_LIST[idx] = atualizado;
+    if (patch.status !== undefined)
+      atualizado.travadoLocal = patch.status === 'CONCLUIDA' || patch.status === 'CANCELADA';
+    OS_LIST[idx] = atribuirIds(atualizado);
     return comSituacaoAtendimento(atualizado);
   }
 
-  async buscarProdutoRemovido(id: string, produtoCodigo: string): Promise<OSItemProduto | null> {
-    return (REMOVIDOS.get(`${id}:produto:${produtoCodigo}`) as OSItemProduto | undefined) ?? null;
+  async buscarProdutoRemovido(
+    id: string,
+    produtoCodigo: string,
+    itemId?: number,
+  ): Promise<OSItemProduto | null> {
+    return (
+      (REMOVIDOS.get(`${id}:produto:${itemId ?? produtoCodigo}`) as OSItemProduto | undefined) ??
+      null
+    );
   }
 
-  async buscarServicoRemovido(id: string, servicoCodigo: string): Promise<OSItemServico | null> {
-    return (REMOVIDOS.get(`${id}:servico:${servicoCodigo}`) as OSItemServico | undefined) ?? null;
+  async buscarServicoRemovido(
+    id: string,
+    servicoCodigo: string,
+    itemId?: number,
+  ): Promise<OSItemServico | null> {
+    return (
+      (REMOVIDOS.get(`${id}:servico:${itemId ?? servicoCodigo}`) as OSItemServico | undefined) ??
+      null
+    );
   }
 
-  async atualizarItemProduto(id: string, produtoCodigo: string, patch: OSItemPatch): Promise<OrdemServico> {
+  async atualizarItemProduto(
+    id: string,
+    produtoCodigo: string,
+    patch: OSItemPatch,
+  ): Promise<OrdemServico> {
     const os = OS_LIST.find((o) => o.id === id);
     if (!os) throw new Error('OS não encontrada.');
-    const item = os.produtos.find((p) => p.produtoCodigo === produtoCodigo);
+    const item = os.produtos.find(
+      (p) =>
+        p.produtoCodigo === produtoCodigo &&
+        (patch.itemId === undefined || p.itemId === patch.itemId),
+    );
     if (!item) throw new Error('Item não encontrado.');
     if (patch.quantidade !== undefined) item.quantidade = patch.quantidade;
     if (patch.precoUnitario !== undefined) item.precoUnitario = patch.precoUnitario;
-    if (patch.descricaoComplementar !== undefined) item.descricaoComplementar = patch.descricaoComplementar;
+    if (patch.descricaoComplementar !== undefined)
+      item.descricaoComplementar = patch.descricaoComplementar;
     item.total = item.quantidade * (item.precoUnitario ?? 0);
     return os;
   }
 
-  async atualizarItemServico(id: string, servicoCodigo: string, patch: OSItemPatch): Promise<OrdemServico> {
+  async atualizarItemServico(
+    id: string,
+    servicoCodigo: string,
+    patch: OSItemPatch,
+  ): Promise<OrdemServico> {
     const os = OS_LIST.find((o) => o.id === id);
     if (!os) throw new Error('OS não encontrada.');
-    const item = os.servicos.find((s) => s.servicoCodigo === servicoCodigo);
+    const item = os.servicos.find(
+      (s) =>
+        s.servicoCodigo === servicoCodigo &&
+        (patch.itemId === undefined || s.itemId === patch.itemId),
+    );
     if (!item) throw new Error('Item não encontrado.');
     if (patch.quantidade !== undefined) item.quantidade = patch.quantidade;
     if (patch.precoUnitario !== undefined) item.valorUnitario = patch.precoUnitario;
-    if (patch.descricaoComplementar !== undefined) item.descricaoComplementar = patch.descricaoComplementar;
+    if (patch.descricaoComplementar !== undefined)
+      item.descricaoComplementar = patch.descricaoComplementar;
     item.total = item.quantidade * (item.valorUnitario ?? 0);
     return os;
   }

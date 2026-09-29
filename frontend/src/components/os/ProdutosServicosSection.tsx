@@ -30,10 +30,12 @@ interface ProdutosServicosSectionProps {
   onAtualizarProduto: (
     codigo: string,
     patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string },
+    itemId?: number,
   ) => Promise<unknown>;
   onAtualizarServico: (
     codigo: string,
     patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string },
+    itemId?: number,
   ) => Promise<unknown>;
   onRemoverProduto: (row: ItemGridRow) => void;
   onRemoverServico: (row: ItemGridRow) => void;
@@ -90,6 +92,7 @@ export function ProdutosServicosSection({
   const [grupoMobile, setGrupoMobile] = useState<'produtos' | 'servicos'>('produtos');
   const [somenteComSaldo, setSomenteComSaldo] = useState(false);
   const produtosGrid: ItemGridRow[] = produtos.map((p) => ({
+    itemId: p.itemId,
     codigo: p.produtoCodigo,
     descricao: p.descricao,
     unidade: p.unidade,
@@ -100,6 +103,7 @@ export function ProdutosServicosSection({
   }));
 
   const servicosGrid: ItemGridRow[] = servicos.map((s) => ({
+    itemId: s.itemId,
     codigo: s.servicoCodigo,
     descricao: s.descricao,
     unidade: s.unidade,

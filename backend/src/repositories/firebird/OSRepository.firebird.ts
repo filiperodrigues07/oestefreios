@@ -4,7 +4,11 @@ import { db } from '../../database/postgres/client.js';
 import { osWorkflow } from '../../database/postgres/schema.js';
 import { toLatin1Param, toLatin1SearchParam } from '../../database/firebird/encoding.js';
 import { decodeObsTexto, encodeObsTexto } from './obsField.js';
-import { firebirdQuery, firebirdQueryWithBlob, firebirdTransaction } from '../../database/firebird/pool.js';
+import {
+  firebirdQuery,
+  firebirdQueryWithBlob,
+  firebirdTransaction,
+} from '../../database/firebird/pool.js';
 import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { NotFoundError } from '../../errors/NotFoundError.js';
 import { ValidationError } from '../../errors/ValidationError.js';
@@ -112,24 +116,36 @@ function statusFromSituacaoOnly(dataFechamento: unknown): OSStatus {
 }
 
 /** Situação fiscal (documento) manda no status exibido; atendimento só cobre os estados intermediários. */
-function statusFromCherpSituacao(codigo: string | null, dataFechamento: unknown, situacaoDocumento: number): OSStatus {
+function statusFromCherpSituacao(
+  codigo: string | null,
+  dataFechamento: unknown,
+  situacaoDocumento: number,
+): OSStatus {
   if (situacaoDocumento === SITUACAO_ESTORNADA) return 'CANCELADA';
   if (situacaoDocumento !== SITUACAO_ABERTO) return 'CONCLUIDA'; // pedido/NF gerado no CHERP: faturado de verdade
   switch (codigo?.trim()) {
-    case '000001': return 'ABERTA';
-    case '000002': return 'AGUARDANDO_CLIENTE';
-    case '000003': return 'AGUARDANDO_PECA';
-    default: return statusFromSituacaoOnly(dataFechamento);
+    case '000001':
+      return 'ABERTA';
+    case '000002':
+      return 'AGUARDANDO_CLIENTE';
+    case '000003':
+      return 'AGUARDANDO_PECA';
+    default:
+      return statusFromSituacaoOnly(dataFechamento);
   }
 }
 
 /** Escala nativa do CHERP: 0 Normal, 1 Baixa, 2 Média e 3 Alta. */
 function prioridadeFromCherp(valor: number | null): OSPrioridade {
   switch (valor) {
-    case 1: return 'BAIXA';
-    case 2: return 'MEDIA';
-    case 3: return 'ALTA';
-    default: return 'NORMAL';
+    case 1:
+      return 'BAIXA';
+    case 2:
+      return 'MEDIA';
+    case 3:
+      return 'ALTA';
+    default:
+      return 'NORMAL';
   }
 }
 
@@ -137,7 +153,14 @@ function combineDateTime(date: unknown, time: unknown): string {
   const d = date instanceof Date ? date : new Date(String(date));
   const t = time instanceof Date ? time : new Date(String(time));
   if (Number.isNaN(d.getTime())) return new Date().toISOString();
-  const combined = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Number.isNaN(t.getTime()) ? 0 : t.getHours(), Number.isNaN(t.getTime()) ? 0 : t.getMinutes(), Number.isNaN(t.getTime()) ? 0 : t.getSeconds());
+  const combined = new Date(
+    d.getFullYear(),
+    d.getMonth(),
+    d.getDate(),
+    Number.isNaN(t.getTime()) ? 0 : t.getHours(),
+    Number.isNaN(t.getTime()) ? 0 : t.getMinutes(),
+    Number.isNaN(t.getTime()) ? 0 : t.getSeconds(),
+  );
   return combined.toISOString();
 }
 
@@ -248,13 +271,16 @@ const ITEM_SERVICO_SELECT = `
 `;
 
 /** Linha mais recente (maior CHAVE) já removida de um código — o "Desfazer" reinsere a partir dela. */
-function itemRemovidoSelect(tabela: 'ITENSORDEMSERVICOPROD' | 'ITENSORDEMSERVICOSERV'): string {
+function itemRemovidoSelect(
+  tabela: 'ITENSORDEMSERVICOPROD' | 'ITENSORDEMSERVICOSERV',
+  itemId?: number,
+): string {
   return `
   SELECT FIRST 1 CHAVE AS CHAVE, CHAVEOS AS CHAVEOS, CODPRODUTO AS CODIGO, CAST(PRODUTO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
          UN AS UNIDADE, QTDE AS QTDE, VLRUNIT AS VLRUNIT, DESCVLR AS DESCVLR, VLRTOTAL AS VLRTOTAL,
          CAST(DESCRCOMPLEMENT AS VARCHAR(1000) CHARACTER SET OCTETS) AS DESCRCOMPLEMENT
   FROM ${tabela}
-  WHERE CHAVEOS = ? AND CODPRODUTO = ? AND ATIVO = 0
+  WHERE CHAVEOS = ? AND CODPRODUTO = ? AND ATIVO = 0${itemId === undefined ? '' : ' AND CHAVE = ?'}
   ORDER BY CHAVE DESC
 `;
 }
@@ -272,6 +298,7 @@ interface WorkflowRow {
 
 function mapItemProduto(row: ItemProdutoRow): OSItemProduto {
   return {
+    itemId: row.CHAVE,
     produtoCodigo: row.CODIGO,
     descricao: row.DESCRICAO,
     unidade: row.UNIDADE,
@@ -285,6 +312,7 @@ function mapItemProduto(row: ItemProdutoRow): OSItemProduto {
 
 function mapItemServico(row: ItemServicoRow): OSItemServico {
   return {
+    itemId: row.CHAVE,
     servicoCodigo: row.CODIGO,
     descricao: row.DESCRICAO,
     unidade: row.UNIDADE,
@@ -305,7 +333,9 @@ function buildOrdemServico(
   const { observacoes } = decodeObs(header.OBS);
   const dataAbertura = combineDateTime(header.DATA, header.HORAABERTURA);
   const dataConclusao =
-    header.DATAFECHA != null ? combineDateTime(header.DATAFECHA, header.HORAFECHAMENTO ?? header.DATAFECHA) : undefined;
+    header.DATAFECHA != null
+      ? combineDateTime(header.DATAFECHA, header.HORAFECHAMENTO ?? header.DATAFECHA)
+      : undefined;
 
   const faturamento =
     header.TOTALPRODUTO === null || header.TOTALSERVICO === null
@@ -321,7 +351,11 @@ function buildOrdemServico(
     equipamentoDescricao: header.EQUIPAMENTO_DESCRICAO ?? undefined,
     status: workflow?.travadoLocal
       ? (workflow.status as OSStatus)
-      : statusFromCherpSituacao(header.SITUACAO_ATENDIMENTO_CODIGO, header.DATAFECHA, header.SITUACAO),
+      : statusFromCherpSituacao(
+          header.SITUACAO_ATENDIMENTO_CODIGO,
+          header.DATAFECHA,
+          header.SITUACAO,
+        ),
     prioridade: prioridadeFromCherp(header.PRIORIDADE),
     responsavelId: workflow?.responsavelId ?? undefined,
     tecnicoId: workflow?.tecnicoId ?? undefined,
@@ -363,17 +397,28 @@ async function fetchWorkflows(ids: string[]): Promise<Map<string, WorkflowRow>> 
   if (ids.length === 0) return new Map();
   const rows: WorkflowRow[] = [];
   for (let start = 0; start < ids.length; start += 500) {
-    const lote = await db.select().from(osWorkflow).where(inArray(osWorkflow.id, ids.slice(start, start + 500)));
+    const lote = await db
+      .select()
+      .from(osWorkflow)
+      .where(inArray(osWorkflow.id, ids.slice(start, start + 500)));
     rows.push(...(lote as WorkflowRow[]));
   }
   return new Map(rows.map((r) => [r.id.toLowerCase(), r as WorkflowRow]));
 }
 
-async function resolveChaveByCodigo(tabela: 'CLIFOR' | 'EQUIPAMENTOS', codigo: string): Promise<number> {
-  const rows = await firebirdQuery<{ CHAVE: number }>(`SELECT CHAVE FROM ${tabela} WHERE CODIGO = ? AND ATIVO = 1`, [codigo]);
+async function resolveChaveByCodigo(
+  tabela: 'CLIFOR' | 'EQUIPAMENTOS',
+  codigo: string,
+): Promise<number> {
+  const rows = await firebirdQuery<{ CHAVE: number }>(
+    `SELECT CHAVE FROM ${tabela} WHERE CODIGO = ? AND ATIVO = 1`,
+    [codigo],
+  );
   const row = rows[0];
   if (!row) {
-    throw new ValidationError(`Registro com código "${codigo}" não encontrado no CHERP (${tabela}).`);
+    throw new ValidationError(
+      `Registro com código "${codigo}" não encontrado no CHERP (${tabela}).`,
+    );
   }
   return row.CHAVE;
 }
@@ -384,7 +429,10 @@ async function resolveChaveByCodigo(tabela: 'CLIFOR' | 'EQUIPAMENTOS', codigo: s
  * CHAVETABELA. CHAVE é autoincrement por instalação, nunca hardcoded — sempre resolvido em tempo
  * de escrita pelo CODIGO (esse sim estável entre bases).
  */
-async function resolveTabelaChave(chaveTabela: number, codigo: string): Promise<number | undefined> {
+async function resolveTabelaChave(
+  chaveTabela: number,
+  codigo: string,
+): Promise<number | undefined> {
   const rows = await firebirdQuery<{ CHAVE: number }>(
     `SELECT CHAVE FROM TABELAS WHERE CHAVETABELA = ? AND CODIGO = ? AND ATIVO = 1`,
     [chaveTabela, codigo],
@@ -479,7 +527,9 @@ async function resolveProduto(codigo: string): Promise<ProdutoParaOS> {
 
 export class OSRepositoryFirebird implements IOSRepository {
   async buscarPorId(id: string): Promise<OrdemServico | null> {
-    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [id]);
+    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [
+      id,
+    ]);
     const header = headers[0];
     if (!header) return null;
 
@@ -489,7 +539,12 @@ export class OSRepositoryFirebird implements IOSRepository {
       fetchWorkflow(id),
     ]);
 
-    return buildOrdemServico(header, itensProd.map(mapItemProduto), itensServ.map(mapItemServico), workflow);
+    return buildOrdemServico(
+      header,
+      itensProd.map(mapItemProduto),
+      itensServ.map(mapItemServico),
+      workflow,
+    );
   }
 
   /**
@@ -505,9 +560,12 @@ export class OSRepositoryFirebird implements IOSRepository {
     const params: unknown[] = [];
     // Finalizada pelo app só existe no Postgres (travado_local): esses dois modos olham só OS em aberto
     // no CHERP (volume pequeno) e filtram a trava em memória, no caminho de baixo.
-    const filtroFinalizadasApp = Boolean(filter.ocultarFinalizadasApp || filter.somenteFinalizadasApp);
+    const filtroFinalizadasApp = Boolean(
+      filter.ocultarFinalizadasApp || filter.somenteFinalizadasApp,
+    );
     if (filtroFinalizadasApp) {
-      if (filter.situacaoDocumento !== undefined && filter.situacaoDocumento !== SITUACAO_ABERTO) return { items: [], total: 0 };
+      if (filter.situacaoDocumento !== undefined && filter.situacaoDocumento !== SITUACAO_ABERTO)
+        return { items: [], total: 0 };
       conditions.push('OS.SITUACAO = ?');
       params.push(SITUACAO_ABERTO);
     } else if (filter.situacaoDocumento !== undefined) {
@@ -547,9 +605,15 @@ export class OSRepositoryFirebird implements IOSRepository {
     // REPLACE sem hífen pra placa). Reduz bastante o que precisa vir pra memória numa busca típica.
     const buscaFlag = filter.busca ? filter.busca.trim() : null;
     if (buscaFlag) {
-      const buscaCodigoLike = Buffer.from(`%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`, 'latin1');
+      const buscaCodigoLike = Buffer.from(
+        `%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`,
+        'latin1',
+      );
       const buscaTextoLike = toLatin1SearchParam(buscaFlag);
-      const buscaPlacaLike = Buffer.from(`%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`, 'latin1');
+      const buscaPlacaLike = Buffer.from(
+        `%${buscaFlag.toUpperCase().replace(/[^A-Z0-9]/g, '')}%`,
+        'latin1',
+      );
       conditions.push(`(
         UPPER(CAST(OS.ORDEM AS VARCHAR(50))) LIKE ?
         OR UPPER(CAST(CLI.CODIGO AS VARCHAR(50))) LIKE ?
@@ -559,7 +623,15 @@ export class OSRepositoryFirebird implements IOSRepository {
         OR REPLACE(UPPER(EQ.IDENTIFICACAO), '-', '') LIKE ?
         OR UPPER(EQ.DESCRICAO) LIKE ?
       )`);
-      params.push(buscaCodigoLike, buscaCodigoLike, buscaTextoLike, buscaTextoLike, buscaCodigoLike, buscaPlacaLike, buscaTextoLike);
+      params.push(
+        buscaCodigoLike,
+        buscaCodigoLike,
+        buscaTextoLike,
+        buscaTextoLike,
+        buscaCodigoLike,
+        buscaPlacaLike,
+        buscaTextoLike,
+      );
     }
     const where = conditions.length ? ` AND ${conditions.join(' AND ')}` : '';
     const page = filter.page ?? 1;
@@ -585,7 +657,10 @@ export class OSRepositoryFirebird implements IOSRepository {
       return { items, total: Number(contagemRows[0]?.TOTAL ?? 0) };
     }
 
-    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT}${where} ORDER BY OS.CHAVE DESC`, params);
+    const headers = await firebirdQuery<OSHeaderRow>(
+      `${HEADER_SELECT}${where} ORDER BY OS.CHAVE DESC`,
+      params,
+    );
 
     const workflows = await fetchWorkflows(headers.map((h) => h.IDENTIFICADOR));
 
@@ -593,9 +668,13 @@ export class OSRepositoryFirebird implements IOSRepository {
     // do CHERP com `os_workflow.travado_local` do Postgres (ver buildOrdemServico), e tecnicoId
     // mora só no Postgres (os_workflow) — nenhum dos dois existe como coluna no Firebird pra
     // comparar na mesma query. Continuam filtrados aqui, depois do merge com o workflow.
-    let merged = headers.map((h) => buildOrdemServico(h, [], [], workflows.get(h.IDENTIFICADOR.toLowerCase())));
+    let merged = headers.map((h) =>
+      buildOrdemServico(h, [], [], workflows.get(h.IDENTIFICADOR.toLowerCase())),
+    );
     if (filter.status === 'AGUARDANDO') {
-      merged = merged.filter((os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE');
+      merged = merged.filter(
+        (os) => os.status === 'AGUARDANDO_PECA' || os.status === 'AGUARDANDO_CLIENTE',
+      );
     } else if (filter.status) {
       merged = merged.filter((os) => os.status === filter.status);
     }
@@ -625,27 +704,40 @@ export class OSRepositoryFirebird implements IOSRepository {
 
     const headerPorId = new Map(headers.map((header) => [header.IDENTIFICADOR, header]));
     const itensPagina = await this.carregarItens(pageItems.map((os) => headerPorId.get(os.id)!));
-    const withItens = pageItems.map((os) => ({ ...os, ...itensPagina(headerPorId.get(os.id)!.CHAVE) }));
+    const withItens = pageItems.map((os) => ({
+      ...os,
+      ...itensPagina(headerPorId.get(os.id)!.CHAVE),
+    }));
 
     return { items: withItens, total };
   }
 
   /** Duas consultas agrupadas por página, em vez de duas consultas para cada OS. Devolve os itens por CHAVE da OS. */
-  private async carregarItens(headers: OSHeaderRow[]): Promise<(chave: number) => Pick<OrdemServico, 'produtos' | 'servicos'>> {
+  private async carregarItens(
+    headers: OSHeaderRow[],
+  ): Promise<(chave: number) => Pick<OrdemServico, 'produtos' | 'servicos'>> {
     const chaves = headers.map((header) => header.CHAVE);
     let itensProd: ItemProdutoRow[] = [];
     let itensServ: ItemServicoRow[] = [];
     if (chaves.length > 0) {
       const placeholders = chaves.map(() => '?').join(', ');
       [itensProd, itensServ] = await Promise.all([
-        firebirdQuery<ItemProdutoRow>(ITEM_PRODUTO_SELECT.replace('CHAVEOS = ?', `CHAVEOS IN (${placeholders})`), chaves),
-        firebirdQuery<ItemServicoRow>(ITEM_SERVICO_SELECT.replace('CHAVEOS = ?', `CHAVEOS IN (${placeholders})`), chaves),
+        firebirdQuery<ItemProdutoRow>(
+          ITEM_PRODUTO_SELECT.replace('CHAVEOS = ?', `CHAVEOS IN (${placeholders})`),
+          chaves,
+        ),
+        firebirdQuery<ItemServicoRow>(
+          ITEM_SERVICO_SELECT.replace('CHAVEOS = ?', `CHAVEOS IN (${placeholders})`),
+          chaves,
+        ),
       ]);
     }
     const produtosPorOs = new Map<number, ItemProdutoRow[]>();
-    for (const item of itensProd) produtosPorOs.set(item.CHAVEOS, [...(produtosPorOs.get(item.CHAVEOS) ?? []), item]);
+    for (const item of itensProd)
+      produtosPorOs.set(item.CHAVEOS, [...(produtosPorOs.get(item.CHAVEOS) ?? []), item]);
     const servicosPorOs = new Map<number, ItemServicoRow[]>();
-    for (const item of itensServ) servicosPorOs.set(item.CHAVEOS, [...(servicosPorOs.get(item.CHAVEOS) ?? []), item]);
+    for (const item of itensServ)
+      servicosPorOs.set(item.CHAVEOS, [...(servicosPorOs.get(item.CHAVEOS) ?? []), item]);
     return (chave) => ({
       produtos: (produtosPorOs.get(chave) ?? []).map(mapItemProduto),
       servicos: (servicosPorOs.get(chave) ?? []).map(mapItemServico),
@@ -662,19 +754,33 @@ export class OSRepositoryFirebird implements IOSRepository {
       situacaoDocumento === undefined ? [] : [situacaoDocumento],
     );
     const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
-    return headers.map((header) => buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())));
+    return headers.map((header) =>
+      buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())),
+    );
   }
 
   async listarParaDashboard(filter: OSDashboardFilter): Promise<OrdemServico[]> {
     const inicio = filter.dataInicial;
     const fim = filter.dataFinal;
     const [abertas, fechadas] = await Promise.all([
-      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.DATA >= ? AND OS.DATA <= ?`, [inicio, fim]),
-      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.DATAFECHA >= ? AND OS.DATAFECHA <= ?`, [inicio, fim]),
+      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.DATA >= ? AND OS.DATA <= ?`, [
+        inicio,
+        fim,
+      ]),
+      firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.DATAFECHA >= ? AND OS.DATAFECHA <= ?`, [
+        inicio,
+        fim,
+      ]),
     ]);
-    const headers = [...new Map([...abertas, ...fechadas].map((header) => [header.IDENTIFICADOR.toLowerCase(), header])).values()];
+    const headers = [
+      ...new Map(
+        [...abertas, ...fechadas].map((header) => [header.IDENTIFICADOR.toLowerCase(), header]),
+      ).values(),
+    ];
     const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
-    return headers.map((header) => buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())));
+    return headers.map((header) =>
+      buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())),
+    );
   }
 
   /** Relatórios históricos têm semântica explícita e, quando necessário, trazem itens em lote. */
@@ -688,14 +794,21 @@ export class OSRepositoryFirebird implements IOSRepository {
       conditions.push('OS.SITUACAO = ?');
       params.push(filter.situacaoDocumento);
     }
-    const headers = await firebirdQuery<OSHeaderRow>(`${select} AND ${conditions.join(' AND ')} ORDER BY OS.CHAVE DESC`, params);
+    const headers = await firebirdQuery<OSHeaderRow>(
+      `${select} AND ${conditions.join(' AND ')} ORDER BY OS.CHAVE DESC`,
+      params,
+    );
     if (headers.length > 10_000) {
-      throw new ValidationError('O período escolhido contém mais de 10.000 OS. Reduza o intervalo para gerar o relatório completo.');
+      throw new ValidationError(
+        'O período escolhido contém mais de 10.000 OS. Reduza o intervalo para gerar o relatório completo.',
+      );
     }
 
     const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
     if (!filter.incluirItens || headers.length === 0) {
-      return headers.map((header) => buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())));
+      return headers.map((header) =>
+        buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())),
+      );
     }
 
     const produtosPorOS = new Map<number, ItemProdutoRow[]>();
@@ -704,11 +817,25 @@ export class OSRepositoryFirebird implements IOSRepository {
       const chaves = headers.slice(start, start + 500).map((header) => header.CHAVE);
       const placeholders = chaves.map(() => '?').join(', ');
       const [produtos, servicos] = await Promise.all([
-        firebirdQuery<ItemProdutoRow>(ITEM_PRODUTO_SELECT.replace('CHAVEOS = ?', `CHAVEOS IN (${placeholders})`), chaves),
-        firebirdQuery<ItemServicoRow>(ITEM_SERVICO_SELECT.replace('CHAVEOS = ?', `CHAVEOS IN (${placeholders})`), chaves),
+        firebirdQuery<ItemProdutoRow>(
+          ITEM_PRODUTO_SELECT.replace('CHAVEOS = ?', `CHAVEOS IN (${placeholders})`),
+          chaves,
+        ),
+        firebirdQuery<ItemServicoRow>(
+          ITEM_SERVICO_SELECT.replace('CHAVEOS = ?', `CHAVEOS IN (${placeholders})`),
+          chaves,
+        ),
       ]);
-      for (const produto of produtos) produtosPorOS.set(produto.CHAVEOS, [...(produtosPorOS.get(produto.CHAVEOS) ?? []), produto]);
-      for (const servico of servicos) servicosPorOS.set(servico.CHAVEOS, [...(servicosPorOS.get(servico.CHAVEOS) ?? []), servico]);
+      for (const produto of produtos)
+        produtosPorOS.set(produto.CHAVEOS, [
+          ...(produtosPorOS.get(produto.CHAVEOS) ?? []),
+          produto,
+        ]);
+      for (const servico of servicos)
+        servicosPorOS.set(servico.CHAVEOS, [
+          ...(servicosPorOS.get(servico.CHAVEOS) ?? []),
+          servico,
+        ]);
     }
 
     return headers.map((header) =>
@@ -729,17 +856,20 @@ export class OSRepositoryFirebird implements IOSRepository {
       [term, term, term, term, term],
     );
     const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
-    return headers.map((header) => buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())));
+    return headers.map((header) =>
+      buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())),
+    );
   }
 
   async criar(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico> {
     // Toda OS nasce ABERTA (ver criarOS em os.service.ts) — '000001' é o único código possível aqui.
-    const [chaveCliente, chaveEquipamento, chaveSituacaoAtendimento, perfilFiscalProduto] = await Promise.all([
-      resolveChaveByCodigo('CLIFOR', os.clienteCodigo),
-      resolveChaveByCodigo('EQUIPAMENTOS', os.equipamentoCodigo),
-      resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, '000001'),
-      resolvePerfilFiscalPadrao('N'),
-    ]);
+    const [chaveCliente, chaveEquipamento, chaveSituacaoAtendimento, perfilFiscalProduto] =
+      await Promise.all([
+        resolveChaveByCodigo('CLIFOR', os.clienteCodigo),
+        resolveChaveByCodigo('EQUIPAMENTOS', os.equipamentoCodigo),
+        resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, '000001'),
+        resolvePerfilFiscalPadrao('N'),
+      ]);
 
     const identificador = await firebirdTransaction(async (query) => {
       const generatorRows = await query<{ PROXIMO: number }>(
@@ -767,7 +897,10 @@ export class OSRepositoryFirebird implements IOSRepository {
           nroDav = String(numeroDav).padStart(13, '0');
         }
       } catch (err) {
-        logger.warn({ err }, 'Sem permissão pra gerar NRODAV via ATUALIZARNUMERODAV — OS criada sem número de DAV.');
+        logger.warn(
+          { err },
+          'Sem permissão pra gerar NRODAV via ATUALIZARNUMERODAV — OS criada sem número de DAV.',
+        );
       }
 
       const insertRows = await query<{ IDENTIFICADOR: string }>(
@@ -822,7 +955,9 @@ export class OSRepositoryFirebird implements IOSRepository {
   }
 
   async atualizar(id: string, patch: Partial<OrdemServico>): Promise<OrdemServico> {
-    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [id]);
+    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [
+      id,
+    ]);
     const header = headers[0];
     if (!header) {
       throw new NotFoundError('Ordem de serviço não encontrada.', 'OS_NOT_FOUND');
@@ -832,22 +967,32 @@ export class OSRepositoryFirebird implements IOSRepository {
     const camposOSFB: Array<{ coluna: string; valor: unknown }> = [];
 
     if (patch.diagnostico !== undefined) {
-      camposOSFB.push({ coluna: 'LAUDOTECNICO', valor: patch.diagnostico ? toLatin1Param(patch.diagnostico) : null });
+      camposOSFB.push({
+        coluna: 'LAUDOTECNICO',
+        valor: patch.diagnostico ? toLatin1Param(patch.diagnostico) : null,
+      });
     }
     if (patch.observacoes !== undefined) {
       camposOSFB.push({ coluna: 'OBS', valor: encodeObs(patch.observacoes) });
     }
     // CONCLUIDA grava PRONTA (a trava de edição continua sendo os_workflow.travado_local, abaixo);
     // CANCELADA não tem entrada no mapa e não escreve situação de atendimento.
-    const codigoSituacaoAtendimento = patch.status !== undefined ? SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[patch.status] : undefined;
+    const codigoSituacaoAtendimento =
+      patch.status !== undefined ? SITUACAO_ATENDIMENTO_CODIGO_POR_STATUS[patch.status] : undefined;
     if (codigoSituacaoAtendimento !== undefined) {
-      const chaveSituacaoAtendimento = await resolveTabelaChave(CHAVETABELA_SITUACAO_ATENDIMENTO, codigoSituacaoAtendimento);
+      const chaveSituacaoAtendimento = await resolveTabelaChave(
+        CHAVETABELA_SITUACAO_ATENDIMENTO,
+        codigoSituacaoAtendimento,
+      );
       if (chaveSituacaoAtendimento !== undefined) {
         camposOSFB.push({ coluna: 'CHAVESITUACAOOS', valor: chaveSituacaoAtendimento });
       }
     }
     if (patch.prioridade !== undefined) {
-      camposOSFB.push({ coluna: 'PRIORIDADE', valor: PRIORIDADE_CODIGO_POR_STATUS[patch.prioridade] });
+      camposOSFB.push({
+        coluna: 'PRIORIDADE',
+        valor: PRIORIDADE_CODIGO_POR_STATUS[patch.prioridade],
+      });
     }
     if (patch.kmAtual !== undefined) {
       camposOSFB.push({ coluna: 'KMATUAL', valor: patch.kmAtual });
@@ -871,7 +1016,12 @@ export class OSRepositoryFirebird implements IOSRepository {
              CHAVECFOPSERV = COALESCE(CHAVECFOPSERV, ?),
              CHAVETIPOATENDIMENTO = COALESCE(CHAVETIPOATENDIMENTO, 0)
            WHERE CHAVE = ?`,
-          [perfilFiscalProduto.chave, perfilFiscalProduto.chaveCfopProduto, perfilFiscalProduto.chaveCfopServico, chaveOS],
+          [
+            perfilFiscalProduto.chave,
+            perfilFiscalProduto.chaveCfopProduto,
+            perfilFiscalProduto.chaveCfopServico,
+            chaveOS,
+          ],
         );
         // NUMITEM é uma sequência única COMPARTILHADA entre ITENSORDEMSERVICOPROD e SERV pra uma
         // mesma OS (confirmado com dado real do CHERP na Fase B0 — produto e serviço se intercalam
@@ -887,15 +1037,32 @@ export class OSRepositoryFirebird implements IOSRepository {
         const numItemState = { proximo: (maxRows[0]?.MAXIMO ?? 0) + 1 };
 
         if (patch.produtos !== undefined) {
-          await this.sincronizarItens(query, chaveOS, 'produto', patch.produtos, numItemState, perfilFiscalProduto);
+          await this.sincronizarItens(
+            query,
+            chaveOS,
+            'produto',
+            patch.produtos,
+            numItemState,
+            perfilFiscalProduto,
+          );
         }
         if (patch.servicos !== undefined) {
-          await this.sincronizarItens(query, chaveOS, 'servico', patch.servicos, numItemState, perfilFiscalServico);
+          await this.sincronizarItens(
+            query,
+            chaveOS,
+            'servico',
+            patch.servicos,
+            numItemState,
+            perfilFiscalServico,
+          );
         }
       }
 
       if (patch.produtos !== undefined || patch.servicos !== undefined) {
-        const totaisRows = await query<{ TOTALPRODUTO: number | null; TOTALSERVICO: number | null }>(
+        const totaisRows = await query<{
+          TOTALPRODUTO: number | null;
+          TOTALSERVICO: number | null;
+        }>(
           `SELECT
              (SELECT CASE WHEN COUNT(*) = 0 THEN 0 WHEN COUNT(*) <> COUNT(VLRTOTAL) THEN NULL ELSE SUM(VLRTOTAL) END FROM ITENSORDEMSERVICOPROD WHERE CHAVEOS = ? AND ATIVO = 1) AS TOTALPRODUTO,
              (SELECT CASE WHEN COUNT(*) = 0 THEN 0 WHEN COUNT(*) <> COUNT(VLRTOTAL) THEN NULL ELSE SUM(VLRTOTAL) END FROM ITENSORDEMSERVICOSERV WHERE CHAVEOS = ? AND ATIVO = 1) AS TOTALSERVICO
@@ -904,13 +1071,14 @@ export class OSRepositoryFirebird implements IOSRepository {
         );
         const totalProduto = totaisRows[0]?.TOTALPRODUTO ?? null;
         const totalServico = totaisRows[0]?.TOTALSERVICO ?? null;
-        const totalOS = totalProduto === null || totalServico === null ? null : Number(totalProduto) + Number(totalServico);
-        await query(`UPDATE ORDEMSERVICO SET TOTALPRODUTO = ?, TOTALSERVICO = ?, TOTALOS = ? WHERE CHAVE = ?`, [
-          totalProduto,
-          totalServico,
-          totalOS,
-          chaveOS,
-        ]);
+        const totalOS =
+          totalProduto === null || totalServico === null
+            ? null
+            : Number(totalProduto) + Number(totalServico);
+        await query(
+          `UPDATE ORDEMSERVICO SET TOTALPRODUTO = ?, TOTALSERVICO = ?, TOTALOS = ? WHERE CHAVE = ?`,
+          [totalProduto, totalServico, totalOS, chaveOS],
+        );
       }
 
       if (camposOSFB.length > 0) {
@@ -931,9 +1099,11 @@ export class OSRepositoryFirebird implements IOSRepository {
       camposWorkflow.travadoLocal = patch.status === 'CONCLUIDA' || patch.status === 'CANCELADA';
     }
     if (patch.prioridade !== undefined) camposWorkflow.prioridade = patch.prioridade;
-    if (patch.responsavelId !== undefined) camposWorkflow.responsavelId = patch.responsavelId ?? null;
+    if (patch.responsavelId !== undefined)
+      camposWorkflow.responsavelId = patch.responsavelId ?? null;
     if (patch.tecnicoId !== undefined) camposWorkflow.tecnicoId = patch.tecnicoId ?? null;
-    if (patch.dataPrevista !== undefined) camposWorkflow.dataPrevista = patch.dataPrevista ? new Date(patch.dataPrevista) : null;
+    if (patch.dataPrevista !== undefined)
+      camposWorkflow.dataPrevista = patch.dataPrevista ? new Date(patch.dataPrevista) : null;
     if (patch.historico !== undefined) camposWorkflow.historico = patch.historico;
 
     const existente = await fetchWorkflow(id);
@@ -963,16 +1133,24 @@ export class OSRepositoryFirebird implements IOSRepository {
 
   /**
    * Edita quantidade/preço de um item já lançado — UPDATE isolado, não passa pelo diff de
-   * `sincronizarItens` (que de propósito nunca sobrescreve VLRUNIT/VLRTOTAL de um código já
+   * `sincronizarItens` (que de propósito nunca sobrescreve VLRUNIT/VLRTOTAL de uma linha já
    * existente, pra não atropelar recálculo feito pelo próprio CHERP num fluxo normal). Aqui é
    * uma edição explícita do usuário, então grava direto o que foi pedido; o desconto (DESCVLR)
    * que já estava no item é preservado, nunca zerado.
    */
-  async atualizarItemProduto(id: string, produtoCodigo: string, patch: OSItemPatch): Promise<OrdemServico> {
+  async atualizarItemProduto(
+    id: string,
+    produtoCodigo: string,
+    patch: OSItemPatch,
+  ): Promise<OrdemServico> {
     return this.atualizarItem('produto', id, produtoCodigo, patch);
   }
 
-  async atualizarItemServico(id: string, servicoCodigo: string, patch: OSItemPatch): Promise<OrdemServico> {
+  async atualizarItemServico(
+    id: string,
+    servicoCodigo: string,
+    patch: OSItemPatch,
+  ): Promise<OrdemServico> {
     return this.atualizarItem('servico', id, servicoCodigo, patch);
   }
 
@@ -983,7 +1161,9 @@ export class OSRepositoryFirebird implements IOSRepository {
     patch: OSItemPatch,
   ): Promise<OrdemServico> {
     const tabela = tipo === 'produto' ? 'ITENSORDEMSERVICOPROD' : 'ITENSORDEMSERVICOSERV';
-    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [id]);
+    const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [
+      id,
+    ]);
     const header = headers[0];
     if (!header) {
       throw new NotFoundError('Ordem de serviço não encontrada.', 'OS_NOT_FOUND');
@@ -991,11 +1171,18 @@ export class OSRepositoryFirebird implements IOSRepository {
     const chaveOS = header.CHAVE;
 
     await firebirdTransaction(async (query) => {
-      const itens = await query<{ QTDE: number; VLRUNIT: number | null; DESCVLR: number | null }>(
-        `SELECT QTDE, VLRUNIT, DESCVLR FROM ${tabela} WHERE CHAVEOS = ? AND CODPRODUTO = ? AND ATIVO = 1`,
+      const itens = await query<{
+        CHAVE: number;
+        QTDE: number;
+        VLRUNIT: number | null;
+        DESCVLR: number | null;
+      }>(
+        `SELECT CHAVE, QTDE, VLRUNIT, DESCVLR FROM ${tabela} WHERE CHAVEOS = ? AND CODPRODUTO = ? AND ATIVO = 1`,
         [chaveOS, codigo],
       );
-      const item = itens[0];
+      if (patch.itemId === undefined && itens.length > 1)
+        throw new ValidationError('Selecione a linha do item.');
+      const item = itens.find((row) => patch.itemId === undefined || row.CHAVE === patch.itemId);
       if (!item) {
         throw new NotFoundError('Item não encontrado nesta OS.', 'OS_ITEM_NOT_FOUND');
       }
@@ -1007,19 +1194,21 @@ export class OSRepositoryFirebird implements IOSRepository {
       const novoTotal = novoSubtotal - desconto;
 
       if (patch.descricaoComplementar !== undefined) {
-        await query(`UPDATE ${tabela} SET QTDE = ?, VLRUNIT = ?, VLRSUBTOTAL = ?, VLRTOTAL = ?, DESCRCOMPLEMENT = ? WHERE CHAVEOS = ? AND CODPRODUTO = ? AND ATIVO = 1`, [
-          novaQtde,
-          novoPreco,
-          novoSubtotal,
-          novoTotal,
-          patch.descricaoComplementar ? toLatin1Param(patch.descricaoComplementar) : null,
-          chaveOS,
-          codigo,
-        ]);
+        await query(
+          `UPDATE ${tabela} SET QTDE = ?, VLRUNIT = ?, VLRSUBTOTAL = ?, VLRTOTAL = ?, DESCRCOMPLEMENT = ? WHERE CHAVE = ? AND ATIVO = 1`,
+          [
+            novaQtde,
+            novoPreco,
+            novoSubtotal,
+            novoTotal,
+            patch.descricaoComplementar ? toLatin1Param(patch.descricaoComplementar) : null,
+            item.CHAVE,
+          ],
+        );
       } else {
         await query(
-          `UPDATE ${tabela} SET QTDE = ?, VLRUNIT = ?, VLRSUBTOTAL = ?, VLRTOTAL = ? WHERE CHAVEOS = ? AND CODPRODUTO = ? AND ATIVO = 1`,
-          [novaQtde, novoPreco, novoSubtotal, novoTotal, chaveOS, codigo],
+          `UPDATE ${tabela} SET QTDE = ?, VLRUNIT = ?, VLRSUBTOTAL = ?, VLRTOTAL = ? WHERE CHAVE = ? AND ATIVO = 1`,
+          [novaQtde, novoPreco, novoSubtotal, novoTotal, item.CHAVE],
         );
       }
 
@@ -1032,13 +1221,14 @@ export class OSRepositoryFirebird implements IOSRepository {
       );
       const totalProduto = totaisRows[0]?.TOTALPRODUTO ?? null;
       const totalServico = totaisRows[0]?.TOTALSERVICO ?? null;
-      const totalOS = totalProduto === null || totalServico === null ? null : Number(totalProduto) + Number(totalServico);
-      await query(`UPDATE ORDEMSERVICO SET TOTALPRODUTO = ?, TOTALSERVICO = ?, TOTALOS = ? WHERE CHAVE = ?`, [
-        totalProduto,
-        totalServico,
-        totalOS,
-        chaveOS,
-      ]);
+      const totalOS =
+        totalProduto === null || totalServico === null
+          ? null
+          : Number(totalProduto) + Number(totalServico);
+      await query(
+        `UPDATE ORDEMSERVICO SET TOTALPRODUTO = ?, TOTALSERVICO = ?, TOTALOS = ? WHERE CHAVE = ?`,
+        [totalProduto, totalServico, totalOS, chaveOS],
+      );
     });
 
     const atualizada = await this.buscarPorId(id);
@@ -1048,20 +1238,37 @@ export class OSRepositoryFirebird implements IOSRepository {
     return atualizada;
   }
 
-  async buscarProdutoRemovido(id: string, produtoCodigo: string): Promise<OSItemProduto | null> {
+  async buscarProdutoRemovido(
+    id: string,
+    produtoCodigo: string,
+    itemId?: number,
+  ): Promise<OSItemProduto | null> {
     const chaveOS = await this.resolveChaveOS(id);
-    const rows = await firebirdQuery<ItemProdutoRow>(itemRemovidoSelect('ITENSORDEMSERVICOPROD'), [chaveOS, produtoCodigo]);
+    const rows = await firebirdQuery<ItemProdutoRow>(
+      itemRemovidoSelect('ITENSORDEMSERVICOPROD', itemId),
+      itemId === undefined ? [chaveOS, produtoCodigo] : [chaveOS, produtoCodigo, itemId],
+    );
     return rows[0] ? mapItemProduto(rows[0]) : null;
   }
 
-  async buscarServicoRemovido(id: string, servicoCodigo: string): Promise<OSItemServico | null> {
+  async buscarServicoRemovido(
+    id: string,
+    servicoCodigo: string,
+    itemId?: number,
+  ): Promise<OSItemServico | null> {
     const chaveOS = await this.resolveChaveOS(id);
-    const rows = await firebirdQuery<ItemServicoRow>(itemRemovidoSelect('ITENSORDEMSERVICOSERV'), [chaveOS, servicoCodigo]);
+    const rows = await firebirdQuery<ItemServicoRow>(
+      itemRemovidoSelect('ITENSORDEMSERVICOSERV', itemId),
+      itemId === undefined ? [chaveOS, servicoCodigo] : [chaveOS, servicoCodigo, itemId],
+    );
     return rows[0] ? mapItemServico(rows[0]) : null;
   }
 
   private async resolveChaveOS(id: string): Promise<number> {
-    const headers = await firebirdQuery<{ CHAVE: number }>(`SELECT CHAVE FROM ORDEMSERVICO WHERE IDENTIFICADOR = ?`, [id]);
+    const headers = await firebirdQuery<{ CHAVE: number }>(
+      `SELECT CHAVE FROM ORDEMSERVICO WHERE IDENTIFICADOR = ?`,
+      [id],
+    );
     const chave = headers[0]?.CHAVE;
     if (chave === undefined) {
       throw new NotFoundError('Ordem de serviço não encontrada.', 'OS_NOT_FOUND');
@@ -1072,7 +1279,12 @@ export class OSRepositoryFirebird implements IOSRepository {
   /** Fotos da OS — ORDEMSERVICOIMG, tabela nativa do CHERP (mesmo padrão de CLIFORIMG/PRODUTOIMG). */
   async listarImagens(id: string): Promise<OSImagemMeta[]> {
     const chaveOS = await this.resolveChaveOS(id);
-    const rows = await firebirdQuery<{ IDENTIFICADOR: string; DESCRICAO: string; NOMEARQUIVO: string; DATA: unknown }>(
+    const rows = await firebirdQuery<{
+      IDENTIFICADOR: string;
+      DESCRICAO: string;
+      NOMEARQUIVO: string;
+      DATA: unknown;
+    }>(
       `SELECT IDENTIFICADOR, CAST(DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
               CAST(NOMEARQUIVO AS VARCHAR(100) CHARACTER SET OCTETS) AS NOMEARQUIVO, DATA
        FROM ORDEMSERVICOIMG WHERE CHAVEOS = ? AND ATIVO = 1 ORDER BY DATA`,
@@ -1117,15 +1329,17 @@ export class OSRepositoryFirebird implements IOSRepository {
   }
 
   async excluir(id: string): Promise<void> {
-    await firebirdQuery(`UPDATE ORDEMSERVICO SET ATIVO = 0 WHERE IDENTIFICADOR = ? AND ATIVO = 1`, [id]);
+    await firebirdQuery(`UPDATE ORDEMSERVICO SET ATIVO = 0 WHERE IDENTIFICADOR = ? AND ATIVO = 1`, [
+      id,
+    ]);
   }
 
   async removerImagem(id: string, identificador: string): Promise<void> {
     const chaveOS = await this.resolveChaveOS(id);
-    await firebirdQuery(`UPDATE ORDEMSERVICOIMG SET ATIVO = 0 WHERE CHAVEOS = ? AND IDENTIFICADOR = ? AND ATIVO = 1`, [
-      chaveOS,
-      identificador,
-    ]);
+    await firebirdQuery(
+      `UPDATE ORDEMSERVICOIMG SET ATIVO = 0 WHERE CHAVEOS = ? AND IDENTIFICADOR = ? AND ATIVO = 1`,
+      [chaveOS, identificador],
+    );
   }
 
   private async sincronizarItens(
@@ -1147,15 +1361,24 @@ export class OSRepositoryFirebird implements IOSRepository {
       [chaveOS],
     );
 
-    const novosCodigos = new Set(novos.map(codigoDe));
-    const atuaisCodigos = new Set(atuais.map((a) => a.CODIGO));
-
-    const remover = atuais.filter((a) => !novosCodigos.has(a.CODIGO));
-    const adicionar = novos.filter((n) => !atuaisCodigos.has(codigoDe(n)));
+    const atuaisIds = new Set(atuais.map((a) => a.CHAVE));
+    const novosIds = new Set(
+      novos
+        .map((n) => n.itemId)
+        .filter((id): id is number => id !== undefined && atuaisIds.has(id)),
+    );
+    const remover = atuais.filter((a) => !novosIds.has(a.CHAVE));
+    const adicionar = novos.filter((n) => n.itemId === undefined || !atuaisIds.has(n.itemId));
 
     const dadosFiscais = (produto: ProdutoParaOS) => {
-      const chavePerfil = tipo === 'produto' ? produto.chavePerfilFiscalProduto ?? perfilFiscal.chave : perfilFiscal.chave;
-      const chaveCfop = tipo === 'produto' ? produto.chaveCfopProduto ?? perfilFiscal.chaveCfopProduto : perfilFiscal.chaveCfopServico;
+      const chavePerfil =
+        tipo === 'produto'
+          ? (produto.chavePerfilFiscalProduto ?? perfilFiscal.chave)
+          : perfilFiscal.chave;
+      const chaveCfop =
+        tipo === 'produto'
+          ? (produto.chaveCfopProduto ?? perfilFiscal.chaveCfopProduto)
+          : perfilFiscal.chaveCfopServico;
       return { chavePerfil, chaveCfop };
     };
 
@@ -1169,7 +1392,16 @@ export class OSRepositoryFirebird implements IOSRepository {
              VLRUNITTABELA = COALESCE(VLRUNITTABELA, ?), VLRVENDAMINIMO = COALESCE(VLRVENDAMINIMO, ?),
              CHAVEDPTOESTOQUE = COALESCE(CHAVEDPTOESTOQUE, ?)
            WHERE CHAVE = ?`,
-          [produto.chaveTributacao, fiscal.chaveCfop, fiscal.chavePerfil, produto.precoCusto, produto.precoVenda, produto.precoVendaMinimo, produto.chaveDptoEstoque, chaveItem],
+          [
+            produto.chaveTributacao,
+            fiscal.chaveCfop,
+            fiscal.chavePerfil,
+            produto.precoCusto,
+            produto.precoVenda,
+            produto.precoVendaMinimo,
+            produto.chaveDptoEstoque,
+            chaveItem,
+          ],
         );
       } else {
         await query(
@@ -1178,7 +1410,14 @@ export class OSRepositoryFirebird implements IOSRepository {
              PRECOCUSTO = COALESCE(PRECOCUSTO, ?), VLRUNITTABELA = COALESCE(VLRUNITTABELA, ?),
              VLRVENDAMINIMO = COALESCE(VLRVENDAMINIMO, ?)
            WHERE CHAVE = ?`,
-          [fiscal.chaveCfop, fiscal.chavePerfil, produto.precoCusto, produto.precoVenda, produto.precoVendaMinimo, chaveItem],
+          [
+            fiscal.chaveCfop,
+            fiscal.chavePerfil,
+            produto.precoCusto,
+            produto.precoVenda,
+            produto.precoVendaMinimo,
+            chaveItem,
+          ],
         );
       }
     };
@@ -1188,7 +1427,7 @@ export class OSRepositoryFirebird implements IOSRepository {
     }
 
     // Corrige itens já criados pelo app nas versões anteriores, sem alterar valores que o CHERP calculou.
-    for (const item of atuais.filter((atual) => novosCodigos.has(atual.CODIGO))) {
+    for (const item of atuais.filter((atual) => novosIds.has(atual.CHAVE))) {
       await preencherCompatibilidade(item.CHAVE, await resolveProduto(item.CODIGO));
     }
 

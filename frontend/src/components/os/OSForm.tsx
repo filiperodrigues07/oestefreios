@@ -65,7 +65,11 @@ type OSTab = 'dados' | 'itens' | 'diagnostico' | 'historico' | 'fotos';
 const OS_TABS_VALIDAS: OSTab[] = ['dados', 'itens', 'diagnostico', 'historico', 'fotos'];
 
 function osTabLabel(icon: 'clipboard' | 'items' | 'diagnosis' | 'photo' | 'history', text: string) {
-  return <><ActionIcon name={icon} size={18} /> {text}</>;
+  return (
+    <>
+      <ActionIcon name={icon} size={18} /> {text}
+    </>
+  );
 }
 
 function mensagemErroCriacao(error: unknown): string {
@@ -132,11 +136,39 @@ function OSFormCreate() {
           desabilitadas até "Criar OS", pra não parecer uma tela totalmente separada. */}
       <Tabs
         items={[
-          { key: 'dados', label: osTabLabel('clipboard', 'Dados da OS'), mobileLabel: osTabLabel('clipboard', 'Dados') },
-          { key: 'itens', label: osTabLabel('items', 'Produtos e Serviços'), mobileLabel: osTabLabel('items', 'Itens'), disabled: true, title: 'Disponível depois de criar a OS' },
-          { key: 'diagnostico', label: osTabLabel('diagnosis', 'Diagnóstico'), mobileLabel: osTabLabel('diagnosis', 'Diagnóstico'), disabled: true, title: 'Disponível depois de criar a OS' },
-          { key: 'fotos', label: osTabLabel('photo', 'Fotos'), mobileLabel: osTabLabel('photo', 'Fotos'), disabled: true, title: 'Disponível depois de criar a OS' },
-          { key: 'historico', label: osTabLabel('history', 'Histórico'), mobileLabel: osTabLabel('history', 'Histórico'), disabled: true, title: 'Disponível depois de criar a OS' },
+          {
+            key: 'dados',
+            label: osTabLabel('clipboard', 'Dados da OS'),
+            mobileLabel: osTabLabel('clipboard', 'Dados'),
+          },
+          {
+            key: 'itens',
+            label: osTabLabel('items', 'Produtos e Serviços'),
+            mobileLabel: osTabLabel('items', 'Itens'),
+            disabled: true,
+            title: 'Disponível depois de criar a OS',
+          },
+          {
+            key: 'diagnostico',
+            label: osTabLabel('diagnosis', 'Diagnóstico'),
+            mobileLabel: osTabLabel('diagnosis', 'Diagnóstico'),
+            disabled: true,
+            title: 'Disponível depois de criar a OS',
+          },
+          {
+            key: 'fotos',
+            label: osTabLabel('photo', 'Fotos'),
+            mobileLabel: osTabLabel('photo', 'Fotos'),
+            disabled: true,
+            title: 'Disponível depois de criar a OS',
+          },
+          {
+            key: 'historico',
+            label: osTabLabel('history', 'Histórico'),
+            mobileLabel: osTabLabel('history', 'Histórico'),
+            disabled: true,
+            title: 'Disponível depois de criar a OS',
+          },
         ]}
         active="dados"
         onChange={() => {}}
@@ -156,10 +188,7 @@ function OSFormCreate() {
           <h2 className={styles.sectionTitle}>Problema relatado</h2>
           <div className={styles.createStack}>
             <div>
-              <label
-                htmlFor="problema"
-                className={styles.fieldLabel}
-              >
+              <label htmlFor="problema" className={styles.fieldLabel}>
                 Descrição
               </label>
               <textarea
@@ -187,10 +216,7 @@ function OSFormCreate() {
             />
 
             {mutation.isError && (
-              <p
-                role="alert"
-                className={styles.formError}
-              >
+              <p role="alert" className={styles.formError}>
                 {erroCriacao}
               </p>
             )}
@@ -277,7 +303,6 @@ function OSFormEdit({ id }: { id: string }) {
     enabled: !!os,
   });
 
-
   function invalidate() {
     return Promise.all([
       queryClient.invalidateQueries({ queryKey: ['os', id] }),
@@ -295,7 +320,11 @@ function OSFormEdit({ id }: { id: string }) {
     onError: (err) => {
       // Conflito tem diálogo próprio no DiagnosticoSection — toast aqui seria aviso duplicado.
       if (err instanceof ApiError && err.code === 'OS_CONFLICT') return;
-      handleMutationError(err, showToast, 'Não foi possível salvar as alterações. Tente novamente.');
+      handleMutationError(
+        err,
+        showToast,
+        'Não foi possível salvar as alterações. Tente novamente.',
+      );
     },
   });
 
@@ -321,8 +350,14 @@ function OSFormEdit({ id }: { id: string }) {
     onSuccess: async (_os, status) => {
       await invalidate();
       // Quem não vê finalizadas: a OS sai da lista dele — volta pra lista em vez de ficar numa OS travada.
-      if ((status === 'CONCLUIDA' || status === 'CANCELADA') && !hasPermission('OS_VIEW_FINALIZADAS')) {
-        showToast(`OS ${status === 'CONCLUIDA' ? 'finalizada' : 'cancelada'}. Ela saiu da sua lista.`, 'success');
+      if (
+        (status === 'CONCLUIDA' || status === 'CANCELADA') &&
+        !hasPermission('OS_VIEW_FINALIZADAS')
+      ) {
+        showToast(
+          `OS ${status === 'CONCLUIDA' ? 'finalizada' : 'cancelada'}. Ela saiu da sua lista.`,
+          'success',
+        );
         guard.liberar();
         navigate('/os', { replace: true });
         return;
@@ -395,9 +430,10 @@ function OSFormEdit({ id }: { id: string }) {
   async function atualizarProduto(
     codigo: string,
     patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string },
+    itemId?: number,
   ) {
     try {
-      const atualizado = await atualizarProdutoItemOS(id, codigo, patch);
+      const atualizado = await atualizarProdutoItemOS(id, codigo, patch, itemId);
       queryClient.setQueryData(['os', id], atualizado);
       showToast('Produto atualizado.', 'success');
     } catch (err) {
@@ -409,9 +445,10 @@ function OSFormEdit({ id }: { id: string }) {
   async function atualizarServico(
     codigo: string,
     patch: { quantidade?: number; precoUnitario?: number; descricaoComplementar?: string },
+    itemId?: number,
   ) {
     try {
-      const atualizado = await atualizarServicoItemOS(id, codigo, patch);
+      const atualizado = await atualizarServicoItemOS(id, codigo, patch, itemId);
       queryClient.setQueryData(['os', id], atualizado);
       showToast('Serviço atualizado.', 'success');
     } catch (err) {
@@ -423,7 +460,8 @@ function OSFormEdit({ id }: { id: string }) {
   // Sem diálogo de confirmação: remove na hora e oferece "Desfazer" — confirmação o usuário clica sem ler,
   // desfazer corrige o erro de verdade.
   const restaurarMutation = useMutation({
-    mutationFn: (item: { tipo: 'produto' | 'servico'; codigo: string }) => restaurarItemOS(id, item.tipo, item.codigo),
+    mutationFn: (item: { tipo: 'produto' | 'servico'; codigo: string; itemId?: number }) =>
+      restaurarItemOS(id, item.tipo, item.codigo, item.itemId),
     onSuccess: (atualizado, item) => {
       queryClient.setQueryData(['os', id], atualizado);
       void queryClient.invalidateQueries({ queryKey: ['os-list'] });
@@ -433,8 +471,15 @@ function OSFormEdit({ id }: { id: string }) {
   });
 
   const removerMutation = useMutation({
-    mutationFn: (item: { tipo: 'produto' | 'servico'; codigo: string; descricao: string }) =>
-      item.tipo === 'produto' ? removerProdutoOS(id, item.codigo) : removerServicoOS(id, item.codigo),
+    mutationFn: (item: {
+      tipo: 'produto' | 'servico';
+      codigo: string;
+      descricao: string;
+      itemId?: number;
+    }) =>
+      item.tipo === 'produto'
+        ? removerProdutoOS(id, item.codigo, item.itemId)
+        : removerServicoOS(id, item.codigo, item.itemId),
     onSuccess: async (_os, item) => {
       await invalidate();
       showToast(`"${item.descricao}" removido.`, 'success', {
@@ -453,7 +498,8 @@ function OSFormEdit({ id }: { id: string }) {
       showToast(`OS duplicada como #${nova.numero}.`, 'success');
       navigate(`/os/${nova.id}`);
     },
-    onError: (err) => handleMutationError(err, showToast, 'Não foi possível duplicar a OS. Tente novamente.'),
+    onError: (err) =>
+      handleMutationError(err, showToast, 'Não foi possível duplicar a OS. Tente novamente.'),
   });
 
   const reabrirMutation = useMutation({
@@ -479,7 +525,8 @@ function OSFormEdit({ id }: { id: string }) {
       guard.liberar();
       navigate('/os', { replace: true });
     },
-    onError: (err) => handleMutationError(err, showToast, 'Não foi possível excluir a OS. Tente novamente.'),
+    onError: (err) =>
+      handleMutationError(err, showToast, 'Não foi possível excluir a OS. Tente novamente.'),
   });
 
   if (isLoading) {
@@ -522,7 +569,10 @@ function OSFormEdit({ id }: { id: string }) {
   const descricaoVeiculo = equipamento?.descricao ?? os.equipamentoCodigo;
 
   return (
-    <div className={`${styles.page} ${styles.detailPage}`} data-pull-refresh-blocked={diagnosticoDirty}>
+    <div
+      className={`${styles.page} ${styles.detailPage}`}
+      data-pull-refresh-blocked={diagnosticoDirty}
+    >
       <OSFormHeader
         id={id}
         numero={os.numero}
@@ -546,7 +596,11 @@ function OSFormEdit({ id }: { id: string }) {
         canDelete={hasPermission('OS_DELETE') && !osFinalizada}
         onExcluir={(motivo) => excluirMutation.mutate(motivo)}
         excluindo={excluirMutation.isPending}
-        canReopen={hasPermission('OS_REOPEN') && Boolean(os.travadoLocal) && (os.situacaoDocumento ?? 0) === 0}
+        canReopen={
+          hasPermission('OS_REOPEN') &&
+          Boolean(os.travadoLocal) &&
+          (os.situacaoDocumento ?? 0) === 0
+        }
         onReabrir={(motivo) => reabrirMutation.mutate(motivo)}
         reabrindo={reabrirMutation.isPending}
         onEnviar={hasPermission('OS_CHANGE_STATUS') ? setMessageChannel : undefined}
@@ -555,22 +609,47 @@ function OSFormEdit({ id }: { id: string }) {
       {/* Resumo fixo — some quem é o cliente/veículo mesmo fora da aba "Dados". */}
       <div className={styles.contextBar}>
         <span className={styles.clientContext}>
-          <span className={styles.contextIdentity}><small>Cliente</small><strong>{nomeCliente}</strong></span>
+          <span className={styles.contextIdentity}>
+            <small>Cliente</small>
+            <strong>{nomeCliente}</strong>
+          </span>
         </span>
-        <span><small>Veículo</small><strong>{descricaoVeiculo}</strong></span>
+        <span>
+          <small>Veículo</small>
+          <strong>{descricaoVeiculo}</strong>
+        </span>
       </div>
 
       <Tabs
         items={[
-          { key: 'dados', label: osTabLabel('clipboard', 'Dados da OS'), mobileLabel: osTabLabel('clipboard', 'Dados') },
+          {
+            key: 'dados',
+            label: osTabLabel('clipboard', 'Dados da OS'),
+            mobileLabel: osTabLabel('clipboard', 'Dados'),
+          },
           {
             key: 'itens',
-            label: osTabLabel('items', totalItens > 0 ? `Produtos e Serviços (${totalItens})` : 'Produtos e Serviços'),
+            label: osTabLabel(
+              'items',
+              totalItens > 0 ? `Produtos e Serviços (${totalItens})` : 'Produtos e Serviços',
+            ),
             mobileLabel: osTabLabel('items', totalItens > 0 ? `Itens (${totalItens})` : 'Itens'),
           },
-          { key: 'diagnostico', label: osTabLabel('diagnosis', 'Diagnóstico'), mobileLabel: osTabLabel('diagnosis', 'Diagnóstico') },
-          { key: 'fotos', label: osTabLabel('photo', 'Fotos'), mobileLabel: osTabLabel('photo', 'Fotos') },
-          { key: 'historico', label: osTabLabel('history', 'Histórico'), mobileLabel: osTabLabel('history', 'Histórico') },
+          {
+            key: 'diagnostico',
+            label: osTabLabel('diagnosis', 'Diagnóstico'),
+            mobileLabel: osTabLabel('diagnosis', 'Diagnóstico'),
+          },
+          {
+            key: 'fotos',
+            label: osTabLabel('photo', 'Fotos'),
+            mobileLabel: osTabLabel('photo', 'Fotos'),
+          },
+          {
+            key: 'historico',
+            label: osTabLabel('history', 'Histórico'),
+            mobileLabel: osTabLabel('history', 'Histórico'),
+          },
         ]}
         active={tab}
         onChange={mudarTab}
@@ -636,10 +715,22 @@ function OSFormEdit({ id }: { id: string }) {
                 onAtualizarProduto={atualizarProduto}
                 onAtualizarServico={atualizarServico}
                 onRemoverProduto={(row: ItemGridRow) =>
-                  !removerMutation.isPending && removerMutation.mutate({ tipo: 'produto', codigo: row.codigo, descricao: row.descricao })
+                  !removerMutation.isPending &&
+                  removerMutation.mutate({
+                    tipo: 'produto',
+                    codigo: row.codigo,
+                    descricao: row.descricao,
+                    itemId: row.itemId,
+                  })
                 }
                 onRemoverServico={(row: ItemGridRow) =>
-                  !removerMutation.isPending && removerMutation.mutate({ tipo: 'servico', codigo: row.codigo, descricao: row.descricao })
+                  !removerMutation.isPending &&
+                  removerMutation.mutate({
+                    tipo: 'servico',
+                    codigo: row.codigo,
+                    descricao: row.descricao,
+                    itemId: row.itemId,
+                  })
                 }
               />
             </section>
@@ -647,7 +738,9 @@ function OSFormEdit({ id }: { id: string }) {
             {mostrarPreco && (
               <section className={styles.financialSummary}>
                 <div className={styles.summaryHeading}>
-                  <span className={styles.summaryIcon}><NavIcon name="chart" /></span>
+                  <span className={styles.summaryIcon}>
+                    <NavIcon name="chart" />
+                  </span>
                   <div>
                     <h2>Resumo financeiro</h2>
                     <p>Totais calculados no Firebird pelos itens ativos.</p>
@@ -656,15 +749,29 @@ function OSFormEdit({ id }: { id: string }) {
                 <div className={styles.summaryMetrics}>
                   <div className={styles.summaryMetric}>
                     <span>Total produtos</span>
-                    <strong><CurrencyCell amount={os.produtos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)} /></strong>
+                    <strong>
+                      <CurrencyCell
+                        amount={os.produtos
+                          .reduce((total, item) => total + (item.total ?? 0), 0)
+                          .toFixed(2)}
+                      />
+                    </strong>
                   </div>
                   <div className={styles.summaryMetric}>
                     <span>Total serviços</span>
-                    <strong><CurrencyCell amount={os.servicos.reduce((total, item) => total + (item.total ?? 0), 0).toFixed(2)} /></strong>
+                    <strong>
+                      <CurrencyCell
+                        amount={os.servicos
+                          .reduce((total, item) => total + (item.total ?? 0), 0)
+                          .toFixed(2)}
+                      />
+                    </strong>
                   </div>
                   <div className={`${styles.summaryMetric} ${styles.summaryTotal}`}>
                     <span>Total geral</span>
-                    <strong><CurrencyCell amount={(os.faturamento ?? 0).toFixed(2)} /></strong>
+                    <strong>
+                      <CurrencyCell amount={(os.faturamento ?? 0).toFixed(2)} />
+                    </strong>
                   </div>
                 </div>
               </section>
@@ -702,9 +809,24 @@ function OSFormEdit({ id }: { id: string }) {
         }}
       />
       {guard.dialog}
-      {messageChannel && <OSMessageDialog key={messageChannel} id={id} clientCode={os.clienteCodigo} channel={messageChannel}
-        defaultType={os.status === 'AGUARDANDO_CLIENTE' ? 'aguardando_cliente' : os.status === 'AGUARDANDO_PECA' ? 'aguardando_peca' : os.status === 'CONCLUIDA' ? 'pronta' : 'aberta'}
-        onClose={() => setMessageChannel(null)} />}
+      {messageChannel && (
+        <OSMessageDialog
+          key={messageChannel}
+          id={id}
+          clientCode={os.clienteCodigo}
+          channel={messageChannel}
+          defaultType={
+            os.status === 'AGUARDANDO_CLIENTE'
+              ? 'aguardando_cliente'
+              : os.status === 'AGUARDANDO_PECA'
+                ? 'aguardando_peca'
+                : os.status === 'CONCLUIDA'
+                  ? 'pronta'
+                  : 'aberta'
+          }
+          onClose={() => setMessageChannel(null)}
+        />
+      )}
     </div>
   );
 }

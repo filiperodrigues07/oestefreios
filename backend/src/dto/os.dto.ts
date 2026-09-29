@@ -1,6 +1,7 @@
 import type { OSHistoricoEntry, OSPrioridade, OSStatus } from '../types/cherp.types.js';
 
 interface OSItemProdutoBase {
+  itemId?: number;
   produtoCodigo: string;
   descricao: string;
   unidade: string;
@@ -9,6 +10,7 @@ interface OSItemProdutoBase {
 }
 
 interface OSItemServicoBase {
+  itemId?: number;
   servicoCodigo: string;
   descricao: string;
   unidade: string;

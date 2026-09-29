@@ -22,7 +22,14 @@ export interface OSListFilter {
   situacaoAtendimento?: string;
   /** Só as finalizadas pelo app que ainda estão em aberto no CHERP (aguardando faturamento lá). */
   somenteFinalizadasApp?: boolean;
-  sortBy?: 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';
+  sortBy?:
+    | 'numero'
+    | 'clienteNome'
+    | 'equipamentoDescricao'
+    | 'dataAbertura'
+    | 'status'
+    | 'prioridade'
+    | 'faturamento';
   sortOrder?: 'asc' | 'desc';
   page?: number;
   limit?: number;
@@ -42,6 +49,7 @@ export interface OSReportFilter extends OSDashboardFilter {
 }
 
 export interface OSItemPatch {
+  itemId?: number;
   quantidade?: number;
   precoUnitario?: number;
   descricaoComplementar?: string;
@@ -78,11 +86,27 @@ export interface IOSRepository {
   /** Exclusão lógica (ATIVO = 0) — o CHERP nunca apaga linha de verdade; a OS some das listagens. */
   excluir(id: string): Promise<void>;
   /** Edita quantidade/preço de um item já lançado (UPDATE isolado — não passa pelo diff de sincronizarItens). */
-  atualizarItemProduto(id: string, produtoCodigo: string, patch: OSItemPatch): Promise<OrdemServico>;
-  atualizarItemServico(id: string, servicoCodigo: string, patch: OSItemPatch): Promise<OrdemServico>;
-  /** Última linha removida (ATIVO = 0) de um item da OS — base do "Desfazer" depois de remover. */
-  buscarProdutoRemovido(id: string, produtoCodigo: string): Promise<OSItemProduto | null>;
-  buscarServicoRemovido(id: string, servicoCodigo: string): Promise<OSItemServico | null>;
+  atualizarItemProduto(
+    id: string,
+    produtoCodigo: string,
+    patch: OSItemPatch,
+  ): Promise<OrdemServico>;
+  atualizarItemServico(
+    id: string,
+    servicoCodigo: string,
+    patch: OSItemPatch,
+  ): Promise<OrdemServico>;
+  /** Linha removida (ATIVO = 0) da OS — base do "Desfazer" depois de remover. */
+  buscarProdutoRemovido(
+    id: string,
+    produtoCodigo: string,
+    itemId?: number,
+  ): Promise<OSItemProduto | null>;
+  buscarServicoRemovido(
+    id: string,
+    servicoCodigo: string,
+    itemId?: number,
+  ): Promise<OSItemServico | null>;
   /** Fotos da OS — ORDEMSERVICOIMG, BLOB nativo do CHERP (não é armazenamento paralelo). */
   listarImagens(id: string): Promise<OSImagemMeta[]>;
   adicionarImagem(id: string, imagem: OSImagemNova): Promise<void>;

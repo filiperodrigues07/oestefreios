@@ -22,6 +22,7 @@ export function toOSDTO(
     diagnostico: os.diagnostico,
     observacoes: os.observacoes,
     produtos: os.produtos.map((p) => ({
+      itemId: p.itemId,
       produtoCodigo: p.produtoCodigo,
       descricao: p.descricao,
       unidade: p.unidade,
@@ -29,6 +30,7 @@ export function toOSDTO(
       descricaoComplementar: p.descricaoComplementar,
     })),
     servicos: os.servicos.map((s) => ({
+      itemId: s.itemId,
       servicoCodigo: s.servicoCodigo,
       descricao: s.descricao,
       unidade: s.unidade,
@@ -54,6 +56,7 @@ export function toOSDTO(
   const admin: AdminOSDTO = {
     ...base,
     produtos: os.produtos.map((p) => ({
+      itemId: p.itemId,
       produtoCodigo: p.produtoCodigo,
       descricao: p.descricao,
       unidade: p.unidade,
@@ -64,6 +67,7 @@ export function toOSDTO(
       total: p.total,
     })),
     servicos: os.servicos.map((s) => ({
+      itemId: s.itemId,
       servicoCodigo: s.servicoCodigo,
       descricao: s.descricao,
       unidade: s.unidade,

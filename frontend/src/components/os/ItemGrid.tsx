@@ -13,6 +13,7 @@ import {
 import styles from './ItemGrid.module.css';
 
 export interface ItemGridRow {
+  itemId?: number;
   codigo: string;
   descricao: string;
   unidade: string;
@@ -47,8 +48,8 @@ interface ItemGridProps {
     precoUnitario?: number,
     descricaoComplementar?: string,
   ) => Promise<unknown>;
-  /** Editar quantidade/preço de um item já lançado (também usado pra somar quantidade em item duplicado). */
-  onAtualizar: (codigo: string, patch: ItemPatch) => Promise<unknown>;
+  /** Editar somente a linha selecionada. */
+  onAtualizar: (codigo: string, patch: ItemPatch, itemId?: number) => Promise<unknown>;
   onRemover: (row: ItemGridRow) => void;
   podeEditar: boolean;
   mostrarPreco: boolean;
@@ -63,7 +64,7 @@ interface ItemGridProps {
  * ou descrição com autocomplete/F8), a lista de itens já lançados cresce abaixo, sem sair da
  * tela nem abrir modal por item. Desktop mostra tabela, mobile mostra lista de cards — mesmo
  * estado, mesmos handlers, só o markup de exibição dos itens muda por CSS. Item já lançado de
- * novo pergunta se quer somar a quantidade em vez de bloquear; cada linha pode ser editada
+ * novo avisa e permite um lançamento separado; cada linha pode ser editada
  * depois (ícone de lápis) sem precisar remover e relançar.
  */
 export function ItemGrid({
@@ -87,10 +88,7 @@ export function ItemGrid({
   const [precoEditado, setPrecoEditado] = useState('');
   const [complemento, setComplemento] = useState('');
   const [erro, setErro] = useState<string | null>(null);
-  const [duplicado, setDuplicado] = useState<{
-    existente: ItemGridRow;
-    novaQuantidade: number;
-  } | null>(null);
+  const [duplicado, setDuplicado] = useState<ItemGridRow | null>(null);
   const [editandoCodigo, setEditandoCodigo] = useState<string | null>(null);
   const [editQtd, setEditQtd] = useState('');
   const [editPreco, setEditPreco] = useState('');
@@ -130,8 +128,7 @@ export function ItemGrid({
         setErro(`Código "${codigoInput.trim()}" não encontrado.`);
       }
     },
-    onError: (err) =>
-      setErro(getUserErrorMessage(err, 'Não foi possível buscar o código.')),
+    onError: (err) => setErro(getUserErrorMessage(err, 'Não foi possível buscar o código.')),
   });
 
   const addMutation = useMutation({
@@ -146,33 +143,17 @@ export function ItemGrid({
     onError: (err) => setErro(getUserErrorMessage(err, 'Não foi possível adicionar.')),
   });
 
-  const somarDuplicadoMutation = useMutation({
-    mutationFn: () =>
-      onAtualizar(duplicado!.existente.codigo, {
-        quantidade: duplicado!.existente.quantidade + duplicado!.novaQuantidade,
-      }),
-    onSuccess: () => {
-      setDuplicado(null);
-      resetarAdicao();
-    },
-    onError: (err) => {
-      setDuplicado(null);
-      setErro(getUserErrorMessage(err, 'Não foi possível atualizar a quantidade.'));
-    },
-  });
-
   const editMutation = useMutation({
-    mutationFn: (codigo: string) => {
+    mutationFn: (item: ItemGridRow) => {
       const qtd = Number(editQtd.replace(',', '.'));
       const preco = Number(editPreco.replace(',', '.'));
       const patch: ItemPatch = { descricaoComplementar: editComplemento.trim() };
       if (Number.isFinite(qtd) && qtd > 0) patch.quantidade = qtd;
       if (podeEditarPreco && Number.isFinite(preco) && preco >= 0) patch.precoUnitario = preco;
-      return onAtualizar(codigo, patch);
+      return onAtualizar(item.codigo, patch, item.itemId);
     },
     onSuccess: () => setEditandoCodigo(null),
-    onError: (err) =>
-      setErro(getUserErrorMessage(err, 'Não foi possível salvar a edição.')),
+    onError: (err) => setErro(getUserErrorMessage(err, 'Não foi possível salvar a edição.')),
   });
 
   function resetarAdicao() {
@@ -199,7 +180,7 @@ export function ItemGrid({
   function handleConfirmarAdicao() {
     const existente = itens.find((i) => i.codigo === selecionado!.codigo);
     if (existente) {
-      setDuplicado({ existente, novaQuantidade: quantidadeNumero });
+      setDuplicado(existente);
       return;
     }
     addMutation.mutate();
@@ -229,8 +210,11 @@ export function ItemGrid({
     codigoRef.current?.focus();
   }
 
+  const rowKey = (item: ItemGridRow) =>
+    item.itemId === undefined ? `code:${item.codigo}` : `id:${item.itemId}`;
+
   function iniciarEdicaoLinha(item: ItemGridRow) {
-    setEditandoCodigo(item.codigo);
+    setEditandoCodigo(rowKey(item));
     setEditQtd(String(item.quantidade));
     setEditPreco(item.precoUnitario !== undefined ? item.precoUnitario.toFixed(2) : '');
     setEditComplemento(item.descricaoComplementar ?? '');
@@ -245,17 +229,20 @@ export function ItemGrid({
       : undefined;
 
   return (
-    <div className={styles.wrapper} data-pull-refresh-blocked={Boolean(selecionado || editandoCodigo)}>
+    <div
+      className={styles.wrapper}
+      data-pull-refresh-blocked={Boolean(selecionado || editandoCodigo)}
+    >
       {/* Controles de adicionar — no topo, pra lista de itens crescer abaixo conforme lança */}
       {podeEditar && (
         <div className={styles.addControls}>
           <div className={styles.addCodigo}>
             <Input
               ref={codigoRef}
-              label="Código"
+              label="Cód. CH"
               type="text"
               className={styles.codigoInput}
-              placeholder="Código exato + Enter"
+              placeholder="Cód. CH + Enter"
               value={selecionado ? selecionado.codigo : codigoInput}
               disabled={!!selecionado || codigoMutation.isPending}
               onChange={(e) => setCodigoInput(e.target.value)}
@@ -303,7 +290,9 @@ export function ItemGrid({
             <div className={styles.addQty}>
               <div className={styles.addField}>
                 <span className={styles.addFieldLabel}>Unidade</span>
-                <span className={`${styles.readonlyField} ${styles.mono}`}>{selecionado.unidade || '—'}</span>
+                <span className={`${styles.readonlyField} ${styles.mono}`}>
+                  {selecionado.unidade || '—'}
+                </span>
               </div>
               <label className={styles.addField}>
                 <span className={styles.addFieldLabel}>Quantidade</span>
@@ -338,13 +327,21 @@ export function ItemGrid({
               {mostrarPreco && selecionado && !podeEditarPreco && (
                 <div className={`${styles.addField} ${styles.moneyField}`}>
                   <span className={styles.addFieldLabel}>Valor unitário</span>
-                  <span className={`${styles.readonlyField} ${styles.mono}`}>{selecionado.precoUnitario !== undefined ? <CurrencyCell amount={selecionado.precoUnitario.toFixed(2)} /> : '—'}</span>
+                  <span className={`${styles.readonlyField} ${styles.mono}`}>
+                    {selecionado.precoUnitario !== undefined ? (
+                      <CurrencyCell amount={selecionado.precoUnitario.toFixed(2)} />
+                    ) : (
+                      '—'
+                    )}
+                  </span>
                 </div>
               )}
               {mostrarPreco && selecionado && totalPrevia !== undefined && (
                 <div className={`${styles.addField} ${styles.moneyField}`}>
                   <span className={styles.addFieldLabel}>Total</span>
-                  <span className={`${styles.readonlyField} ${styles.totalField} ${styles.mono}`}><CurrencyCell amount={totalPrevia.toFixed(2)} /></span>
+                  <span className={`${styles.readonlyField} ${styles.totalField} ${styles.mono}`}>
+                    <CurrencyCell amount={totalPrevia.toFixed(2)} />
+                  </span>
                 </div>
               )}
               <div className={styles.addActions}>
@@ -362,7 +359,11 @@ export function ItemGrid({
                   >
                     <ActionIcon name="ready" size={14} /> Adicionar
                   </button>
-                  <button type="button" className={styles.cancelAddButton} onClick={cancelarSelecao}>
+                  <button
+                    type="button"
+                    className={styles.cancelAddButton}
+                    onClick={cancelarSelecao}
+                  >
                     Cancelar
                   </button>
                 </div>
@@ -398,7 +399,7 @@ export function ItemGrid({
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Código</th>
+              <th>Cód. CH</th>
               <th>Descrição</th>
               <th>Un.</th>
               <th className={styles.center}>Qtd.</th>
@@ -416,9 +417,9 @@ export function ItemGrid({
               </tr>
             )}
             {itens.map((item) => {
-              const emEdicao = editandoCodigo === item.codigo;
+              const emEdicao = editandoCodigo === rowKey(item);
               return (
-                <tr key={item.codigo}>
+                <tr key={rowKey(item)}>
                   <td className={styles.mono}>{item.codigo}</td>
                   <td>
                     {item.descricao}
@@ -428,7 +429,9 @@ export function ItemGrid({
                         className={styles.complementoInput}
                         placeholder="Complemento (opcional)"
                         value={editComplemento}
-                        onChange={(e) => setEditComplemento(e.target.value.toLocaleUpperCase('pt-BR'))}
+                        onChange={(e) =>
+                          setEditComplemento(e.target.value.toLocaleUpperCase('pt-BR'))
+                        }
                         aria-label="Editar complemento"
                         style={{ marginTop: 'var(--space-1)' }}
                       />
@@ -473,7 +476,11 @@ export function ItemGrid({
                   )}
                   {mostrarPreco && (
                     <td className={`${styles.center} ${styles.mono}`}>
-                      {item.total !== undefined ? <CurrencyCell amount={item.total.toFixed(2)} /> : '—'}
+                      {item.total !== undefined ? (
+                        <CurrencyCell amount={item.total.toFixed(2)} />
+                      ) : (
+                        '—'
+                      )}
                     </td>
                   )}
                   {podeEditar && (
@@ -489,7 +496,7 @@ export function ItemGrid({
                           <button
                             type="button"
                             className={styles.confirmButton}
-                            onClick={() => editMutation.mutate(item.codigo)}
+                            onClick={() => editMutation.mutate(item)}
                             disabled={editMutation.isPending}
                             aria-label={`Salvar ${item.descricao}`}
                           >
@@ -543,9 +550,9 @@ export function ItemGrid({
       <div className={styles.cardList}>
         {itens.length === 0 && <p className={styles.emptyCell}>{vazio}</p>}
         {itens.map((item) => {
-          const emEdicao = editandoCodigo === item.codigo;
+          const emEdicao = editandoCodigo === rowKey(item);
           return (
-            <div key={item.codigo} className={styles.itemCard}>
+            <div key={rowKey(item)} className={styles.itemCard}>
               <div className={styles.itemCardMain}>
                 <div className={styles.itemCardDescricao}>{item.descricao}</div>
                 {emEdicao ? (
@@ -573,7 +580,9 @@ export function ItemGrid({
                       className={styles.complementoInput}
                       placeholder="Complemento (opcional)"
                       value={editComplemento}
-                      onChange={(e) => setEditComplemento(e.target.value.toLocaleUpperCase('pt-BR'))}
+                      onChange={(e) =>
+                        setEditComplemento(e.target.value.toLocaleUpperCase('pt-BR'))
+                      }
                       aria-label="Editar complemento"
                     />
                   </div>
@@ -604,7 +613,7 @@ export function ItemGrid({
                       <button
                         type="button"
                         className={styles.confirmButton}
-                        onClick={() => editMutation.mutate(item.codigo)}
+                        onClick={() => editMutation.mutate(item)}
                         disabled={editMutation.isPending}
                         aria-label={`Salvar ${item.descricao}`}
                       >
@@ -651,13 +660,16 @@ export function ItemGrid({
         title="Item já lançado"
         description={
           duplicado
-            ? `"${duplicado.existente.descricao}" já está nesta OS com quantidade ${duplicado.existente.quantidade}. Deseja somar mais ${duplicado.novaQuantidade} (total ${duplicado.existente.quantidade + duplicado.novaQuantidade})?`
+            ? `"${duplicado.descricao}" já está nesta OS. O novo lançamento ficará em uma linha separada, com a descrição complementar informada. Deseja continuar?`
             : ''
         }
-        confirmLabel="Somar quantidade"
-        loading={somarDuplicadoMutation.isPending}
+        confirmLabel="Lançar separado"
+        loading={addMutation.isPending}
         onCancel={() => setDuplicado(null)}
-        onConfirm={() => somarDuplicadoMutation.mutate()}
+        onConfirm={() => {
+          setDuplicado(null);
+          addMutation.mutate();
+        }}
       />
     </div>
   );

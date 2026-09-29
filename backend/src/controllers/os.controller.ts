@@ -22,7 +22,14 @@ export async function listOSHandler(req: Request, res: Response) {
     busca?: string;
     dataInicial?: Date;
     dataFinal?: Date;
-    sortBy?: 'numero' | 'clienteNome' | 'equipamentoDescricao' | 'dataAbertura' | 'status' | 'prioridade' | 'faturamento';
+    sortBy?:
+      | 'numero'
+      | 'clienteNome'
+      | 'equipamentoDescricao'
+      | 'dataAbertura'
+      | 'status'
+      | 'prioridade'
+      | 'faturamento';
     sortOrder?: 'asc' | 'desc';
     page?: number;
     limit?: number;
@@ -42,7 +49,11 @@ export async function getOSPdfHandler(req: Request, res: Response) {
   const { id } = req.params as { id: string };
   const os = await osService.getOSById(id, req.user!.permissions);
   const geral = await getGeralSettings();
-  const branding = { nomeEmpresa: geral.nomeEmpresa, logoUrl: await resolverLogoParaPdf(geral.logoUrl), corDestaque: geral.corDestaque };
+  const branding = {
+    nomeEmpresa: geral.nomeEmpresa,
+    logoUrl: await resolverLogoParaPdf(geral.logoUrl),
+    corDestaque: geral.corDestaque,
+  };
   const buffer = await exportarOSPdf(os, branding);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `attachment; filename="os-${os.numero}.pdf"`);
@@ -107,21 +118,49 @@ export async function adicionarProdutoHandler(req: Request, res: Response) {
   success(res, os, 'Produto adicionado.');
 }
 
+function itemIdDaRequisicao(req: Request): number | undefined {
+  if (req.query.itemId === undefined) return undefined;
+  const id = Number(req.query.itemId);
+  if (!Number.isSafeInteger(id) || id <= 0)
+    throw new ValidationError('Identificador da linha inválido.');
+  return id;
+}
+
 export async function removerProdutoHandler(req: Request, res: Response) {
   const { id, produtoCodigo } = req.params as { id: string; produtoCodigo: string };
-  const os = await osService.removerProdutoOS(id, produtoCodigo, req.user!, requestContext(req));
+  const os = await osService.removerProdutoOS(
+    id,
+    produtoCodigo,
+    req.user!,
+    requestContext(req),
+    itemIdDaRequisicao(req),
+  );
   success(res, os, 'Produto removido.');
 }
 
 export async function restaurarProdutoHandler(req: Request, res: Response) {
   const { id, produtoCodigo } = req.params as { id: string; produtoCodigo: string };
-  const os = await osService.restaurarItemOS(id, 'produto', produtoCodigo, req.user!, requestContext(req));
+  const os = await osService.restaurarItemOS(
+    id,
+    'produto',
+    produtoCodigo,
+    req.user!,
+    requestContext(req),
+    itemIdDaRequisicao(req),
+  );
   success(res, os, 'Produto restaurado.');
 }
 
 export async function restaurarServicoHandler(req: Request, res: Response) {
   const { id, servicoCodigo } = req.params as { id: string; servicoCodigo: string };
-  const os = await osService.restaurarItemOS(id, 'servico', servicoCodigo, req.user!, requestContext(req));
+  const os = await osService.restaurarItemOS(
+    id,
+    'servico',
+    servicoCodigo,
+    req.user!,
+    requestContext(req),
+    itemIdDaRequisicao(req),
+  );
   success(res, os, 'Serviço restaurado.');
 }
 
@@ -138,6 +177,7 @@ export async function atualizarProdutoItemHandler(req: Request, res: Response) {
     { quantidade, precoUnitario, descricaoComplementar },
     req.user!,
     requestContext(req),
+    itemIdDaRequisicao(req),
   );
   success(res, os, 'Produto atualizado.');
 }
@@ -164,7 +204,13 @@ export async function adicionarServicoHandler(req: Request, res: Response) {
 
 export async function removerServicoHandler(req: Request, res: Response) {
   const { id, servicoCodigo } = req.params as { id: string; servicoCodigo: string };
-  const os = await osService.removerServicoOS(id, servicoCodigo, req.user!, requestContext(req));
+  const os = await osService.removerServicoOS(
+    id,
+    servicoCodigo,
+    req.user!,
+    requestContext(req),
+    itemIdDaRequisicao(req),
+  );
   success(res, os, 'Serviço removido.');
 }
 
@@ -181,6 +227,7 @@ export async function atualizarServicoItemHandler(req: Request, res: Response) {
     { quantidade, precoUnitario, descricaoComplementar },
     req.user!,
     requestContext(req),
+    itemIdDaRequisicao(req),
   );
   success(res, os, 'Serviço atualizado.');
 }
@@ -208,7 +255,12 @@ export async function adicionarImagemHandler(req: Request, res: Response) {
 
 export async function removerImagemHandler(req: Request, res: Response) {
   const { id, identificador } = req.params as { id: string; identificador: string };
-  const imagens = await osService.removerImagemOS(id, identificador, req.user!, requestContext(req));
+  const imagens = await osService.removerImagemOS(
+    id,
+    identificador,
+    req.user!,
+    requestContext(req),
+  );
   success(res, imagens, 'Imagem removida.');
 }
 

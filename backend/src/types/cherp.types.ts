@@ -144,6 +144,7 @@ export type OSStatus =
 export type OSPrioridade = 'BAIXA' | 'NORMAL' | 'MEDIA' | 'ALTA' | 'URGENTE';
 
 export interface OSItemProduto {
+  itemId?: number;
   produtoCodigo: string;
   descricao: string;
   unidade: string;
@@ -156,6 +157,7 @@ export interface OSItemProduto {
 }
 
 export interface OSItemServico {
+  itemId?: number;
   servicoCodigo: string;
   descricao: string;
   unidade: string;
