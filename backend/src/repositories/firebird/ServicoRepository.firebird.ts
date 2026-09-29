@@ -1,7 +1,11 @@
 import { firebirdQuery } from '../../database/firebird/pool.js';
 import { catalogSearchCondition, catalogTextColumn } from './catalogSearch.js';
 import { NotImplementedError } from '../../errors/NotImplementedError.js';
+import { buscarRanqueado, CatalogIndexCache } from '../../services/catalogIndex.service.js';
 import type { PaginatedResult, SearchQuery, Servico } from '../../types/cherp.types.js';
+import { normalizeCatalogText } from '../../utils/catalogSearch.js';
+import { ordenarHits, type CatalogHit, type CatalogItemInput } from '../../utils/catalogEngine.js';
+import { logger } from '../../utils/logger.js';
 import type { IServicoRepository } from '../interfaces/IServicoRepository.js';
 
 /**
@@ -71,6 +75,31 @@ function mapRowToServico(row: Record<string, unknown>): Servico {
   };
 }
 
+/** Só o texto do catálogo de serviços (o valor vem do banco na hora da consulta). */
+async function carregarCatalogoServicos(): Promise<CatalogItemInput[]> {
+  const rows = await firebirdQuery<Record<string, unknown>>(`
+    SELECT P.CODIGO AS CODIGO, TS.CODIGO AS TIPO_SERVICO_CODIGO,
+      CAST(P.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
+      CAST(G.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS CATEGORIA
+    FROM PRODUTO P
+    LEFT JOIN GRUPOPRODUTO G ON G.CHAVE = P.CHAVEGRUPO
+    LEFT JOIN PRODTIPOSERV TS ON TS.CHAVE = P.CHAVETIPOSERV
+    WHERE P.ATIVO = 1 AND P.TIPO = 9`);
+  return rows.map((row) => {
+    const tipo = row.TIPO_SERVICO_CODIGO ? String(row.TIPO_SERVICO_CODIGO).trim() : undefined;
+    return {
+      codigo: String(row.CODIGO).trim(),
+      descricao: String(row.DESCRICAO ?? ''),
+      grupo: row.CATEGORIA ? String(row.CATEGORIA) : undefined,
+      // O código do tipo de serviço também é pesquisável (como no SQL antigo).
+      tipoTexto: tipo,
+      tipo,
+    };
+  });
+}
+
+const indiceServicos = new CatalogIndexCache(carregarCatalogoServicos);
+
 export class ServicoRepositoryFirebird implements IServicoRepository {
   async listarTipos(): Promise<{ codigo: string; descricao: string }[]> {
     const rows = await firebirdQuery<{ CODIGO: string; DESCRICAO: string }>(`
@@ -91,12 +120,56 @@ export class ServicoRepositoryFirebird implements IServicoRepository {
   }
 
   async buscarPorDescricao(descricao: string): Promise<Servico[]> {
+    try {
+      const hits = (await buscarRanqueado(indiceServicos, descricao)).slice(0, 50);
+      return await this.carregarDetalhes(hits);
+    } catch (err) {
+      logger.warn({ err }, 'Busca ranqueada de serviços indisponível; usando SQL');
+    }
     const busca = catalogSearchCondition(descricao, ['P.DESCRICAO', 'G.DESCRICAO', 'TS.CODIGO']);
     const rows = await firebirdQuery(`SELECT ${SERVICO_SELECT} WHERE P.ATIVO = 1 AND P.TIPO = 9 AND ${busca.clause}`, busca.params);
     return rows.map(mapRowToServico);
   }
 
+  /** Valor e unidade atuais dos serviços achados, na ordem do ranking. */
+  private async carregarDetalhes(hits: CatalogHit[]): Promise<Servico[]> {
+    if (!hits.length) return [];
+    const marcadores = hits.map(() => '?').join(', ');
+    const rows = await firebirdQuery(
+      `SELECT ${SERVICO_SELECT} WHERE P.ATIVO = 1 AND P.TIPO = 9 AND P.CODIGO IN (${marcadores})`,
+      hits.map((h) => h.entry.codigo),
+    );
+    const porCodigo = new Map(rows.map(mapRowToServico).map((servico) => [servico.codigo.trim(), servico]));
+    return hits.flatMap((hit) => {
+      const servico = porCodigo.get(hit.entry.codigo);
+      return servico ? [{ ...servico, ...(hit.parecido ? { parecido: true } : {}) }] : [];
+    });
+  }
+
+  private async buscarRanqueadoPaginado(query: SearchQuery, termo: string): Promise<PaginatedResult<Servico>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const tipo = query.tipoServicoCodigo;
+    const filtro = tipo ? (entry: { tipo?: string | number }) => entry.tipo === tipo : undefined;
+    const hits = ordenarHits(await buscarRanqueado(indiceServicos, termo, { filtro }), query.sortBy, query.sortOrder);
+    return { items: await this.carregarDetalhes(hits.slice(skip, skip + limit)), page, limit, total: hits.length };
+  }
+
   async buscar(query: SearchQuery): Promise<PaginatedResult<Servico>> {
+    const termo = (query.busca ?? query.codigo ?? query.descricao ?? '').trim();
+    if (termo) {
+      try {
+        return await this.buscarRanqueadoPaginado(query, termo);
+      } catch (err) {
+        // Índice/consulta indisponível não pode deixar o balcão sem busca: cai no LIKE do banco.
+        logger.warn({ err }, 'Busca ranqueada de serviços indisponível; usando SQL');
+      }
+    }
+    return this.buscarSql(query);
+  }
+
+  async buscarSql(query: SearchQuery): Promise<PaginatedResult<Servico>> {
     if (!QUERY_BUSCAR_PAGINADO_BASE || !QUERY_CONTAR_TOTAL) throw new NotImplementedError('ServicoRepository.buscar');
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -108,7 +181,7 @@ export class ServicoRepositoryFirebird implements IServicoRepository {
     const params = query.tipoServicoCodigo ? [...busca.params, query.tipoServicoCodigo] : busca.params;
     const relevancia = buscaFlag && (query.busca || query.descricao) ? `CASE WHEN ${catalogTextColumn('P.DESCRICAO')} LIKE ? THEN 0 ELSE 1 END, ` : '';
     const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE} AND ${busca.clause}${tipoClause} ORDER BY ${relevancia}${buildOrderBy(query)}`;
-    const pageParams = [limit, skip, ...params, ...(relevancia ? [`%${buscaFlag!}%`] : [])];
+    const pageParams = [limit, skip, ...params, ...(relevancia ? [`%${normalizeCatalogText(buscaFlag!)}%`] : [])];
 
     const [rows, countRows] = await Promise.all([
       firebirdQuery(queryPaginada, pageParams),

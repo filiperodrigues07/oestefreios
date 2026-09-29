@@ -9,6 +9,8 @@ export interface ProdutoDTO {
   estoqueMinimo?: number;
   precoUnitario?: number;
   custo?: number;
+  /** Achado por aproximação (erro de digitação ou palavra faltando). */
+  parecido?: boolean;
 }
 
 export interface ServicoDTO {
@@ -19,6 +21,7 @@ export interface ServicoDTO {
   tipoServicoCodigo?: string;
   tipoServicoDescricao?: string;
   valorUnitario?: number;
+  parecido?: boolean;
 }
 
 export type TipoPessoa = 'PF' | 'PJ';

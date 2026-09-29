@@ -14,7 +14,7 @@ describe('filtro de saldo no catálogo de produtos', () => {
     ['com_saldo', '> 0'],
     ['negativo', '< 0'],
   ] as const)('aplica %s na página e na contagem, sem parâmetro novo', async (saldoModo, operador) => {
-    await new ProdutoRepositoryFirebird().buscar({ busca: 'filtro', saldoModo, page: 1, limit: 20 });
+    await new ProdutoRepositoryFirebird().buscarSql({ busca: 'filtro', saldoModo, page: 1, limit: 20 });
 
     const [sqlPagina] = vi.mocked(firebirdQuery).mock.calls[0]!;
     const [sqlContagem] = vi.mocked(firebirdQuery).mock.calls[1]!;
@@ -23,7 +23,7 @@ describe('filtro de saldo no catálogo de produtos', () => {
   });
 
   it('sem_saldo trata NULL (sem linha de estoque) como zero', async () => {
-    await new ProdutoRepositoryFirebird().buscar({ busca: 'filtro', saldoModo: 'sem_saldo', page: 1, limit: 20 });
+    await new ProdutoRepositoryFirebird().buscarSql({ busca: 'filtro', saldoModo: 'sem_saldo', page: 1, limit: 20 });
 
     const [sqlPagina] = vi.mocked(firebirdQuery).mock.calls[0]!;
     expect(sqlPagina).toContain('COALESCE((SELECT SUM(PE.SALDO)');
@@ -31,7 +31,7 @@ describe('filtro de saldo no catálogo de produtos', () => {
   });
 
   it('todos (ou ausente) não adiciona cláusula de saldo no WHERE', async () => {
-    await new ProdutoRepositoryFirebird().buscar({ busca: 'filtro', page: 1, limit: 20 });
+    await new ProdutoRepositoryFirebird().buscarSql({ busca: 'filtro', page: 1, limit: 20 });
 
     const [sqlPagina] = vi.mocked(firebirdQuery).mock.calls[0]!;
     // DISPONIVEL/ESTOQUE_MINIMO no SELECT sempre referenciam PRODUTOESTOQUE — só a cláusula

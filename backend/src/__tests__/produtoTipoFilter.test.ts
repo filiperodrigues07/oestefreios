@@ -14,7 +14,7 @@ describe('filtro de tipo no catálogo de produtos', () => {
     ['somente', '='],
     ['exceto', '<>'],
   ] as const)('aplica %s na página e na contagem', async (tipoModo, operador) => {
-    await new ProdutoRepositoryFirebird().buscar({
+    await new ProdutoRepositoryFirebird().buscarSql({
       busca: 'filtro', tipoCodigo: 2, tipoModo, page: 2, limit: 20,
     });
 
@@ -23,7 +23,7 @@ describe('filtro de tipo no catálogo de produtos', () => {
     expect(sqlPagina).toContain(`AND P.TIPO ${operador} ?`);
     expect(sqlContagem).toContain(`AND P.TIPO ${operador} ?`);
     expect(paramsPagina?.at(-2)).toBe(2);
-    expect(paramsPagina?.at(-1)).toBe('%filtro%');
+    expect(paramsPagina?.at(-1)).toBe('%FILTRO%');
     expect(paramsContagem?.slice(-1)).toEqual([2]);
     expect(paramsPagina?.slice(0, 2)).toEqual([20, 20]);
   });

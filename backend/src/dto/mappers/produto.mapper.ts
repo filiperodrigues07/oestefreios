@@ -14,6 +14,7 @@ export function toProdutoDTO(
     tipo: produto.tipo,
     disponivel: produto.disponivel,
     estoqueMinimo: produto.estoqueMinimo,
+    parecido: produto.parecido,
   };
 
   if (!permissions.includes('FINANCIAL_VIEW')) {

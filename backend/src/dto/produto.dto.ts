@@ -7,6 +7,7 @@ export interface OperationalProdutoDTO {
   tipo?: string;
   disponivel?: number;
   estoqueMinimo?: number;
+  parecido?: boolean;
 }
 
 /** Servido só a perfis com FINANCIAL_VIEW. */

@@ -6,6 +6,7 @@ export interface OperationalServicoDTO {
   categoria?: string;
   tipoServicoCodigo?: string;
   tipoServicoDescricao?: string;
+  parecido?: boolean;
 }
 
 /** Servido só a perfis com FINANCIAL_VIEW. */

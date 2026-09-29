@@ -14,6 +14,8 @@ export interface Produto {
   estoqueMinimo?: number;
   precoUnitario?: number;
   custo?: number;
+  /** Achado por aproximação (erro de digitação ou palavra faltando) — a tela avisa "parecido". */
+  parecido?: boolean;
 }
 
 export interface Servico {
@@ -24,6 +26,8 @@ export interface Servico {
   tipoServicoCodigo?: string;
   tipoServicoDescricao?: string;
   valorUnitario?: number;
+  /** Achado por aproximação (erro de digitação ou palavra faltando) — a tela avisa "parecido". */
+  parecido?: boolean;
 }
 
 export type TipoPessoa = 'PF' | 'PJ';

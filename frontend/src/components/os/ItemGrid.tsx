@@ -32,6 +32,8 @@ export interface ItemGridCandidate {
   precoUnitario?: number;
   /** Só produtos têm estoque — serviços vêm sempre `undefined` e o saldo não aparece. */
   disponivel?: number;
+  /** Achado por aproximação (erro de digitação ou palavra faltando) — mostra o selo "parecido". */
+  parecido?: boolean;
 }
 
 type ComboItem = ItemGridCandidate & SearchComboboxItem;
@@ -40,7 +42,8 @@ type ItemPatch = { quantidade?: number; precoUnitario?: number; descricaoComplem
 interface ItemGridProps {
   itens: ItemGridRow[];
   queryKeyPrefix: string;
-  buscar: (query: string) => Promise<ItemGridCandidate[]>;
+  /** `total` é quantos casaram no catálogo (a lista pode trazer só os primeiros). */
+  buscar: (query: string) => Promise<{ itens: ItemGridCandidate[]; total: number }>;
   /** Busca exata por código (Enter no campo Código) — retorna `null` quando não existe. */
   buscarPorCodigo: (codigo: string) => Promise<ItemGridCandidate | null>;
   onAdicionar: (
@@ -108,7 +111,7 @@ export function ItemGrid({
     queryFn: () => buscar(query),
   });
 
-  const items: ComboItem[] = (candidatos ?? []).map((c) => ({
+  const items: ComboItem[] = (candidatos?.itens ?? []).map((c) => ({
     key: c.codigo,
     code: c.codigo,
     description: c.descricao,
@@ -273,6 +276,10 @@ export function ItemGrid({
                 isError={isError}
                 onQueryChange={setQuery}
                 onSelect={handleSelecionar}
+                emptyMessage="Nada encontrado. Tente menos palavras ou só parte do nome."
+                footer={candidatos && candidatos.total > items.length
+                  ? `Mostrando ${items.length} de ${candidatos.total} — digite mais uma palavra para refinar.`
+                  : undefined}
                 renderItem={(item) => (
                   <>
                     <span>
@@ -280,6 +287,7 @@ export function ItemGrid({
                       <small style={{ color: 'var(--color-text-secondary)' }}>
                         ({item.unidade})
                       </small>
+                      {item.parecido && <span className={styles.parecido} title="Parecido com o que você digitou">parecido</span>}
                     </span>
                     <span className={`${styles.optionMeta} ${styles.mono}`}>
                       {item.codigo}

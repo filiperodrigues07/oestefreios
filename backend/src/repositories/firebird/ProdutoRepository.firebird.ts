@@ -1,7 +1,11 @@
 import { firebirdQuery } from '../../database/firebird/pool.js';
 import { catalogSearchCondition, catalogTextColumn } from './catalogSearch.js';
 import { NotImplementedError } from '../../errors/NotImplementedError.js';
+import { buscarRanqueado, CatalogIndexCache } from '../../services/catalogIndex.service.js';
 import type { PaginatedResult, Produto, SearchQuery } from '../../types/cherp.types.js';
+import { normalizeCatalogText } from '../../utils/catalogSearch.js';
+import { ordenarHits, type CatalogHit, type CatalogItemInput } from '../../utils/catalogEngine.js';
+import { logger } from '../../utils/logger.js';
 import type { IProdutoRepository } from '../interfaces/IProdutoRepository.js';
 
 /**
@@ -94,6 +98,41 @@ function mapRowToProduto(row: Record<string, unknown>): Produto {
   };
 }
 
+/** Só o texto do catálogo (sem preço/saldo, que mudam toda hora e vêm do banco na hora da consulta). */
+async function carregarCatalogoProdutos(): Promise<CatalogItemInput[]> {
+  const rows = await firebirdQuery<Record<string, unknown>>(`
+    SELECT P.CODIGO AS CODIGO, P.TIPO AS TIPO,
+      CAST(P.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
+      CAST(G.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS CATEGORIA,
+      CAST(PT.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS TIPO_DESCRICAO
+    FROM PRODUTO P
+    LEFT JOIN GRUPOPRODUTO G ON G.CHAVE = P.CHAVEGRUPO
+    LEFT JOIN PRODUTOTIPO PT ON PT.CODIGO = P.TIPO AND PT.ATIVO = 1
+    WHERE P.ATIVO = 1 AND P.TIPO <> 9`);
+  return rows.map((row) => ({
+    codigo: String(row.CODIGO).trim(),
+    descricao: String(row.DESCRICAO ?? ''),
+    grupo: row.CATEGORIA ? String(row.CATEGORIA) : undefined,
+    tipoTexto: row.TIPO_DESCRICAO ? String(row.TIPO_DESCRICAO) : undefined,
+    tipo: row.TIPO === null || row.TIPO === undefined ? undefined : Number(row.TIPO),
+  }));
+}
+
+const indiceProdutos = new CatalogIndexCache(carregarCatalogoProdutos);
+
+/** Mesmo filtro de saldo do SQL de listagem — repetido aqui porque DISPONIVEL é subquery, não coluna. */
+function saldoClauseFor(modo: SearchQuery['saldoModo']): string {
+  switch (modo) {
+    case 'com_saldo': return ` AND (SELECT SUM(PE.SALDO) FROM PRODUTOESTOQUE PE WHERE PE.CHAVEPRODUTO = P.CHAVE AND PE.ATIVO = 1) > 0`;
+    case 'sem_saldo': return ` AND COALESCE((SELECT SUM(PE.SALDO) FROM PRODUTOESTOQUE PE WHERE PE.CHAVEPRODUTO = P.CHAVE AND PE.ATIVO = 1), 0) = 0`;
+    case 'negativo': return ` AND (SELECT SUM(PE.SALDO) FROM PRODUTOESTOQUE PE WHERE PE.CHAVEPRODUTO = P.CHAVE AND PE.ATIVO = 1) < 0`;
+    default: return '';
+  }
+}
+
+/** Com filtro de saldo, só os melhores resultados da busca são checados no banco (a lista nunca passa disso). */
+const LIMITE_COM_FILTRO_SALDO = 300;
+
 export class ProdutoRepositoryFirebird implements IProdutoRepository {
   async listarTipos(): Promise<{ codigo: number; descricao: string }[]> {
     const rows = await firebirdQuery<{ CODIGO: number; DESCRICAO: string }>(`
@@ -114,12 +153,63 @@ export class ProdutoRepositoryFirebird implements IProdutoRepository {
   }
 
   async buscarPorDescricao(descricao: string): Promise<Produto[]> {
+    try {
+      const hits = (await buscarRanqueado(indiceProdutos, descricao)).slice(0, 50);
+      return await this.carregarDetalhes(hits);
+    } catch (err) {
+      logger.warn({ err }, 'Busca ranqueada de produtos indisponível; usando SQL');
+    }
     const busca = catalogSearchCondition(descricao, ['P.DESCRICAO', 'G.DESCRICAO', 'PT.DESCRICAO']);
     const rows = await firebirdQuery(`SELECT ${PRODUTO_SELECT} WHERE P.ATIVO = 1 AND P.TIPO <> 9 AND ${busca.clause}`, busca.params);
     return rows.map(mapRowToProduto);
   }
 
+  /** Preço, saldo e unidade atuais dos itens achados, na ordem do ranking. */
+  private async carregarDetalhes(hits: CatalogHit[], extraClause = ''): Promise<Produto[]> {
+    if (!hits.length) return [];
+    const marcadores = hits.map(() => '?').join(', ');
+    const rows = await firebirdQuery(
+      `SELECT ${PRODUTO_SELECT} WHERE P.ATIVO = 1 AND P.TIPO <> 9 AND P.CODIGO IN (${marcadores})${extraClause}`,
+      hits.map((h) => h.entry.codigo),
+    );
+    const porCodigo = new Map(rows.map(mapRowToProduto).map((produto) => [produto.codigo.trim(), produto]));
+    return hits.flatMap((hit) => {
+      const produto = porCodigo.get(hit.entry.codigo);
+      return produto ? [{ ...produto, ...(hit.parecido ? { parecido: true } : {}) }] : [];
+    });
+  }
+
+  private async buscarRanqueadoPaginado(query: SearchQuery, termo: string): Promise<PaginatedResult<Produto>> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const tipoCodigo = query.tipoCodigo;
+    const filtro = tipoCodigo === undefined
+      ? undefined
+      : (entry: { tipo?: string | number }) => (query.tipoModo === 'exceto' ? entry.tipo !== tipoCodigo : entry.tipo === tipoCodigo);
+    const hits = ordenarHits(await buscarRanqueado(indiceProdutos, termo, { filtro }), query.sortBy, query.sortOrder);
+
+    if (query.saldoModo && query.saldoModo !== 'todos') {
+      const itens = await this.carregarDetalhes(hits.slice(0, LIMITE_COM_FILTRO_SALDO), saldoClauseFor(query.saldoModo));
+      return { items: itens.slice(skip, skip + limit), page, limit, total: itens.length };
+    }
+    return { items: await this.carregarDetalhes(hits.slice(skip, skip + limit)), page, limit, total: hits.length };
+  }
+
   async buscar(query: SearchQuery): Promise<PaginatedResult<Produto>> {
+    const termo = (query.busca ?? query.codigo ?? query.descricao ?? '').trim();
+    if (termo) {
+      try {
+        return await this.buscarRanqueadoPaginado(query, termo);
+      } catch (err) {
+        // Índice/consulta indisponível não pode deixar o balcão sem busca: cai no LIKE do banco.
+        logger.warn({ err }, 'Busca ranqueada de produtos indisponível; usando SQL');
+      }
+    }
+    return this.buscarSql(query);
+  }
+
+  async buscarSql(query: SearchQuery): Promise<PaginatedResult<Produto>> {
     if (!QUERY_BUSCAR_PAGINADO_BASE || !QUERY_CONTAR_TOTAL) throw new NotImplementedError('ProdutoRepository.buscar');
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
@@ -135,19 +225,12 @@ export class ProdutoRepositoryFirebird implements IProdutoRepository {
     // DISPONIVEL é subquery correlacionada (ver mapRowToProduto/PRODUTO_SELECT), não uma coluna —
     // QUERY_CONTAR_TOTAL não seleciona ela, então repete a mesma expressão aqui em vez de comparar
     // por alias (não existe alias pra comparar fora do SELECT).
-    const saldoClause = (() => {
-      switch (query.saldoModo) {
-        case 'com_saldo': return ` AND (SELECT SUM(PE.SALDO) FROM PRODUTOESTOQUE PE WHERE PE.CHAVEPRODUTO = P.CHAVE AND PE.ATIVO = 1) > 0`;
-        case 'sem_saldo': return ` AND COALESCE((SELECT SUM(PE.SALDO) FROM PRODUTOESTOQUE PE WHERE PE.CHAVEPRODUTO = P.CHAVE AND PE.ATIVO = 1), 0) = 0`;
-        case 'negativo': return ` AND (SELECT SUM(PE.SALDO) FROM PRODUTOESTOQUE PE WHERE PE.CHAVEPRODUTO = P.CHAVE AND PE.ATIVO = 1) < 0`;
-        default: return '';
-      }
-    })();
+    const saldoClause = saldoClauseFor(query.saldoModo);
     const extraClause = `${tipoClause}${saldoClause}`;
     const params = query.tipoCodigo === undefined ? busca.params : [...busca.params, query.tipoCodigo];
     const relevancia = buscaFlag && (query.busca || query.descricao) ? `CASE WHEN ${catalogTextColumn('P.DESCRICAO')} LIKE ? THEN 0 ELSE 1 END, ` : '';
     const queryPaginada = `${QUERY_BUSCAR_PAGINADO_BASE} AND ${busca.clause}${extraClause} ORDER BY ${relevancia}${buildOrderBy(query)}`;
-    const pageParams = [limit, skip, ...params, ...(relevancia ? [`%${buscaFlag!}%`] : [])];
+    const pageParams = [limit, skip, ...params, ...(relevancia ? [`%${normalizeCatalogText(buscaFlag!)}%`] : [])];
 
     const [rows, countRows] = await Promise.all([
       firebirdQuery(queryPaginada, pageParams),

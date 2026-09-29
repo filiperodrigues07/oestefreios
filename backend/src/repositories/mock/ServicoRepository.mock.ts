@@ -1,6 +1,6 @@
 import type { PaginatedResult, SearchQuery, Servico } from '../../types/cherp.types.js';
 import { sortByField } from '../../utils/sortItems.js';
-import { matchesCatalogSearch } from '../../utils/catalogSearch.js';
+import { buscarNoIndice, construirIndice } from '../../utils/catalogEngine.js';
 import type { IServicoRepository } from '../interfaces/IServicoRepository.js';
 
 /**
@@ -20,6 +20,18 @@ const SERVICOS: Servico[] = [
   { codigo: '5021', descricao: 'Higienização do ar-condicionado', unidade: 'SERV', tipoServicoCodigo: '140101', tipoServicoDescricao: 'Manutenção de veículos', valorUnitario: 110 },
 ];
 
+// Mesmo motor de busca do Firebird: dev, testes e produção se comportam igual.
+const INDICE = construirIndice(SERVICOS.map((s) => ({ codigo: s.codigo, descricao: s.descricao, grupo: s.categoria, tipoTexto: s.tipoServicoCodigo, tipo: s.tipoServicoCodigo })));
+
+function buscarRanqueado(termo: string, tipoServicoCodigo?: string): Servico[] {
+  const porCodigo = new Map(SERVICOS.map((s) => [s.codigo, s]));
+  const filtro = tipoServicoCodigo ? (entry: { tipo?: string | number }) => entry.tipo === tipoServicoCodigo : undefined;
+  return buscarNoIndice(INDICE, termo, { filtro }).flatMap((hit) => {
+    const servico = porCodigo.get(hit.entry.codigo);
+    return servico ? [{ ...servico, ...(hit.parecido ? { parecido: true } : {}) }] : [];
+  });
+}
+
 export class ServicoRepositoryMock implements IServicoRepository {
   async listarTipos(): Promise<{ codigo: string; descricao: string }[]> {
     return [...new Map(SERVICOS.filter((s) => s.tipoServicoCodigo).map((s) => [s.tipoServicoCodigo!, {
@@ -32,7 +44,7 @@ export class ServicoRepositoryMock implements IServicoRepository {
   }
 
   async buscarPorDescricao(descricao: string): Promise<Servico[]> {
-    return SERVICOS.filter((s) => matchesCatalogSearch(descricao, [s.descricao]));
+    return buscarRanqueado(descricao);
   }
 
   async buscar(query: SearchQuery): Promise<PaginatedResult<Servico>> {
@@ -41,10 +53,12 @@ export class ServicoRepositoryMock implements IServicoRepository {
       filtered = filtered.filter((s) => s.tipoServicoCodigo === query.tipoServicoCodigo);
     }
     const termo = query.busca ?? query.codigo ?? query.descricao;
-    if (termo) filtered = filtered.filter((s) => matchesCatalogSearch(termo, [s.codigo, s.descricao, s.categoria, s.tipoServicoCodigo]));
+    if (termo) filtered = buscarRanqueado(termo, query.tipoServicoCodigo);
 
-    const sortBy = query.sortBy === 'codigo' ? 'codigo' : 'descricao';
-    filtered = sortByField(filtered, sortBy, query.sortOrder ?? 'asc', (item, field) => item[field]);
+    if (!termo || query.sortBy) {
+      const sortBy = query.sortBy === 'codigo' ? 'codigo' : 'descricao';
+      filtered = sortByField(filtered, sortBy, query.sortOrder ?? 'asc', (item, field) => item[field]);
+    }
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;

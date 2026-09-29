@@ -1,6 +1,6 @@
 import type { PaginatedResult, Produto, SearchQuery } from '../../types/cherp.types.js';
 import { sortByField } from '../../utils/sortItems.js';
-import { matchesCatalogSearch } from '../../utils/catalogSearch.js';
+import { buscarNoIndice, construirIndice } from '../../utils/catalogEngine.js';
 import type { IProdutoRepository } from '../interfaces/IProdutoRepository.js';
 
 /**
@@ -25,6 +25,17 @@ const PRODUTOS: Produto[] = [
   { codigo: '00012359', descricao: 'Junta do cabeçote', unidade: 'UN', disponivel: 0, precoUnitario: 140, custo: 90 },
 ];
 
+// Mesmo motor de busca do Firebird: dev, testes e produção se comportam igual.
+const INDICE = construirIndice(PRODUTOS.map((p) => ({ codigo: p.codigo, descricao: p.descricao, grupo: p.categoria, tipoTexto: p.tipo })));
+
+function buscarRanqueado(termo: string): Produto[] {
+  const porCodigo = new Map(PRODUTOS.map((p) => [p.codigo, p]));
+  return buscarNoIndice(INDICE, termo).flatMap((hit) => {
+    const produto = porCodigo.get(hit.entry.codigo);
+    return produto ? [{ ...produto, ...(hit.parecido ? { parecido: true } : {}) }] : [];
+  });
+}
+
 export class ProdutoRepositoryMock implements IProdutoRepository {
   async listarTipos(): Promise<{ codigo: number; descricao: string }[]> {
     return [];
@@ -34,13 +45,13 @@ export class ProdutoRepositoryMock implements IProdutoRepository {
   }
 
   async buscarPorDescricao(descricao: string): Promise<Produto[]> {
-    return PRODUTOS.filter((p) => matchesCatalogSearch(descricao, [p.descricao]));
+    return buscarRanqueado(descricao);
   }
 
   async buscar(query: SearchQuery): Promise<PaginatedResult<Produto>> {
     let filtered = PRODUTOS;
     const termo = query.busca ?? query.codigo ?? query.descricao;
-    if (termo) filtered = filtered.filter((p) => matchesCatalogSearch(termo, [p.codigo, p.descricao, p.categoria, p.tipo]));
+    if (termo) filtered = buscarRanqueado(termo);
     if (query.saldoModo === 'com_saldo') {
       filtered = filtered.filter((p) => (p.disponivel ?? 0) > 0);
     } else if (query.saldoModo === 'sem_saldo') {
@@ -49,8 +60,11 @@ export class ProdutoRepositoryMock implements IProdutoRepository {
       filtered = filtered.filter((p) => (p.disponivel ?? 0) < 0);
     }
 
-    const sortBy = query.sortBy === 'codigo' ? 'codigo' : 'descricao';
-    filtered = sortByField(filtered, sortBy, query.sortOrder ?? 'asc', (item, field) => item[field]);
+    // Com termo a ordem é a relevância; só muda se a pessoa escolheu uma coluna.
+    if (!termo || query.sortBy) {
+      const sortBy = query.sortBy === 'codigo' ? 'codigo' : 'descricao';
+      filtered = sortByField(filtered, sortBy, query.sortOrder ?? 'asc', (item, field) => item[field]);
+    }
 
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;

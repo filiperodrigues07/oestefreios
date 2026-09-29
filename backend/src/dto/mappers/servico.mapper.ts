@@ -13,6 +13,7 @@ export function toServicoDTO(
     categoria: servico.categoria,
     tipoServicoCodigo: servico.tipoServicoCodigo,
     tipoServicoDescricao: servico.tipoServicoDescricao,
+    parecido: servico.parecido,
   };
 
   if (!permissions.includes('FINANCIAL_VIEW')) {
