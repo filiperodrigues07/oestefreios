@@ -39,10 +39,10 @@ function FotoCard({ id, imagem, podeEditar, onExcluir, excluindo }: {
   const [visivel, setVisivel] = useState(false);
   const [tentativa, setTentativa] = useState(0);
   const [miniatura, setMiniatura] = useState<string | null>(null);
-  const [erroMiniatura, setErroMiniatura] = useState(false);
+  const [erroMiniatura, setErroMiniatura] = useState<string | null>(null);
   const [aberta, setAberta] = useState(false);
   const [fotoCompleta, setFotoCompleta] = useState<string | null>(null);
-  const [erroCompleta, setErroCompleta] = useState(false);
+  const [erroCompleta, setErroCompleta] = useState<string | null>(null);
   const [tentativaCompleta, setTentativaCompleta] = useState(0);
 
   useEffect(() => {
@@ -73,7 +73,7 @@ function FotoCard({ id, imagem, podeEditar, onExcluir, excluindo }: {
           setMiniatura(value);
         }
       })
-      .catch(() => { if (!controller.signal.aborted) setErroMiniatura(true); });
+      .catch((err) => { if (!controller.signal.aborted) setErroMiniatura(getUserErrorMessage(err, 'Não foi possível carregar a foto.')); });
     return () => {
       controller.abort();
       if (url) URL.revokeObjectURL(url);
@@ -92,7 +92,7 @@ function FotoCard({ id, imagem, podeEditar, onExcluir, excluindo }: {
           setFotoCompleta(value);
         }
       })
-      .catch(() => { if (!controller.signal.aborted) setErroCompleta(true); });
+      .catch((err) => { if (!controller.signal.aborted) setErroCompleta(getUserErrorMessage(err, 'Não foi possível abrir a foto.')); });
     return () => {
       controller.abort();
       if (url) URL.revokeObjectURL(url);
@@ -103,12 +103,13 @@ function FotoCard({ id, imagem, podeEditar, onExcluir, excluindo }: {
   return (
     <div ref={cardRef} className={styles.card}>
       {erroMiniatura ? (
-        <button type="button" className={styles.retryPhoto} onClick={() => { setErroMiniatura(false); setMiniatura(null); setTentativa((value) => value + 1); }}>
-          Não foi possível carregar. Tentar novamente
+        <button type="button" className={styles.retryPhoto} onClick={() => { setErroMiniatura(null); setMiniatura(null); setTentativa((value) => value + 1); }}>
+          <span role="alert">{erroMiniatura}</span>
+          <span>Tentar novamente</span>
         </button>
       ) : miniatura ? (
-        <button type="button" className={styles.openPhoto} onClick={() => { setFotoCompleta(null); setErroCompleta(false); setAberta(true); }} aria-label={`Abrir foto ${nome}`}>
-          <img src={miniatura} alt={nome} className={styles.thumb} decoding="async" />
+        <button type="button" className={styles.openPhoto} onClick={() => { setFotoCompleta(null); setErroCompleta(null); setAberta(true); }} aria-label={`Abrir foto ${nome}`}>
+          <img src={miniatura} alt={nome} className={styles.thumb} decoding="async" onError={() => setErroMiniatura("Não foi possível exibir a foto. Tente novamente.")} />
         </button>
       ) : <Skeleton height={120} />}
       <div className={styles.legenda}>{nome}</div>
@@ -120,11 +121,11 @@ function FotoCard({ id, imagem, podeEditar, onExcluir, excluindo }: {
       <Modal open={aberta} title={nome} onClose={() => setAberta(false)} centerOnMobile>
         {erroCompleta ? (
           <div className={styles.photoError} role="alert">
-            <p>Não foi possível abrir a foto.</p>
-            <Button variant="secondary" onClick={() => { setErroCompleta(false); setFotoCompleta(null); setTentativaCompleta((value) => value + 1); }}>Tentar novamente</Button>
+            <p>{erroCompleta}</p>
+            <Button variant="secondary" onClick={() => { setErroCompleta(null); setFotoCompleta(null); setTentativaCompleta((value) => value + 1); }}>Tentar novamente</Button>
           </div>
         ) : fotoCompleta ? (
-          <img src={fotoCompleta} alt={nome} className={styles.fullPhoto} />
+          <img src={fotoCompleta} alt={nome} className={styles.fullPhoto} onError={() => setErroCompleta("Não foi possível exibir a foto. Tente novamente.")} />
         ) : <Skeleton height={240} />}
       </Modal>
     </div>
@@ -140,6 +141,7 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
   });
 
   const [enviando, setEnviando] = useState(false);
+  const [erroAcao, setErroAcao] = useState<string | null>(null);
   const [excluindoId, setExcluindoId] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState<OSImagemDTO | null>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -155,15 +157,20 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
 
   async function enviarArquivos(files: FileList | null) {
     if (!files || files.length === 0) return;
+    setErroAcao(null);
     const selecionados = Array.from(files);
     const formatoInvalido = selecionados.find((file) => !FORMATOS_ACEITOS.has(file.type));
     if (formatoInvalido) {
-      showToast(`A foto ${formatoInvalido.name} precisa estar em JPEG, PNG ou WebP.`, 'warning');
+      const mensagem = `A foto ${formatoInvalido.name} precisa estar em JPEG, PNG ou WebP.`;
+      setErroAcao(mensagem);
+      showToast(mensagem, 'warning');
       return;
     }
     const arquivoGrande = selecionados.find((file) => file.size > MAX_UPLOAD_BYTES);
     if (arquivoGrande) {
-      showToast(`A foto ${arquivoGrande.name} é grande demais. Escolha uma com até 7,5 MB.`, 'warning');
+      const mensagem = `A foto ${arquivoGrande.name} é grande demais. Escolha uma com até 7,5 MB.`;
+      setErroAcao(mensagem);
+      showToast(mensagem, 'warning');
       return;
     }
     setEnviando(true);
@@ -174,11 +181,14 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
         enviados++;
       }
       await refetch();
+      setErroAcao(null);
       showToast(files.length > 1 ? 'Imagens enviadas.' : 'Imagem enviada.', 'success');
     } catch (err) {
-      if (enviados > 0) await refetch().catch(() => undefined);
       const parcial = enviados > 0 ? `${enviados} foto(s) enviada(s). ` : '';
-      showToast(`${parcial}${getUserErrorMessage(err, 'Não foi possível enviar a imagem. Tente novamente.')}`, 'danger');
+      const mensagem = `${parcial}${getUserErrorMessage(err, 'Não foi possível confirmar o envio da foto.')} Confira a lista antes de tentar novamente.`;
+      setErroAcao(mensagem);
+      showToast(mensagem, 'danger');
+      void refetch().catch(() => undefined);
     } finally {
       setEnviando(false);
     }
@@ -190,9 +200,12 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
     try {
       await excluirImagemOS(id, confirmando.identificador);
       await refetch();
+      setErroAcao(null);
       showToast('Imagem removida.', 'success');
     } catch (err) {
-      showToast(getUserErrorMessage(err, 'Não foi possível remover a imagem. Tente novamente.'), 'danger');
+      const mensagem = getUserErrorMessage(err, 'Não foi possível remover a imagem. Tente novamente.');
+      setErroAcao(mensagem);
+      showToast(mensagem, 'danger');
     } finally {
       setExcluindoId(null);
       setConfirmando(null);
@@ -226,6 +239,14 @@ export function FotosSection({ id, podeEditar }: FotosSectionProps) {
           <Button size="sm" variant="secondary" loading={enviando} onClick={() => abrirSeletor(arquivoInputRef.current)}>
             Enviar arquivo
           </Button>
+        </div>
+      )}
+
+      {enviando && <p className={styles.uploadStatus} role="status">Enviando foto. Aguarde a confirmação antes de sair desta tela.</p>}
+      {erroAcao && (
+        <div className={styles.actionError} role="alert">
+          <p>{erroAcao}</p>
+          <Button size="sm" variant="secondary" onClick={() => { void refetch(); }}>Atualizar fotos</Button>
         </div>
       )}
 

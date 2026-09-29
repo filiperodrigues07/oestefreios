@@ -89,7 +89,7 @@ test('avisa sobre foto incompatível antes de enviar', async ({ page }) => {
   const calls = mockApi(page);
   await page.goto(`/os/${OS_ID}?tab=fotos`);
   await page.locator('input[type="file"]').last().setInputFiles({ name: 'foto.heic', mimeType: 'image/heic', buffer: PNG });
-  await expect(page.getByText(/precisa estar em JPEG, PNG ou WebP/)).toBeVisible();
+  await expect(page.locator('[class*="actionError"]').getByText(/precisa estar em JPEG, PNG ou WebP/)).toBeVisible();
   expect(calls.envios).toBe(0);
 });
 
@@ -104,4 +104,33 @@ test('alinha resumo financeiro com painel de itens', async ({ page }) => {
   const resumoBox = (await resumo.boundingBox())!;
   expect(Math.abs(painelBox.x - resumoBox.x)).toBeLessThan(1);
   expect(Math.abs(painelBox.width - resumoBox.width)).toBeLessThan(1);
+});
+
+test('Android: falha no envio da camera fica visivel com codigo de suporte', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'userAgent', {
+      value: 'Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 Mobile Safari/537.36',
+      configurable: true,
+    });
+  });
+  mockApi(page);
+  await page.route('**/api/os/11111111-1111-4111-8111-111111111111/imagens', async (route) => {
+    if (route.request().method() !== 'POST') return route.fallback();
+    return route.fulfill({
+      status: 500,
+      headers: { 'X-Request-Id': '12345678-0000-4000-8000-000000000000' },
+      contentType: 'application/json',
+      body: JSON.stringify({ success: false, error: { code: 'INTERNAL_ERROR', message: 'SELECT senha FROM usuarios' } }),
+    });
+  });
+  await page.goto('/os/11111111-1111-4111-8111-111111111111?tab=fotos');
+  const camera = page.locator('input[type="file"][capture]');
+  await expect(camera).toHaveAttribute('capture', 'environment');
+  await camera.setInputFiles({ name: 'camera.jpg', mimeType: 'image/jpeg', buffer: PNG });
+
+  const aviso = page.locator('[class*="actionError"]');
+  await expect(aviso).toBeVisible();
+  await expect(aviso).toContainText('código para suporte: 12345678');
+  await expect(aviso).not.toContainText('SELECT');
+  await expect(aviso.getByRole('button', { name: 'Atualizar fotos' })).toBeVisible();
 });

@@ -229,7 +229,7 @@ export async function apiFetchBlob(path: string, isRetry = false, signal?: Abort
     const message =
       body && !body.success ? body.error.message : 'Não foi possível gerar o arquivo.';
     const code = body && !body.success ? body.error.code : 'NETWORK_ERROR';
-    throw new ApiError(code, message, res.status);
+    throw new ApiError(code, message, res.status, undefined, res.headers.get('X-Request-Id') ?? undefined);
   }
 
   return res.blob();
@@ -263,7 +263,7 @@ export async function apiFetchMultipart<T>(
     const message =
       body && !body.success ? body.error.message : 'Falha de comunicação com o servidor.';
     const details = body && !body.success ? body.error.details : undefined;
-    throw new ApiError(code, message, res.status, details);
+    throw new ApiError(code, message, res.status, details, res.headers.get('X-Request-Id') ?? undefined);
   }
 
   return body.data;

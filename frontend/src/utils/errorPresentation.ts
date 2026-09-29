@@ -132,7 +132,7 @@ export function getErrorPresentation(error?: unknown, offline = false): ErrorPre
 /** Texto seguro para erros em formulários e avisos curtos; nunca mostra exceções técnicas. */
 export function getUserErrorMessage(error: unknown, fallback: string): string {
   if (!error || typeof error !== 'object') return fallback;
-  const details = error as { status?: unknown; code?: unknown; name?: unknown; message?: unknown };
+  const details = error as { status?: unknown; code?: unknown; name?: unknown; message?: unknown; requestId?: unknown };
   if (details.code === 'CRYPTO_UNAVAILABLE') {
     return 'Não foi possível preparar a operação. Atualize o navegador e tente novamente.';
   }
@@ -145,6 +145,9 @@ export function getUserErrorMessage(error: unknown, fallback: string): string {
     typeof details.message === 'string' && details.message.trim()
   ) return details.message;
   const presentation = getErrorPresentation(error);
-  if (presentation.code === 'OPS!') return fallback;
-  return `${presentation.title}. ${presentation.description}`;
+  const suporte = typeof details.requestId === 'string' && details.requestId
+    ? ` (código para suporte: ${details.requestId.slice(0, 8)})`
+    : '';
+  if (presentation.code === 'OPS!') return fallback + suporte;
+  return `${presentation.title}. ${presentation.description}${suporte}`;
 }
