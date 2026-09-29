@@ -2,8 +2,6 @@ import { useState } from 'react';
 import { getProdutoByCodigo, searchProdutos } from '../../api/produtos.api.js';
 import { getServicoByCodigo, searchServicos } from '../../api/servicos.api.js';
 import { ApiError } from '../../api/httpClient.js';
-import { hasPermission } from '../../store/authStore.js';
-import { Checkbox } from '../ui/index.js';
 import { ItemGrid, type ItemGridCandidate, type ItemGridRow } from './ItemGrid.js';
 import type { OSItemProduto, OSItemServico } from '../../types/os.types.js';
 import styles from './ProdutosServicosSection.module.css';
@@ -51,7 +49,7 @@ async function buscarProdutoPorCodigo(codigo: string): Promise<ItemGridCandidate
       descricao: p.descricao,
       unidade: p.unidade,
       precoUnitario: p.precoUnitario,
-      disponivel: p.disponivel,
+      disponivel: p.disponivel ?? 0,
     };
   } catch (err) {
     if (err instanceof ApiError && err.code === 'PRODUCT_NOT_FOUND') return null;
@@ -91,9 +89,6 @@ export function ProdutosServicosSection({
   onRemoverServico,
 }: ProdutosServicosSectionProps) {
   const [grupoMobile, setGrupoMobile] = useState<'produtos' | 'servicos'>('produtos');
-  const [filtroSaldoAtivo, setFiltroSaldoAtivo] = useState(true);
-  const podeDesativarFiltroSaldo = hasPermission('SYSTEM_SETTINGS');
-  const somenteComSaldo = !podeDesativarFiltroSaldo || filtroSaldoAtivo;
   const produtosGrid: ItemGridRow[] = produtos.map((p) => ({
     itemId: p.itemId,
     codigo: p.produtoCodigo,
@@ -140,26 +135,20 @@ export function ProdutosServicosSection({
         <h2 className={styles.heading}>
           Produtos <span>{produtos.length}</span>
         </h2>
-        {podeAddProduto && (
-          <Checkbox
-            label="Somente produtos com saldo"
-            checked={somenteComSaldo}
-            onChange={(e) => setFiltroSaldoAtivo(e.target.checked)}
-            disabled={!podeDesativarFiltroSaldo}
-            className={styles.saldoCheckbox}
-          />
-        )}
+        {/* Lista mostra também produto sem saldo (o balcão precisa ver que existe); o ItemGrid
+            bloqueia o lançamento dele e o backend revalida. */}
         <ItemGrid
           itens={produtosGrid}
-          queryKeyPrefix={somenteComSaldo ? 'os-grid-produtos-com-saldo' : 'os-grid-produtos'}
+          queryKeyPrefix="os-grid-produtos"
           buscar={(query) =>
-            searchProdutos(query, somenteComSaldo).then((r) =>
+            searchProdutos(query).then((r) =>
               r.items.map((p) => ({
                 codigo: p.codigo,
                 descricao: p.descricao,
                 unidade: p.unidade,
                 precoUnitario: p.precoUnitario,
-                disponivel: p.disponivel,
+                // Produto sem registro de estoque no CHERP vem sem saldo: conta como zerado.
+                disponivel: p.disponivel ?? 0,
               })),
             )
           }

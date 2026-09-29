@@ -4,6 +4,7 @@ import { getUserErrorMessage } from '../../utils/errorPresentation.js';
 import { ActionIcon } from '../ui/ActionIcon.js';
 import { ConfirmDialog } from '../ui/ConfirmDialog.js';
 import { Input } from '../ui/Input.js';
+import { useToast } from '../ui/ToastProvider.js';
 import { CurrencyCell } from '../ui/CurrencyCell.js';
 import {
   SearchCombobox,
@@ -88,6 +89,7 @@ export function ItemGrid({
   const [precoEditado, setPrecoEditado] = useState('');
   const [complemento, setComplemento] = useState('');
   const [erro, setErro] = useState<string | null>(null);
+  const { showToast } = useToast();
   const [duplicado, setDuplicado] = useState<ItemGridRow | null>(null);
   const [editandoCodigo, setEditandoCodigo] = useState<string | null>(null);
   const [editQtd, setEditQtd] = useState('');
@@ -166,6 +168,14 @@ export function ItemGrid({
   }
 
   function handleSelecionar(item: ItemGridCandidate) {
+    if (item.disponivel !== undefined && item.disponivel <= 0) {
+      const aviso = `"${item.descricao}" está com estoque zerado e não pode ser lançado. Verifique com o responsável pelo estoque.`;
+      setSelecionado(null);
+      setErro(aviso);
+      // Linha vermelha sozinha passa batido no balcão: o toast garante que a pessoa veja.
+      showToast(aviso, 'warning');
+      return;
+    }
     setSelecionado(item);
     if (podeEditarPreco) {
       setPrecoEditado(item.precoUnitario !== undefined ? item.precoUnitario.toFixed(2) : '');
