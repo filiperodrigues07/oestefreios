@@ -20,16 +20,18 @@ describe('PDF de impressão da OS', () => {
     expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
     expect(paginas(pdf)).toBe(1);
   });
-  it('anexa fotos em páginas após a OS, em ordem', async () => {
+  it('anexa 6 fotos por página após a OS, em ordem', async () => {
     const src = await fotoParaPdf(await sharp({
       create: { width: 12, height: 12, channels: 3, background: '#123456' },
     }).webp().toBuffer());
-    const fotos = [1, 2, 3].map((i) => ({
-      descricao: `Foto ${i}`, nomeArquivo: `foto-${i}.webp`,
+    const criar = (n: number) => Array.from({ length: n }, (_, i) => ({
+      descricao: `WhatsApp Image ${i + 1}.jpeg`, nomeArquivo: `WhatsApp Image ${i + 1}.jpeg`,
       data: new Date().toISOString(), src,
     }));
-    const pdf = await exportarOSPdf(os, branding, fotos);
-    expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
-    expect(paginas(pdf)).toBe(3);
+    for (const [fotos, esperado] of [[3, 2], [6, 2], [7, 3], [13, 4]] as const) {
+      const pdf = await exportarOSPdf(os, branding, criar(fotos));
+      expect(pdf.subarray(0, 4).toString()).toBe('%PDF');
+      expect(paginas(pdf), `${fotos} fotos`).toBe(esperado);
+    }
   });
 });

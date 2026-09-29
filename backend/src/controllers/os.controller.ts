@@ -7,7 +7,7 @@ import { success } from '../utils/apiResponse.js';
 import { resolverLogoParaPdf } from '../utils/brandingAssets.js';
 import { detectarTipoImagem } from '../utils/imageSignature.js';
 import { gerarMiniaturaOS } from '../utils/osImagePreview.js';
-import { fotoParaPdf } from '../utils/osPhotoPdf.js';
+import { fotoParaPdf, mapearComLimite } from '../utils/osPhotoPdf.js';
 import { requestContext } from '../utils/requestContext.js';
 
 export async function listOSHandler(req: Request, res: Response) {
@@ -55,15 +55,16 @@ export async function getOSPdfHandler(req: Request, res: Response) {
     logoUrl: await resolverLogoParaPdf(geral.logoUrl),
     corDestaque: geral.corDestaque,
   };
-  const fotos: OSFotoPdf[] = [];
-  for (const meta of await osService.listarImagensOS(id)) {
+  // BLOB do Firebird é o gargalo: 3 fotos por vez (pool tem 10 conexões) em vez de uma a uma.
+  // A OS já foi validada acima, então busca direto do repositório sem reconsultar a OS por foto.
+  const fotos: OSFotoPdf[] = await mapearComLimite(await osService.listarImagensOS(id), 3, async (meta) => {
     try {
-      const arquivo = await osService.buscarImagemOS(id, meta.identificador);
-      fotos.push({ ...meta, src: await fotoParaPdf(arquivo.buffer) });
+      const arquivo = await osService.buscarImagemOSJaValidada(id, meta.identificador);
+      return { ...meta, src: await fotoParaPdf(arquivo.buffer) };
     } catch {
       throw new ValidationError(`Não foi possível incluir a foto "${meta.nomeArquivo}" no PDF. Verifique o arquivo e tente novamente.`);
     }
-  }
+  });
   const buffer = await exportarOSPdf(os, branding, fotos);
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="os-${os.numero}.pdf"`);

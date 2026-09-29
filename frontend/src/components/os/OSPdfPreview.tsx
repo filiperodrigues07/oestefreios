@@ -45,7 +45,11 @@ function PreviewContent({ os, onClose }: { os: NonNullable<Props['os']>; onClose
       </>}>
       {erro ? <p role="alert" className={styles.error}>{erro}</p> :
         arquivo ? <iframe className={styles.preview} title={`OS #${os.numero} em PDF`} src={arquivo.url} /> :
-          <p role="status">Gerando PDF da OS...</p>}
+          <div role="status" className={styles.loading}>
+            <span className={styles.spinner} aria-hidden="true" />
+            <span>Gerando o PDF da OS...</span>
+            <small>Com fotos pode levar alguns segundos.</small>
+          </div>}
     </Modal>
   );
 }

@@ -801,6 +801,14 @@ export async function buscarImagemOS(
   identificador: string,
 ): Promise<{ buffer: Buffer; nomeArquivo: string }> {
   await getOSOrThrow(id);
+  return buscarImagemOSJaValidada(id, identificador);
+}
+
+/** Para quem já validou a OS (ex.: PDF com várias fotos) e não quer reconsultá-la a cada imagem. */
+export async function buscarImagemOSJaValidada(
+  id: string,
+  identificador: string,
+): Promise<{ buffer: Buffer; nomeArquivo: string }> {
   const imagem = await osRepository.buscarImagem(id, identificador);
   if (!imagem) {
     throw new NotFoundError('Imagem não encontrada nesta OS.', 'OS_IMAGE_NOT_FOUND');
