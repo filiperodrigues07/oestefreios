@@ -126,6 +126,14 @@ interface CriarOSInput {
   responsavelId?: string;
   tecnicoId?: string;
   dataPrevista?: string;
+  kmAtual: number;
+  kmFinal: number;
+}
+
+function assertKmObrigatorios(kmAtual: number, kmFinal: number): void {
+  if (![kmAtual, kmFinal].every((km) => Number.isSafeInteger(km) && km >= 0 && km <= 99_999_999)) {
+    throw new ValidationError('Informe KM inicial e KM final válidos.');
+  }
 }
 
 export async function criarOS(
@@ -133,6 +141,7 @@ export async function criarOS(
   usuario: AuthenticatedUser,
   ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
+  assertKmObrigatorios(input.kmAtual, input.kmFinal);
   const cliente = await clienteRepository.buscarPorCodigo(input.clienteCodigo);
   if (!cliente) {
     throw new ValidationError(`Cliente com código "${input.clienteCodigo}" não encontrado.`);
@@ -155,6 +164,8 @@ export async function criarOS(
     equipamentoCodigo: input.equipamentoCodigo,
     problema: input.problema,
     prioridade: input.prioridade,
+    kmAtual: input.kmAtual,
+    kmFinal: input.kmFinal,
     responsavelId: input.responsavelId,
     tecnicoId: input.tecnicoId,
     dataPrevista: input.dataPrevista,
@@ -258,8 +269,10 @@ export async function reabrirOS(
 export async function duplicarOS(
   id: string,
   usuario: AuthenticatedUser,
+  km: { kmAtual: number; kmFinal: number },
   ctx: RequestContext = {},
 ): Promise<OperationalOSDTO | AdminOSDTO> {
+  assertKmObrigatorios(km.kmAtual, km.kmFinal);
   const origem = await getOSOrThrow(id);
 
   const criada = await osRepository.criar({
@@ -267,6 +280,8 @@ export async function duplicarOS(
     equipamentoCodigo: origem.equipamentoCodigo,
     problema: origem.problema,
     prioridade: origem.prioridade,
+    kmAtual: km.kmAtual,
+    kmFinal: km.kmFinal,
     responsavelId: origem.responsavelId,
     tecnicoId: origem.tecnicoId,
     status: 'ABERTA',
@@ -280,9 +295,7 @@ export async function duplicarOS(
   const temItens = origem.produtos.length > 0 || origem.servicos.length > 0;
   const temDiagnostico =
     origem.diagnostico !== undefined ||
-    origem.observacoes !== undefined ||
-    origem.kmAtual !== undefined ||
-    origem.kmFinal !== undefined;
+    origem.observacoes !== undefined;
 
   let nova = criada;
   if (temItens || temDiagnostico) {
@@ -291,8 +304,6 @@ export async function duplicarOS(
       ...(temItens ? { faturamento: calcularFaturamento(origem.produtos, origem.servicos) } : {}),
       diagnostico: origem.diagnostico,
       observacoes: origem.observacoes,
-      kmAtual: origem.kmAtual,
-      kmFinal: origem.kmFinal,
       cherpUsuarioChave: usuario.cherpUsuarioChave,
     });
   }

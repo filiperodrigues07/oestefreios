@@ -12,9 +12,10 @@ interface ModalProps {
   children: ReactNode;
   footer?: ReactNode;
   centerOnMobile?: boolean;
+  wide?: boolean;
 }
 
-export function Modal({ open, title, onClose, children, footer, centerOnMobile = false }: ModalProps) {
+export function Modal({ open, title, onClose, children, footer, centerOnMobile = false, wide = false }: ModalProps) {
   const titleId = useId();
   const containerRef = useFocusTrap<HTMLDivElement>(open, onClose);
 
@@ -27,7 +28,7 @@ export function Modal({ open, title, onClose, children, footer, centerOnMobile =
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div ref={containerRef} className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
+      <div ref={containerRef} className={`${styles.dialog} ${wide ? styles.wide : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}>
         <div className={styles.header}>
           <h2 id={titleId} className={styles.title}>
             {title}

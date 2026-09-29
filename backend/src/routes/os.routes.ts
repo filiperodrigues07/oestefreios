@@ -40,6 +40,7 @@ import {
   atualizarItemSchema,
   atualizarOSSchema,
   criarOSSchema,
+  duplicarOSSchema,
   excluirOSSchema,
   reabrirOSSchema,
   listarOSQuerySchema,
@@ -85,6 +86,7 @@ osRouter.post(
   idempotency,
   requirePermission('OS_CREATE'),
   validate(osIdParamSchema, 'params'),
+  validate(duplicarOSSchema),
   asyncHandler(duplicarOSHandler),
 );
 

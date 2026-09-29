@@ -24,7 +24,7 @@ import { OS_PRIORIDADE_OPTIONS } from '../../constants/osStatus.js';
 import { handleMutationError } from '../../pwa/offlineErrorToast.js';
 import { OfflineQueuedError } from '../../pwa/OfflineQueuedError.js';
 import { hasPermission, useAuthStore } from '../../store/authStore.js';
-import { draftKey } from '../../utils/drafts.js';
+import { draftKey, removeDraft } from '../../utils/drafts.js';
 import { getErrorPresentation, getUserErrorMessage } from '../../utils/errorPresentation.js';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
@@ -49,6 +49,9 @@ import { DiagnosticoSection, type DiagnosticoPatch } from './DiagnosticoSection.
 import { FinalizarOSButton } from './FinalizarOSButton.js';
 import { FotosSection } from './FotosSection.js';
 import { OSFormHeader } from './OSFormHeader.js';
+import { OSKmFields, parseKm } from './OSKmFields.js';
+import { OSKmSection } from './OSKmSection.js';
+import type { OSKmInput } from './OSDuplicateDialog.js';
 import { OSMessageDialog } from './OSMessageDialog.js';
 import type { OsMessageChannel } from '../../api/os.api.js';
 import { HistoryTimeline } from './HistoryTimeline.js';
@@ -93,7 +96,9 @@ function OSFormCreate() {
   const [equipamento, setEquipamento] = useState<EquipamentoDTO | null>(null);
   const [problema, setProblema] = useState('');
   const [prioridade, setPrioridade] = useState<OSPrioridade>('NORMAL');
-  const guard = useUnsavedChangesGuard(Boolean(cliente || equipamento || problema.trim()));
+  const [kmAtual, setKmAtual] = useState('');
+  const [kmFinal, setKmFinal] = useState('');
+  const guard = useUnsavedChangesGuard(Boolean(cliente || equipamento || problema.trim() || kmAtual || kmFinal));
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -102,6 +107,8 @@ function OSFormCreate() {
         equipamentoCodigo: equipamento!.codigo,
         problema,
         prioridade,
+        kmAtual: parseKm(kmAtual)!,
+        kmFinal: parseKm(kmFinal)!,
       }),
     onSuccess: (os) => {
       guard.liberar();
@@ -116,7 +123,7 @@ function OSFormCreate() {
     },
   });
 
-  const podeSalvar = cliente && equipamento && !mutation.isPending;
+  const podeSalvar = cliente && equipamento && parseKm(kmAtual) !== undefined && parseKm(kmFinal) !== undefined && !mutation.isPending;
   const erroCriacao = mutation.isError ? mensagemErroCriacao(mutation.error) : null;
 
   return (
@@ -201,6 +208,8 @@ function OSFormCreate() {
               />
             </div>
 
+            <OSKmFields kmAtual={kmAtual} kmFinal={kmFinal} onKmAtualChange={setKmAtual} onKmFinalChange={setKmFinal} />
+
             <Select
               className="os-priority-select"
               data-priority={prioridade}
@@ -251,8 +260,9 @@ function OSFormEdit({ id }: { id: string }) {
     tabInicial && OS_TABS_VALIDAS.includes(tabInicial as OSTab) ? (tabInicial as OSTab) : 'dados',
   );
   const [diagnosticoDirty, setDiagnosticoDirty] = useState(false);
+  const [kmDirty, setKmDirty] = useState(false);
   const [trocaPendente, setTrocaPendente] = useState<string | null>(null);
-  const guard = useUnsavedChangesGuard(diagnosticoDirty);
+  const guard = useUnsavedChangesGuard(diagnosticoDirty || kmDirty);
   const userId = useAuthStore((s) => s.user?.id);
 
   function aplicarTroca(key: string) {
@@ -268,7 +278,7 @@ function OSFormEdit({ id }: { id: string }) {
   }
 
   function mudarTab(key: string) {
-    if (tab === 'diagnostico' && diagnosticoDirty && key !== 'diagnostico') {
+    if (((tab === 'diagnostico' && diagnosticoDirty) || (tab === 'dados' && kmDirty)) && key !== tab) {
       setTrocaPendente(key);
       return;
     }
@@ -310,6 +320,15 @@ function OSFormEdit({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ['dashboard-operacional'] }),
     ]);
   }
+
+  const kmMutation = useMutation({
+    mutationFn: (patch: { kmAtual: number; kmFinal: number; base?: { kmAtual: number | null; kmFinal: number | null } }) => atualizarOS(id, patch),
+    onSuccess: async () => { await invalidate(); showToast('KM salvos.', 'success'); },
+    onError: (err) => {
+      if (err instanceof ApiError && err.code === 'OS_CONFLICT') return;
+      handleMutationError(err, showToast, 'Não foi possível salvar os KM. Tente novamente.');
+    },
+  });
 
   const salvarMutation = useMutation({
     mutationFn: (patch: DiagnosticoPatch) => atualizarOS(id, patch),
@@ -492,7 +511,7 @@ function OSFormEdit({ id }: { id: string }) {
   });
 
   const duplicarMutation = useMutation({
-    mutationFn: () => duplicarOS(id),
+    mutationFn: (km: OSKmInput) => duplicarOS(id, km),
     onSuccess: async (nova) => {
       await queryClient.invalidateQueries({ queryKey: ['os-list'] });
       showToast(`OS duplicada como #${nova.numero}.`, 'success');
@@ -571,7 +590,7 @@ function OSFormEdit({ id }: { id: string }) {
   return (
     <div
       className={`${styles.page} ${styles.detailPage}`}
-      data-pull-refresh-blocked={diagnosticoDirty}
+      data-pull-refresh-blocked={diagnosticoDirty || kmDirty}
     >
       <OSFormHeader
         id={id}
@@ -591,7 +610,7 @@ function OSFormEdit({ id }: { id: string }) {
         finalizando={statusMutation.isPending}
         updating={statusMutation.isPending || prioridadeMutation.isPending}
         canDuplicate={hasPermission('OS_CREATE')}
-        onDuplicar={() => duplicarMutation.mutate()}
+        onDuplicar={(km) => duplicarMutation.mutate(km)}
         duplicando={duplicarMutation.isPending}
         canDelete={hasPermission('OS_DELETE') && !osFinalizada}
         onExcluir={(motivo) => excluirMutation.mutate(motivo)}
@@ -664,6 +683,23 @@ function OSFormEdit({ id }: { id: string }) {
               veiculoDescricao={descricaoVeiculo}
             />
             <section className={styles.section}>
+              <OSKmSection kmAtual={os.kmAtual} kmFinal={os.kmFinal} podeEditar={podeEditar}
+                salvando={kmMutation.isPending} onDirtyChange={setKmDirty}
+                draftStorageKey={userId ? draftKey(userId, 'os', id, 'km') : undefined}
+                legacyDraftStorageKey={userId ? draftKey(userId, 'os', id, 'diagnostico') : undefined}
+                onSave={(patch) => kmMutation.mutateAsync(patch).then(
+                  () => 'ok' as const,
+                  async (err: unknown) => {
+                    if (err instanceof OfflineQueuedError) return 'queued' as const;
+                    if (err instanceof ApiError && err.code === 'OS_CONFLICT') {
+                      await queryClient.invalidateQueries({ queryKey: ['os', id] });
+                      return 'conflict' as const;
+                    }
+                    return 'error' as const;
+                  },
+                )} />
+            </section>
+            <section className={styles.section}>
               <h2 className={styles.sectionTitle}>Problema relatado</h2>
               <p className={styles.problemaTexto}>{os.problema || 'Não informado.'}</p>
             </section>
@@ -675,8 +711,6 @@ function OSFormEdit({ id }: { id: string }) {
             <DiagnosticoSection
               diagnostico={os.diagnostico}
               observacoes={os.observacoes}
-              kmAtual={os.kmAtual}
-              kmFinal={os.kmFinal}
               podeEditar={podeEditar}
               salvando={salvarMutation.isPending}
               onSave={(patch) =>
@@ -695,6 +729,7 @@ function OSFormEdit({ id }: { id: string }) {
               }
               onDirtyChange={setDiagnosticoDirty}
               draftStorageKey={userId ? draftKey(userId, 'os', id, 'diagnostico') : undefined}
+              legacyKmDraftStorageKey={userId ? draftKey(userId, 'os', id, 'km') : undefined}
             />
           </section>
         )}
@@ -797,7 +832,7 @@ function OSFormEdit({ id }: { id: string }) {
       <ConfirmDialog
         open={trocaPendente !== null}
         title="Descartar alterações não salvas?"
-        description="Há alterações no Diagnóstico que ainda não foram salvas. Trocar de aba agora descarta o que foi digitado."
+        description="Há alterações nesta aba que ainda não foram salvas. Trocar de aba agora descarta o que foi digitado."
         confirmLabel="Descartar e trocar"
         danger
         onCancel={() => setTrocaPendente(null)}
@@ -805,6 +840,8 @@ function OSFormEdit({ id }: { id: string }) {
           const key = trocaPendente!;
           setTrocaPendente(null);
           setDiagnosticoDirty(false);
+          setKmDirty(false);
+          if (userId) removeDraft(draftKey(userId, 'os', id, tab === 'dados' ? 'km' : 'diagnostico'));
           aplicarTroca(key);
         }}
       />

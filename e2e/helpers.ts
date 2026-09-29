@@ -61,6 +61,8 @@ export async function criarOS(page: Page, problema = 'BARULHO NO FREIO'): Promis
   await page.getByPlaceholder('Digite a placa do veículo').fill('ABC');
   await page.getByRole('listbox').getByRole('option').first().click();
   await page.locator('#problema').fill(problema);
+  await page.getByRole('textbox', { name: /KM inicial/ }).fill('100');
+  await page.getByRole('textbox', { name: /KM final/ }).fill('100');
   await page.getByRole('button', { name: 'Criar OS' }).click();
   await expect(page).toHaveURL(/\/os\/[0-9a-f-]{36}$/);
   return page.url().split('/os/')[1]!;

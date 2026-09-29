@@ -2,9 +2,10 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { prefetchOS } from '../routes/prefetch.js';
-import { baixarOSPdf, duplicarOS, excluirOS, listarOS, type OsMessageChannel, type OSSortBy } from '../api/os.api.js';
+import { duplicarOS, excluirOS, listarOS, type OsMessageChannel, type OSSortBy } from '../api/os.api.js';
 import { OSMessageDialog } from '../components/os/OSMessageDialog.js';
-import { getUserErrorMessage } from '../utils/errorPresentation.js';
+import { OSDuplicateDialog, type OSKmInput } from '../components/os/OSDuplicateDialog.js';
+import { OSPdfPreview } from '../components/os/OSPdfPreview.js';
 import { handleMutationError } from '../pwa/offlineErrorToast.js';
 import { baixarRelatorioOS } from '../api/relatorios.api.js';
 import { CurrencyCell } from '../components/ui/CurrencyCell.js';
@@ -23,7 +24,6 @@ import { readStoredFilters, writeStoredFilters } from '../utils/filterStorage.js
 import {
   ActionIcon,
   Button,
-  ConfirmDialog,
   EditButton,
   EmptyState,
   ErrorState,
@@ -112,13 +112,12 @@ export function OSListPage() {
   const [duplicando, setDuplicando] = useState<OrdemServicoDTO | null>(null);
   const [excluindo, setExcluindo] = useState<OrdemServicoDTO | null>(null);
   const [enviando, setEnviando] = useState<{ os: OrdemServicoDTO; canal: OsMessageChannel } | null>(null);
+  const [previaPdf, setPreviaPdf] = useState<OrdemServicoDTO | null>(null);
   const podeEnviar = hasPermission('OS_CHANGE_STATUS');
 
   // Coluna Ações = lápis + "⋯": imprimir, enviar e gerenciar ficam no menu, a coluna não cresce a cada ação nova.
   const acoesDaOS = (os: OrdemServicoDTO): RowActionItem[] => [
-    { key: 'print', label: 'Imprimir / baixar PDF', icon: 'print', onSelect: () => baixarOSPdf(os.id, os.numero).catch((err: unknown) => {
-      showToast(getUserErrorMessage(err, 'Não foi possível gerar o PDF.'), 'danger');
-    }) },
+    { key: 'print', label: 'Visualizar / baixar PDF', icon: 'print', onSelect: () => setPreviaPdf(os) },
     ...(podeEnviar
       ? [
           { key: 'whatsapp', label: 'Enviar por WhatsApp', icon: 'whatsapp' as const, onSelect: () => setEnviando({ os, canal: 'whatsapp' }) },
@@ -136,7 +135,7 @@ export function OSListPage() {
     podeExcluir && (os.situacaoDocumento === undefined || os.situacaoDocumento === 0) && !os.dataConclusao && !os.travadoLocal;
 
   const duplicarMutation = useMutation({
-    mutationFn: (os: OrdemServicoDTO) => duplicarOS(os.id),
+    mutationFn: ({ os, km }: { os: OrdemServicoDTO; km: OSKmInput }) => duplicarOS(os.id, km),
     onSuccess: async (nova) => {
       setDuplicando(null);
       await queryClient.invalidateQueries({ queryKey: ['os-list'] });
@@ -627,15 +626,11 @@ export function OSListPage() {
       </section>
       {hasPermission('OS_CREATE') && <MobileFab to="/os/nova" label="Nova OS" />}
 
-      <ConfirmDialog
-        open={duplicando !== null}
-        title={`Duplicar OS #${duplicando?.numero ?? ''}?`}
-        description="Será criada uma OS nova e aberta, com número e DAV próprios, copiando cliente, veículo, problema, prioridade, produtos, serviços e diagnóstico. A OS original não é alterada."
-        confirmLabel="Duplicar"
-        loading={duplicarMutation.isPending}
-        onCancel={() => setDuplicando(null)}
-        onConfirm={() => duplicando && duplicarMutation.mutate(duplicando)}
-      />
+      <OSDuplicateDialog numero={duplicando?.numero ?? 0} open={duplicando !== null}
+        loading={duplicarMutation.isPending} onCancel={() => setDuplicando(null)}
+        onConfirm={(km) => duplicando && duplicarMutation.mutate({ os: duplicando, km })} />
+      <OSPdfPreview os={previaPdf ? { id: previaPdf.id, numero: previaPdf.numero } : null}
+        onClose={() => setPreviaPdf(null)} />
       <ReasonDialog
         open={excluindo !== null}
         title={`Excluir OS #${excluindo?.numero ?? ''}?`}

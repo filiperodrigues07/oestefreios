@@ -28,7 +28,7 @@ async function osComProduto() {
   const { items } = await osRepository.listar({ incluirFinalizadas: true, limit: 100 });
   const origem = items.find((o) => o.numero === 1234);
   if (!origem) throw new Error('OS 1234 não existe no mock');
-  const nova = await duplicarOS(origem.id, usuario);
+  const nova = await duplicarOS(origem.id, usuario, { kmAtual: 0, kmFinal: 0 });
   const os = await osRepository.buscarPorId(nova.id);
   if (!os?.produtos[0]) throw new Error('OS de teste precisa ter produto');
   return os;

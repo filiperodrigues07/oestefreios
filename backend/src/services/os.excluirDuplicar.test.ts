@@ -31,7 +31,7 @@ beforeEach(() => {
 
 describe('excluir OS', () => {
   it('exclui OS aberta e registra o motivo na auditoria', async () => {
-    const criada = await duplicarOS((await acharPorNumero(1234)).id, usuario);
+    const criada = await duplicarOS((await acharPorNumero(1234)).id, usuario, { kmAtual: 0, kmFinal: 0 });
     await excluirOS(criada.id, 'Lançada por engano', usuario);
 
     expect(await osRepository.buscarPorId(criada.id)).toBeNull();
@@ -60,7 +60,7 @@ describe('excluir OS', () => {
 describe('duplicar OS', () => {
   it('copia cabeçalho e itens com número e DAV novos, sem tocar na origem', async () => {
     const origem = await acharPorNumero(1234);
-    const nova = await duplicarOS(origem.id, usuario);
+    const nova = await duplicarOS(origem.id, usuario, { kmAtual: 24680, kmFinal: 24600 });
 
     expect(nova.id).not.toBe(origem.id);
     expect(nova.numero).not.toBe(origem.numero);
@@ -69,6 +69,8 @@ describe('duplicar OS', () => {
     expect(nova.clienteCodigo).toBe(origem.clienteCodigo);
     expect(nova.equipamentoCodigo).toBe(origem.equipamentoCodigo);
     expect(nova.problema).toBe(origem.problema);
+    expect(nova.kmAtual).toBe(24680);
+    expect(nova.kmFinal).toBe(24600);
     expect(nova.status).toBe('ABERTA');
     expect(nova.produtos).toHaveLength(origem.produtos.length);
     expect(nova.servicos).toHaveLength(origem.servicos.length);
@@ -84,7 +86,7 @@ describe('duplicar OS', () => {
 
   it('permite duplicar OS já finalizada', async () => {
     const finalizada = await acharPorNumero(1230);
-    const nova = await duplicarOS(finalizada.id, usuario);
+    const nova = await duplicarOS(finalizada.id, usuario, { kmAtual: 0, kmFinal: 0 });
 
     expect(nova.numero).not.toBe(finalizada.numero);
     expect(nova.status).toBe('ABERTA');

@@ -13,7 +13,7 @@ const gerente: AuthenticatedUser = {
 
 async function osNova() {
   const { items } = await osRepository.listar({ incluirFinalizadas: true, limit: 100 });
-  return duplicarOS(items.find((o) => o.numero === 1234)!.id, gerente);
+  return duplicarOS(items.find((o) => o.numero === 1234)!.id, gerente, { kmAtual: 0, kmFinal: 0 });
 }
 
 describe('situação de atendimento do CHERP', () => {

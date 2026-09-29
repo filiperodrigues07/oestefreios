@@ -58,6 +58,8 @@ test('cria OS com toque mesmo sem randomUUID', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBe(0);
 
   await page.locator('#problema').fill('BARULHO');
+  await page.getByLabel(/KM inicial/).fill('100');
+  await page.getByLabel(/KM final/).fill('100');
   await page.getByRole('button', { name: 'Criar OS' }).click();
   await expect(page).toHaveURL(new RegExp(`/os/${OS_ID}$`));
   expect(calls.key).toMatch(/^[0-9a-f-]{36}$/);
@@ -67,6 +69,8 @@ test('mostra erro amigável ao falhar criação', async ({ page }) => {
   mockApi(page, true);
   await page.goto('/os/nova');
   await selecionarVeiculo(page);
+  await page.getByLabel(/KM inicial/).fill('100');
+  await page.getByLabel(/KM final/).fill('100');
   await page.getByRole('button', { name: 'Criar OS' }).click();
   const aviso = page.getByRole('alert').last();
   await expect(aviso).toContainText('Tente novamente');

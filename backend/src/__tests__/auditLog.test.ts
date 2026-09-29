@@ -37,7 +37,7 @@ describe('auditoria de negócio', () => {
     const createRes = await request(app)
       .post('/api/os')
       .set('Authorization', `Bearer ${adminToken}`)
-      .send({ clienteCodigo: '000001', equipamentoCodigo: 'EQ01', problema: 'Teste de auditoria', prioridade: 'NORMAL' });
+      .send({ clienteCodigo: '000001', equipamentoCodigo: 'EQ01', problema: 'Teste de auditoria', prioridade: 'NORMAL', kmAtual: 0, kmFinal: 0 });
     expect(createRes.status).toBe(201);
     const osId = createRes.body.data.id as string;
 

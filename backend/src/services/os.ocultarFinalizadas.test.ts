@@ -16,7 +16,7 @@ const mecanico = usuario(['OS_VIEW', 'OS_EDIT', 'OS_CHANGE_STATUS']);
 async function osFinalizadaNoApp() {
   const { items } = await osRepository.listar({ incluirFinalizadas: true, limit: 100 });
   const origem = items.find((o) => o.numero === 1234)!;
-  const os = await duplicarOS(origem.id, gerente);
+  const os = await duplicarOS(origem.id, gerente, { kmAtual: 0, kmFinal: 0 });
   await osRepository.atualizar(os.id, { tecnicoId: mecanico.id });
   await alterarStatusOS(os.id, 'CONCLUIDA', gerente);
   return os;

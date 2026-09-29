@@ -37,6 +37,8 @@ describe('criacao de OS', () => {
           equipamentoCodigo: 'EQ01',
           problema: '',
           prioridade: 'NORMAL',
+          kmAtual: 0,
+          kmFinal: 0,
         },
         usuario,
       ),

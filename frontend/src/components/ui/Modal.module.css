@@ -25,6 +25,15 @@
   gap: var(--space-4);
 }
 
+.wide {
+  max-width: 1050px;
+  height: min(90dvh, 900px);
+}
+
+.wide .body {
+  flex: 1;
+}
+
 .body {
   scrollbar-width: thin;
   scrollbar-color: var(--color-border) transparent;

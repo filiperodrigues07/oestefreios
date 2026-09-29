@@ -114,7 +114,9 @@ export async function exportarPdf(relatorio: RelatorioResultado, branding: Relat
   return Buffer.from(buffer);
 }
 
-export async function exportarOSPdf(os: OperationalOSDTO | AdminOSDTO, branding: RelatorioBranding): Promise<Buffer> {
-  const buffer = await renderToBuffer(OSDocument({ os, branding }));
+export interface OSFotoPdf { descricao: string; nomeArquivo: string; data: string; src: string }
+
+export async function exportarOSPdf(os: OperationalOSDTO | AdminOSDTO, branding: RelatorioBranding, fotos: OSFotoPdf[] = []): Promise<Buffer> {
+  const buffer = await renderToBuffer(OSDocument({ os, branding, fotos }));
   return Buffer.from(buffer);
 }

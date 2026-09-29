@@ -13,7 +13,7 @@ for (const [nome, viewport] of [['desktop', { width: 1440, height: 900 }], ['cel
     await botao.click();
 
     const menu = page.getByRole('menu');
-    await expect(menu.getByRole('menuitem').first()).toHaveText('Imprimir / baixar PDF');
+    await expect(menu.getByRole('menuitem').first()).toHaveText('Visualizar / baixar PDF');
     await expect(menu.getByRole('menuitem', { name: 'Enviar por WhatsApp' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Enviar por e-mail' })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Duplicar OS' })).toBeVisible();
@@ -48,7 +48,7 @@ for (const [nome, viewport] of [['desktop', { width: 1440, height: 900 }], ['cel
 
     await botao.click();
     const menu = page.getByRole('menu');
-    await expect(menu.getByRole('menuitem')).toHaveText(['Imprimir / baixar PDF', 'Enviar por WhatsApp', 'Enviar por e-mail']);
+    await expect(menu.getByRole('menuitem')).toHaveText(['Visualizar / baixar PDF', 'Enviar por WhatsApp', 'Enviar por e-mail']);
     await page.screenshot({ path: `test-results/os-cabecalho-${nome}.png` });
 
     await menu.getByRole('menuitem', { name: 'Enviar por WhatsApp' }).click();

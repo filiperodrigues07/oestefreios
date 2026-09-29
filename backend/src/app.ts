@@ -27,7 +27,7 @@ app.use(cors(corsOptions));
 
 // Rede de segurança contra request pendurada (ex.: várias queries Firebird em sequência
 // somando mais que o timeout individual de cada uma) — não é o timeout do dia a dia, é o teto.
-app.use(timeout('30s'));
+app.use((req, res, next) => timeout(/^\/api\/os\/[^/]+\/pdf$/.test(req.path) ? '120s' : '30s')(req, res, next));
 
 app.use('/api/auth/me/photo', express.json({ limit: '1500kb' }));
 app.use('/api/settings/geral', express.json({ limit: '1500kb' }));

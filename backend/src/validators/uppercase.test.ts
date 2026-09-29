@@ -54,7 +54,7 @@ describe('normalização em maiúsculas para o CHERP', () => {
   });
 
   it('normaliza os textos e complementos da OS', () => {
-    expect(criarOSSchema.parse({ clienteCodigo: '1', equipamentoCodigo: '2', problema: 'ruído no freio' }).problema)
+    expect(criarOSSchema.parse({ clienteCodigo: '1', equipamentoCodigo: '2', kmAtual: 0, kmFinal: 0, problema: 'ruído no freio' }).problema)
       .toBe('RUÍDO NO FREIO');
 
     expect(atualizarOSSchema.parse({ diagnostico: 'pastilha gasta', observacoes: 'lado esquerdo' }))

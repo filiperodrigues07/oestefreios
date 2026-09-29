@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { baixarOSPdf } from '../../api/os.api.js';
-import { getUserErrorMessage } from '../../utils/errorPresentation.js';
-import { ActionIcon, Button, ConfirmDialog, LinkButton, PriorityBadge, ReasonDialog, useToast } from '../ui/index.js';
+import { ActionIcon, Button, LinkButton, PriorityBadge, ReasonDialog } from '../ui/index.js';
 import { OS_PRIORITY_CONFIG, OS_STATUS_CONFIG, SITUACAO_ATENDIMENTO_CONFIG } from '../../constants/osStatus.js';
 import { ALLOWED_TRANSITIONS, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
 import { FinalizarOSButton } from './FinalizarOSButton.js';
 import { OSMoreActions, type MoreActionItem } from './OSMoreActions.js';
 import { OSFieldInfo } from './OSFieldInfo.js';
+import { OSDuplicateDialog, type OSKmInput } from './OSDuplicateDialog.js';
+import { OSPdfPreview } from './OSPdfPreview.js';
 import styles from './OSFormHeader.module.css';
 
 interface OSFormHeaderProps {
@@ -28,7 +28,7 @@ interface OSFormHeaderProps {
   finalizando: boolean;
   updating: boolean;
   canDuplicate: boolean;
-  onDuplicar: () => void;
+  onDuplicar: (km: OSKmInput) => void;
   duplicando: boolean;
   /** Já considera permissão OS_DELETE e OS aberta (finalizada/com pedido não pode ser excluída). */
   canDelete: boolean;
@@ -76,23 +76,12 @@ export function OSFormHeader({
   const [imprimindo, setImprimindo] = useState(false);
   const [confirmandoDuplicar, setConfirmandoDuplicar] = useState(false);
   const [confirmandoExcluir, setConfirmandoExcluir] = useState(false);
-  const { showToast } = useToast();
   const transitions = [status, ...ALLOWED_TRANSITIONS[status]];
 
-  async function handleImprimir() {
-    setImprimindo(true);
-    try {
-      await baixarOSPdf(id, numero);
-    } catch (err) {
-      showToast(getUserErrorMessage(err, 'Não foi possível gerar o PDF.'), 'danger');
-    } finally {
-      setImprimindo(false);
-    }
-  }
 
   // Imprimir e mandar pro cliente num botão só: a barra não cresce com os canais de envio.
   const enviarItems: MoreActionItem[] = [
-    { key: 'print', label: 'Imprimir / baixar PDF', icon: 'print', disabled: imprimindo, onSelect: () => { void handleImprimir(); } },
+    { key: 'print', label: 'Visualizar / baixar PDF', icon: 'print', disabled: imprimindo, onSelect: () => setImprimindo(true) },
     ...(onEnviar ? [
       { key: 'whatsapp', label: 'Enviar por WhatsApp', icon: 'whatsapp' as const, onSelect: () => onEnviar('whatsapp') },
       { key: 'email', label: 'Enviar por e-mail', icon: 'mail' as const, onSelect: () => onEnviar('email') },
@@ -138,18 +127,9 @@ export function OSFormHeader({
         </div>
       </div>
     </div>
-    <ConfirmDialog
-      open={confirmandoDuplicar}
-      title={`Duplicar OS #${numero}?`}
-      description="Será criada uma OS nova e aberta, com número e DAV próprios, copiando cliente, veículo, problema, prioridade, produtos, serviços e diagnóstico. A OS atual não é alterada."
-      confirmLabel="Duplicar"
-      loading={duplicando}
-      onCancel={() => setConfirmandoDuplicar(false)}
-      onConfirm={() => {
-        setConfirmandoDuplicar(false);
-        onDuplicar();
-      }}
-    />
+    <OSDuplicateDialog numero={numero} open={confirmandoDuplicar} loading={duplicando}
+      onCancel={() => setConfirmandoDuplicar(false)} onConfirm={onDuplicar} />
+    <OSPdfPreview os={imprimindo ? { id, numero } : null} onClose={() => setImprimindo(false)} />
     <ReasonDialog
       open={confirmandoReabrir}
       title={`Reabrir OS #${numero}?`}

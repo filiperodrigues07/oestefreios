@@ -907,9 +907,9 @@ export class OSRepositoryFirebird implements IOSRepository {
         `INSERT INTO ORDEMSERVICO (
            CHAVE, ATIVO, CHAVEEMPRESA, ORDEM, DATA, HORAABERTURA, DATAFECHA, HORAFECHAMENTO, DATAENTREGA, TIPO, SITUACAO,
            CHAVECLIFOR, CHAVEEQUIPAMENTO, PROBLEMAABERTURAOS, LAUDOTECNICO, OBS, CHAVEUSUARIOINICIOU,
-           TOTALPRODUTO, TOTALSERVICO, TOTALOS, CHAVESITUACAOOS, PRIORIDADE, NRODAV,
+           TOTALPRODUTO, TOTALSERVICO, TOTALOS, CHAVESITUACAOOS, PRIORIDADE, KMATUAL, KMFINAL, NRODAV,
            CHAVECFOPOPERFISCAIS, CHAVECFOPPROD, CHAVECFOPSERV, CHAVETIPOATENDIMENTO
-         ) VALUES (?, 1, ?, ?, CURRENT_DATE, CURRENT_TIME, NULL, NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, 0)
+         ) VALUES (?, 1, ?, ?, CURRENT_DATE, CURRENT_TIME, NULL, NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, 0)
          RETURNING IDENTIFICADOR`,
         [
           chave,
@@ -924,6 +924,8 @@ export class OSRepositoryFirebird implements IOSRepository {
           os.cherpUsuarioChave ?? env.FIREBIRD_OS_USUARIO_CHAVE,
           chaveSituacaoAtendimento ?? null,
           PRIORIDADE_CODIGO_POR_STATUS[os.prioridade],
+          os.kmAtual ?? null,
+          os.kmFinal ?? null,
           nroDav,
           perfilFiscalProduto.chave,
           perfilFiscalProduto.chaveCfopProduto,
@@ -1287,7 +1289,7 @@ export class OSRepositoryFirebird implements IOSRepository {
     }>(
       `SELECT IDENTIFICADOR, CAST(DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO,
               CAST(NOMEARQUIVO AS VARCHAR(100) CHARACTER SET OCTETS) AS NOMEARQUIVO, DATA
-       FROM ORDEMSERVICOIMG WHERE CHAVEOS = ? AND ATIVO = 1 ORDER BY DATA`,
+       FROM ORDEMSERVICOIMG WHERE CHAVEOS = ? AND ATIVO = 1 ORDER BY DATA, IDENTIFICADOR`,
       [chaveOS],
     );
     return rows.map((row) => ({

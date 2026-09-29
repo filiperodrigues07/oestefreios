@@ -64,6 +64,8 @@ export interface CriarOSInput {
   equipamentoCodigo: string;
   problema: string;
   prioridade: OSPrioridade;
+  kmAtual: number;
+  kmFinal: number;
   responsavelId?: string;
   tecnicoId?: string;
 }
@@ -77,8 +79,8 @@ export function criarOS(input: CriarOSInput): Promise<OrdemServicoDTO> {
 }
 
 /** Duplicar/excluir nunca entram na fila offline: gerar número/DAV ou sumir com uma OS exige rede de verdade. */
-export function duplicarOS(id: string): Promise<OrdemServicoDTO> {
-  return apiFetch<OrdemServicoDTO>(`/os/${id}/duplicar`, { method: 'POST', queueOffline: false });
+export function duplicarOS(id: string, km: { kmAtual: number; kmFinal: number }): Promise<OrdemServicoDTO> {
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/duplicar`, { method: 'POST', body: km, queueOffline: false });
 }
 
 export function excluirOS(id: string, motivo: string): Promise<null> {
@@ -273,8 +275,15 @@ export function atualizarServicoItemOS(
   });
 }
 
-/** Imprime/baixa o PDF da OS (logo/cor de Configurações > Geral) — mesma permissão de ver a OS. */
-export async function baixarOSPdf(id: string, numero: number): Promise<void> {
-  const blob = await apiFetchBlob(`/os/${id}/pdf`);
+/** O mesmo Blob alimenta a prévia e o download, sem gerar o PDF duas vezes. */
+export function carregarOSPdf(id: string, signal?: AbortSignal): Promise<Blob> {
+  return apiFetchBlob(`/os/${id}/pdf`, false, signal);
+}
+
+export function salvarOSPdf(blob: Blob, numero: number): void {
   salvarBlobComoArquivo(blob, `os-${numero}.pdf`);
+}
+
+export async function baixarOSPdf(id: string, numero: number): Promise<void> {
+  salvarOSPdf(await carregarOSPdf(id), numero);
 }

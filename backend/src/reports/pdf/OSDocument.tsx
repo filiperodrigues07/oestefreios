@@ -1,11 +1,12 @@
 import { Document, Image, Page, StyleSheet, Text, View } from '@react-pdf/renderer';
 import type { AdminOSDTO, OperationalOSDTO } from '../../dto/os.dto.js';
-import type { RelatorioBranding } from '../../services/reportExport.service.js';
+import type { RelatorioBranding, OSFotoPdf } from '../../services/reportExport.service.js';
 import { PRIORIDADE_LABEL, STATUS_LABEL } from '../../services/relatorio.service.js';
 
 interface Props {
   os: OperationalOSDTO | AdminOSDTO;
   branding: RelatorioBranding;
+  fotos?: OSFotoPdf[];
 }
 
 const CINZA_TEXTO = '#475569';
@@ -46,6 +47,10 @@ const styles = StyleSheet.create({
   totalGeralTexto: { fontSize: 10, fontWeight: 700, color: '#ffffff' },
   assinaturas: { flexDirection: 'row', gap: 40, marginTop: 44 },
   linhaAssinatura: { flex: 1, borderTopWidth: 0.75, borderTopColor: '#94a3b8', paddingTop: 4, textAlign: 'center', fontSize: 8, color: CINZA_TEXTO },
+  photoTitle: { fontSize: 14, fontWeight: 700, marginBottom: 16 },
+  photoBox: { height: 345, marginBottom: 16, borderBottomWidth: 0.5, borderBottomColor: LINHA },
+  photoCaption: { fontSize: 9, color: CINZA_TEXTO, marginBottom: 6 },
+  photoImage: { width: '100%', height: 305, objectFit: 'contain' },
   footer: {
     position: 'absolute',
     bottom: 20,
@@ -72,7 +77,7 @@ function temFinanceiro(os: OperationalOSDTO | AdminOSDTO): os is AdminOSDTO {
 }
 
 /** Documento de impressão de uma OS — cabeçalho, cliente/veículo, diagnóstico, itens e assinatura. */
-export function OSDocument({ os, branding }: Props) {
+export function OSDocument({ os, branding, fotos = [] }: Props) {
   const corDestaque = /^#[0-9a-fA-F]{6}$/.test(branding.corDestaque) ? branding.corDestaque : '#0369a1';
   const financeiro = temFinanceiro(os);
   const totalProdutos = financeiro ? os.produtos.reduce((acc, p) => acc + (p.total ?? 0), 0) : 0;
@@ -236,6 +241,21 @@ export function OSDocument({ os, branding }: Props) {
           <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
       </Page>
+      {Array.from({ length: Math.ceil(fotos.length / 2) }, (_, pageIndex) => (
+        <Page key={pageIndex} size="A4" style={styles.page}>
+          <Text style={styles.photoTitle}>OS #{os.numero} · Fotos ({pageIndex * 2 + 1}–{Math.min((pageIndex + 1) * 2, fotos.length)} de {fotos.length})</Text>
+          {fotos.slice(pageIndex * 2, pageIndex * 2 + 2).map((foto, index) => (
+            <View key={`${pageIndex}-${index}`} style={styles.photoBox} wrap={false}>
+              <Text style={styles.photoCaption}>{pageIndex * 2 + index + 1}. {foto.descricao || foto.nomeArquivo} · {foto.nomeArquivo} · {formatarData(foto.data)}</Text>
+              <Image src={foto.src} style={styles.photoImage} />
+            </View>
+          ))}
+          <View style={styles.footer} fixed>
+            <Text>Gerado em {new Date().toLocaleString('pt-BR')}</Text>
+            <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
+          </View>
+        </Page>
+      ))}
     </Document>
   );
 }

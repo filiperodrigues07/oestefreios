@@ -21,7 +21,7 @@ async function novaOSAberta() {
   const { items } = await osRepository.listar({ incluirFinalizadas: true, limit: 100 });
   const origem = items.find((o) => o.numero === 1234);
   if (!origem) throw new Error('OS 1234 não existe no mock');
-  return duplicarOS(origem.id, usuario);
+  return duplicarOS(origem.id, usuario, { kmAtual: 0, kmFinal: 0 });
 }
 
 describe('edição simultânea da OS (concorrência otimista)', () => {

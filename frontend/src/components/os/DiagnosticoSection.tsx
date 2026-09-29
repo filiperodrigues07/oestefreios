@@ -1,21 +1,16 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { readDraft, removeDraft, writeDraft } from '../../utils/drafts.js';
-import { somenteDigitos } from '../../utils/veiculoFormatters.js';
 import { Button, Modal } from '../ui/index.js';
 import styles from './DiagnosticoSection.module.css';
 
 interface DiagnosticoDraft {
   diagnostico: string;
   observacoes: string;
-  kmAtual: string;
-  kmFinal: string;
 }
 
 export interface DiagnosticoPatch {
   diagnostico: string;
   observacoes: string;
-  kmAtual?: number;
-  kmFinal?: number;
   base?: DiagnosticoBase;
 }
 
@@ -23,8 +18,6 @@ export interface DiagnosticoPatch {
 export interface DiagnosticoBase {
   diagnostico: string;
   observacoes: string;
-  kmAtual: number | null;
-  kmFinal: number | null;
 }
 
 /** ok = gravado · queued = na fila offline · conflict = outro usuário alterou antes · error = falhou. */
@@ -33,8 +26,6 @@ export type DiagnosticoSaveResult = 'ok' | 'queued' | 'conflict' | 'error';
 interface DiagnosticoSectionProps {
   diagnostico?: string;
   observacoes?: string;
-  kmAtual?: number;
-  kmFinal?: number;
   podeEditar: boolean;
   salvando: boolean;
   /** Só `ok`/`queued` limpam o estado "alterado"; `conflict` abre a escolha entre manter o meu ou o do outro. */
@@ -43,19 +34,19 @@ interface DiagnosticoSectionProps {
   onDirtyChange?: (dirty: boolean) => void;
   /** Chave do rascunho local (ver utils/drafts.ts); sem ela, não guarda rascunho. */
   draftStorageKey?: string;
+  legacyKmDraftStorageKey?: string;
 }
 
 /** Campos da OS com escrita na integração CHERP — sempre editáveis (sem clicar "Editar" primeiro) pra quem tem permissão. */
 export function DiagnosticoSection({
   diagnostico,
   observacoes,
-  kmAtual,
-  kmFinal,
   podeEditar,
   salvando,
   onSave,
   onDirtyChange,
   draftStorageKey,
+  legacyKmDraftStorageKey,
 }: DiagnosticoSectionProps) {
   const [dirty, setDirty] = useState(false);
 
@@ -65,14 +56,10 @@ export function DiagnosticoSection({
   }, [dirty]);
   const [diagnosticoForm, setDiagnosticoForm] = useState(diagnostico ?? '');
   const [observacoesForm, setObservacoesForm] = useState(observacoes ?? '');
-  const [kmAtualForm, setKmAtualForm] = useState(kmAtual !== undefined ? String(kmAtual) : '');
-  const [kmFinalForm, setKmFinalForm] = useState(kmFinal !== undefined ? String(kmFinal) : '');
 
   const baseAtualDoServidor = (): DiagnosticoBase => ({
     diagnostico: diagnostico ?? '',
     observacoes: observacoes ?? '',
-    kmAtual: kmAtual ?? null,
-    kmFinal: kmFinal ?? null,
   });
   // O que estava gravado quando a edição começou — só avança enquanto não há edição local.
   const [base, setBase] = useState<DiagnosticoBase>(baseAtualDoServidor);
@@ -83,13 +70,16 @@ export function DiagnosticoSection({
     if (!draftStorageKey) return null;
     const draft = readDraft<DiagnosticoDraft>(draftStorageKey);
     if (!draft) return null;
+    const legacy = draft.data as DiagnosticoDraft & { kmAtual?: string; kmFinal?: string };
+    if (legacyKmDraftStorageKey && (legacy.kmAtual !== undefined || legacy.kmFinal !== undefined)
+      && !readDraft(legacyKmDraftStorageKey)) {
+      writeDraft(legacyKmDraftStorageKey, { kmAtual: legacy.kmAtual ?? '', kmFinal: legacy.kmFinal ?? '' });
+    }
     const servidor: DiagnosticoDraft = {
       diagnostico: diagnostico ?? '',
       observacoes: observacoes ?? '',
-      kmAtual: kmAtual !== undefined ? String(kmAtual) : '',
-      kmFinal: kmFinal !== undefined ? String(kmFinal) : '',
     };
-    if (JSON.stringify(draft.data) === JSON.stringify(servidor)) {
+    if (draft.data.diagnostico === servidor.diagnostico && draft.data.observacoes === servidor.observacoes) {
       removeDraft(draftStorageKey);
       return null;
     }
@@ -103,19 +93,15 @@ export function DiagnosticoSection({
       writeDraft<DiagnosticoDraft>(draftStorageKey, {
         diagnostico: diagnosticoForm,
         observacoes: observacoesForm,
-        kmAtual: kmAtualForm,
-        kmFinal: kmFinalForm,
       });
     }, 500);
     return () => clearTimeout(timer);
-  }, [draftStorageKey, dirty, diagnosticoForm, observacoesForm, kmAtualForm, kmFinalForm]);
+  }, [draftStorageKey, dirty, diagnosticoForm, observacoesForm]);
 
   function restaurarDraft() {
     if (!draftPendente) return;
     setDiagnosticoForm(draftPendente.data.diagnostico);
     setObservacoesForm(draftPendente.data.observacoes);
-    setKmAtualForm(draftPendente.data.kmAtual);
-    setKmFinalForm(draftPendente.data.kmFinal);
     // Restaurar é escolha explícita de sobrepor o que está gravado agora.
     setBase(baseAtualDoServidor());
     edicoes.current += 1;
@@ -129,7 +115,7 @@ export function DiagnosticoSection({
   }
 
   // Guarda a última versão recebida; ao mudar, sincroniza somente se não há edição local.
-  const serverKey = JSON.stringify([diagnostico, observacoes, kmAtual, kmFinal, dirty]);
+  const serverKey = JSON.stringify([diagnostico, observacoes, dirty]);
   const [previousServerKey, setPreviousServerKey] = useState(serverKey);
   if (serverKey !== previousServerKey) {
     setPreviousServerKey(serverKey);
@@ -137,8 +123,6 @@ export function DiagnosticoSection({
       setBase(baseAtualDoServidor());
       setDiagnosticoForm(diagnostico ?? '');
       setObservacoesForm(observacoes ?? '');
-      setKmAtualForm(kmAtual !== undefined ? String(kmAtual) : '');
-      setKmFinalForm(kmFinal !== undefined ? String(kmFinal) : '');
     }
   }
 
@@ -156,8 +140,6 @@ export function DiagnosticoSection({
     const resultado = await onSave({
       diagnostico: diagnosticoForm,
       observacoes: observacoesForm,
-      kmAtual: kmAtualForm.trim() !== '' ? Number(kmAtualForm) : undefined,
-      kmFinal: kmFinalForm.trim() !== '' ? Number(kmFinalForm) : undefined,
       base: sobrescrever ? undefined : base,
     });
     if (resultado === 'conflict') {
@@ -186,10 +168,6 @@ export function DiagnosticoSection({
         <div className={styles.stackCompact}>
           <TextBlock label="Diagnóstico (laudo técnico)" value={diagnostico} />
           <TextBlock label="Observação" value={observacoes} />
-          <div className={styles.kmGrid}>
-            <TextBlock label="KM inicial" value={kmAtual !== undefined ? String(kmAtual) : undefined} />
-            <TextBlock label="KM final" value={kmFinal !== undefined ? String(kmFinal) : undefined} />
-          </div>
         </div>
       </div>
     );
@@ -213,16 +191,6 @@ export function DiagnosticoSection({
         <EditTextarea label="Diagnóstico (laudo técnico)" value={diagnosticoForm} onChange={(v) => alterar(setDiagnosticoForm, v)} />
         <EditTextarea label="Observação" value={observacoesForm} onChange={(v) => alterar(setObservacoesForm, v)} />
 
-        <div className={styles.kmGrid}>
-          <EditNumber label="KM inicial" value={kmAtualForm} onChange={(v) => alterar(setKmAtualForm, v)} />
-          <EditNumber label="KM final" value={kmFinalForm} onChange={(v) => alterar(setKmFinalForm, v)} />
-        </div>
-        {kmAtualForm !== '' && kmFinalForm !== '' && Number(kmFinalForm) < Number(kmAtualForm) && (
-          // Só avisa (não bloqueia): troca de painel/hodômetro zerado existe na vida real.
-          <p role="status" className={styles.kmWarning}>
-            KM final menor que o KM inicial. Confira se não houve erro de digitação.
-          </p>
-        )}
 
         <div className={dirty ? `${styles.saveBar} ${styles.saveBarPendente}` : styles.saveBar}>
           {dirty && <span className={styles.saveHint}>Alterações não salvas</span>}
@@ -275,40 +243,6 @@ function TextBlock({ label, value }: { label: string; value?: string }) {
           <span className={styles.muted}>Não informado.</span>
         )}
       </div>
-    </div>
-  );
-}
-
-function EditNumber({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-}) {
-  const id = useId();
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className={styles.label}
-      >
-        {label}
-      </label>
-      <input
-        id={id}
-        // text + inputMode: teclado numérico sem aceitar "e", "-", "," que o type="number" deixa passar.
-        type="text"
-        inputMode="numeric"
-        pattern="[0-9]*"
-        maxLength={8}
-        enterKeyHint="done"
-        value={value}
-        onChange={(e) => onChange(somenteDigitos(e.target.value, 8))}
-        className={styles.field}
-      />
     </div>
   );
 }

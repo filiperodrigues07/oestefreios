@@ -1,12 +1,13 @@
 import type { Request, Response } from 'express';
 import { ValidationError } from '../errors/ValidationError.js';
 import * as osService from '../services/os.service.js';
-import { exportarOSPdf } from '../services/reportExport.service.js';
+import { exportarOSPdf, type OSFotoPdf } from '../services/reportExport.service.js';
 import { getGeralSettings } from '../services/settings.service.js';
 import { success } from '../utils/apiResponse.js';
 import { resolverLogoParaPdf } from '../utils/brandingAssets.js';
 import { detectarTipoImagem } from '../utils/imageSignature.js';
 import { gerarMiniaturaOS } from '../utils/osImagePreview.js';
+import { fotoParaPdf } from '../utils/osPhotoPdf.js';
 import { requestContext } from '../utils/requestContext.js';
 
 export async function listOSHandler(req: Request, res: Response) {
@@ -54,9 +55,18 @@ export async function getOSPdfHandler(req: Request, res: Response) {
     logoUrl: await resolverLogoParaPdf(geral.logoUrl),
     corDestaque: geral.corDestaque,
   };
-  const buffer = await exportarOSPdf(os, branding);
+  const fotos: OSFotoPdf[] = [];
+  for (const meta of await osService.listarImagensOS(id)) {
+    try {
+      const arquivo = await osService.buscarImagemOS(id, meta.identificador);
+      fotos.push({ ...meta, src: await fotoParaPdf(arquivo.buffer) });
+    } catch {
+      throw new ValidationError(`Não foi possível incluir a foto "${meta.nomeArquivo}" no PDF. Verifique o arquivo e tente novamente.`);
+    }
+  }
+  const buffer = await exportarOSPdf(os, branding, fotos);
   res.setHeader('Content-Type', 'application/pdf');
-  res.setHeader('Content-Disposition', `attachment; filename="os-${os.numero}.pdf"`);
+  res.setHeader('Content-Disposition', `inline; filename="os-${os.numero}.pdf"`);
   res.send(buffer);
 }
 
@@ -73,7 +83,7 @@ export async function atualizarOSHandler(req: Request, res: Response) {
 
 export async function duplicarOSHandler(req: Request, res: Response) {
   const { id } = req.params as { id: string };
-  const os = await osService.duplicarOS(id, req.user!, requestContext(req));
+  const os = await osService.duplicarOS(id, req.user!, req.body as { kmAtual: number; kmFinal: number }, requestContext(req));
   success(res, os, 'OS duplicada com sucesso.', 201);
 }
 

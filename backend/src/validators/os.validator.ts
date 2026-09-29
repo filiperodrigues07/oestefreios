@@ -14,14 +14,26 @@ const OS_STATUS_VALUES = [
 
 const OS_PRIORIDADE_VALUES = ['BAIXA', 'NORMAL', 'MEDIA', 'ALTA', 'URGENTE'] as const;
 
+const kmObrigatorioSchema = z.union([
+  z.number().int().min(0).max(99_999_999),
+  z.string().trim().regex(/^\d{1,8}$/).transform(Number),
+]);
+
 export const criarOSSchema = z.object({
   clienteCodigo: z.string().trim().min(1, 'Cliente é obrigatório.'),
   equipamentoCodigo: z.string().trim().min(1, 'Equipamento é obrigatório.'),
   problema: z.string().trim().transform(toUppercase).optional().default(''),
   prioridade: z.enum(OS_PRIORIDADE_VALUES).default('NORMAL'),
+  kmAtual: kmObrigatorioSchema,
+  kmFinal: kmObrigatorioSchema,
   responsavelId: z.string().trim().min(1).optional(),
   tecnicoId: z.string().trim().min(1).optional(),
   dataPrevista: z.iso.datetime().optional(),
+});
+
+export const duplicarOSSchema = z.object({
+  kmAtual: kmObrigatorioSchema,
+  kmFinal: kmObrigatorioSchema,
 });
 
 export const atualizarOSSchema = z
@@ -32,8 +44,8 @@ export const atualizarOSSchema = z
     responsavelId: z.string().trim().min(1).optional(),
     tecnicoId: z.string().trim().min(1).optional(),
     dataPrevista: z.iso.datetime().optional(),
-    kmAtual: z.coerce.number().nonnegative().optional(),
-    kmFinal: z.coerce.number().nonnegative().optional(),
+    kmAtual: kmObrigatorioSchema.optional(),
+    kmFinal: kmObrigatorioSchema.optional(),
     /**
      * Valores que o usuário tinha na tela quando começou a editar (controle de concorrência otimista).
      * Se algum desses campos mudou no servidor desde então (outro usuário, ou direto no CHERP), responde 409.
