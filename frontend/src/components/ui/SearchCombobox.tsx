@@ -38,6 +38,10 @@ interface SearchComboboxProps<T extends SearchComboboxItem> {
   renderItem?: (item: T) => ReactNode;
   /** Enter sem nenhuma opção destacada (lista fechada ou vazia) — usado por grids que avançam pro próximo campo. */
   onEnterWithoutSelection?: () => void;
+  /** Texto quando a busca não acha nada. */
+  emptyMessage?: string;
+  /** Aviso no fim da lista (ex.: "Mostrando 100 de 214"). */
+  footer?: ReactNode;
 }
 
 /**
@@ -58,6 +62,8 @@ function SearchComboboxInner<T extends SearchComboboxItem>(
     debounceMs = 300,
     onQueryChange,
     onSelect,
+    emptyMessage = 'Nenhum resultado encontrado.',
+    footer,
     renderItem,
     onEnterWithoutSelection,
   }: SearchComboboxProps<T>,
@@ -164,7 +170,7 @@ function SearchComboboxInner<T extends SearchComboboxItem>(
               </li>
             )}
             {!isLoading && !isError && items.length === 0 && (
-              <li className={comboStyles.status}>Nenhum resultado encontrado.</li>
+              <li className={comboStyles.status}>{emptyMessage}</li>
             )}
             {!isLoading &&
               !isError &&
@@ -191,6 +197,11 @@ function SearchComboboxInner<T extends SearchComboboxItem>(
                   )}
                 </li>
               ))}
+            {!isLoading && !isError && footer && (
+              <li role="presentation" className={comboStyles.footer}>
+                {footer}
+              </li>
+            )}
           </ul>
         )}
       </div>

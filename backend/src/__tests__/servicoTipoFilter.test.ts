@@ -16,7 +16,7 @@ describe('filtro de tipo no catálogo de serviços', () => {
     ]).mockResolvedValueOnce([{ TOTAL: 275 }]);
 
     const query = searchQuerySchema.parse({ tipoServicoCodigo: '140101', page: '2', limit: '20' });
-    const result = await new ServicoRepositoryFirebird().buscar(query);
+    const result = await new ServicoRepositoryFirebird().buscarSql(query);
 
     const [sqlPagina, paramsPagina] = vi.mocked(firebirdQuery).mock.calls[0]!;
     const [sqlContagem, paramsContagem] = vi.mocked(firebirdQuery).mock.calls[1]!;

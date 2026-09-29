@@ -24,6 +24,25 @@
   user-select: none;
 }
 
+.comHint {
+  align-items: flex-start;
+}
+.comHint .input {
+  margin-top: 2px;
+}
+.texto {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+.hint {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  user-select: none;
+}
+
 @media (max-width: 899px) {
   .wrapper { min-height: 44px; }
 }

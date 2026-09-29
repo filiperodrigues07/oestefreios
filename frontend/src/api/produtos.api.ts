@@ -2,6 +2,8 @@ import { buildCatalogParams, type CatalogParams } from './catalog.types.js';
 import { apiFetch } from './httpClient.js';
 import type { ProdutoDTO } from '../types/cherp.types.js';
 
+export const LIMITE_BUSCA_LANCAMENTO = 100;
+
 interface PaginatedProdutos {
   items: ProdutoDTO[];
   page: number;
@@ -14,7 +16,7 @@ interface PaginatedProdutos {
  * Sem termo digitado (F8/campo vazio), devolve a primeira página do catálogo em vez de exigir digitação.
  */
 export function searchProdutos(query: string, somenteComSaldo = false): Promise<PaginatedProdutos> {
-  const params = new URLSearchParams({ limit: '30' });
+  const params = new URLSearchParams({ limit: String(LIMITE_BUSCA_LANCAMENTO) });
   const termo = query.trim();
   if (termo.length > 0) {
     const isCodigo = /^\d+$/.test(termo);

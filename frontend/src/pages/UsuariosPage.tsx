@@ -28,7 +28,7 @@ import {
 } from '../components/ui/index.js';
 import { hasPermission } from '../store/authStore.js';
 import { OS_DOCUMENT_STATUS_OPTIONS, SITUACAO_ATENDIMENTO_OPTIONS } from '../constants/osStatus.js';
-import { PERMISSION_GROUPS, PERMISSION_LABELS, type Permission } from '../types/auth.types.js';
+import { PERMISSION_GROUPS, PERMISSION_HELP, PERMISSION_LABELS, type Permission } from '../types/auth.types.js';
 import type { RoleOptionDTO, UserSummaryDTO } from '../types/user.types.js';
 import { isSecurePassword, PASSWORD_RULES } from '../utils/passwordPolicy.js';
 import styles from './UsuariosPage.module.css';
@@ -580,6 +580,7 @@ function PermissionGroupSection({ group, selected, preset, isAdminRole, onToggle
             <Checkbox
               key={p}
               label={bloqueadoParaNaoAdmin ? `${PERMISSION_LABELS[p]} (somente Administrador)` : PERMISSION_LABELS[p]}
+              hint={PERMISSION_HELP[p]}
               checked={selected.includes(p)}
               disabled={bloqueadoParaNaoAdmin}
               onChange={() => onTogglePermission(p)}

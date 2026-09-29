@@ -252,6 +252,17 @@
   min-width: 220px;
 }
 
+.parecido {
+  margin-left: var(--space-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-full, 999px);
+  background: var(--color-warning-surface);
+  color: var(--color-warning-on-surface);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
 .optionMeta {
   font-size: var(--font-size-xs);
   color: var(--color-text-secondary);

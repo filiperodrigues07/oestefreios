@@ -20,7 +20,7 @@ export interface CnpjLookupResult {
   regimeTributario?: RegimeTributario;
 }
 
-interface BrasilApiCnpjResponse {
+export interface BrasilApiCnpjResponse {
   razao_social: string;
   nome_fantasia?: string;
   descricao_situacao_cadastral?: string;
@@ -34,12 +34,36 @@ interface BrasilApiCnpjResponse {
   email?: string;
   opcao_pelo_simples?: boolean | null;
   opcao_pelo_mei?: boolean | null;
+  data_exclusao_do_simples?: string | null;
+  data_exclusao_do_mei?: string | null;
+  /** Código do porte na Receita: 1 não informado, 3 ME, 5 EPP, 1/5... — 'DEMAIS' (grande porte) não pode optar pelo Simples. */
+  porte?: string | null;
+  /** Histórico de escrituração (ECF): forma de tributação por ano. */
+  regime_tributario?: { ano: number; forma_de_tributacao?: string | null }[] | null;
 }
 
-/** CRT (Código de Regime Tributário) padrão SEFAZ/NFe: 1=Simples Nacional, 3=Regime Normal. */
-function derivarRegimeTributario(data: BrasilApiCnpjResponse): RegimeTributario | undefined {
+/**
+ * CRT (Código de Regime Tributário) padrão SEFAZ/NFe: 1=Simples Nacional, 3=Regime Normal.
+ *
+ * A BrasilAPI devolve `opcao_pelo_simples: null` para muitas empresas (não é "não" — é "sem informação"),
+ * então só `true`/`false` não basta. Ordem, do mais ao menos confiável:
+ *  1. optante pelo Simples/MEI hoje → 1;
+ *  2. explicitamente não optante → 3;
+ *  3. já foi excluída do Simples/MEI → 3;
+ *  4. escrituração recente em Lucro Real/Presumido/Arbitrado → 3;
+ *  5. porte "DEMAIS" (médio/grande) → 3, porque só ME/EPP/MEI podem optar pelo Simples.
+ * Sem nenhum sinal, devolve undefined e a pessoa escolhe (não inventa regime).
+ */
+export function derivarRegimeTributario(data: BrasilApiCnpjResponse): RegimeTributario | undefined {
   if (data.opcao_pelo_simples === true || data.opcao_pelo_mei === true) return 1;
   if (data.opcao_pelo_simples === false) return 3;
+  if (data.data_exclusao_do_simples || data.data_exclusao_do_mei) return 3;
+
+  const recente = [...(data.regime_tributario ?? [])].sort((a, b) => b.ano - a.ano)[0];
+  const forma = recente?.forma_de_tributacao?.toUpperCase() ?? '';
+  if (/LUCRO (REAL|PRESUMIDO|ARBITRADO)/.test(forma)) return 3;
+
+  if (data.porte?.toUpperCase() === 'DEMAIS') return 3;
   return undefined;
 }
 

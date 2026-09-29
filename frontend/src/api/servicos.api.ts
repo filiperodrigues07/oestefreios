@@ -1,5 +1,6 @@
 import { buildCatalogParams, type CatalogParams } from './catalog.types.js';
 import { apiFetch } from './httpClient.js';
+import { LIMITE_BUSCA_LANCAMENTO } from './produtos.api.js';
 import type { ServicoDTO } from '../types/cherp.types.js';
 
 interface PaginatedServicos {
@@ -11,7 +12,7 @@ interface PaginatedServicos {
 
 /** Sem termo digitado (F8/campo vazio), devolve a primeira página do catálogo em vez de exigir digitação. */
 export function searchServicos(query: string): Promise<PaginatedServicos> {
-  const params = new URLSearchParams({ limit: '30' });
+  const params = new URLSearchParams({ limit: String(LIMITE_BUSCA_LANCAMENTO) });
   const termo = query.trim();
   if (termo.length > 0) {
     const isCodigo = /^\d+$/.test(termo);

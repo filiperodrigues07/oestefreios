@@ -141,16 +141,18 @@ export function ProdutosServicosSection({
           itens={produtosGrid}
           queryKeyPrefix="os-grid-produtos"
           buscar={(query) =>
-            searchProdutos(query).then((r) =>
-              r.items.map((p) => ({
+            searchProdutos(query).then((r) => ({
+              total: r.total,
+              itens: r.items.map((p) => ({
                 codigo: p.codigo,
                 descricao: p.descricao,
                 unidade: p.unidade,
                 precoUnitario: p.precoUnitario,
                 // Produto sem registro de estoque no CHERP vem sem saldo: conta como zerado.
                 disponivel: p.disponivel ?? 0,
+                parecido: p.parecido,
               })),
-            )
+            }))
           }
           buscarPorCodigo={buscarProdutoPorCodigo}
           onAdicionar={onAdicionarProduto}
@@ -172,14 +174,16 @@ export function ProdutosServicosSection({
           itens={servicosGrid}
           queryKeyPrefix="os-grid-servicos"
           buscar={(query) =>
-            searchServicos(query).then((r) =>
-              r.items.map((s) => ({
+            searchServicos(query).then((r) => ({
+              total: r.total,
+              itens: r.items.map((s) => ({
                 codigo: s.codigo,
                 descricao: s.descricao,
                 unidade: s.unidade,
                 precoUnitario: s.valorUnitario,
+                parecido: s.parecido,
               })),
-            )
+            }))
           }
           buscarPorCodigo={buscarServicoPorCodigo}
           onAdicionar={onAdicionarServico}
