@@ -154,8 +154,16 @@ describe('auditoria de negócio', () => {
     try {
       const current = await request(app).get('/api/settings/firebird').set('Authorization', `Bearer ${adminToken}`);
       expect(current.status).toBe(200);
+      // Valores explícitos: no CI o banco do Firebird vem vazio (sem FIREBIRD_* no ambiente) e o schema recusa.
       const updated = await request(app).put('/api/settings/firebird').set('Authorization', `Bearer ${adminToken}`)
-        .send(current.body.data);
+        .send({
+          ...current.body.data,
+          host: current.body.data.host || 'localhost',
+          port: current.body.data.port || 3050,
+          database: current.body.data.database || 'C:/teste/cherp.fdb',
+          user: current.body.data.user || 'SYSDBA',
+          charset: current.body.data.charset || 'NONE',
+        });
       expect(updated.status).toBe(200);
       const audit = await pool.query<{ changes: unknown }>(
         "SELECT changes FROM audit_logs WHERE event = 'SETTINGS_FIREBIRD_UPDATED' ORDER BY created_at DESC LIMIT 1");
