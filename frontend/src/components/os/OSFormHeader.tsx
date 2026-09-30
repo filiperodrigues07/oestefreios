@@ -111,8 +111,8 @@ export function OSFormHeader({
       <div className={styles.actions}>
         {canChangeStatus && status !== 'CONCLUIDA' && status !== 'CANCELADA' && <div className={styles.finalizeAction}><FinalizarOSButton onConfirm={onFinalizar} loading={finalizando} /></div>}
         {canReopen && <Button type="button" size="sm" loading={reabrindo} onClick={() => setConfirmandoReabrir(true)}><ActionIcon name="update" />Reabrir OS</Button>}
-        <OSMoreActions items={enviarItems} loading={imprimindo} label={onEnviar ? 'Imprimir / Enviar' : 'Imprimir'} icon="print" className={styles.sendMenu} />
-        <OSMoreActions items={moreItems} loading={refreshing || duplicando || excluindo} />
+        <OSMoreActions items={enviarItems} loading={imprimindo} label={onEnviar ? 'Imprimir / Enviar' : 'Imprimir'} icon="print" className={`${styles.actionMenu} ${styles.sendMenu}`} />
+        <OSMoreActions items={moreItems} loading={refreshing || duplicando || excluindo} className={styles.actionMenu} />
       </div>
     </div>
     <div className={styles.summaryGrid}>

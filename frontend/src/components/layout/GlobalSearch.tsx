@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useEffect, useId, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { searchDashboard, type DashboardSearchResult } from '../../api/dashboard.api.js';
@@ -58,6 +58,8 @@ export function GlobalSearch({ onNavigate, className, placeholder, shortcut = tr
     queryFn: () => searchDashboard(debounced),
     enabled: debounced.length >= 2,
     staleTime: 15_000,
+    // Mantém a lista anterior enquanto a nova carrega: sem isso ela some e volta a cada tecla.
+    placeholderData: keepPreviousData,
   });
 
   function select(result: DashboardSearchResult) {
@@ -69,6 +71,15 @@ export function GlobalSearch({ onNavigate, className, placeholder, shortcut = tr
 
   function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (!open || data.length === 0) return;
+    // Enter sem ter navegado pela lista abre o 1º resultado — só se a lista já é da busca atual
+    // (evita abrir algo da digitação anterior enquanto a nova consulta ainda carrega).
+    if (event.key === 'Enter' && activeIndex < 0) {
+      if (isFetching || debounced !== value.trim()) return;
+      event.preventDefault();
+      const primeiro = data[0];
+      if (primeiro) select(primeiro);
+      return;
+    }
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       setActiveIndex((index) => (index + 1) % data.length);
@@ -94,17 +105,17 @@ export function GlobalSearch({ onNavigate, className, placeholder, shortcut = tr
         aria-activedescendant={activeIndex >= 0 ? `${listId}-${activeIndex}` : undefined} />
       {value && <button className={styles.clear} type="button" onClick={() => { setValue(''); inputRef.current?.focus(); }} aria-label="Limpar busca">×</button>}
       {!value && <kbd aria-hidden="true">{ATALHO}</kbd>}
-      {showing && <div className={styles.results} id={listId} role="listbox">
-        {isFetching && <p>Buscando...</p>}
+      {showing && <div className={styles.results} id={listId} role="listbox" aria-busy={isFetching}>
+        {isFetching && data.length === 0 && <p>Buscando...</p>}
         {isError && <p>Não foi possível realizar a busca. Tente novamente.</p>}
         {!isFetching && !isError && data.length === 0 && <p>Nenhum resultado encontrado.</p>}
-        {!isFetching && data.map((result, index) => <button id={`${listId}-${index}`}
+        {data.map((result, index) => <button id={`${listId}-${index}`}
           key={`${result.tipo}-${result.id}`} type="button" role="option"
           aria-selected={index === activeIndex} className={index === activeIndex ? styles.active : undefined}
           onMouseEnter={() => setActiveIndex(index)} onClick={() => select(result)}>
           <span>{LABELS[result.tipo]}</span><strong>{result.titulo}</strong><small>{result.descricao}</small>
         </button>)}
-        {!isFetching && !isError && data.length > 0 && <div className={styles.hint}>↑ ↓ para navegar · Enter para abrir</div>}
+        {!isError && data.length > 0 && <div className={styles.hint}>↑ ↓ para navegar · Enter abre o primeiro</div>}
       </div>}
     </div>
   );

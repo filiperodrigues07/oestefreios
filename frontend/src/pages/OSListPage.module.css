@@ -58,3 +58,8 @@
     min-width: 0;
   }
 }
+
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0 0 var(--space-3); }
+.chip { min-height: 44px; border: 1px solid var(--color-border); border-radius: 999px; background: transparent; color: var(--color-text-secondary); padding: 0 var(--space-4); font-size: var(--font-size-sm); font-weight: 600; cursor: pointer; }
+.chip:hover { background: var(--color-neutral-surface); }
+.chip[aria-pressed='true'] { border-color: var(--color-primary); background: var(--color-primary-surface); color: var(--color-primary-on-surface); }

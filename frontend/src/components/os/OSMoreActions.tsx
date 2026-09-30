@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { ActionIcon, Button } from '../ui/index.js';
 import styles from './OSMoreActions.module.css';
 import { useClickOutside } from '../../hooks/useClickOutside.js';
@@ -29,9 +29,35 @@ export function OSMoreActions({ items, loading, label = 'Mais ações', icon = '
   const [aberto, setAberto] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   useClickOutside(wrapperRef, () => setAberto(false), aberto);
+
+  useLayoutEffect(() => {
+    if (!aberto) return;
+    function positionMenu() {
+      const menu = menuRef.current;
+      if (!menu) return;
+      menu.style.transform = '';
+      const viewport = window.visualViewport;
+      const left = (viewport?.offsetLeft ?? 0) + 16;
+      const right = (viewport?.offsetLeft ?? 0) + (viewport?.width ?? document.documentElement.clientWidth) - 16;
+      menu.style.maxWidth = `${Math.max(0, right - left)}px`;
+      const rect = menu.getBoundingClientRect();
+      const offset = Math.max(left - rect.left, Math.min(0, right - rect.right));
+      menu.style.transform = `translateX(${offset}px)`;
+    }
+    positionMenu();
+    window.addEventListener('resize', positionMenu);
+    window.visualViewport?.addEventListener('resize', positionMenu);
+    window.visualViewport?.addEventListener('scroll', positionMenu);
+    return () => {
+      window.removeEventListener('resize', positionMenu);
+      window.visualViewport?.removeEventListener('resize', positionMenu);
+      window.visualViewport?.removeEventListener('scroll', positionMenu);
+    };
+  }, [aberto]);
 
   useEffect(() => {
     if (aberto) itemRefs.current.find((el) => el && !el.disabled)?.focus();
@@ -95,7 +121,7 @@ export function OSMoreActions({ items, loading, label = 'Mais ações', icon = '
         <span className={styles.triggerChevron}><ActionIcon name="chevronDown" size={14} /></span>
       </Button>
       {aberto && (
-        <div className={styles.menu} role="menu" onKeyDown={handleMenuKeyDown}>
+        <div ref={menuRef} className={styles.menu} role="menu" onKeyDown={handleMenuKeyDown}>
           {items.map((item, index) => (
             <div key={item.key} className={item.danger ? styles.dangerGroup : undefined}>
               <button

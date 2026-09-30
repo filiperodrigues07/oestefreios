@@ -1,5 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { cancelarPrefetchOS, prefetchOS } from '../routes/prefetch.js';
 import { duplicarOS, excluirOS, listarOS, type OsMessageChannel, type OSSortBy } from '../api/os.api.js';
@@ -229,6 +229,7 @@ export function OSListPage() {
     setSituacaoAtendimento(atendimentoFixo ?? '');
     setDataInicial('');
     setDataFinal('');
+    window.clearTimeout(buscaTimer.current);
     setBusca('');
     setBuscaAtiva('');
     setPage(1);
@@ -249,8 +250,23 @@ export function OSListPage() {
     setPage(1);
   }
 
+  // Busca ao vivo: digitar a placa já filtra (o botão/Enter continuam valendo pra aplicar na hora).
+  // 1 caractere só não busca — varre o CHERP à toa; vazio limpa a busca.
+  const buscaTimer = useRef<number | undefined>(undefined);
+  function handleBuscaChange(valor: string) {
+    setBusca(valor);
+    window.clearTimeout(buscaTimer.current);
+    const termo = valor.trim();
+    if (termo.length === 1) return;
+    buscaTimer.current = window.setTimeout(() => {
+      setPage(1);
+      setBuscaAtiva(termo);
+    }, 350);
+  }
+
   function handleBuscar(e: React.FormEvent) {
     e.preventDefault();
+    window.clearTimeout(buscaTimer.current);
     setPage(1);
     setBuscaAtiva(busca.trim());
   }
@@ -441,7 +457,7 @@ export function OSListPage() {
         <SearchInput
           placeholder="Buscar por Nº OS, cliente, código ou placa"
           value={busca}
-          onChange={(e) => setBusca(e.target.value)}
+          onChange={(e) => handleBuscaChange(e.target.value)}
         />
         <ResponsiveFilters
           activeCount={filtrosAtivos}
@@ -505,6 +521,25 @@ export function OSListPage() {
           Buscar
         </Button>
       </form>
+
+      <div className={styles.chips} role="group" aria-label="Filtros rápidos">
+        {atendimentoFixo === null && (
+          <>
+            <button type="button" className={styles.chip} aria-pressed={situacaoAtendimento === '000003'}
+              onClick={() => handleSituacaoAtendimentoChange(situacaoAtendimento === '000003' ? '' : '000003')}>
+              Aguardando peça
+            </button>
+            <button type="button" className={styles.chip} aria-pressed={situacaoAtendimento === '000004'}
+              onClick={() => handleSituacaoAtendimentoChange(situacaoAtendimento === '000004' ? '' : '000004')}>
+              Prontas
+            </button>
+          </>
+        )}
+        <button type="button" className={styles.chip} aria-pressed={prioridade === 'URGENTE'}
+          onClick={() => handlePrioridadeChange(prioridade === 'URGENTE' ? '' : 'URGENTE')}>
+          Urgentes
+        </button>
+      </div>
 
       {!isError && <ResultsSummary total={data?.total} />}
 

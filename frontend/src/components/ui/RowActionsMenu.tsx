@@ -50,13 +50,20 @@ export function RowActionsMenu({ label, items }: RowActionsMenuProps) {
 
   useEffect(() => {
     if (!aberto || !pos) return;
-    itemRefs.current.find(Boolean)?.focus();
+    // preventScroll: o foco não pode rolar a página, senão o "scroll" abaixo fecha o menu recém-aberto (linha perto da borda da tela).
+    itemRefs.current.find(Boolean)?.focus({ preventScroll: true });
     const fora = (e: PointerEvent) => {
       const alvo = e.target as Node;
       if (!menuRef.current?.contains(alvo) && !triggerRef.current?.contains(alvo)) setAberto(false);
     };
     // Posição é fixa: rolar a página/tabela ou redimensionar deixaria o menu solto no ar.
-    const fechar = () => setAberto(false);
+    // Rolagem que o próprio toque provoca (navegador/Playwright levando a linha pra tela antes do clique)
+    // chega um instante DEPOIS de o menu abrir — não é o usuário rolando, então não fecha.
+    const abertoEm = performance.now();
+    const fechar = (e: Event) => {
+      if (e.type === 'scroll' && performance.now() - abertoEm < 300) return;
+      setAberto(false);
+    };
     document.addEventListener('pointerdown', fora);
     window.addEventListener('scroll', fechar, true);
     window.addEventListener('resize', fechar);
