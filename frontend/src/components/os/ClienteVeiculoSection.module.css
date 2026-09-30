@@ -2,8 +2,14 @@
 
 /* Tela "Nova OS" — dois blocos independentes (Veículo / Cliente) lado a lado, cada um resolvendo
    por conta própria; empilha sozinho no celular via auto-fit, sem media query manual. */
-.pickerGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-4); align-items: start; }
+.pickerGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: var(--space-4); align-items: start; }
 .slot { display: flex; flex-direction: column; gap: var(--space-2); }
 .slotTitle { font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
 .trocarButton { min-width: 44px; min-height: 44px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--color-primary); padding: 8px; font-size: var(--font-size-sm); font-weight: 600; white-space: nowrap; cursor: pointer; }
+@media (max-width: 560px) {
+  .summaryCard { grid-template-columns: 42px minmax(0, 1fr); }
+  .summaryCard > .trocarButton,
+  .summaryCard > small { grid-column: 2; justify-self: start; }
+  .summaryCard > .trocarButton { max-width: 100%; white-space: normal; text-align: left; }
+}
 .resolvendo { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); }

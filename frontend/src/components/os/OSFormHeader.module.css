@@ -48,7 +48,16 @@
   .actions { gap: 6px; }
 }
 
-/* No celular o botão fica à esquerda: o menu abre pra direita, senão sai da tela. */
-@media (max-width: 600px) {
-  .sendMenu > [role='menu'] { left: 0; right: auto; }
+/* Quando as ações ficam à esquerda, os menus abrem para a direita. */
+@media (max-width: 950px) {
+  .actions { width: 100%; }
+  .actionMenu > [role='menu'] {
+    left: 0;
+    right: auto;
+    box-sizing: border-box;
+    width: max-content;
+    min-width: min(200px, calc(100vw - 32px));
+    max-width: calc(100vw - 32px);
+    overflow-wrap: anywhere;
+  }
 }
