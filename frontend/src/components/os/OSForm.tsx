@@ -16,6 +16,7 @@ import {
   removerServicoOS,
   reabrirOS,
   restaurarItemOS,
+  trocarVinculoOS,
 } from '../../api/os.api.js';
 import { getClienteByCodigo } from '../../api/clientes.api.js';
 import { ApiError } from '../../api/httpClient.js';
@@ -52,6 +53,7 @@ import { OSFormHeader } from './OSFormHeader.js';
 import { OSKmFields, parseKm } from './OSKmFields.js';
 import { OSKmSection } from './OSKmSection.js';
 import type { OSKmInput } from './OSDuplicateDialog.js';
+import { OSVinculoDialog, type OSVinculoInput } from './OSVinculoDialog.js';
 import { OSMessageDialog } from './OSMessageDialog.js';
 import type { OsMessageChannel } from '../../api/os.api.js';
 import { HistoryTimeline } from './HistoryTimeline.js';
@@ -521,6 +523,19 @@ function OSFormEdit({ id }: { id: string }) {
       handleMutationError(err, showToast, 'Não foi possível duplicar a OS. Tente novamente.'),
   });
 
+  const [trocandoVinculo, setTrocandoVinculo] = useState(false);
+  const trocarVinculoMutation = useMutation({
+    mutationFn: (vinculo: OSVinculoInput) => trocarVinculoOS(id, vinculo),
+    onSuccess: async (atualizado) => {
+      queryClient.setQueryData(['os', id], atualizado);
+      await invalidate();
+      setTrocandoVinculo(false);
+      showToast('Cliente/veículo da OS atualizados.', 'success');
+    },
+    onError: (err) =>
+      handleMutationError(err, showToast, 'Não foi possível trocar cliente/veículo. Tente novamente.'),
+  });
+
   const reabrirMutation = useMutation({
     mutationFn: (motivo: string) => reabrirOS(id, motivo),
     onSuccess: async (atualizado) => {
@@ -681,7 +696,11 @@ function OSFormEdit({ id }: { id: string }) {
               clienteCodigo={os.clienteCodigo}
               clienteNome={nomeCliente}
               veiculoDescricao={descricaoVeiculo}
+              onTrocarVinculo={podeEditar && totalItens === 0 ? () => setTrocandoVinculo(true) : undefined}
+              trocarVinculoBloqueio={podeEditar && totalItens > 0 ? 'Troca só sem produto/serviço lançado.' : undefined}
             />
+            <OSVinculoDialog numero={os.numero} open={trocandoVinculo} loading={trocarVinculoMutation.isPending}
+              onCancel={() => setTrocandoVinculo(false)} onConfirm={(v) => trocarVinculoMutation.mutate(v)} />
             <section className={styles.section}>
               <OSKmSection kmAtual={os.kmAtual} kmFinal={os.kmFinal} podeEditar={podeEditar}
                 salvando={kmMutation.isPending} onDirtyChange={setKmDirty}

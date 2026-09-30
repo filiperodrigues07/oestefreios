@@ -1003,6 +1003,20 @@ export class OSRepositoryFirebird implements IOSRepository {
       camposOSFB.push({ coluna: 'KMFINAL', valor: patch.kmFinal });
     }
 
+    // Troca de cliente/veículo (correção de lançamento) — o service já validou que a OS não tem itens.
+    if (patch.clienteCodigo !== undefined) {
+      camposOSFB.push({
+        coluna: 'CHAVECLIFOR',
+        valor: await resolveChaveByCodigo('CLIFOR', patch.clienteCodigo),
+      });
+    }
+    if (patch.equipamentoCodigo !== undefined) {
+      camposOSFB.push({
+        coluna: 'CHAVEEQUIPAMENTO',
+        valor: await resolveChaveByCodigo('EQUIPAMENTOS', patch.equipamentoCodigo),
+      });
+    }
+
     const perfisFiscais =
       patch.produtos !== undefined || patch.servicos !== undefined
         ? await Promise.all([resolvePerfilFiscalPadrao('N'), resolvePerfilFiscalPadrao('S')])

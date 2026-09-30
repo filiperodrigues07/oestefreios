@@ -11,7 +11,7 @@ const EVENT_LABELS: Record<string, string> = {
   TOKEN_REUSE_DETECTED: 'Reuso de token detectado', PASSWORD_RESET_REQUESTED: 'Redefinição de senha solicitada',
   PASSWORD_RESET_COMPLETED: 'Senha redefinida', PASSWORD_CHANGED: 'Senha alterada',
   PROFILE_UPDATED: 'Perfil atualizado', PROFILE_PHOTO_UPDATED: 'Foto de perfil atualizada',
-  OS_CREATED: 'OS criada', OS_UPDATED: 'OS atualizada', OS_STATUS_CHANGED: 'Status da OS alterado',
+  OS_CREATED: 'OS criada', OS_UPDATED: 'OS atualizada', OS_VINCULO_CHANGED: 'Cliente/veículo da OS trocados', OS_STATUS_CHANGED: 'Status da OS alterado',
   OS_DELETED: 'OS excluída', OS_REOPENED: 'OS reaberta', OS_DUPLICATED: 'OS duplicada',
   OS_PRODUCT_ADDED: 'Produto adicionado à OS', OS_PRODUCT_REMOVED: 'Produto removido da OS',
   OS_PRODUCT_UPDATED: 'Produto atualizado na OS', OS_SERVICE_ADDED: 'Serviço adicionado à OS',

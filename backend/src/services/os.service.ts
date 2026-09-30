@@ -398,6 +398,71 @@ export async function atualizarOS(
   return toOSDTO(atualizado, usuario.permissions);
 }
 
+/**
+ * Corrige lançamento errado de cliente/veículo. Só enquanto a OS não tem produto nem serviço:
+ * com itens já lançados o perfil fiscal/tributação e os valores dependem do cliente, então a troca
+ * fica bloqueada (mesma trava de OS fechada/faturada de `assertNaoFinalizada`).
+ */
+export async function trocarVinculoOS(
+  id: string,
+  input: { clienteCodigo: string; equipamentoCodigo: string },
+  usuario: AuthenticatedUser,
+  ctx: RequestContext = {},
+): Promise<OperationalOSDTO | AdminOSDTO> {
+  const atual = await getOSOrThrow(id);
+  assertNaoFinalizada(atual);
+  if (atual.produtos.length > 0 || atual.servicos.length > 0) {
+    throw new ValidationError(
+      'Não é possível trocar cliente/veículo: a OS já tem produto ou serviço lançado. Remova os itens antes.',
+    );
+  }
+  if (input.clienteCodigo === atual.clienteCodigo && input.equipamentoCodigo === atual.equipamentoCodigo) {
+    throw new ValidationError('Cliente e veículo informados já são os da OS.');
+  }
+
+  const cliente = await clienteRepository.buscarPorCodigo(input.clienteCodigo);
+  if (!cliente) {
+    throw new ValidationError(`Cliente com código "${input.clienteCodigo}" não encontrado.`);
+  }
+  if (cliente.ativo === false) {
+    throw new ValidationError('Cliente inativo no CHERP. Ative o cadastro antes de usá-lo na OS.');
+  }
+  const equipamento = await equipamentoRepository.buscarPorCodigo(input.equipamentoCodigo);
+  if (!equipamento) {
+    throw new ValidationError(`Veículo com código "${input.equipamentoCodigo}" não encontrado.`);
+  }
+  if (equipamento.clienteCodigo !== input.clienteCodigo) {
+    throw new ValidationError('O veículo informado não pertence ao cliente informado.');
+  }
+
+  const rotulo = (nome: string | undefined, codigo: string) => (nome ? `${nome} (${codigo})` : codigo);
+  const antes = {
+    cliente: rotulo(atual.clienteNome, atual.clienteCodigo),
+    veiculo: rotulo(atual.equipamentoDescricao, atual.equipamentoCodigo),
+  };
+  const depois = {
+    cliente: rotulo(cliente.nome, cliente.codigo),
+    veiculo: rotulo(equipamento.descricao, equipamento.codigo),
+  };
+
+  const atualizado = await osRepository.atualizar(id, {
+    clienteCodigo: input.clienteCodigo,
+    equipamentoCodigo: input.equipamentoCodigo,
+    cherpUsuarioChave: usuario.cherpUsuarioChave,
+    historico: [
+      ...atual.historico,
+      historicoEntry(
+        `Cliente/veículo trocados: ${antes.cliente} / ${antes.veiculo} → ${depois.cliente} / ${depois.veiculo}`,
+        usuario,
+      ),
+    ],
+  });
+
+  await auditOS('OS_VINCULO_CHANGED', id, usuario, ctx, { before: antes, after: depois });
+
+  return toOSDTO(atualizado, usuario.permissions);
+}
+
 export async function alterarStatusOS(
   id: string,
   novoStatus: OSStatus,

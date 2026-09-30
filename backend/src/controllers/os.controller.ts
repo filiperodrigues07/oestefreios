@@ -82,6 +82,12 @@ export async function atualizarOSHandler(req: Request, res: Response) {
   success(res, os, 'Alterações salvas.');
 }
 
+export async function trocarVinculoOSHandler(req: Request, res: Response) {
+  const { id } = req.params as { id: string };
+  const os = await osService.trocarVinculoOS(id, req.body, req.user!, requestContext(req));
+  success(res, os, 'Cliente/veículo da OS atualizados.');
+}
+
 export async function duplicarOSHandler(req: Request, res: Response) {
   const { id } = req.params as { id: string };
   const os = await osService.duplicarOS(id, req.user!, req.body as { kmAtual: number; kmFinal: number }, requestContext(req));
