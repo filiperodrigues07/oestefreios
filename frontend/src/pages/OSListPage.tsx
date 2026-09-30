@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { prefetchOS } from '../routes/prefetch.js';
+import { cancelarPrefetchOS, prefetchOS } from '../routes/prefetch.js';
 import { duplicarOS, excluirOS, listarOS, type OsMessageChannel, type OSSortBy } from '../api/os.api.js';
 import { OSMessageDialog } from '../components/os/OSMessageDialog.js';
 import { OSDuplicateDialog, type OSKmInput } from '../components/os/OSDuplicateDialog.js';
@@ -554,6 +554,7 @@ export function OSListPage() {
               rowKey={(os) => os.id}
               onRowClick={(os) => navigate(`/os/${os.id}`)}
               onRowIntent={(os) => prefetchOS(os.id)}
+              onRowIntentEnd={(os) => cancelarPrefetchOS(os.id)}
               sortBy={sortBy}
               sortOrder={sortOrder}
               onSortChange={handleSortChange}

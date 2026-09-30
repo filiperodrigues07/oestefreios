@@ -300,19 +300,21 @@ function OSFormEdit({ id }: { id: string }) {
     // Sincroniza sozinho com o CHERP enquanto a tela fica aberta (ex.: faturamento fecha o
     // pedido por lá) — seguro contra perder digitação porque cada seção com campo de texto
     // livre (ver DiagnosticoSection) só resincroniza do servidor quando não há edição pendente.
-    refetchInterval: 30_000,
+    refetchInterval: 60_000,
   });
 
   const { data: cliente } = useQuery({
     queryKey: ['cliente', os?.clienteCodigo],
     queryFn: () => getClienteByCodigo(os!.clienteCodigo),
     enabled: !!os,
+    staleTime: 5 * 60_000, // cadastro quase nunca muda durante a edição da OS
   });
 
   const { data: equipamento } = useQuery({
     queryKey: ['equipamento', os?.equipamentoCodigo],
     queryFn: () => getEquipamentoByCodigo(os!.equipamentoCodigo),
     enabled: !!os,
+    staleTime: 5 * 60_000,
   });
 
   function invalidate() {

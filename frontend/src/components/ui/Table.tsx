@@ -39,6 +39,8 @@ interface TableProps<T> {
   onRowClick?: (row: T) => void;
   /** Mouse em cima / dedo encostou / foco: dá pra pré-carregar o detalhe antes do clique. */
   onRowIntent?: (row: T) => void;
+  /** Cursor saiu da linha antes de virar intenção (cancela um prefetch agendado). */
+  onRowIntentEnd?: (row: T) => void;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   onSortChange?: (key: string) => void;
@@ -96,6 +98,7 @@ export function Table<T>({
   rowKey,
   onRowClick,
   onRowIntent,
+  onRowIntentEnd,
   sortBy,
   sortOrder,
   onSortChange,
@@ -486,6 +489,7 @@ export function Table<T>({
               className={[styles.card, onRowClick ? styles.cardClickable : ''].filter(Boolean).join(' ')}
               onClick={onRowClick ? () => onRowClick(row) : undefined}
               onPointerEnter={onRowIntent ? () => onRowIntent(row) : undefined}
+                onPointerLeave={onRowIntentEnd ? () => onRowIntentEnd(row) : undefined}
               onTouchStart={onRowIntent ? () => onRowIntent(row) : undefined}
               onFocus={onRowIntent ? () => onRowIntent(row) : undefined}
               role={onRowClick ? 'button' : undefined}
@@ -615,6 +619,7 @@ export function Table<T>({
                 className={onRowClick ? styles.rowClickable : ''}
                 onClick={onRowClick ? (event) => aoClicarNaLinha(row, event) : undefined}
                 onPointerEnter={onRowIntent ? () => onRowIntent(row) : undefined}
+                onPointerLeave={onRowIntentEnd ? () => onRowIntentEnd(row) : undefined}
                 onFocus={onRowIntent ? () => onRowIntent(row) : undefined}
                 tabIndex={onRowClick ? 0 : undefined}
                 onKeyDown={

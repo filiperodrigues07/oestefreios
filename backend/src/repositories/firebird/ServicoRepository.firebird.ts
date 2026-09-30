@@ -6,6 +6,7 @@ import type { PaginatedResult, SearchQuery, Servico } from '../../types/cherp.ty
 import { normalizeCatalogText } from '../../utils/catalogSearch.js';
 import { ordenarHits, type CatalogHit, type CatalogItemInput } from '../../utils/catalogEngine.js';
 import { logger } from '../../utils/logger.js';
+import { criarTtlCache } from '../../utils/ttlCache.js';
 import type { IServicoRepository } from '../interfaces/IServicoRepository.js';
 
 /**
@@ -100,8 +101,15 @@ async function carregarCatalogoServicos(): Promise<CatalogItemInput[]> {
 
 const indiceServicos = new CatalogIndexCache(carregarCatalogoServicos);
 
+/** Tipos mudam raramente e a query varre PRODUTO inteira (DISTINCT): 1 min de cache basta pros filtros/combos. */
+const cacheTiposServico = criarTtlCache<{ codigo: string; descricao: string }[]>(60_000, 1);
+
 export class ServicoRepositoryFirebird implements IServicoRepository {
-  async listarTipos(): Promise<{ codigo: string; descricao: string }[]> {
+  listarTipos(): Promise<{ codigo: string; descricao: string }[]> {
+    return cacheTiposServico.obter('tipos', () => this.carregarTipos());
+  }
+
+  private async carregarTipos(): Promise<{ codigo: string; descricao: string }[]> {
     const rows = await firebirdQuery<{ CODIGO: string; DESCRICAO: string }>(`
       SELECT DISTINCT TS.CODIGO AS CODIGO,
         CAST(TS.DESCRICAO AS VARCHAR(500) CHARACTER SET OCTETS) AS DESCRICAO
