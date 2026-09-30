@@ -36,7 +36,24 @@ const OS_PREFETCH_STALE_MS = 30_000;
  * do clique — a OS abre praticamente instantânea. Repetir é barato: o react-query deduplica e
  * respeita o staleTime, e o import() só baixa uma vez.
  */
-export function prefetchOS(id: string): void {
-  void importOSFormPage().catch(() => undefined);
-  void queryClient.prefetchQuery({ queryKey: ['os', id], queryFn: () => getOS(id), staleTime: OS_PREFETCH_STALE_MS });
+export function prefetchOS(id: string, imediato = false): void {
+  cancelarPrefetchOS(id);
+  const disparar = () => {
+    timersPrefetchOS.delete(id);
+    void importOSFormPage().catch(() => undefined);
+    void queryClient.prefetchQuery({ queryKey: ['os', id], queryFn: () => getOS(id), staleTime: OS_PREFETCH_STALE_MS });
+  };
+  if (imediato) return disparar();
+  // Passar o mouse pela lista não deve disparar uma consulta ao CHERP por linha: só conta como
+  // intenção se o cursor ficar ~150 ms na linha (cancelarPrefetchOS no pointerleave).
+  timersPrefetchOS.set(id, setTimeout(disparar, PREFETCH_HOVER_DELAY_MS));
+}
+
+const PREFETCH_HOVER_DELAY_MS = 150;
+const timersPrefetchOS = new Map<string, ReturnType<typeof setTimeout>>();
+
+export function cancelarPrefetchOS(id: string): void {
+  const timer = timersPrefetchOS.get(id);
+  if (timer !== undefined) clearTimeout(timer);
+  timersPrefetchOS.delete(id);
 }

@@ -1,4 +1,4 @@
-import { eq, inArray } from 'drizzle-orm';
+import { eq, getTableColumns, inArray } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import { db } from '../../database/postgres/client.js';
 import { osWorkflow } from '../../database/postgres/schema.js';
@@ -395,15 +395,32 @@ async function fetchWorkflow(id: string): Promise<WorkflowRow | undefined> {
  */
 async function fetchWorkflows(ids: string[]): Promise<Map<string, WorkflowRow>> {
   if (ids.length === 0) return new Map();
-  const rows: WorkflowRow[] = [];
-  for (let start = 0; start < ids.length; start += 500) {
-    const lote = await db
-      .select()
-      .from(osWorkflow)
-      .where(inArray(osWorkflow.id, ids.slice(start, start + 500)));
-    rows.push(...(lote as WorkflowRow[]));
-  }
-  return new Map(rows.map((r) => [r.id.toLowerCase(), r as WorkflowRow]));
+  const lotes: string[][] = [];
+  for (let start = 0; start < ids.length; start += 500) lotes.push(ids.slice(start, start + 500));
+  const resultados = await Promise.all(
+    lotes.map((lote) => db.select().from(osWorkflow).where(inArray(osWorkflow.id, lote))),
+  );
+  const rows = resultados.flat() as WorkflowRow[];
+  return new Map(rows.map((r) => [r.id.toLowerCase(), r]));
+}
+
+// `historico` (jsonb com a linha do tempo inteira de cada OS) só é lido no detalhe. Dashboards,
+// relatórios e busca leem só o cabeçalho — não vale trafegar esse jsonb pra centenas de OS.
+const { historico, ...colunasWorkflowResumo } = getTableColumns(osWorkflow);
+void historico;
+
+async function fetchWorkflowsResumo(ids: string[]): Promise<Map<string, WorkflowRow>> {
+  if (ids.length === 0) return new Map();
+  const lotes: string[][] = [];
+  for (let start = 0; start < ids.length; start += 500) lotes.push(ids.slice(start, start + 500));
+  const resultados = await Promise.all(
+    lotes.map((lote) =>
+      db.select(colunasWorkflowResumo).from(osWorkflow).where(inArray(osWorkflow.id, lote)),
+    ),
+  );
+  return new Map(
+    resultados.flat().map((r) => [r.id.toLowerCase(), { ...r, historico: [] } as WorkflowRow]),
+  );
 }
 
 async function resolveChaveByCodigo(
@@ -753,7 +770,7 @@ export class OSRepositoryFirebird implements IOSRepository {
       `${HEADER_SELECT}${situacaoDocumento === undefined ? '' : ' AND OS.SITUACAO = ?'}`,
       situacaoDocumento === undefined ? [] : [situacaoDocumento],
     );
-    const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
+    const workflows = await fetchWorkflowsResumo(headers.map((header) => header.IDENTIFICADOR));
     return headers.map((header) =>
       buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())),
     );
@@ -777,7 +794,7 @@ export class OSRepositoryFirebird implements IOSRepository {
         [...abertas, ...fechadas].map((header) => [header.IDENTIFICADOR.toLowerCase(), header]),
       ).values(),
     ];
-    const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
+    const workflows = await fetchWorkflowsResumo(headers.map((header) => header.IDENTIFICADOR));
     return headers.map((header) =>
       buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())),
     );
@@ -804,7 +821,7 @@ export class OSRepositoryFirebird implements IOSRepository {
       );
     }
 
-    const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
+    const workflows = await fetchWorkflowsResumo(headers.map((header) => header.IDENTIFICADOR));
     if (!filter.incluirItens || headers.length === 0) {
       return headers.map((header) =>
         buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())),
@@ -855,7 +872,7 @@ export class OSRepositoryFirebird implements IOSRepository {
       `${select} AND (OS.ORDEM CONTAINING ? OR CLI.FANTASIA CONTAINING ? OR CLI.RAZAOSOCIAL CONTAINING ? OR EQ.IDENTIFICACAO CONTAINING ? OR EQ.DESCRICAO CONTAINING ?) ORDER BY OS.CHAVE DESC`,
       [term, term, term, term, term],
     );
-    const workflows = await fetchWorkflows(headers.map((header) => header.IDENTIFICADOR));
+    const workflows = await fetchWorkflowsResumo(headers.map((header) => header.IDENTIFICADOR));
     return headers.map((header) =>
       buildOrdemServico(header, [], [], workflows.get(header.IDENTIFICADOR.toLowerCase())),
     );

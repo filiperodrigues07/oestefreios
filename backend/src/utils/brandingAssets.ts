@@ -3,6 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
 import { detectarTipoImagem } from './imageSignature.js';
+import { criarTtlCache } from './ttlCache.js';
 
 /**
  * `logoUrl` salvo em Configurações pode ser um caminho servido por `/api/uploads/...` (upload local) —
@@ -21,7 +22,14 @@ async function logoPadraoParaPdf(): Promise<string> {
   return `data:image/png;base64,${imagem.toString('base64')}`;
 }
 
-export async function resolverLogoParaPdf(logoUrl: string): Promise<string> {
+/** Ler o arquivo e reconverter WebP→PNG a cada PDF é trabalho repetido: a logo muda raramente (validade curta cobre a troca). */
+const cacheLogoPdf = criarTtlCache<string>(5 * 60_000, 5);
+
+export function resolverLogoParaPdf(logoUrl: string): Promise<string> {
+  return cacheLogoPdf.obter(logoUrl, () => converterLogoParaPdf(logoUrl));
+}
+
+async function converterLogoParaPdf(logoUrl: string): Promise<string> {
   if (!logoUrl) return logoPadraoParaPdf();
   if (logoUrl.startsWith('data:image/webp;base64,')) {
     try {

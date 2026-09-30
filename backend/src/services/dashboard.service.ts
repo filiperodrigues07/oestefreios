@@ -55,6 +55,7 @@ async function getAllOS(): Promise<OrdemServico[]> {
 
 const cacheAdmin = criarTtlCache<AdminDashboardDTO>(15_000);
 const cacheOperacional = criarTtlCache<DashboardOperacionalDTO>(15_000);
+const cacheMinhasOS = criarTtlCache<OperationalDashboardDTO>(15_000);
 
 /** Cache curto: o painel varre até 1000 OS com itens; o resultado só muda no nível de minutos para o usuário. */
 export function getAdminDashboard(permissions: Permission[]): Promise<AdminDashboardDTO> {
@@ -154,7 +155,13 @@ function toSummaryDTO(os: OrdemServico): OSSummaryDTO {
   };
 }
 
-export async function getOperationalDashboard(usuario: AuthenticatedUser): Promise<OperationalDashboardDTO> {
+/** "Minhas OS" é consultada por polling (45 s por aparelho) e varre todos os cabeçalhos do CHERP: cache curto por usuário. */
+export function getOperationalDashboard(usuario: AuthenticatedUser): Promise<OperationalDashboardDTO> {
+  const chave = `${usuario.id}:${usuario.permissions.includes('OS_VIEW_FINALIZADAS') ? 'fin' : 'sem-fin'}`;
+  return cacheMinhasOS.obter(chave, () => calcularOperacionalDoUsuario(usuario));
+}
+
+async function calcularOperacionalDoUsuario(usuario: AuthenticatedUser): Promise<OperationalDashboardDTO> {
   const todasOS = await osRepository.listarCabecalhos();
   const minhas = todasOS.filter((os) => os.tecnicoId === usuario.id || os.responsavelId === usuario.id);
   const verFinalizadas = usuario.permissions.includes('OS_VIEW_FINALIZADAS');

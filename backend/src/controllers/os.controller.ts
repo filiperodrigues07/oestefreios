@@ -5,6 +5,7 @@ import { exportarOSPdf, type OSFotoPdf } from '../services/reportExport.service.
 import { getGeralSettings } from '../services/settings.service.js';
 import { success } from '../utils/apiResponse.js';
 import { resolverLogoParaPdf } from '../utils/brandingAssets.js';
+import { criarBytesLruCache } from '../utils/bytesLruCache.js';
 import { detectarTipoImagem } from '../utils/imageSignature.js';
 import { gerarMiniaturaOS } from '../utils/osImagePreview.js';
 import { fotoParaPdf, mapearComLimite } from '../utils/osPhotoPdf.js';
@@ -278,18 +279,34 @@ export async function removerImagemHandler(req: Request, res: Response) {
     req.user!,
     requestContext(req),
   );
+  cacheMiniaturasOS.remover(`${id}:${identificador}`);
   success(res, imagens, 'Imagem removida.');
 }
 
+/**
+ * Foto da OS tem IDENTIFICADOR próprio e o conteúdo dela nunca muda (remover = ATIVO 0), então
+ * miniatura pronta fica em memória (teto de bytes) e o navegador pode guardar a resposta. A permissão
+ * continua sendo checada na rota antes deste handler; remover a foto limpa o cache do servidor.
+ */
+const cacheMiniaturasOS = criarBytesLruCache(64 * 1024 * 1024);
+const CACHE_FOTO_OS = 'private, max-age=3600';
+
 export async function buscarImagemHandler(req: Request, res: Response) {
   const { id, identificador } = req.params as { id: string; identificador: string };
-  const imagem = await osService.buscarImagemOS(id, identificador);
+  res.setHeader('Cache-Control', CACHE_FOTO_OS); // sobrepõe o no-store global de /api só pra foto
   if (req.query.preview === '1') {
-    const miniatura = await gerarMiniaturaOS(imagem.buffer);
+    const chave = `${id}:${identificador}`;
+    let miniatura = cacheMiniaturasOS.obter(chave);
+    if (!miniatura) {
+      const imagem = await osService.buscarImagemOS(id, identificador);
+      miniatura = await gerarMiniaturaOS(imagem.buffer);
+      cacheMiniaturasOS.guardar(chave, miniatura);
+    }
     res.setHeader('Content-Type', 'image/webp');
     res.send(miniatura);
     return;
   }
+  const imagem = await osService.buscarImagemOS(id, identificador);
   const tipo = detectarTipoImagem(imagem.buffer);
   res.setHeader('Content-Type', tipo?.mime ?? 'application/octet-stream');
   res.send(imagem.buffer);

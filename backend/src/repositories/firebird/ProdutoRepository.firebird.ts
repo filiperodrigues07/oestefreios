@@ -6,6 +6,7 @@ import type { PaginatedResult, Produto, SearchQuery } from '../../types/cherp.ty
 import { normalizeCatalogText } from '../../utils/catalogSearch.js';
 import { ordenarHits, type CatalogHit, type CatalogItemInput } from '../../utils/catalogEngine.js';
 import { logger } from '../../utils/logger.js';
+import { criarTtlCache } from '../../utils/ttlCache.js';
 import type { IProdutoRepository } from '../interfaces/IProdutoRepository.js';
 
 /**
@@ -133,8 +134,15 @@ function saldoClauseFor(modo: SearchQuery['saldoModo']): string {
 /** Com filtro de saldo, só os melhores resultados da busca são checados no banco (a lista nunca passa disso). */
 const LIMITE_COM_FILTRO_SALDO = 300;
 
+/** Tipos mudam raramente e a query varre PRODUTO inteira (DISTINCT): 1 min de cache basta pros filtros/combos. */
+const cacheTiposProduto = criarTtlCache<{ codigo: number; descricao: string }[]>(60_000, 1);
+
 export class ProdutoRepositoryFirebird implements IProdutoRepository {
-  async listarTipos(): Promise<{ codigo: number; descricao: string }[]> {
+  listarTipos(): Promise<{ codigo: number; descricao: string }[]> {
+    return cacheTiposProduto.obter('tipos', () => this.carregarTipos());
+  }
+
+  private async carregarTipos(): Promise<{ codigo: number; descricao: string }[]> {
     const rows = await firebirdQuery<{ CODIGO: number; DESCRICAO: string }>(`
       SELECT DISTINCT PT.CODIGO AS CODIGO,
         CAST(PT.DESCRICAO AS VARCHAR(100) CHARACTER SET OCTETS) AS DESCRICAO

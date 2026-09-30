@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router';
-import { prefetchOS } from '../../routes/prefetch.js';
+import { cancelarPrefetchOS, prefetchOS } from '../../routes/prefetch.js';
 import listaStyles from './OperationalDashboard.module.css';
 import { getOperationalDashboard } from '../../api/dashboard.api.js';
 import { StatTile } from '../charts/StatTile.js';
@@ -56,8 +56,9 @@ export function OperationalDashboard() {
               to={`/os/${os.id}`}
               className={listaStyles.link}
               onPointerEnter={() => prefetchOS(os.id)}
-              onTouchStart={() => prefetchOS(os.id)}
-              onFocus={() => prefetchOS(os.id)}
+              onTouchStart={() => prefetchOS(os.id, true)}
+              onPointerLeave={() => cancelarPrefetchOS(os.id)}
+              onFocus={() => prefetchOS(os.id, true)}
             >
               <Card elevated className={listaStyles.row}>
                 <div>
