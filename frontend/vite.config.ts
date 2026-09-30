@@ -76,6 +76,19 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // O worker do pdfjs vem como `.mjs`, extensão que o nginx da VPS não mapeia: sai como
+        // `application/octet-stream` e o navegador recusa executar o módulo ("prévia do PDF não carrega").
+        // Com `.js` qualquer servidor entrega o tipo certo. O conteúdo é o mesmo módulo ES.
+        assetFileNames: (asset) => {
+          const nome = asset.names?.[0] ?? '';
+          return nome.endsWith('.mjs') ? 'assets/[name]-[hash].js' : 'assets/[name]-[hash][extname]';
+        },
+      },
+    },
+  },
   // `vite preview` não herda `server.proxy` — precisa do seu próprio, senão /api 404 no build de produção local.
   preview: {
     proxy: {
