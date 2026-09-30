@@ -49,7 +49,7 @@ export default defineConfig({
       },
       workbox: {
         // Assets do build (JS/CSS/HTML/ícones): cache-first via precache — o padrão do Workbox pra tudo que está no glob.
-        globPatterns: ['**/*.{js,css,html,svg,png,webmanifest}'],
+        globPatterns: ['**/*.{js,mjs,css,html,svg,png,webmanifest}'],
         // SPA: qualquer navegação sem match de arquivo cai no index.html cacheado (permite abrir o app offline).
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api\//],
