@@ -1,4 +1,5 @@
 import * as Firebird from 'node-firebird';
+import { env } from '../../config/env.js';
 import { firebirdOptions } from '../../config/firebird.config.js';
 import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { logger } from '../../utils/logger.js';
@@ -15,7 +16,7 @@ let cachedPool: Firebird.ConnectionPool | null = null;
 
 function getPool(): Firebird.ConnectionPool {
   if (!cachedPool) {
-    cachedPool = Firebird.pool(10, currentOptions);
+    cachedPool = Firebird.pool(env.FIREBIRD_POOL_SIZE, currentOptions);
   }
   return cachedPool;
 }

@@ -45,6 +45,8 @@ export function VeiculosPage() {
   const navigate = useNavigate();
   const somenteLeitura = useSomenteLeitura();
   const podeNovaOS = hasPermission('OS_CREATE') && !somenteLeitura;
+  // Histórico do veículo = lista de OS filtrada pela placa, com todas as situações (inclusive finalizadas).
+  const verOSDoVeiculo = (v: EquipamentoDTO) => navigate(`/os?situacaoDocumento=&busca=${encodeURIComponent(v.identificacao || v.codigo)}`);
   const [excluindo, setExcluindo] = useState<EquipamentoDTO | null>(null);
   const [busca, setBusca] = useState(initialBusca);
   const [buscaAtiva, setBuscaAtiva] = useState(initialBusca);
@@ -125,6 +127,7 @@ export function VeiculosPage() {
       align: 'right',
       render: (v) => (
         <span style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
+          <RowActionButton icon="history" label={`Ver OS de ${v.identificacao || v.codigo}`} onClick={() => verOSDoVeiculo(v)} />
           {podeNovaOS && (
             <RowActionButton icon="add" label={`Nova OS para ${v.identificacao || v.codigo}`} onClick={() => navigate(`/os/nova?veiculo=${encodeURIComponent(v.codigo)}`)} />
           )}
@@ -262,8 +265,8 @@ export function VeiculosPage() {
                       { label: 'Ano modelo', value: veiculo.anoModelo || '—', mono: true },
                     ]}
                     actions={
-                      hasPermission('OS_EDIT') || podeExcluir || podeNovaOS ? (
-                        <>
+                      <>
+                          <RowActionButton icon="history" label={`Ver OS de ${veiculo.identificacao || veiculo.codigo}`} onClick={() => verOSDoVeiculo(veiculo)} />
                           {podeNovaOS && (
                             <RowActionButton icon="add" label={`Nova OS para ${veiculo.identificacao || veiculo.codigo}`} onClick={() => navigate(`/os/nova?veiculo=${encodeURIComponent(veiculo.codigo)}`)} />
                           )}
@@ -276,7 +279,6 @@ export function VeiculosPage() {
                             <RowActionButton icon="delete" tone="danger" label={`Excluir veículo ${veiculo.identificacao || veiculo.codigo}`} onClick={() => setExcluindo(veiculo)} />
                           )}
                         </>
-                      ) : undefined
                     }
                   />
                 )}

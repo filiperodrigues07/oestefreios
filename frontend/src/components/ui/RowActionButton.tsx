@@ -2,7 +2,7 @@ import { ActionIcon } from './ActionIcon.js';
 import styles from './EditButton.module.css';
 
 interface RowActionButtonProps {
-  icon: 'copy' | 'delete' | 'add';
+  icon: 'copy' | 'delete' | 'add' | 'history';
   label: string;
   onClick: () => void;
   tone?: 'danger';
