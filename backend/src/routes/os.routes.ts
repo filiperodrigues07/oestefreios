@@ -23,6 +23,7 @@ import {
   removerServicoHandler,
   restaurarProdutoHandler,
   restaurarServicoHandler,
+  trocarVinculoOSHandler,
 } from '../controllers/os.controller.js';
 import { authenticate } from '../middlewares/auth.middleware.js';
 import { requirePermission } from '../middlewares/requirePermission.js';
@@ -39,6 +40,7 @@ import {
   alterarStatusSchema,
   atualizarItemSchema,
   atualizarOSSchema,
+  trocarVinculoOSSchema,
   criarOSSchema,
   duplicarOSSchema,
   excluirOSSchema,
@@ -112,6 +114,14 @@ osRouter.put(
   validate(osIdParamSchema, 'params'),
   validate(atualizarOSSchema),
   asyncHandler(atualizarOSHandler),
+);
+
+osRouter.patch(
+  '/:id/vinculo',
+  requirePermission('OS_EDIT'),
+  validate(osIdParamSchema, 'params'),
+  validate(trocarVinculoOSSchema),
+  asyncHandler(trocarVinculoOSHandler),
 );
 
 osRouter.patch(

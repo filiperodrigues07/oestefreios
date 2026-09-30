@@ -122,6 +122,17 @@ export function atualizarOS(id: string, input: AtualizarOSInput): Promise<OrdemS
   });
 }
 
+export function trocarVinculoOS(
+  id: string,
+  vinculo: { clienteCodigo: string; equipamentoCodigo: string },
+): Promise<OrdemServicoDTO> {
+  return apiFetch<OrdemServicoDTO>(`/os/${id}/vinculo`, {
+    method: 'PATCH',
+    body: vinculo,
+    offlineDescription: `Trocar cliente/veículo da OS ${id}`,
+  });
+}
+
 export function alterarStatusOS(id: string, status: OSStatus): Promise<OrdemServicoDTO> {
   return apiFetch<OrdemServicoDTO>(`/os/${id}/status`, {
     method: 'PATCH',

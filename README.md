@@ -72,6 +72,8 @@ Ciclo completo: criar (cliente → equipamento → problema → prioridade), vis
 
 Transições de status são validadas **só no backend** (`backend/src/services/osWorkflow.ts`); o frontend (`frontend/src/types/os.types.ts`) tem uma cópia do mapa de transições só para não oferecer opções óbvias-inválidas no seletor — nunca é ela quem decide.
 
+**Trocar cliente/veículo da OS** (correção de lançamento errado): botão "Trocar cliente/veículo" na aba Dados, `PATCH /api/os/:id/vinculo` (permissão `OS_EDIT`). Só em OS aberta **e sem produto/serviço lançado** — com itens o perfil fiscal e os valores dependem do cliente, então a troca é bloqueada (backend e UI). Valida cliente ativo e veículo pertencente ao cliente; grava `CHAVECLIFOR`/`CHAVEEQUIPAMENTO` em `ORDEMSERVICO` e registra no histórico da OS e na auditoria (`OS_VINCULO_CHANGED`). Fotos e KM permanecem na OS.
+
 ## CHERP real (Fase 5)
 
 Schema real descoberto explorando o banco do cliente (RDB$RELATIONS/RDB$RELATION_FIELDS) — é o ERP **Questor**. Produtos e serviços moram na mesma tabela `PRODUTO` (`TIPO = 9` é serviço, `PRODUTOTIPO.CODIGO = 9` "SERVIÇOS"); preço vem de `PRODUTOVENDA`, custo de `PRODUTOCUSTO`, estoque de `PRODUTOESTOQUE`; clientes ficam em `CLIFOR` (`CLIENTE = 'S'`); equipamentos em `EQUIPAMENTOS`, ligados a `CLIFOR` por `CHAVECLIFOR`. As queries reais estão em `backend/src/repositories/firebird/*.firebird.ts`; o contrato coluna-a-coluna documentado em `backend/src/database/queries/CONTRATO.md` continua valendo como referência.

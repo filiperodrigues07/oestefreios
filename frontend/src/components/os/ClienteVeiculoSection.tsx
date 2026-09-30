@@ -23,14 +23,17 @@ interface ClienteVeiculoSectionEditProps {
   clienteCodigo: string;
   clienteNome: string;
   veiculoDescricao: string;
+  /** Abre a correção de cliente/veículo — ausente quando a OS não pode ser trocada. */
+  onTrocarVinculo?: () => void;
+  /** Motivo exibido no lugar do botão quando a troca está bloqueada (ex.: OS já tem itens). */
+  trocarVinculoBloqueio?: string;
 }
 
 type ClienteVeiculoSectionProps = ClienteVeiculoSectionCreateProps | ClienteVeiculoSectionEditProps;
 
 /**
  * Seção Cliente/Veículo — em modo `edit` é um resumo com atalho pra editar o cadastro do cliente
- * sem sair da OS (reatribuir cliente/veículo de uma OS já criada no CHERP não é suportado, ver
- * notas da Fase OS-3 do plano). Em modo `create` são dois blocos independentes (Veículo / Cliente)
+ * sem sair da OS, e com "Trocar" pra corrigir cliente/veículo lançado errado (só OS sem itens). Em modo `create` são dois blocos independentes (Veículo / Cliente)
  * que resolvem em qualquer ordem.
  */
 export function ClienteVeiculoSection(props: ClienteVeiculoSectionProps) {
@@ -41,7 +44,7 @@ export function ClienteVeiculoSection(props: ClienteVeiculoSectionProps) {
   return <ClienteVeiculoCreatePicker {...props} />;
 }
 
-function ClienteVeiculoEditSummary({ clienteCodigo, clienteNome, veiculoDescricao }: ClienteVeiculoSectionEditProps) {
+function ClienteVeiculoEditSummary({ clienteCodigo, clienteNome, veiculoDescricao, onTrocarVinculo, trocarVinculoBloqueio }: ClienteVeiculoSectionEditProps) {
   const queryClient = useQueryClient();
   const [editandoCliente, setEditandoCliente] = useState(false);
 
@@ -63,6 +66,12 @@ function ClienteVeiculoEditSummary({ clienteCodigo, clienteNome, veiculoDescrica
           <small>Veículo</small>
           <strong>{veiculoDescricao}</strong>
         </span>
+        {onTrocarVinculo && (
+          <button type="button" className={styles.trocarButton} onClick={onTrocarVinculo}>
+            Trocar cliente/veículo ›
+          </button>
+        )}
+        {!onTrocarVinculo && trocarVinculoBloqueio && <small>{trocarVinculoBloqueio}</small>}
       </div>
 
       <ClienteFormModal

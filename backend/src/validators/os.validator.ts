@@ -61,6 +61,12 @@ export const atualizarOSSchema = z
   })
   .refine((data) => Object.keys(data).some((key) => key !== 'base'), { message: 'Nenhum campo para atualizar.' });
 
+/** Correção de lançamento errado: troca cliente e/ou veículo da OS (só enquanto não há produto/serviço lançado). */
+export const trocarVinculoOSSchema = z.object({
+  clienteCodigo: z.string().trim().min(1, 'Cliente é obrigatório.'),
+  equipamentoCodigo: z.string().trim().min(1, 'Veículo é obrigatório.'),
+});
+
 /** Motivo fica como digitado (sem `toUppercase`) — é texto de auditoria, não dado do CHERP. */
 export const excluirOSSchema = z.object({
   motivo: z.string().trim().min(5, 'Informe o motivo da exclusão (mínimo 5 caracteres).').max(500),
