@@ -307,7 +307,21 @@ export interface DashboardSearchResult {
   descricao: string;
 }
 
-/** Busca global limitada: OS por número/cliente/placa e clientes por código ou nome. */
+/** Placa antiga (ABC-1234) ou Mercosul (ABC1D23), com ou sem hífen. */
+export function pareceUmaPlaca(termo: string): boolean {
+  return /^[A-Za-z]{3}-?\d[A-Za-z0-9]\d{2}$/.test(termo.trim());
+}
+
+/** OS ainda em andamento (não finalizada no app nem fechada/faturada no CHERP). */
+function osEmAndamento(os: OrdemServico): boolean {
+  return (os.situacaoDocumento ?? 0) === 0 && !os.travadoLocal && !os.dataConclusao && os.status !== 'CONCLUIDA' && os.status !== 'CANCELADA';
+}
+
+/**
+ * Busca global limitada: OS por número/cliente/placa e clientes por código ou nome.
+ * Digitou uma placa: a OS em andamento desse veículo vem primeiro, então "digitar a placa + Enter"
+ * cai direto na OS que o balcão quer (a ordenação do repositório já traz as mais novas antes).
+ */
 export async function searchDashboard(termo: string, permissions: Permission[]): Promise<DashboardSearchResult[]> {
   const podeVerOS = permissions.includes('OS_VIEW');
   const podeVerProdutos = permissions.includes('PRODUCT_VIEW') || permissions.includes('PRODUCT_SEARCH');
@@ -323,8 +337,11 @@ export async function searchDashboard(termo: string, permissions: Permission[]):
     podeVerProdutos ? produtoRepository.buscar({ busca: termo, limit: 4 }) : Promise.resolve({ items: [], page: 1, limit: 4, total: 0 }),
     podeVerServicos ? servicoRepository.buscar({ busca: termo, limit: 4 }) : Promise.resolve({ items: [], page: 1, limit: 4, total: 0 }),
   ]);
+  const ordensOrdenadas = pareceUmaPlaca(termo)
+    ? [...ordens.filter(osEmAndamento), ...ordens.filter((os) => !osEmAndamento(os))]
+    : ordens;
   return [
-    ...ordens.map((os) => ({ tipo: 'OS' as const, id: os.id, titulo: `OS #${String(os.numero).padStart(6, '0')}`, descricao: [os.clienteNome || os.clienteCodigo, os.equipamentoDescricao].filter(Boolean).join(' · ') || 'Ordem de serviço' })),
+    ...ordensOrdenadas.map((os) => ({ tipo: 'OS' as const, id: os.id, titulo: `OS #${String(os.numero).padStart(6, '0')}`, descricao: [os.clienteNome || os.clienteCodigo, os.equipamentoDescricao].filter(Boolean).join(' · ') || 'Ordem de serviço' })),
     ...clientes.items.map((cliente) => ({ tipo: 'CLIENTE' as const, id: cliente.codigo, titulo: cliente.nome, descricao: cliente.documento || `Cliente ${cliente.codigo}` })),
     ...veiculos.items.map((veiculo) => ({ tipo: 'VEICULO' as const, id: veiculo.codigo, titulo: veiculo.identificacao || veiculo.descricao, descricao: [veiculo.descricao, veiculo.clienteNome].filter(Boolean).join(' · ') })),
     ...produtos.items.map((produto) => ({ tipo: 'PRODUTO' as const, id: produto.codigo, titulo: produto.descricao, descricao: `Produto ${produto.codigo} · ${produto.unidade}` })),

@@ -23,6 +23,8 @@ const envSchema = z.object({
   FIREBIRD_DATABASE: z.string().default(''),
   FIREBIRD_USER: z.string().default('SYSDBA'),
   FIREBIRD_PASSWORD: z.string().default(''),
+  /** Conexões simultâneas com o Firebird do cliente. Só aumente se ele permitir (limite de conexões do servidor dele). */
+  FIREBIRD_POOL_SIZE: z.coerce.number().int().min(1).max(50).default(10),
   /** CHAVE (USUARIOS) do CHERP registrado como responsável por toda OS aberta/fechada pelo app. */
   FIREBIRD_OS_USUARIO_CHAVE: z.coerce.number().int().positive().default(2),
 

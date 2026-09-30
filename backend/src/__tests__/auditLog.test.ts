@@ -16,7 +16,24 @@ let adminToken: string;
 let adminName: string;
 let adminId: string;
 
+/**
+ * Os testes de "configuração" abaixo fazem PUT em /api/settings/*, que grava no banco configurado — inclusive
+ * o banco de desenvolvimento de quem roda `npm test` (com a conexão real do Firebird salva em Configurações).
+ * Guardamos a linha antes e devolvemos depois, e apagamos os registros de auditoria que o próprio teste gerou.
+ */
+const CATEGORIAS_TOCADAS = ['geral', 'smtp', 'firebird'] as const;
+const EVENTOS_TOCADOS = ['SETTINGS_GERAL_UPDATED', 'SETTINGS_SMTP_UPDATED', 'SETTINGS_FIREBIRD_UPDATED'];
+let settingsAntes = new Map<string, { data: unknown; updatedAt: Date }>();
+let inicioDosTestes: Date;
+
 beforeAll(async () => {
+  const snapshot = await pool.query<{ category: string; data: unknown; updated_at: Date }>(
+    'SELECT category, data, updated_at FROM settings WHERE category = ANY($1)',
+    [CATEGORIAS_TOCADAS],
+  );
+  settingsAntes = new Map(snapshot.rows.map((r) => [r.category, { data: r.data, updatedAt: r.updated_at }]));
+  inicioDosTestes = (await pool.query<{ agora: Date }>('SELECT now() AS agora')).rows[0]!.agora;
+
   const res = await request(app)
     .post('/api/auth/login')
     .send({ email: env.DEV_ADMIN_EMAIL, password: env.DEV_ADMIN_PASSWORD });
@@ -29,6 +46,15 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  for (const categoria of CATEGORIAS_TOCADAS) {
+    const antes = settingsAntes.get(categoria);
+    if (antes) {
+      await pool.query('UPDATE settings SET data = $2, updated_at = $3 WHERE category = $1', [categoria, JSON.stringify(antes.data), antes.updatedAt]);
+    } else {
+      await pool.query('DELETE FROM settings WHERE category = $1', [categoria]);
+    }
+  }
+  await pool.query('DELETE FROM audit_logs WHERE event = ANY($1) AND created_at >= $2', [EVENTOS_TOCADOS, inicioDosTestes]);
   await pool.end();
 });
 
