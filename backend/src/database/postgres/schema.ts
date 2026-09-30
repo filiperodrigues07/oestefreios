@@ -52,6 +52,7 @@ export const users = pgTable('users', {
 }, (table) => [
   uniqueIndex('users_cherp_usuario_chave_unique').on(table.cherpUsuarioChave),
   index('users_last_seen_at_idx').on(table.lastSeenAt),
+  index('users_role_id_idx').on(table.roleId),
 ]);
 
 /**
@@ -128,6 +129,8 @@ export const auditLogs = pgTable('audit_logs', {
 }, (table) => [
   index('audit_logs_created_at_idx').on(table.createdAt.desc()),
   index('audit_logs_entity_type_idx').on(table.entityType),
+  // Histórico por entidade ("tudo o que aconteceu nesta OS"), mais recente primeiro.
+  index('audit_logs_entity_idx').on(table.entityType, table.entityId, table.createdAt.desc()),
   index('audit_logs_event_idx').on(table.event),
   index('audit_logs_user_id_idx').on(table.userId),
 ]);
@@ -217,6 +220,7 @@ export const osMessageDeliveries = pgTable('os_message_deliveries', {
 }, (table) => [
   index('os_message_deliveries_os_idx').on(table.osId, table.createdAt.desc()),
   index('os_message_deliveries_queue_idx').on(table.state, table.createdAt),
+  index('os_message_deliveries_client_idx').on(table.clientCode, table.channel, table.state),
 ]);
 
 export const rolesRelations = relations(roles, ({ many }) => ({

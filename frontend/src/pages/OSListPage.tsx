@@ -1,5 +1,6 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
+import { useSomenteLeitura } from '../hooks/useSomenteLeitura.js';
 import { useNavigate, useSearchParams } from 'react-router';
 import { cancelarPrefetchOS, prefetchOS } from '../routes/prefetch.js';
 import { duplicarOS, excluirOS, listarOS, type OsMessageChannel, type OSSortBy } from '../api/os.api.js';
@@ -103,6 +104,7 @@ export function OSListPage() {
   const [limit, setLimit] = useState(20);
   const navigate = useNavigate();
   const canSeeFinancial = hasPermission('FINANCIAL_VIEW');
+  const somenteLeitura = useSomenteLeitura();
   const podeEditar = hasPermission('OS_EDIT');
   const podeDuplicar = hasPermission('OS_CREATE');
   const podeExcluir = hasPermission('OS_DELETE');
@@ -407,7 +409,7 @@ export function OSListPage() {
         actions={
           <>
             <RefreshButton onClick={() => refetch()} loading={isFetching} />
-            {hasPermission('OS_CREATE') && (
+            {hasPermission('OS_CREATE') && !somenteLeitura && (
               <span className={styles.desktopCreate}>
                 <LinkButton to="/os/nova" size="sm">
                   <ActionIcon name="add" />
@@ -573,7 +575,7 @@ export function OSListPage() {
             action={
               filtrosAtivos > 0 || buscaAtiva ? (
                 <Button variant="secondary" onClick={limparFiltros}>Limpar filtros</Button>
-              ) : hasPermission('OS_CREATE') ? (
+              ) : hasPermission('OS_CREATE') && !somenteLeitura ? (
                 <LinkButton to="/os/nova">Abrir nova OS</LinkButton>
               ) : undefined
             }
@@ -660,7 +662,7 @@ export function OSListPage() {
           </>
         )}
       </section>
-      {hasPermission('OS_CREATE') && <MobileFab to="/os/nova" label="Nova OS" />}
+      {hasPermission('OS_CREATE') && !somenteLeitura && <MobileFab to="/os/nova" label="Nova OS" />}
 
       <OSDuplicateDialog numero={duplicando?.numero ?? 0} open={duplicando !== null}
         loading={duplicarMutation.isPending} onCancel={() => setDuplicando(null)}

@@ -22,7 +22,7 @@ test('lista mostra produto zerado, mas bloqueia o lançamento com aviso', async 
   expect(chamadas.some((url) => url.includes('saldoModo'))).toBe(false);
 
   await opcao.click();
-  await expect(page.getByRole('alert').filter({ hasText: 'estoque zerado' })).toContainText('Verifique com o responsável');
+  await expect(page.getByRole('alert').filter({ hasText: 'estoque zerado' })).toContainText('Escolha outro item ou avise o responsável');
   // Não foi para a etapa de quantidade: nada selecionado para lançar.
   await expect(page.getByRole('button', { name: /^Adicionar/ })).toHaveCount(0);
 

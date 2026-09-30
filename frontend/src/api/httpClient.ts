@@ -278,5 +278,6 @@ export function salvarBlobComoArquivo(blob: Blob, nomeArquivo: string) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(url);
+  // O navegador pode começar a ler o Blob após o click, sobretudo no PWA mobile.
+  window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }

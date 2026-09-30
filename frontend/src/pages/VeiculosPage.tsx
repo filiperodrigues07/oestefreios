@@ -1,6 +1,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
+import { useSomenteLeitura } from '../hooks/useSomenteLeitura.js';
 import { getClienteByCodigo } from '../api/clientes.api.js';
 import { excluirEquipamento, listarEquipamentos, type EquipamentoSortBy } from '../api/equipamentos.api.js';
 import { baixarRelatorioVeiculos } from '../api/relatorios.api.js';
@@ -41,6 +42,9 @@ export function VeiculosPage() {
   const queryClient = useQueryClient();
   const { showToast } = useToast();
   const podeExcluir = hasPermission('VEHICLE_DELETE');
+  const navigate = useNavigate();
+  const somenteLeitura = useSomenteLeitura();
+  const podeNovaOS = hasPermission('OS_CREATE') && !somenteLeitura;
   const [excluindo, setExcluindo] = useState<EquipamentoDTO | null>(null);
   const [busca, setBusca] = useState(initialBusca);
   const [buscaAtiva, setBuscaAtiva] = useState(initialBusca);
@@ -121,6 +125,9 @@ export function VeiculosPage() {
       align: 'right',
       render: (v) => (
         <span style={{ display: 'inline-flex', gap: 'var(--space-1)' }}>
+          {podeNovaOS && (
+            <RowActionButton icon="add" label={`Nova OS para ${v.identificacao || v.codigo}`} onClick={() => navigate(`/os/nova?veiculo=${encodeURIComponent(v.codigo)}`)} />
+          )}
           {hasPermission('OS_EDIT') && (
             <Button
               variant="secondary"
@@ -255,8 +262,11 @@ export function VeiculosPage() {
                       { label: 'Ano modelo', value: veiculo.anoModelo || '—', mono: true },
                     ]}
                     actions={
-                      hasPermission('OS_EDIT') || podeExcluir ? (
+                      hasPermission('OS_EDIT') || podeExcluir || podeNovaOS ? (
                         <>
+                          {podeNovaOS && (
+                            <RowActionButton icon="add" label={`Nova OS para ${veiculo.identificacao || veiculo.codigo}`} onClick={() => navigate(`/os/nova?veiculo=${encodeURIComponent(veiculo.codigo)}`)} />
+                          )}
                           {hasPermission('OS_EDIT') && (
                             <Button variant="secondary" size="sm" className={styles.editButton} onClick={() => setModal({ veiculo })} aria-label={`Editar veículo ${veiculo.identificacao || veiculo.codigo}`} title={`Editar veículo ${veiculo.identificacao || veiculo.codigo}`}>
                               <ActionIcon name="edit" />

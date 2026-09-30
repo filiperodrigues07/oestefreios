@@ -205,3 +205,12 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.createActions { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.faltando { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+@media (max-width: 899px) {
+  /* Fonte < 16 px dá zoom automático ao focar no iOS; altura de 44 px é o alvo de toque mínimo. */
+  .dataGrid input { min-height: 44px; font-size: 16px; }
+  .createActions { position: sticky; bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom)); z-index: 2; align-items: stretch; margin: 0 calc(var(--space-3) * -1); border-top: 1px solid var(--color-border); background: var(--color-surface); padding: var(--space-3); }
+  .createActions button { width: 100%; min-height: 44px; }
+}

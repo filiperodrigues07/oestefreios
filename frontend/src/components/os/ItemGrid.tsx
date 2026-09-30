@@ -172,7 +172,7 @@ export function ItemGrid({
 
   function handleSelecionar(item: ItemGridCandidate) {
     if (item.disponivel !== undefined && item.disponivel <= 0) {
-      const aviso = `"${item.descricao}" está com estoque zerado e não pode ser lançado. Verifique com o responsável pelo estoque.`;
+      const aviso = `"${item.descricao}" está com estoque zerado e não pode ser lançado. Escolha outro item ou avise o responsável pelo estoque para dar entrada.`;
       setSelecionado(null);
       setErro(aviso);
       // Linha vermelha sozinha passa batido no balcão: o toast garante que a pessoa veja.

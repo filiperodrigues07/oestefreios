@@ -13,6 +13,7 @@ import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { NotFoundError } from '../../errors/NotFoundError.js';
 import { ValidationError } from '../../errors/ValidationError.js';
 import { logger } from '../../utils/logger.js';
+import { criarTtlCache } from '../../utils/ttlCache.js';
 import type {
   OrdemServico,
   OSHistoricoEntry,
@@ -542,6 +543,14 @@ async function resolveProduto(codigo: string): Promise<ProdutoParaOS> {
   };
 }
 
+/**
+ * Caminho lento da listagem (status/técnico/ordenação/ocultar finalizadas do app) traz TODOS os cabeçalhos que
+ * casam com o filtro + os workflows do Postgres, e isso se repete a cada mecânico e a cada polling. Guarda esse
+ * par por 10 s; toda escrita de OS (criar/atualizar/excluir/editar item) zera o cache, então quem acabou de
+ * salvar não vê lista velha. Edição feita direto no CHERP aparece em até 10 s (o polling da tela é de 45 s).
+ */
+const cacheListaCompleta = criarTtlCache<{ headers: OSHeaderRow[]; workflows: Map<string, WorkflowRow> }>(10_000, 50);
+
 export class OSRepositoryFirebird implements IOSRepository {
   async buscarPorId(id: string): Promise<OrdemServico | null> {
     const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [
@@ -674,12 +683,14 @@ export class OSRepositoryFirebird implements IOSRepository {
       return { items, total: Number(contagemRows[0]?.TOTAL ?? 0) };
     }
 
-    const headers = await firebirdQuery<OSHeaderRow>(
-      `${HEADER_SELECT}${where} ORDER BY OS.CHAVE DESC`,
-      params,
-    );
-
-    const workflows = await fetchWorkflows(headers.map((h) => h.IDENTIFICADOR));
+    const chaveCache = JSON.stringify([where, params.map((p) => (Buffer.isBuffer(p) ? p.toString('latin1') : p))]);
+    const { headers, workflows } = await cacheListaCompleta.obter(chaveCache, async () => {
+      const linhas = await firebirdQuery<OSHeaderRow>(
+        `${HEADER_SELECT}${where} ORDER BY OS.CHAVE DESC`,
+        params,
+      );
+      return { headers: linhas, workflows: await fetchWorkflows(linhas.map((h) => h.IDENTIFICADOR)) };
+    });
 
     // status e tecnicoId NÃO dá pra empurrar pro SQL: status é calculado combinando o atendimento
     // do CHERP com `os_workflow.travado_local` do Postgres (ver buildOrdemServico), e tecnicoId
@@ -879,6 +890,14 @@ export class OSRepositoryFirebird implements IOSRepository {
   }
 
   async criar(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico> {
+    try {
+      return await this.criarSemCache(os);
+    } finally {
+      cacheListaCompleta.limpar();
+    }
+  }
+
+  private async criarSemCache(os: Omit<OrdemServico, 'id' | 'numero'>): Promise<OrdemServico> {
     // Toda OS nasce ABERTA (ver criarOS em os.service.ts) — '000001' é o único código possível aqui.
     const [chaveCliente, chaveEquipamento, chaveSituacaoAtendimento, perfilFiscalProduto] =
       await Promise.all([
@@ -974,6 +993,14 @@ export class OSRepositoryFirebird implements IOSRepository {
   }
 
   async atualizar(id: string, patch: Partial<OrdemServico>): Promise<OrdemServico> {
+    try {
+      return await this.atualizarSemCache(id, patch);
+    } finally {
+      cacheListaCompleta.limpar();
+    }
+  }
+
+  private async atualizarSemCache(id: string, patch: Partial<OrdemServico>): Promise<OrdemServico> {
     const headers = await firebirdQuery<OSHeaderRow>(`${HEADER_SELECT} AND OS.IDENTIFICADOR = ?`, [
       id,
     ]);
@@ -1176,7 +1203,11 @@ export class OSRepositoryFirebird implements IOSRepository {
     produtoCodigo: string,
     patch: OSItemPatch,
   ): Promise<OrdemServico> {
-    return this.atualizarItem('produto', id, produtoCodigo, patch);
+    try {
+      return await this.atualizarItem('produto', id, produtoCodigo, patch);
+    } finally {
+      cacheListaCompleta.limpar();
+    }
   }
 
   async atualizarItemServico(
@@ -1184,7 +1215,11 @@ export class OSRepositoryFirebird implements IOSRepository {
     servicoCodigo: string,
     patch: OSItemPatch,
   ): Promise<OrdemServico> {
-    return this.atualizarItem('servico', id, servicoCodigo, patch);
+    try {
+      return await this.atualizarItem('servico', id, servicoCodigo, patch);
+    } finally {
+      cacheListaCompleta.limpar();
+    }
   }
 
   private async atualizarItem(
@@ -1365,6 +1400,7 @@ export class OSRepositoryFirebird implements IOSRepository {
     await firebirdQuery(`UPDATE ORDEMSERVICO SET ATIVO = 0 WHERE IDENTIFICADOR = ? AND ATIVO = 1`, [
       id,
     ]);
+    cacheListaCompleta.limpar();
   }
 
   async removerImagem(id: string, identificador: string): Promise<void> {

@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import {
   adicionarProdutoOS,
@@ -9,6 +9,7 @@ import {
   atualizarProdutoItemOS,
   atualizarServicoItemOS,
   criarOS,
+  listarOS,
   duplicarOS,
   excluirOS,
   getOS,
@@ -27,6 +28,7 @@ import { OfflineQueuedError } from '../../pwa/OfflineQueuedError.js';
 import { hasPermission, useAuthStore } from '../../store/authStore.js';
 import { draftKey, removeDraft } from '../../utils/drafts.js';
 import { getErrorPresentation, getUserErrorMessage } from '../../utils/errorPresentation.js';
+import { useSomenteLeitura } from '../../hooks/useSomenteLeitura.js';
 import { useUnsavedChangesGuard } from '../../hooks/useUnsavedChangesGuard.js';
 import type { ClienteDTO, EquipamentoDTO } from '../../types/cherp.types.js';
 import { type OrdemServicoDTO, type OSPrioridade, type OSStatus } from '../../types/os.types.js';
@@ -102,6 +104,42 @@ function OSFormCreate() {
   const [kmFinal, setKmFinal] = useState('');
   const guard = useUnsavedChangesGuard(Boolean(cliente || equipamento || problema.trim() || kmAtual || kmFinal));
 
+  // Vindo de "Nova OS" na tela de Veículos (`/os/nova?veiculo=<código>`): já abre com veículo e cliente escolhidos.
+  const [searchParams] = useSearchParams();
+  const veiculoInicial = searchParams.get('veiculo');
+  useEffect(() => {
+    if (!veiculoInicial) return;
+    let ativo = true;
+    void (async () => {
+      try {
+        const veiculo = await getEquipamentoByCodigo(veiculoInicial);
+        const dono = await getClienteByCodigo(veiculo.clienteCodigo);
+        if (!ativo) return;
+        setEquipamento(veiculo);
+        setCliente(dono);
+      } catch {
+        showToast('Não foi possível carregar o veículo. Escolha a placa manualmente.', 'warning');
+      }
+    })();
+    return () => {
+      ativo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [veiculoInicial]);
+
+  // Última OS do veículo: mostra o KM de referência e avisa se o digitado for menor (erro de digitação comum).
+  const { data: ultimaOS } = useQuery({
+    queryKey: ['ultima-os-veiculo', equipamento?.codigo],
+    queryFn: async () => {
+      const resultado = await listarOS({ busca: equipamento!.identificacao || equipamento!.codigo, incluirFinalizadas: true, limit: 5 });
+      return resultado.items.find((os) => os.equipamentoCodigo === equipamento!.codigo) ?? null;
+    },
+    enabled: !!equipamento,
+    staleTime: 60_000,
+  });
+  const kmUltimaOS = ultimaOS?.kmFinal ?? ultimaOS?.kmAtual;
+  const kmDigitado = parseKm(kmAtual);
+
   const mutation = useMutation({
     mutationFn: () =>
       criarOS({
@@ -125,7 +163,14 @@ function OSFormCreate() {
     },
   });
 
-  const podeSalvar = cliente && equipamento && parseKm(kmAtual) !== undefined && parseKm(kmFinal) !== undefined && !mutation.isPending;
+  const somenteLeitura = useSomenteLeitura();
+  const podeSalvar = !somenteLeitura && cliente && equipamento && parseKm(kmAtual) !== undefined && parseKm(kmFinal) !== undefined && !mutation.isPending;
+  const faltando = [
+    !equipamento && 'veículo',
+    !cliente && 'cliente',
+    parseKm(kmAtual) === undefined && 'KM inicial',
+    parseKm(kmFinal) === undefined && 'KM final',
+  ].filter(Boolean) as string[];
   const erroCriacao = mutation.isError ? mensagemErroCriacao(mutation.error) : null;
 
   return (
@@ -211,6 +256,12 @@ function OSFormCreate() {
             </div>
 
             <OSKmFields kmAtual={kmAtual} kmFinal={kmFinal} onKmAtualChange={setKmAtual} onKmFinalChange={setKmFinal} />
+            {ultimaOS && kmUltimaOS !== undefined && (
+              <p className={styles.faltando}>
+                Última OS deste veículo: #{ultimaOS.numero} em {new Date(ultimaOS.dataAbertura).toLocaleDateString('pt-BR')}, {kmUltimaOS.toLocaleString('pt-BR')} km.
+                {kmDigitado !== undefined && kmDigitado < kmUltimaOS && ' O KM inicial digitado é menor — confira.'}
+              </p>
+            )}
 
             <Select
               className="os-priority-select"
@@ -232,7 +283,10 @@ function OSFormCreate() {
               </p>
             )}
 
-            <div>
+            {/* No celular a barra fica colada no rodapé da tela (perto do polegar) e diz o que falta. */}
+            <div className={styles.createActions}>
+              {somenteLeitura && <p className={styles.faltando}>Sistema em modo consulta: não é possível criar OS agora. Fale com o suporte.</p>}
+              {!somenteLeitura && faltando.length > 0 && <p className={styles.faltando}>Falta: {faltando.join(', ')}</p>}
               <Button
                 disabled={!podeSalvar}
                 loading={mutation.isPending}

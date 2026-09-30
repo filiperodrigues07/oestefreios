@@ -21,6 +21,7 @@ import { NavIcon } from './NavIcon.js';
 import { NAV_ITEMS } from './navItems.js';
 import { OfflineBanner } from './OfflineBanner.js';
 import { PendingOperationsHost } from './PendingOperationsHost.js';
+import { usePendingOperations } from '../../hooks/usePendingOperations.js';
 import { SubscriptionBanner } from './SubscriptionBanner.js';
 import { ProfileModal } from './ProfileModal.js';
 import { SidebarProfile } from './SidebarProfile.js';
@@ -78,6 +79,7 @@ function descricaoNotificacao(os: DashboardAtencaoDTO): string {
  * é só pra não oferecer link pra tela que vai dar 403.
  */
 export function AppShell({ children }: { children: ReactNode }) {
+  const { operations: pendentesOffline } = usePendingOperations();
   const location = useLocation();
   const tituloPagina = tituloDaPagina(location.pathname);
   const ehProprietario = useAuthStore((s) => s.user?.isSuperAdmin ?? false);
@@ -505,6 +507,11 @@ export function AppShell({ children }: { children: ReactNode }) {
             />
           </svg>
           <span>Menu</span>
+          {pendentesOffline.length > 0 && (
+            <em className={styles.navBadge} aria-label={`${pendentesOffline.length} alterações pendentes`}>
+              {pendentesOffline.length}
+            </em>
+          )}
         </button>
       </nav>
       {mobileSearchOpen && (
