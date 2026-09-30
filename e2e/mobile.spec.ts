@@ -1,4 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
+import { createElement } from 'react';
+import { Document, Page as PdfPage, Text, renderToBuffer } from '@react-pdf/renderer';
 
 const OS_ID = '11111111-1111-4111-8111-111111111111';
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==', 'base64');
@@ -137,4 +139,44 @@ test('Android: falha no envio da camera fica visivel com codigo de suporte', asy
   await expect(aviso).toContainText('código para suporte: 12345678');
   await expect(aviso).not.toContainText('SELECT');
   await expect(aviso.getByRole('button', { name: 'Atualizar fotos' })).toBeVisible();
+});
+
+test('menus da OS ficam dentro da tela', async ({ page }) => {
+  mockApi(page);
+  await page.goto(`/os/${OS_ID}`);
+  for (const label of ['Imprimir', 'Mais ações']) {
+    await page.getByRole('button', { name: label, exact: label === 'Mais ações' }).click();
+    const rect = await page.getByRole('menu').boundingBox();
+    expect(rect).not.toBeNull();
+    expect(rect!.x).toBeGreaterThanOrEqual(0);
+    expect(rect!.x + rect!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
+    await page.getByRole('button', { name: label, exact: label === 'Mais ações' }).click();
+  }
+});
+
+test('prévia da OS renderiza o PDF no mobile', async ({ page }) => {
+  mockApi(page);
+  const pdf = await renderToBuffer(createElement(Document, null,
+    createElement(PdfPage, { size: 'A4' }, createElement(Text, null, 'OS 123'))));
+  await page.route(`**/api/os/${OS_ID}/pdf`, route => route.fulfill({
+    status: 200, contentType: 'application/pdf', body: pdf,
+  }));
+  await page.goto(`/os/${OS_ID}`);
+  await page.getByRole('button', { name: 'Imprimir' }).click();
+  await page.getByRole('menuitem', { name: 'Visualizar / baixar PDF' }).click();
+  const dialog = page.getByRole('dialog', { name: /Prévia da OS/ });
+  await expect(dialog.locator('canvas')).toBeVisible();
+  await expect(dialog.getByText('Preparando a prévia...')).toHaveCount(0);
+  const pixels = await dialog.locator('canvas').evaluate((canvas: HTMLCanvasElement) => {
+    const data = canvas.getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height).data;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i] < 200 && data[i + 1] < 200 && data[i + 2] < 200) return true;
+    }
+    return false;
+  });
+  expect(pixels).toBe(true);
+  expect((await dialog.getByRole('link', { name: 'Abrir PDF' }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  const download = page.waitForEvent('download');
+  await dialog.getByRole('button', { name: 'Baixar' }).click();
+  expect((await download).suggestedFilename()).toBe('os-123.pdf');
 });

@@ -13,7 +13,7 @@ export default defineConfig({
     screenshot: 'only-on-failure',
   },
   projects: [
-    { name: 'mobile-320', use: { ...devices['Desktop Chrome'], viewport: { width: 320, height: 740 }, isMobile: true, hasTouch: true } },
-    { name: 'mobile-390', use: { ...devices['Desktop Chrome'], viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
+    { name: 'mobile-320', use: { ...devices['Desktop Chrome'], ...(process.env.PW_USE_INSTALLED_CHROME ? { channel: 'chrome' } : {}), viewport: { width: 320, height: 740 }, isMobile: true, hasTouch: true } },
+    { name: 'mobile-390', use: { ...devices['Desktop Chrome'], ...(process.env.PW_USE_INSTALLED_CHROME ? { channel: 'chrome' } : {}), viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } },
   ],
 });
