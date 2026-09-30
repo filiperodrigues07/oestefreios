@@ -13,5 +13,10 @@ export function handleMutationError(err: unknown, showToast: ShowToast, fallback
     showToast(err.message, 'warning');
     return;
   }
+  // Ações que não entram na fila (duplicar, excluir, reabrir...) falham sem rede: diz o motivo e o que fazer.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    showToast('Sem conexão: esta ação precisa de internet. Reconecte e tente de novo.', 'danger');
+    return;
+  }
   showToast(getUserErrorMessage(err, fallback), 'danger');
 }
