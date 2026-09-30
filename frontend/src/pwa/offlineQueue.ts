@@ -11,6 +11,8 @@ const DB_VERSION = 1;
 
 /** Disparado no window quando a fila muda — a tela de pendências escuta para recarregar. */
 export const OFFLINE_QUEUE_CHANGED = 'oeste-offline-queue-changed';
+/** Pede pro app abrir a tela de alterações pendentes (ouvida por PendingOperationsHost). */
+export const OPEN_PENDING_OPERATIONS = 'oeste-open-pending-operations';
 
 export interface PendingOperation {
   id: number;

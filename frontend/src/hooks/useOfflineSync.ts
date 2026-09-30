@@ -4,6 +4,7 @@ import { ApiError, apiFetch } from '../api/httpClient.js';
 import { useToast } from '../components/ui/ToastProvider.js';
 import {
   OFFLINE_QUEUE_CHANGED,
+  OPEN_PENDING_OPERATIONS,
   getAllOperations,
   markOperationFailed,
   operationBelongsToUser,
@@ -74,6 +75,7 @@ export function useOfflineSync() {
           showToast(
             `${falhas} alteração${falhas > 1 ? 'ões' : ''} não pôde${falhas > 1 ? 'ram' : ''} ser sincronizada${falhas > 1 ? 's' : ''}. Revise e tente de novo.`,
             'danger',
+            { actionLabel: 'Ver pendências', onAction: () => window.dispatchEvent(new Event(OPEN_PENDING_OPERATIONS)) },
           );
         }
         if (antigas > 0) {

@@ -20,6 +20,7 @@ import { InstallBanner } from './InstallBanner.js';
 import { NavIcon } from './NavIcon.js';
 import { NAV_ITEMS } from './navItems.js';
 import { OfflineBanner } from './OfflineBanner.js';
+import { PendingOperationsHost } from './PendingOperationsHost.js';
 import { SubscriptionBanner } from './SubscriptionBanner.js';
 import { ProfileModal } from './ProfileModal.js';
 import { SidebarProfile } from './SidebarProfile.js';
@@ -450,6 +451,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         </header>
         {pullState !== 'idle' && <div className={styles.pullRefreshIndicator} role="status">{pullLabel}</div>}
         <OfflineBanner />
+        <PendingOperationsHost />
         <SubscriptionBanner />
         <InstallBanner />
         <PageRefreshProvider register={registerPageRefresh}>{children}</PageRefreshProvider>
