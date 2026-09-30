@@ -28,6 +28,55 @@ NGINX="${NGINX:-sudo nginx}"
 NPM="${NPM:-npm}"
 NODE="${NODE:-node}"
 DOCKER="${DOCKER:-sudo docker}"
+CURL="${CURL:-curl}"
+# Só publica commit com o CI verde. PULAR_CI=1 ignora a conferência (emergência: o CI do GitHub fora do ar, por exemplo).
+REPO_SLUG="${REPO_SLUG:-filiperodrigues07/oestefreios}"
+CI_ESPERA="${CI_ESPERA:-900}"
+PULAR_CI="${PULAR_CI:-0}"
+
+# Consulta o resultado do CI (GitHub Actions) do commit que vai ser publicado e espera ele terminar.
+# sucesso → segue; falha/indisponível/estouro de tempo → aborta ANTES de tocar em qualquer coisa.
+# Exige o repositório público (API sem login). Usa o node já instalado pra ler o JSON (não depende de jq).
+verificar_ci() {
+  if [ "$PULAR_CI" = 1 ]; then
+    echo "==> AVISO: PULAR_CI=1 — publicando sem conferir o CI." >&2
+    return 0
+  fi
+  local sha fim resposta estado auth=()
+  # Repositório privado: define GITHUB_TOKEN (só leitura de Actions/Checks) no ambiente ou no .env do deploy.
+  [ -n "${GITHUB_TOKEN:-}" ] && auth=(-H "Authorization: Bearer $GITHUB_TOKEN")
+  sha="$(git -C "$APP_DIR" rev-parse "origin/$BRANCH")"
+  fim=$((SECONDS + CI_ESPERA))
+  echo "==> conferindo o CI do commit ${sha:0:7} (espera até ${CI_ESPERA}s)"
+  while :; do
+    resposta="$($CURL -fsS -m 15 -H 'Accept: application/vnd.github+json' ${auth[@]+"${auth[@]}"} "https://api.github.com/repos/$REPO_SLUG/commits/$sha/check-runs?per_page=100" 2>/dev/null || true)"
+    if [ -z "$resposta" ]; then
+      estado="indisponivel"
+    else
+      estado="$(printf '%s' "$resposta" | $NODE -e 'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{let j;try{j=JSON.parse(d)}catch{console.log("indisponivel");return}const r=j.check_runs;if(!Array.isArray(r)){console.log("indisponivel");return}if(!r.length){console.log("pendente");return}const ruim=["failure","cancelled","timed_out","action_required","startup_failure","stale"];if(r.some(x=>x.status==="completed"&&ruim.includes(x.conclusion))){console.log("falha");return}console.log(r.every(x=>x.status==="completed")?"sucesso":"pendente")})' || echo indisponivel)"
+    fi
+    case "$estado" in
+      sucesso)
+        echo "==> CI verde."
+        return 0
+        ;;
+      falha)
+        echo "==> ERRO: o CI deste commit falhou. Corrija, faça push e espere ficar verde (ou PULAR_CI=1 em emergência)." >&2
+        return 1
+        ;;
+      indisponivel)
+        echo "==> ERRO: não consegui consultar o CI no GitHub (sem rede ou limite de requisições). Tente de novo ou use PULAR_CI=1." >&2
+        return 1
+        ;;
+    esac
+    if [ "$SECONDS" -ge "$fim" ]; then
+      echo "==> ERRO: o CI não terminou em ${CI_ESPERA}s. Confira em github.com/$REPO_SLUG/actions." >&2
+      return 1
+    fi
+    echo "    CI ainda rodando... aguardando 30s"
+    sleep 30
+  done
+}
 
 servico_reiniciar() { $SYSTEMCTL restart oeste-freios-backend; }
 
@@ -84,6 +133,7 @@ trap limpar_release_nova ERR
 
 echo "==> buscando $BRANCH"
 git -C "$APP_DIR" fetch origin "$BRANCH"
+verificar_ci || return 1
 # O clone não roda nada, mas é de onde o systemd chama backup.sh/restore-test.sh e onde está este
 # script: avança junto pra não ficarem numa versão velha.
 git -C "$APP_DIR" merge --ff-only "origin/$BRANCH" >/dev/null

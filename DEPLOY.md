@@ -315,14 +315,30 @@ sudo tar -xzf /var/backups/oeste-freios/arquivos-AAAAMMDD.tar.gz -C /
 
 Com o layout de releases (abaixo), o script:
 
-1. Busca `master` e cria uma release nova em `/opt/oeste-freios-app/releases/<data-hora>`.
-2. Instala dependências, compila e roda as migrations, sem tocar na versão no ar.
-3. Troca o link `current` de uma vez e reinicia o backend.
-4. Espera o `/api/health` responder com a versão nova por até 60s. Se não responder, volta sozinho
+1. Busca `master` e **confere o CI do commit** (veja abaixo). Sem CI verde, para antes de tocar em qualquer coisa.
+2. Cria uma release nova em `/opt/oeste-freios-app/releases/<data-hora>`.
+3. Instala dependências, compila e roda as migrations, sem tocar na versão no ar.
+4. Troca o link `current` de uma vez e reinicia o backend.
+5. Espera o `/api/health` responder com a versão nova por até 60s. Se não responder, volta sozinho
    para a release anterior.
-5. Mantém as 5 últimas releases.
+6. Mantém as 5 últimas releases.
 
 Falha de build ou de migration para antes da troca: a produção continua na versão anterior.
+
+### Trava de deploy pelo CI
+
+O CI (`.github/workflows/ci.yml`: lint, tipos, testes, build, `npm audit` e E2E no navegador) roda a cada
+push na `dev` e na `master` e em pull requests. O `deploy.sh` consulta o resultado do CI do commit da
+`master` que vai publicar (API pública do GitHub, sem login):
+
+- **verde** → segue o deploy;
+- **ainda rodando** → espera (até `CI_ESPERA`, 900 s por padrão) e consulta de novo a cada 30 s;
+- **falhou**, **não terminou no prazo** ou **GitHub inacessível** → aborta antes de criar a release.
+
+Por isso, depois do `git push origin master` o deploy espera o CI terminar (alguns minutos) em vez de
+publicar às cegas. Em emergência (CI do GitHub fora do ar, por exemplo): `PULAR_CI=1 /opt/oeste-freios/deploy/deploy.sh`.
+Isso funciona porque o repositório é público; se ele virar privado, a consulta deixa de funcionar e o
+deploy passa a exigir `PULAR_CI=1` até configurar um token (`GITHUB_TOKEN`) na consulta.
 
 Para voltar manualmente:
 
