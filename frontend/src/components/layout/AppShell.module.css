@@ -797,3 +797,6 @@
 @media (max-width: 359px) {
   .mobileMenuSearch kbd { display: none; }
 }
+
+.bottomNavItem { position: relative; }
+.navBadge { position: absolute; top: 4px; left: calc(50% + 6px); min-width: 18px; height: 18px; border-radius: 9px; background: var(--color-danger, #d64545); color: #fff; padding: 0 5px; font-size: 11px; font-style: normal; font-weight: 700; line-height: 18px; text-align: center; }

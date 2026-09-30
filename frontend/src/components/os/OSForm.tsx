@@ -126,6 +126,12 @@ function OSFormCreate() {
   });
 
   const podeSalvar = cliente && equipamento && parseKm(kmAtual) !== undefined && parseKm(kmFinal) !== undefined && !mutation.isPending;
+  const faltando = [
+    !equipamento && 'veículo',
+    !cliente && 'cliente',
+    parseKm(kmAtual) === undefined && 'KM inicial',
+    parseKm(kmFinal) === undefined && 'KM final',
+  ].filter(Boolean) as string[];
   const erroCriacao = mutation.isError ? mensagemErroCriacao(mutation.error) : null;
 
   return (
@@ -232,7 +238,9 @@ function OSFormCreate() {
               </p>
             )}
 
-            <div>
+            {/* No celular a barra fica colada no rodapé da tela (perto do polegar) e diz o que falta. */}
+            <div className={styles.createActions}>
+              {faltando.length > 0 && <p className={styles.faltando}>Falta: {faltando.join(', ')}</p>}
               <Button
                 disabled={!podeSalvar}
                 loading={mutation.isPending}

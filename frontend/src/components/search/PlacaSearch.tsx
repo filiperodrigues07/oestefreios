@@ -27,6 +27,9 @@ export function PlacaSearch({ onSelect, onQueryChange }: PlacaSearchProps) {
   const { data, isFetching, isError } = useQuery({
     queryKey: ['equipamentos-busca-placa', query],
     queryFn: () => searchEquipamentosPorPlaca(query),
+    // A API recusa busca vazia (400 "Dados inválidos"): sem texto digitado não consulta — antes o aviso de erro
+    // aparecia sozinho ao abrir "Nova OS".
+    enabled: query.trim().length > 0,
   });
 
   const items: PlacaItem[] = (data?.items ?? []).map((equipamento) => ({
