@@ -71,6 +71,12 @@ function formatarData(valor?: string): string {
   return new Date(valor).toLocaleString('pt-BR');
 }
 
+/** Dia de calendário AAAA-MM-DD → dd/mm/aaaa direto da string (new Date() leria como UTC e mostraria um dia a menos). */
+export function formatarDia(valor?: string): string {
+  const m = valor ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(valor) : null;
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '—';
+}
+
 function formatarMoeda(valor: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(valor);
 }
@@ -143,6 +149,8 @@ export function OSDocument({ os, branding, fotos = [] }: Props) {
             <View style={styles.gridCol}>
               <Text style={styles.campoLabel}>Prioridade</Text>
               <Text style={styles.campoValor}>{PRIORIDADE_LABEL[os.prioridade] ?? os.prioridade}</Text>
+              <Text style={styles.campoLabel}>Garantia até</Text>
+              <Text style={styles.campoValor}>{formatarDia(os.garantia)}</Text>
             </View>
             <View style={[styles.gridCol, styles.datas]}>
               <View style={styles.gridCol}>
