@@ -8,6 +8,7 @@ export interface PagamentoAssinaturaDTO {
   forma: string;
   observacao: string;
   registradoPor: string;
+  cobrancaId?: string;
 }
 
 export type ModoAssinatura = 'AUTO' | 'SUSPENSO' | 'LIBERADO';
@@ -66,14 +67,27 @@ export interface CobrancaDTO {
   vencimento: string;
   valor: number;
   observacao: string;
-  arquivoNome: string;
-  arquivoTamanho: number;
+  /** null enquanto o boleto ainda não foi anexado. */
+  arquivoNome: string | null;
+  arquivoTamanho: number | null;
+  linhaDigitavel: string;
+  pixCopiaCola: string;
   criadoEm: string;
   criadoPor: string;
   enviadoEm: string | null;
   enviadoPara: string[];
   envios: number;
   pagoEm: string | null;
+  lembretes: ('ANTES' | 'VENCIDA')[];
+}
+
+export interface CobrancaInput {
+  referencia: string;
+  vencimento: string;
+  valor: number;
+  observacao: string;
+  linhaDigitavel: string;
+  pixCopiaCola: string;
 }
 
 export interface CobrancaSmtpDTO {
@@ -86,8 +100,15 @@ export interface CobrancaSmtpDTO {
   fromName: string;
 }
 
+export interface CobrancaLembretesDTO {
+  ativo: boolean;
+  diasAntes: number;
+  aposVencimento: boolean;
+}
+
 export interface CobrancaConfigDTO {
   emails: string[];
   copiaOculta: string;
   smtp: CobrancaSmtpDTO;
+  lembretes: CobrancaLembretesDTO;
 }

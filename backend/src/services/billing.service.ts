@@ -28,6 +28,10 @@ export interface PagamentoAssinatura {
   forma: string;
   observacao: string;
   registradoPor: string;
+  /** Boleto quitado por este pagamento — permite desfazer a baixa. */
+  cobrancaId?: string;
+  /** Vencimento antes deste pagamento avançá-lo (desfazer a última baixa volta para ele). */
+  vencimentoAnterior?: string | null;
 }
 
 export interface BillingSettings {
@@ -140,8 +144,35 @@ function mensagemPara(estado: EstadoAssinatura, dias: number | null, mensagemCli
   return '';
 }
 
+/** Cobranças gravadas antes dos campos novos (linha digitável, PIX, lembretes) ganham os padrões. */
+export function normalizarCobranca(cobranca: Partial<Cobranca> & Pick<Cobranca, 'id'>): Cobranca {
+  return {
+    referencia: '',
+    vencimento: '',
+    valor: 0,
+    observacao: '',
+    arquivoNome: null,
+    arquivoTamanho: null,
+    linhaDigitavel: '',
+    pixCopiaCola: '',
+    criadoEm: '',
+    criadoPor: '',
+    enviadoEm: null,
+    enviadoPara: [],
+    envios: 0,
+    pagoEm: null,
+    lembretes: [],
+    ...cobranca,
+  };
+}
+
+function comPadroes(dados: Partial<BillingSettings> | undefined): BillingSettings {
+  const completo = { ...BILLING_PADRAO, ...dados };
+  return { ...completo, cobrancas: (completo.cobrancas ?? []).map(normalizarCobranca) };
+}
+
 export async function getBilling(): Promise<BillingSettings> {
-  return readCategory('billing', BILLING_PADRAO);
+  return comPadroes(await readCategory('billing', BILLING_PADRAO));
 }
 
 /** Toda escrita da assinatura usa o mesmo bloqueio transacional, inclusive boletos. */
@@ -151,7 +182,7 @@ export async function alterarBilling(
   const resultado = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('settings:billing'))`);
     const [row] = await tx.select({ data: settings.data }).from(settings).where(eq(settings.category, 'billing'));
-    const antes: BillingSettings = { ...BILLING_PADRAO, ...(row?.data as Partial<BillingSettings> | undefined) };
+    const antes = comPadroes(row?.data as Partial<BillingSettings> | undefined);
     const depois = alterar(antes);
     await tx.insert(settings).values({ category: 'billing', data: depois, updatedAt: new Date() })
       .onConflictDoUpdate({ target: settings.category, set: { data: depois, updatedAt: new Date() } });
@@ -265,7 +296,8 @@ export interface NovoPagamentoInput {
 /** Registra o pagamento e avança o vencimento em 1 mês (a partir do vencimento atual, ou da data paga se não houver). */
 export async function registrarPagamento(input: NovoPagamentoInput, usuario: AuthenticatedUser, ctx: RequestContext) {
   const { cobrancaId, ...dadosPagamento } = input;
-  const pagamento: PagamentoAssinatura = { id: randomUUID(), ...dadosPagamento, registradoPor: usuario.name };
+  const base = { id: randomUUID(), ...dadosPagamento, registradoPor: usuario.name, ...(cobrancaId ? { cobrancaId } : {}) };
+  let pagamento: PagamentoAssinatura = base;
   const { antes: atual, depois } = await alterarBilling((antes) => {
     if (cobrancaId) {
       const cobranca = antes.cobrancas.find((item) => item.id === cobrancaId);
@@ -277,6 +309,7 @@ export async function registrarPagamento(input: NovoPagamentoInput, usuario: Aut
       }
     }
     const vencimentoAtual = proximoVencimento(antes.vencimentoAtual ?? input.data, antes.diaVencimento);
+    pagamento = { ...base, vencimentoAnterior: antes.vencimentoAtual };
     const cobrancas = antes.cobrancas.map((item) => (item.id === cobrancaId ? { ...item, pagoEm: input.data } : item));
     return { ...antes, vencimentoAtual, cobrancas, pagamentos: [pagamento, ...antes.pagamentos] };
   });
@@ -285,13 +318,57 @@ export async function registrarPagamento(input: NovoPagamentoInput, usuario: Aut
   return getBillingCompleto();
 }
 
-/** Só corrige o histórico; o vencimento se ajusta manualmente em "Editar dados". */
+/** Pagamento que quitou o boleto. Pagamentos antigos não guardavam o id: casa por referência + data. */
+function pagamentoDaCobranca(dados: BillingSettings, cobranca: Cobranca): PagamentoAssinatura | undefined {
+  return dados.pagamentos.find((item) => item.cobrancaId === cobranca.id)
+    ?? dados.pagamentos.find((item) => !item.cobrancaId && item.referencia === cobranca.referencia && item.data === cobranca.pagoEm);
+}
+
+/**
+ * Só corrige o histórico; o vencimento se ajusta manualmente em "Editar dados".
+ * Se o pagamento quitou um boleto, o boleto volta a ficar em aberto.
+ */
 export async function removerPagamento(id: string, usuario: AuthenticatedUser, ctx: RequestContext) {
   const { antes: atual } = await alterarBilling((antes) => {
-    if (!antes.pagamentos.some((item) => item.id === id)) throw new NotFoundError('Pagamento não encontrado.', 'BILLING_PAYMENT_NOT_FOUND');
-    return { ...antes, pagamentos: antes.pagamentos.filter((item) => item.id !== id) };
+    const pagamento = antes.pagamentos.find((item) => item.id === id);
+    if (!pagamento) throw new NotFoundError('Pagamento não encontrado.', 'BILLING_PAYMENT_NOT_FOUND');
+    const quitada = antes.cobrancas.find((item) => item.pagoEm && pagamentoDaCobranca(antes, item)?.id === id);
+    return {
+      ...antes,
+      cobrancas: antes.cobrancas.map((item) => (item.id === quitada?.id ? { ...item, pagoEm: null } : item)),
+      pagamentos: antes.pagamentos.filter((item) => item.id !== id),
+    };
   });
   const removido = atual.pagamentos.find((item) => item.id === id)!;
   await auditBilling('BILLING_PAYMENT_REMOVED', usuario, ctx, { pagamento: removido });
   return getBillingCompleto();
+}
+
+/**
+ * Desfaz a baixa de um boleto: reabre a cobrança e tira o pagamento do histórico. Se foi a última
+ * baixa registrada, o vencimento da assinatura volta para onde estava antes dela.
+ */
+export async function desfazerBaixa(cobrancaId: string, usuario: AuthenticatedUser, ctx: RequestContext) {
+  let pagamento: PagamentoAssinatura | undefined;
+  let vencimentoRestaurado = false;
+  const { antes, depois } = await alterarBilling((atual) => {
+    const cobranca = atual.cobrancas.find((item) => item.id === cobrancaId);
+    if (!cobranca) throw new NotFoundError('Cobrança não encontrada.', 'COBRANCA_NOT_FOUND');
+    if (!cobranca.pagoEm) throw new ValidationError('Este boleto não está pago.');
+    pagamento = pagamentoDaCobranca(atual, cobranca);
+    vencimentoRestaurado = Boolean(pagamento && atual.pagamentos[0]?.id === pagamento.id && pagamento.vencimentoAnterior !== undefined);
+    return {
+      ...atual,
+      vencimentoAtual: vencimentoRestaurado ? pagamento!.vencimentoAnterior ?? null : atual.vencimentoAtual,
+      cobrancas: atual.cobrancas.map((item) => (item.id === cobrancaId ? { ...item, pagoEm: null } : item)),
+      pagamentos: pagamento ? atual.pagamentos.filter((item) => item.id !== pagamento!.id) : atual.pagamentos,
+    };
+  });
+  await auditBilling('BILLING_COBRANCA_ESTORNADA', usuario, ctx, {
+    cobrancaId,
+    pagamento: pagamento ?? null,
+    vencimentoAnterior: antes.vencimentoAtual,
+    vencimentoAtual: depois.vencimentoAtual,
+  });
+  return { ...(await getBillingCompleto()), vencimentoRestaurado };
 }
