@@ -72,6 +72,8 @@ Ciclo completo: criar (cliente → equipamento → problema → prioridade), vis
 
 Transições de status são validadas **só no backend** (`backend/src/services/osWorkflow.ts`); o frontend (`frontend/src/types/os.types.ts`) tem uma cópia do mapa de transições só para não oferecer opções óbvias-inválidas no seletor — nunca é ela quem decide.
 
+**Garantia da OS** (`ORDEMSERVICO.GARANTIA`, tipo DATE no CHERP): campo "Garantia até" na Nova OS e na aba Dados. Sempre nasce com a data de abertura (como no CHERP, onde ~99% das OS têm garantia = abertura) e é editável; OS antigas sem garantia gravada mostram a data de abertura. A data é um dia de calendário (AAAA-MM-DD, sem fuso), lida e gravada pelo dia local do driver.
+
 **Trocar cliente/veículo da OS** (correção de lançamento errado): botão "Trocar cliente/veículo" na aba Dados, `PATCH /api/os/:id/vinculo` (permissão `OS_EDIT`). Só em OS aberta **e sem produto/serviço lançado** — com itens o perfil fiscal e os valores dependem do cliente, então a troca é bloqueada (backend e UI). Valida cliente ativo e veículo pertencente ao cliente; grava `CHAVECLIFOR`/`CHAVEEQUIPAMENTO` em `ORDEMSERVICO` e registra no histórico da OS e na auditoria (`OS_VINCULO_CHANGED`). Fotos e KM permanecem na OS.
 
 ## CHERP real (Fase 5)

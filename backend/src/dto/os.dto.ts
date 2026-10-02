@@ -45,6 +45,7 @@ export interface OperationalOSDTO {
   nroDav?: string;
   kmAtual?: number;
   kmFinal?: number;
+  garantia?: string;
 }
 
 /** Superset do OperationalOSDTO com campos financeiros. Servido só a perfis com FINANCIAL_VIEW. */

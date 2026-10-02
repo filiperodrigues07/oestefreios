@@ -66,6 +66,7 @@ export interface CriarOSInput {
   prioridade: OSPrioridade;
   kmAtual: number;
   kmFinal: number;
+  garantia?: string;
   responsavelId?: string;
   tecnicoId?: string;
 }
@@ -105,6 +106,8 @@ export interface AtualizarOSInput {
   dataPrevista?: string;
   kmAtual?: number;
   kmFinal?: number;
+  /** AAAA-MM-DD; `null` limpa a garantia. */
+  garantia?: string | null;
   /** Valores vistos ao começar a editar — o backend responde 409 OS_CONFLICT se mudaram (ver os.service.ts). */
   base?: {
     diagnostico?: string;

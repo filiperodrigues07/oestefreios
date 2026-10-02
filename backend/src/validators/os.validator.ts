@@ -29,6 +29,8 @@ export const criarOSSchema = z.object({
   responsavelId: z.string().trim().min(1).optional(),
   tecnicoId: z.string().trim().min(1).optional(),
   dataPrevista: z.iso.datetime().optional(),
+  // Dia de calendário (AAAA-MM-DD), opcional — mesmo campo GARANTIA do CHERP.
+  garantia: z.iso.date().optional(),
 });
 
 export const duplicarOSSchema = z.object({
@@ -46,6 +48,8 @@ export const atualizarOSSchema = z
     dataPrevista: z.iso.datetime().optional(),
     kmAtual: kmObrigatorioSchema.optional(),
     kmFinal: kmObrigatorioSchema.optional(),
+    /** `null` limpa a garantia. */
+    garantia: z.iso.date().nullable().optional(),
     /**
      * Valores que o usuário tinha na tela quando começou a editar (controle de concorrência otimista).
      * Se algum desses campos mudou no servidor desde então (outro usuário, ou direto no CHERP), responde 409.

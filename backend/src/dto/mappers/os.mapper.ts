@@ -47,6 +47,7 @@ export function toOSDTO(
     nroDav: os.nroDav,
     kmAtual: os.kmAtual,
     kmFinal: os.kmFinal,
+    garantia: os.garantia || undefined,
   };
 
   if (!permissions.includes('FINANCIAL_VIEW')) {
