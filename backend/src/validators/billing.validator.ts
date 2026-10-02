@@ -47,6 +47,16 @@ export const novaCobrancaSchema = z.object({
   vencimento: dataIso,
   valor: z.coerce.number().min(0).max(1_000_000),
   observacao: z.string().trim().max(300).default(''),
+  // Linha digitável do boleto: 47/48 dígitos, aceita com pontos e espaços como vem do banco.
+  linhaDigitavel: z.string().trim().max(80).regex(/^[\d.\s-]*$/, 'A linha digitável só tem números.').default(''),
+  pixCopiaCola: z.string().trim().max(600).default(''),
+});
+
+export const atualizarCobrancaSchema = novaCobrancaSchema;
+
+export const gerarCobrancasSchema = z.object({
+  inicio: mesIso,
+  meses: z.coerce.number().int().min(1).max(12),
 });
 
 export const enviarCobrancaSchema = z.object({
@@ -66,6 +76,11 @@ export const cobrancaConfigSchema = z.object({
     fromEmail: z.string().trim().max(200),
     fromName: z.string().trim().min(1).max(100),
   }),
+  lembretes: z.object({
+    ativo: z.boolean(),
+    diasAntes: z.coerce.number().int().min(0).max(15),
+    aposVencimento: z.boolean(),
+  }).default({ ativo: false, diasAntes: 3, aposVencimento: true }),
 });
 
 export const testeCobrancaSchema = z.object({ destino: z.email() });

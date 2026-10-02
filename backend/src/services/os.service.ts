@@ -26,6 +26,16 @@ import { assertValidTransition } from './osWorkflow.js';
 import { enqueueStatusMessages } from './osCommunication.service.js';
 import { logger } from '../utils/logger.js';
 
+/**
+ * Dia de hoje (AAAA-MM-DD) no calendário local do servidor — o mesmo dia que o CHERP grava em `DATA` ao abrir a OS.
+ * A garantia nasce igual à data de abertura (como no CHERP) e depois pode ser editada.
+ */
+function hojeIso(): string {
+  const agora = new Date();
+  const dois = (n: number) => String(n).padStart(2, '0');
+  return `${agora.getFullYear()}-${dois(agora.getMonth() + 1)}-${dois(agora.getDate())}`;
+}
+
 function historicoEntry(evento: string, usuario: AuthenticatedUser): OSHistoricoEntry {
   return { timestamp: new Date().toISOString(), evento, usuarioNome: usuario.name };
 }
@@ -128,6 +138,7 @@ interface CriarOSInput {
   dataPrevista?: string;
   kmAtual: number;
   kmFinal: number;
+  garantia?: string;
 }
 
 function assertKmObrigatorios(kmAtual: number, kmFinal: number): void {
@@ -169,6 +180,7 @@ export async function criarOS(
     responsavelId: input.responsavelId,
     tecnicoId: input.tecnicoId,
     dataPrevista: input.dataPrevista,
+    garantia: input.garantia ?? hojeIso(),
     status: 'ABERTA',
     produtos: [],
     servicos: [],
@@ -284,6 +296,7 @@ export async function duplicarOS(
     kmFinal: km.kmFinal,
     responsavelId: origem.responsavelId,
     tecnicoId: origem.tecnicoId,
+    garantia: hojeIso(),
     status: 'ABERTA',
     produtos: [],
     servicos: [],
@@ -328,6 +341,8 @@ interface AtualizarOSInput {
   dataPrevista?: string;
   kmAtual?: number;
   kmFinal?: number;
+  /** `null` limpa a garantia. */
+  garantia?: string | null;
   base?: OSBaseEdicao;
 }
 
@@ -382,8 +397,11 @@ export async function atualizarOS(
     (key) => campos[key as keyof AtualizarOSInput] !== undefined,
   ) as Exclude<keyof AtualizarOSInput, 'base'>[];
 
+  const { garantia, ...demaisCampos } = campos;
   const atualizado = await osRepository.atualizar(id, {
-    ...campos,
+    ...demaisCampos,
+    // Sem a chave quando não veio (spread de undefined apagaria o valor no mock); '' = limpar.
+    ...(garantia !== undefined ? { garantia: garantia ?? '' } : {}),
     cherpUsuarioChave: usuario.cherpUsuarioChave,
     historico: [
       ...atual.historico,

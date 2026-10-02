@@ -40,6 +40,7 @@ import {
   LinkButton,
   RequiredMark,
   PageHeader,
+  Input,
   Select,
   Skeleton,
   Tabs,
@@ -54,6 +55,8 @@ import { FotosSection } from './FotosSection.js';
 import { OSFormHeader } from './OSFormHeader.js';
 import { OSKmFields, parseKm } from './OSKmFields.js';
 import { OSKmSection } from './OSKmSection.js';
+import { OSGarantiaSection } from './OSGarantiaSection.js';
+import { calendarDateValue } from '../../utils/calendarDate.js';
 import type { OSKmInput } from './OSDuplicateDialog.js';
 import { OSVinculoDialog, type OSVinculoInput } from './OSVinculoDialog.js';
 import { OSMessageDialog } from './OSMessageDialog.js';
@@ -102,6 +105,8 @@ function OSFormCreate() {
   const [prioridade, setPrioridade] = useState<OSPrioridade>('NORMAL');
   const [kmAtual, setKmAtual] = useState('');
   const [kmFinal, setKmFinal] = useState('');
+  // Como no CHERP, a garantia nasce com a data de hoje; a pessoa ajusta o prazo (ou limpa).
+  const [garantia, setGarantia] = useState(() => calendarDateValue(new Date()));
   const guard = useUnsavedChangesGuard(Boolean(cliente || equipamento || problema.trim() || kmAtual || kmFinal));
 
   // Vindo de "Nova OS" na tela de Veículos (`/os/nova?veiculo=<código>`): já abre com veículo e cliente escolhidos.
@@ -149,6 +154,7 @@ function OSFormCreate() {
         prioridade,
         kmAtual: parseKm(kmAtual)!,
         kmFinal: parseKm(kmFinal)!,
+        garantia: garantia || undefined,
       }),
     onSuccess: (os) => {
       guard.liberar();
@@ -263,6 +269,7 @@ function OSFormCreate() {
               </p>
             )}
 
+            <Input type="date" label="Garantia até" value={garantia} onChange={(e) => setGarantia(e.target.value)} />
             <Select
               className="os-priority-select"
               data-priority={prioridade}
@@ -378,6 +385,12 @@ function OSFormEdit({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ['dashboard-operacional'] }),
     ]);
   }
+
+  const garantiaMutation = useMutation({
+    mutationFn: (valor: string) => atualizarOS(id, { garantia: valor }),
+    onSuccess: async () => { await invalidate(); showToast('Garantia salva.', 'success'); },
+    onError: (err) => handleMutationError(err, showToast, 'Não foi possível salvar a garantia. Tente novamente.'),
+  });
 
   const kmMutation = useMutation({
     mutationFn: (patch: { kmAtual: number; kmFinal: number; base?: { kmAtual: number | null; kmFinal: number | null } }) => atualizarOS(id, patch),
@@ -773,6 +786,11 @@ function OSFormEdit({ id }: { id: string }) {
                     return 'error' as const;
                   },
                 )} />
+            </section>
+            <section className={styles.section}>
+              <h2 className={styles.sectionTitle}>Garantia</h2>
+              <OSGarantiaSection garantia={os.garantia} diaAbertura={calendarDateValue(new Date(os.dataAbertura))} podeEditar={podeEditar} salvando={garantiaMutation.isPending}
+                onSave={(valor) => garantiaMutation.mutate(valor)} />
             </section>
             <section className={styles.section}>
               <h2 className={styles.sectionTitle}>Problema relatado</h2>

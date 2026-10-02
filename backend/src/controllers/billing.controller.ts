@@ -32,9 +32,27 @@ export async function removePaymentHandler(req: Request, res: Response) {
 }
 
 export async function createCobrancaHandler(req: Request, res: Response) {
-  if (!req.file) throw new ValidationError('Anexe o PDF do boleto.');
+  // PDF opcional: sem arquivo a cobrança fica "sem boleto" até anexar.
   const cobranca = await cobrancaService.criarCobranca(req.body, req.file, req.user!, requestContext(req));
   success(res, cobranca, 'Cobrança criada.', 201);
+}
+
+export async function generateCobrancasHandler(req: Request, res: Response) {
+  const resultado = await cobrancaService.gerarCobrancas(req.body, req.user!, requestContext(req));
+  success(res, resultado, `${resultado.criadas.length} cobrança(s) criada(s).`, 201);
+}
+
+export async function updateCobrancaHandler(req: Request, res: Response) {
+  success(res, await cobrancaService.atualizarCobranca(req.params.id as string, req.body, req.user!, requestContext(req)), 'Cobrança atualizada.');
+}
+
+export async function attachCobrancaFileHandler(req: Request, res: Response) {
+  if (!req.file) throw new ValidationError('Anexe o PDF do boleto.');
+  success(res, await cobrancaService.anexarArquivo(req.params.id as string, req.file, req.user!, requestContext(req)), 'Boleto anexado.');
+}
+
+export async function undoCobrancaPaymentHandler(req: Request, res: Response) {
+  success(res, await billingService.desfazerBaixa(req.params.id as string, req.user!, requestContext(req)), 'Baixa desfeita.');
 }
 
 export async function downloadCobrancaHandler(req: Request, res: Response) {

@@ -114,7 +114,7 @@
 
 .userRow {
   display: grid;
-  grid-template-columns: minmax(180px, 1.3fr) minmax(105px, 0.75fr) minmax(180px, 1.3fr) auto;
+  grid-template-columns: minmax(180px, 1.3fr) minmax(105px, 0.75fr) minmax(180px, 1.3fr) 7rem;
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-3) 0;
@@ -161,6 +161,8 @@
   overflow-wrap: anywhere;
 }
 .userAction {
+  display: flex;
+  justify-content: flex-end;
   min-width: 0;
 }
 

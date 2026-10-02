@@ -215,6 +215,8 @@ export interface OrdemServico {
   /** KM do veículo na abertura/entrega (ORDEMSERVICO.KMATUAL/KMFINAL) — editável pelo app. */
   kmAtual?: number;
   kmFinal?: number;
+  /** Garantia da OS (ORDEMSERVICO.GARANTIA, tipo DATE no CHERP): dia de calendário AAAA-MM-DD, sem fuso. */
+  garantia?: string;
   /** Frete e IPI da OS (ORDEMSERVICO.FRETE/TOTALIPI) — só leitura, financeiro. */
   frete?: number;
   totalIpi?: number;

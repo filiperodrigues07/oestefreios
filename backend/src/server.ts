@@ -3,6 +3,7 @@ import { env } from './config/env.js';
 import { closeFirebirdPool } from './database/firebird/pool.js';
 import { pool } from './database/postgres/client.js';
 import { agendarRetencao } from './services/retencao.service.js';
+import { agendarLembretesCobranca } from './services/cobranca.service.js';
 import { applyStoredFirebirdSettings } from './services/settings.service.js';
 import { processQueuedOsMessages } from './services/osCommunication.service.js';
 import { logger } from './utils/logger.js';
@@ -21,6 +22,7 @@ applyStoredFirebirdSettings().catch((err) => {
 });
 
 agendarRetencao();
+agendarLembretesCobranca();
 
 let processandoMensagens = false;
 async function processarMensagens(): Promise<void> {

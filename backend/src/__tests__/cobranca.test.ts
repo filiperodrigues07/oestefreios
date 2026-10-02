@@ -10,7 +10,8 @@ vi.mock('nodemailer', () => ({ default: { createTransport: () => ({ sendMail }) 
 import { hashPassword } from '../auth/password.js';
 import { app } from '../app.js';
 import { pool } from '../database/postgres/client.js';
-import { ehPdf, montarEmailBoleto, nomeSeguro } from '../services/cobranca.service.js';
+import { hojeIso, normalizarCobranca } from '../services/billing.service.js';
+import { ehPdf, executarLembretes, lembreteDevido, montarEmailBoleto, nomeSeguro, referenciasSeguidas, vencimentoDoMes } from '../services/cobranca.service.js';
 import { soltarBilling, travarBilling } from './billingLock.js';
 
 const senha = 'Teste@123456';
@@ -37,6 +38,36 @@ describe('regras puras de cobrança', () => {
     expect(html).toContain('&lt;script&gt;');
     expect(html).toContain('<br>');
     expect(html).toMatch(/R\$\s?300,00/);
+    expect(html).not.toContain('Linha digitável');
+  });
+
+  it('inclui linha digitável e PIX escapados e muda o texto nos lembretes', () => {
+    const base = { referencia: '2026-09', vencimento: '2026-10-10', valor: 300, linhaDigitavel: '07790.00116 12345.678901', pixCopiaCola: '000201<b>' };
+    const boleto = montarEmailBoleto(base, 'Rodrigues Tech', '');
+    expect(boleto.html).toContain('07790.00116 12345.678901');
+    expect(boleto.html).toContain('000201&lt;b&gt;');
+    expect(montarEmailBoleto(base, 'RT', '', 'ANTES').assunto).toContain('lembrete');
+    expect(montarEmailBoleto(base, 'RT', '', 'VENCIDA').assunto).toContain('venceu em 10/10/2026');
+  });
+
+  it('gera meses seguidos virando o ano e respeita o fim do mês no vencimento', () => {
+    expect(referenciasSeguidas('2026-11', 4)).toEqual(['2026-11', '2026-12', '2027-01', '2027-02']);
+    expect(vencimentoDoMes('2027-02', 31)).toBe('2027-02-28');
+    expect(vencimentoDoMes('2026-10', 10)).toBe('2026-10-10');
+  });
+
+  it('decide o lembrete do dia sem repetir e sem incomodar quem já pagou', () => {
+    const regras = { ativo: true, diasAntes: 3, aposVencimento: true };
+    const boleto = normalizarCobranca({ id: 'x', referencia: '2026-10', vencimento: '2026-10-10', valor: 300, arquivoNome: 'b.pdf', arquivoTamanho: 10 });
+    expect(lembreteDevido(boleto, '2026-10-05', regras)).toBeNull();
+    expect(lembreteDevido(boleto, '2026-10-07', regras)).toBe('ANTES');
+    expect(lembreteDevido({ ...boleto, lembretes: ['ANTES'] }, '2026-10-09', regras)).toBeNull();
+    expect(lembreteDevido({ ...boleto, enviadoEm: '2026-10-08T12:00:00.000Z' }, '2026-10-09', regras)).toBeNull();
+    expect(lembreteDevido(boleto, '2026-10-12', regras)).toBe('VENCIDA');
+    expect(lembreteDevido(boleto, '2026-10-12', { ...regras, aposVencimento: false })).toBeNull();
+    expect(lembreteDevido(boleto, '2026-11-30', regras)).toBeNull();
+    expect(lembreteDevido({ ...boleto, pagoEm: '2026-10-09' }, '2026-10-12', regras)).toBeNull();
+    expect(lembreteDevido({ ...boleto, arquivoNome: null }, '2026-10-07', regras)).toBeNull();
   });
 });
 
@@ -85,11 +116,91 @@ describe('cobranças por boleto (API)', () => {
     expect((await request(app).get('/api/billing/cobranca-config').set(auth(outroToken))).status).toBe(404);
   });
 
-  it('recusa arquivo que não é PDF e exige o anexo', async () => {
+  it('recusa arquivo que não é PDF', async () => {
     const falso = await request(app).post('/api/billing/cobrancas').set(auth(donoToken)).field(campos).attach('arquivo', Buffer.from('<html>nao sou pdf, so finjo</html>'), { filename: 'boleto.pdf', contentType: 'application/pdf' });
     expect(falso.status).toBe(400);
-    const semArquivo = await request(app).post('/api/billing/cobrancas').set(auth(donoToken)).field(campos);
-    expect(semArquivo.status).toBe(400);
+  });
+
+  it('cria sem PDF, bloqueia mês repetido, edita, anexa depois e só então envia', async () => {
+    const criar = await request(app).post('/api/billing/cobrancas').set(auth(donoToken)).field({ ...campos, linhaDigitavel: '0779 0001' });
+    expect(criar.status).toBe(201);
+    const id = criar.body.data.id as string;
+    expect(criar.body.data).toMatchObject({ arquivoNome: null, arquivoTamanho: null, linhaDigitavel: '0779 0001', lembretes: [] });
+
+    expect((await request(app).post('/api/billing/cobrancas').set(auth(donoToken)).field(campos)).status).toBe(400);
+    expect((await request(app).get(`/api/billing/cobrancas/${id}/arquivo`).set(auth(donoToken))).status).toBe(404);
+    expect((await request(app).post(`/api/billing/cobrancas/${id}/enviar`).set(auth(donoToken)).send({})).status).toBe(400);
+
+    const editar = await request(app).put(`/api/billing/cobrancas/${id}`).set(auth(donoToken)).send({ ...campos, valor: 350, vencimento: '2026-10-12' });
+    expect(editar.status).toBe(200);
+    expect(editar.body.data).toMatchObject({ valor: 350, vencimento: '2026-10-12' });
+    expect((await request(app).put(`/api/billing/cobrancas/${id}`).set(auth(outroToken)).send(campos)).status).toBe(404);
+
+    expect((await request(app).post(`/api/billing/cobrancas/${id}/arquivo`).set(auth(donoToken)).attach('arquivo', Buffer.from('nada de pdf aqui'), { filename: 'x.pdf', contentType: 'application/pdf' })).status).toBe(400);
+    const anexar = await request(app).post(`/api/billing/cobrancas/${id}/arquivo`).set(auth(donoToken)).attach('arquivo', pdf, { filename: 'Boleto Outubro.pdf', contentType: 'application/pdf' });
+    expect(anexar.status).toBe(200);
+    expect(anexar.body.data).toMatchObject({ arquivoNome: 'Boleto-Outubro.pdf', arquivoTamanho: pdf.length });
+    expect(existsSync(resolve(process.cwd(), 'storage', 'cobrancas', `${id}.pdf`))).toBe(true);
+    expect((await request(app).get(`/api/billing/cobrancas/${id}/arquivo`).set(auth(donoToken))).status).toBe(200);
+
+    expect((await request(app).delete(`/api/billing/cobrancas/${id}`).set(auth(donoToken))).status).toBe(200);
+  });
+
+  it('gera os próximos meses pulando os que já têm cobrança', async () => {
+    const antes = await request(app).get('/api/billing').set(auth(donoToken));
+    const assinatura = antes.body.data;
+    const dados = {
+      cliente: assinatura.cliente, plano: assinatura.plano, valorMensal: 250, vencimentoAtual: assinatura.vencimentoAtual,
+      diaVencimento: 31, carenciaDias: assinatura.carenciaDias, avisoDias: assinatura.avisoDias,
+      observacaoInterna: assinatura.observacaoInterna, mensagemCliente: assinatura.mensagemCliente,
+    };
+    expect((await request(app).put('/api/billing').set(auth(donoToken)).send(dados)).status).toBe(200);
+    const existente = await request(app).post('/api/billing/cobrancas').set(auth(donoToken)).field({ ...campos, referencia: '2031-01' });
+    expect(existente.status).toBe(201);
+
+    const gerar = await request(app).post('/api/billing/cobrancas/gerar').set(auth(donoToken)).send({ inicio: '2030-12', meses: 3 });
+    expect(gerar.status).toBe(201);
+    const criadas = gerar.body.data.criadas as { id: string; referencia: string; vencimento: string; valor: number; arquivoNome: string | null }[];
+    expect(criadas.map((item) => item.referencia)).toEqual(['2030-12', '2031-02']);
+    expect(gerar.body.data.puladas).toEqual(['2031-01']);
+    expect(criadas[1]).toMatchObject({ vencimento: '2031-02-28', valor: 250, arquivoNome: null });
+    expect((await request(app).post('/api/billing/cobrancas/gerar').set(auth(donoToken)).send({ inicio: '2030-12', meses: 13 })).status).toBe(400);
+
+    for (const id of [existente.body.data.id as string, ...criadas.map((item) => item.id)]) {
+      expect((await request(app).delete(`/api/billing/cobrancas/${id}`).set(auth(donoToken))).status).toBe(200);
+    }
+    expect((await request(app).put('/api/billing').set(auth(donoToken)).send({ ...dados, valorMensal: assinatura.valorMensal, diaVencimento: assinatura.diaVencimento })).status).toBe(200);
+  });
+
+  it('desfaz a baixa: reabre o boleto, tira o pagamento e volta o vencimento', async () => {
+    const criar = await request(app).post('/api/billing/cobrancas').set(auth(donoToken)).field(campos);
+    const id = criar.body.data.id as string;
+    const antes = await request(app).get('/api/billing').set(auth(donoToken));
+    expect((await request(app).post(`/api/billing/cobrancas/${id}/desfazer-baixa`).set(auth(donoToken))).status).toBe(400);
+
+    const pagar = await request(app).post('/api/billing/pagamentos').set(auth(donoToken)).send({ data: '2026-10-05', referencia: '2026-09', valor: 300, forma: 'PIX', observacao: '', cobrancaId: id });
+    expect(pagar.status).toBe(200);
+    expect(pagar.body.data.vencimentoAtual).not.toBe(antes.body.data.vencimentoAtual);
+
+    const desfazer = await request(app).post(`/api/billing/cobrancas/${id}/desfazer-baixa`).set(auth(donoToken));
+    expect(desfazer.status).toBe(200);
+    expect(desfazer.body.data.vencimentoRestaurado).toBe(true);
+    expect(desfazer.body.data.vencimentoAtual).toBe(antes.body.data.vencimentoAtual);
+    expect(desfazer.body.data.pagamentos).toEqual(antes.body.data.pagamentos);
+    expect((desfazer.body.data.cobrancas as { id: string; pagoEm: string | null }[]).find((item) => item.id === id)?.pagoEm).toBeNull();
+
+    // Remover o pagamento pela aba Assinatura também reabre o boleto.
+    const pagarDeNovo = await request(app).post('/api/billing/pagamentos').set(auth(donoToken)).send({ data: '2026-10-06', referencia: '2026-09', valor: 300, forma: 'PIX', observacao: '', cobrancaId: id });
+    const pagamentoId = (pagarDeNovo.body.data.pagamentos as { id: string }[])[0]!.id;
+    const remover = await request(app).delete(`/api/billing/pagamentos/${pagamentoId}`).set(auth(donoToken));
+    expect(remover.status).toBe(200);
+    expect((remover.body.data.cobrancas as { id: string; pagoEm: string | null }[]).find((item) => item.id === id)?.pagoEm).toBeNull();
+
+    expect((await request(app).put('/api/billing').set(auth(donoToken)).send({
+      ...Object.fromEntries(['cliente', 'plano', 'valorMensal', 'diaVencimento', 'carenciaDias', 'avisoDias', 'observacaoInterna', 'mensagemCliente'].map((k) => [k, antes.body.data[k]])),
+      vencimentoAtual: antes.body.data.vencimentoAtual,
+    })).status).toBe(200);
+    expect((await request(app).delete(`/api/billing/cobrancas/${id}`).set(auth(donoToken))).status).toBe(200);
   });
 
   it('anexa, baixa, configura o e-mail, envia com anexo e cópia oculta, marca como paga e remove', async () => {
@@ -169,6 +280,35 @@ describe('cobranças por boleto (API)', () => {
     expect(depoisInvalidos.body.data.pagamentos).toEqual(antes.body.data.pagamentos);
     expect((await request(app).post('/api/billing/pagamentos').set(auth(donoToken)).send({ ...basePagamento, cobrancaId: id })).status).toBe(200);
     expect((await request(app).post('/api/billing/pagamentos').set(auth(donoToken)).send({ ...basePagamento, cobrancaId: id })).status).toBe(400);
+    expect((await request(app).delete(`/api/billing/cobrancas/${id}`).set(auth(donoToken))).status).toBe(200);
+  });
+
+  it('dispara o lembrete automático uma vez só, e só com os lembretes ligados', async () => {
+    const hoje = hojeIso();
+    const [ano, mes, dia] = hoje.split('-').map(Number) as [number, number, number];
+    const vencimento = new Date(Date.UTC(ano, mes - 1, dia + 2)).toISOString().slice(0, 10);
+    const criar = await request(app).post('/api/billing/cobrancas').set(auth(donoToken)).field({ ...campos, referencia: '2035-01', vencimento }).attach('arquivo', pdf, { filename: 'b.pdf', contentType: 'application/pdf' });
+    const id = criar.body.data.id as string;
+    const config = {
+      emails: ['financeiro@cliente.com.br'], copiaOculta: '',
+      smtp: { host: 'smtp.teste.local', port: 587, seguranca: 'starttls', user: '', password: '', fromEmail: 'dono@teste.local', fromName: 'Teste' },
+      lembretes: { ativo: false, diasAntes: 3, aposVencimento: true },
+    };
+    expect((await request(app).put('/api/billing/cobranca-config').set(auth(donoToken)).send(config)).status).toBe(200);
+    sendMail.mockClear();
+    expect(await executarLembretes()).toEqual({ enviados: 0, falhas: 0 });
+
+    expect((await request(app).put('/api/billing/cobranca-config').set(auth(donoToken)).send({ ...config, lembretes: { ...config.lembretes, ativo: true } })).status).toBe(200);
+    expect((await executarLembretes()).enviados).toBeGreaterThanOrEqual(1);
+    const lembrete = sendMail.mock.calls.find((chamada) => (chamada[0] as { subject: string }).subject.includes(`vence em ${vencimento.split('-').reverse().join('/')}`));
+    expect(lembrete).toBeDefined();
+    const atual = await request(app).get('/api/billing').set(auth(donoToken));
+    expect((atual.body.data.cobrancas as { id: string; lembretes: string[] }[]).find((item) => item.id === id)?.lembretes).toEqual(['ANTES']);
+
+    sendMail.mockClear();
+    await executarLembretes();
+    expect(sendMail.mock.calls.some((chamada) => (chamada[0] as { subject: string }).subject.includes('2035'))).toBe(false);
+    expect((await request(app).put('/api/billing/cobranca-config').set(auth(donoToken)).send(config)).status).toBe(200);
     expect((await request(app).delete(`/api/billing/cobrancas/${id}`).set(auth(donoToken))).status).toBe(200);
   });
 

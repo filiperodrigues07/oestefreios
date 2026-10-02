@@ -620,7 +620,7 @@ export function AssinaturaTab() {
         open={remover !== null}
         title="Remover pagamento"
         danger
-        description="Remove só do histórico. O vencimento não muda — ajuste em Editar dados se precisar."
+        description="Remove só do histórico (se quitou um boleto, ele volta a ficar em aberto). O vencimento não muda — ajuste em Editar dados se precisar."
         confirmLabel="Remover"
         loading={removeMutation.isPending}
         onConfirm={() => remover && removeMutation.mutate(remover)}

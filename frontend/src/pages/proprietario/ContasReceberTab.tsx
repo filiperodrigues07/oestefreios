@@ -18,6 +18,7 @@ export function ContasReceberTab() {
   const vencidas = abertas.filter((item) => item.vencimento < hojeLocal());
   const recebidas = data?.cobrancas.filter((item) => Boolean(item.pagoEm)) ?? [];
   const valorAberto = abertas.reduce((total, item) => total + item.valor, 0);
+  const semBoleto = abertas.filter((item) => !item.arquivoNome).length;
 
   return (
     <section className={styles.page} aria-label="Contas a receber">
@@ -28,8 +29,8 @@ export function ContasReceberTab() {
         <div className={styles.introText}>
           <h2>Contas a receber</h2>
           <p>
-            Organize os boletos da mensalidade, envie o PDF por e-mail e registre as baixas
-            manualmente.
+            Deixe as cobranças da mensalidade criadas, anexe o boleto quando tiver, envie por e-mail
+            e registre as baixas.
           </p>
         </div>
       </div>
@@ -48,6 +49,7 @@ export function ContasReceberTab() {
               <small>
                 {abertas.length} cobrança{abertas.length === 1 ? '' : 's'} pendente
                 {abertas.length === 1 ? '' : 's'}
+                {semBoleto ? ` · ${semBoleto} sem boleto` : ''}
               </small>
             </Card>
             <Card className={`${styles.metric} ${styles.overdue}`}>
@@ -68,19 +70,22 @@ export function ContasReceberTab() {
               </span>
               <span className={styles.metricLabel}>Recebidas</span>
               <strong>{recebidas.length}</strong>
-              <small>Baixas registradas manualmente</small>
+              <small>Baixas registradas (dá para desfazer)</small>
             </Card>
           </div>
 
           <div className={styles.workflow} aria-label="Como usar">
             <span>
-              <ActionIcon name="pdf" /> 1. Anexe o boleto
+              <ActionIcon name="calendar" /> 1. Crie ou gere os meses
             </span>
             <span>
-              <ActionIcon name="mail" /> 2. Envie por e-mail
+              <ActionIcon name="pdf" /> 2. Anexe o boleto
             </span>
             <span>
-              <ActionIcon name="ready" /> 3. Registre o pagamento
+              <ActionIcon name="mail" /> 3. Envie por e-mail
+            </span>
+            <span>
+              <ActionIcon name="ready" /> 4. Registre o pagamento
             </span>
           </div>
 
@@ -88,11 +93,7 @@ export function ContasReceberTab() {
         </>
       )}
       {data && pagamento && (
-        <PagamentoModal
-          billing={data}
-          cobranca={pagamento}
-          onClose={() => setPagamento(null)}
-        />
+        <PagamentoModal billing={data} cobranca={pagamento} onClose={() => setPagamento(null)} />
       )}
     </section>
   );

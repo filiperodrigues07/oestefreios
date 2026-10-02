@@ -150,6 +150,24 @@ function prioridadeFromCherp(valor: number | null): OSPrioridade {
   }
 }
 
+/**
+ * Coluna DATE do CHERP (sem hora) → AAAA-MM-DD pelo dia LOCAL do Date que o driver devolve. O mesmo dia local é
+ * usado na gravação (`diaDoCalendario`), então o valor não anda um dia pra trás/frente por causa do fuso.
+ */
+function dataIsoLocal(valor: unknown): string | undefined {
+  if (valor === null || valor === undefined) return undefined;
+  const d = valor instanceof Date ? valor : new Date(String(valor));
+  if (Number.isNaN(d.getTime())) return undefined;
+  const dois = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dois(d.getMonth() + 1)}-${dois(d.getDate())}`;
+}
+
+/** AAAA-MM-DD → Date no dia local (meia-noite), o formato que o driver grava em coluna DATE. */
+function diaDoCalendario(iso: string): Date {
+  const [ano, mes, dia] = iso.split('-').map(Number);
+  return new Date(ano!, mes! - 1, dia!);
+}
+
 function combineDateTime(date: unknown, time: unknown): string {
   const d = date instanceof Date ? date : new Date(String(date));
   const t = time instanceof Date ? time : new Date(String(time));
@@ -191,6 +209,7 @@ interface OSHeaderRow {
   KMFINAL: number | null;
   FRETE: number | null;
   TOTALIPI: number | null;
+  GARANTIA: unknown;
 }
 
 const HEADER_SELECT = `
@@ -219,7 +238,8 @@ const HEADER_SELECT = `
     OS.KMATUAL AS KMATUAL,
     OS.KMFINAL AS KMFINAL,
     OS.FRETE AS FRETE,
-    OS.TOTALIPI AS TOTALIPI
+    OS.TOTALIPI AS TOTALIPI,
+    OS.GARANTIA AS GARANTIA
   FROM ORDEMSERVICO OS
   LEFT JOIN CLIFOR CLI ON CLI.CHAVE = OS.CHAVECLIFOR
   LEFT JOIN EQUIPAMENTOS EQ ON EQ.CHAVE = OS.CHAVEEQUIPAMENTO
@@ -380,6 +400,7 @@ function buildOrdemServico(
     kmFinal: header.KMFINAL !== null ? Number(header.KMFINAL) : undefined,
     frete: header.FRETE !== null ? Number(header.FRETE) : undefined,
     totalIpi: header.TOTALIPI !== null ? Number(header.TOTALIPI) : undefined,
+    garantia: dataIsoLocal(header.GARANTIA),
   };
 }
 
@@ -944,8 +965,8 @@ export class OSRepositoryFirebird implements IOSRepository {
            CHAVE, ATIVO, CHAVEEMPRESA, ORDEM, DATA, HORAABERTURA, DATAFECHA, HORAFECHAMENTO, DATAENTREGA, TIPO, SITUACAO,
            CHAVECLIFOR, CHAVEEQUIPAMENTO, PROBLEMAABERTURAOS, LAUDOTECNICO, OBS, CHAVEUSUARIOINICIOU,
            TOTALPRODUTO, TOTALSERVICO, TOTALOS, CHAVESITUACAOOS, PRIORIDADE, KMATUAL, KMFINAL, NRODAV,
-           CHAVECFOPOPERFISCAIS, CHAVECFOPPROD, CHAVECFOPSERV, CHAVETIPOATENDIMENTO
-         ) VALUES (?, 1, ?, ?, CURRENT_DATE, CURRENT_TIME, NULL, NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+           CHAVECFOPOPERFISCAIS, CHAVECFOPPROD, CHAVECFOPSERV, CHAVETIPOATENDIMENTO, GARANTIA
+         ) VALUES (?, 1, ?, ?, CURRENT_DATE, CURRENT_TIME, NULL, NULL, NULL, 0, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?)
          RETURNING IDENTIFICADOR`,
         [
           chave,
@@ -966,6 +987,7 @@ export class OSRepositoryFirebird implements IOSRepository {
           perfilFiscalProduto.chave,
           perfilFiscalProduto.chaveCfopProduto,
           perfilFiscalProduto.chaveCfopServico,
+          os.garantia ? diaDoCalendario(os.garantia) : null,
         ],
       );
       const identificadorGerado = insertRows[0]?.IDENTIFICADOR;
@@ -1045,6 +1067,10 @@ export class OSRepositoryFirebird implements IOSRepository {
     }
     if (patch.kmFinal !== undefined) {
       camposOSFB.push({ coluna: 'KMFINAL', valor: patch.kmFinal });
+    }
+    // '' limpa a garantia (NULL no CHERP); AAAA-MM-DD grava o dia.
+    if (patch.garantia !== undefined) {
+      camposOSFB.push({ coluna: 'GARANTIA', valor: patch.garantia ? diaDoCalendario(patch.garantia) : null });
     }
 
     // Troca de cliente/veículo (correção de lançamento) — o service já validou que a OS não tem itens.

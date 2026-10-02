@@ -70,6 +70,8 @@ export interface OrdemServicoDTO {
   nroDav?: string;
   kmAtual?: number;
   kmFinal?: number;
+  /** Garantia (AAAA-MM-DD), mesmo campo GARANTIA do CHERP. */
+  garantia?: string;
   frete?: number;
   totalIpi?: number;
 }
