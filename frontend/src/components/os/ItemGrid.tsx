@@ -120,6 +120,15 @@ export function ItemGrid({
 
   const quantidadeNumero = Number(quantidade.replace(',', '.'));
   const quantidadeValida = Number.isFinite(quantidadeNumero) && quantidadeNumero > 0;
+  // Saldo do CHERP ainda não desconta o que já está nesta OS (a baixa é do CHERP no faturamento).
+  const jaLancado = (codigo: string) =>
+    itens.filter((i) => i.codigo === codigo).reduce((total, i) => total + i.quantidade, 0);
+  const maximo =
+    selecionado?.disponivel !== undefined
+      ? Math.max(0, selecionado.disponivel - jaLancado(selecionado.codigo))
+      : undefined;
+  const acimaDoSaldo =
+    maximo !== undefined && quantidadeValida && quantidadeNumero - maximo > 1e-6;
   const precoEditadoNumero = Number(precoEditado.replace(',', '.'));
   const precoEditadoValido = Number.isFinite(precoEditadoNumero) && precoEditadoNumero >= 0;
 
@@ -179,6 +188,13 @@ export function ItemGrid({
       showToast(aviso, 'warning');
       return;
     }
+    if (item.disponivel !== undefined && item.disponivel - jaLancado(item.codigo) <= 1e-6) {
+      const aviso = `"${item.descricao}" já tem todo o saldo (${item.disponivel.toLocaleString('pt-BR')} ${item.unidade}) lançado nesta OS. Avise o responsável pelo estoque para dar entrada.`;
+      setSelecionado(null);
+      setErro(aviso);
+      showToast(aviso, 'warning');
+      return;
+    }
     setSelecionado(item);
     if (podeEditarPreco) {
       setPrecoEditado(item.precoUnitario !== undefined ? item.precoUnitario.toFixed(2) : '');
@@ -191,6 +207,7 @@ export function ItemGrid({
   }
 
   function handleConfirmarAdicao() {
+    if (acimaDoSaldo) return;
     const existente = itens.find((i) => i.codigo === selecionado!.codigo);
     if (existente) {
       setDuplicado(existente);
@@ -321,9 +338,21 @@ export function ItemGrid({
                   className={styles.qtyInput}
                   value={quantidade}
                   disabled={addMutation.isPending}
+                  aria-invalid={acimaDoSaldo || undefined}
+                  aria-describedby={maximo !== undefined ? 'item-grid-saldo' : undefined}
                   onChange={(e) => setQuantidade(e.target.value)}
                   onKeyDown={handleQuantidadeKeyDown}
                 />
+                {maximo !== undefined && (
+                  <span
+                    id="item-grid-saldo"
+                    className={acimaDoSaldo ? styles.saldoAlerta : styles.saldoHint}
+                    role={acimaDoSaldo ? 'alert' : undefined}
+                  >
+                    {acimaDoSaldo ? 'Acima do saldo · ' : ''}máx. {maximo.toLocaleString('pt-BR')}{' '}
+                    {selecionado.unidade}
+                  </span>
+                )}
               </label>
               {mostrarPreco && selecionado && podeEditarPreco && (
                 <label className={`${styles.addField} ${styles.moneyField}`}>
@@ -371,6 +400,7 @@ export function ItemGrid({
                     onClick={handleConfirmarAdicao}
                     disabled={
                       !quantidadeValida ||
+                      acimaDoSaldo ||
                       (podeEditarPreco && !precoEditadoValido) ||
                       addMutation.isPending
                     }
