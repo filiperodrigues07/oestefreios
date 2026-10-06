@@ -9,6 +9,7 @@ export const PERMISSIONS = [
   'OS_EDIT',
   'OS_DELETE',
   'OS_CHANGE_STATUS',
+  'OS_SEND',
   'OS_REOPEN',
   'OS_VIEW_FINALIZADAS',
   'CLIENT_DELETE',
@@ -66,6 +67,7 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
   CLIENT_DELETE: 'Excluir clientes',
   VEHICLE_DELETE: 'Excluir veículos',
   OS_CHANGE_STATUS: 'Alterar status da OS',
+  OS_SEND: 'Enviar OS por WhatsApp ou e-mail',
   OS_REOPEN: 'Reabrir OS finalizada',
   OS_VIEW_FINALIZADAS: 'Ver OS finalizadas nas listas',
   PRODUCT_VIEW: 'Visualizar produtos',
@@ -91,9 +93,10 @@ export const PERMISSION_LABELS: Record<Permission, string> = {
 export const PERMISSION_HELP: Record<Permission, string> = {
   OS_VIEW: 'Abre a lista e os detalhes das OS, e as telas de Clientes e Veículos (só consulta). É a base de todo o resto.',
   OS_CREATE: 'Abre OS nova, duplica OS e cadastra clientes e veículos (com consulta de placa).',
-  OS_EDIT: 'Altera dados da OS (problema, KM, diagnóstico, prioridade), fotos e o cadastro de clientes e veículos. Não vale para OS finalizada.',
+  OS_EDIT: 'Altera dados da OS (diagnóstico de abertura, KM, diagnóstico, prioridade), fotos e o cadastro de clientes e veículos. Não vale para OS finalizada.',
   OS_DELETE: 'Exclui uma OS que ainda está em aberto (pede o motivo). OS finalizada não pode ser excluída.',
-  OS_CHANGE_STATUS: 'Muda a situação do atendimento, finaliza a OS e envia a OS ao cliente por WhatsApp ou e-mail.',
+  OS_CHANGE_STATUS: 'Muda a situação do atendimento e finaliza a OS.',
+  OS_SEND: 'Envia a OS ao cliente por WhatsApp ou e-mail (e revoga a autorização de WhatsApp do cliente). Sem esta, a pessoa só imprime/visualiza o PDF, por exemplo o estoque.',
   OS_REOPEN: 'Volta uma OS finalizada no app para "Em atendimento" (pede o motivo). Não reabre OS que já virou pedido ou nota no CHERP.',
   OS_VIEW_FINALIZADAS: 'Mostra nas listas, no painel e na busca as OS já finalizadas no app. Sem esta elas somem (o link direto ainda abre, só leitura).',
   CLIENT_DELETE: 'Exclui o cadastro de um cliente.',
@@ -116,7 +119,7 @@ export const PERMISSION_HELP: Record<Permission, string> = {
 
 /** Agrupamento por categoria pra matriz de permissões (item 5 da rodada de melhorias). */
 export const PERMISSION_GROUPS: { label: string; permissions: Permission[] }[] = [
-  { label: 'Ordens de Serviço', permissions: ['OS_VIEW', 'OS_CREATE', 'OS_EDIT', 'OS_DELETE', 'OS_CHANGE_STATUS', 'OS_REOPEN', 'OS_VIEW_FINALIZADAS'] },
+  { label: 'Ordens de Serviço', permissions: ['OS_VIEW', 'OS_CREATE', 'OS_EDIT', 'OS_DELETE', 'OS_CHANGE_STATUS', 'OS_SEND', 'OS_REOPEN', 'OS_VIEW_FINALIZADAS'] },
   { label: 'Cadastros', permissions: ['CLIENT_DELETE', 'VEHICLE_DELETE'] },
   { label: 'Produtos', permissions: ['PRODUCT_VIEW', 'PRODUCT_SEARCH', 'PRODUCT_ADD_TO_OS'] },
   { label: 'Serviços', permissions: ['SERVICE_VIEW', 'SERVICE_SEARCH', 'SERVICE_ADD_TO_OS'] },

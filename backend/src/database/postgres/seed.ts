@@ -15,6 +15,7 @@ const ROLE_DEFINITIONS: { name: string; description: string; permissions: Permis
     permissions: [
       'OS_VIEW',
       'OS_CHANGE_STATUS',
+      'OS_SEND',
       'PRODUCT_VIEW',
       'PRODUCT_SEARCH',
       'PRODUCT_ADD_TO_OS',
@@ -30,6 +31,7 @@ const ROLE_DEFINITIONS: { name: string; description: string; permissions: Permis
       'OS_VIEW',
       'OS_EDIT',
       'OS_CHANGE_STATUS',
+      'OS_SEND',
       'PRODUCT_VIEW',
       'PRODUCT_SEARCH',
       'PRODUCT_ADD_TO_OS',

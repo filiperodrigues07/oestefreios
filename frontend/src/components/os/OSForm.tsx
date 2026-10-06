@@ -56,6 +56,7 @@ import { OSFormHeader } from './OSFormHeader.js';
 import { OSKmFields, parseKm } from './OSKmFields.js';
 import { OSKmSection } from './OSKmSection.js';
 import { OSGarantiaSection } from './OSGarantiaSection.js';
+import { OSProblemaSection } from './OSProblemaSection.js';
 import { calendarDateValue } from '../../utils/calendarDate.js';
 import type { OSKmInput } from './OSDuplicateDialog.js';
 import { OSVinculoDialog, type OSVinculoInput } from './OSVinculoDialog.js';
@@ -245,7 +246,7 @@ function OSFormCreate() {
         </section>
 
         <section className={styles.section}>
-          <h2 className={styles.sectionTitle}>Problema relatado</h2>
+          <h2 className={styles.sectionTitle}>Diagnóstico de abertura</h2>
           <div className={styles.createStack}>
             <div>
               <label htmlFor="problema" className={styles.fieldLabel}>
@@ -385,6 +386,19 @@ function OSFormEdit({ id }: { id: string }) {
       queryClient.invalidateQueries({ queryKey: ['dashboard-operacional'] }),
     ]);
   }
+
+  const problemaMutation = useMutation({
+    mutationFn: (valor: string) => atualizarOS(id, { problema: valor, base: { problema: os?.problema ?? '' } }),
+    onSuccess: async () => { await invalidate(); showToast('Diagnóstico de abertura salvo.', 'success'); },
+    onError: async (err) => {
+      if (err instanceof ApiError && err.code === 'OS_CONFLICT') {
+        await queryClient.invalidateQueries({ queryKey: ['os', id] });
+        showToast('Outro usuário alterou este texto enquanto você editava. Conferimos a versão atual; edite de novo.', 'warning');
+        return;
+      }
+      handleMutationError(err, showToast, 'Não foi possível salvar o diagnóstico de abertura. Tente novamente.');
+    },
+  });
 
   const garantiaMutation = useMutation({
     mutationFn: (valor: string) => atualizarOS(id, { garantia: valor }),
@@ -706,7 +720,7 @@ function OSFormEdit({ id }: { id: string }) {
         }
         onReabrir={(motivo) => reabrirMutation.mutate(motivo)}
         reabrindo={reabrirMutation.isPending}
-        onEnviar={hasPermission('OS_CHANGE_STATUS') ? setMessageChannel : undefined}
+        onEnviar={hasPermission('OS_SEND') ? setMessageChannel : undefined}
       />
 
       {/* Resumo fixo — some quem é o cliente/veículo mesmo fora da aba "Dados". */}
@@ -793,8 +807,9 @@ function OSFormEdit({ id }: { id: string }) {
                 onSave={(valor) => garantiaMutation.mutate(valor)} />
             </section>
             <section className={styles.section}>
-              <h2 className={styles.sectionTitle}>Problema relatado</h2>
-              <p className={styles.problemaTexto}>{os.problema || 'Não informado.'}</p>
+              <h2 className={styles.sectionTitle}>Diagnóstico de abertura</h2>
+              <OSProblemaSection problema={os.problema ?? ''} podeEditar={podeEditar} salvando={problemaMutation.isPending}
+                onSave={(valor) => problemaMutation.mutate(valor)} />
             </section>
           </>
         )}

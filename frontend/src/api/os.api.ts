@@ -106,10 +106,13 @@ export interface AtualizarOSInput {
   dataPrevista?: string;
   kmAtual?: number;
   kmFinal?: number;
+  /** "Diagnóstico de abertura" (PROBLEMAABERTURAOS no CHERP). */
+  problema?: string;
   /** AAAA-MM-DD; `null` limpa a garantia. */
   garantia?: string | null;
   /** Valores vistos ao começar a editar — o backend responde 409 OS_CONFLICT se mudaram (ver os.service.ts). */
   base?: {
+    problema?: string;
     diagnostico?: string;
     observacoes?: string;
     kmAtual?: number | null;

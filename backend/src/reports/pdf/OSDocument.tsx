@@ -166,7 +166,7 @@ export function OSDocument({ os, branding, fotos = [] }: Props) {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Problema relatado</Text>
+          <Text style={styles.sectionTitle}>Diagnóstico de abertura</Text>
           <Text style={styles.texto}>{os.problema || 'Não informado.'}</Text>
         </View>
 

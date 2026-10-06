@@ -355,6 +355,7 @@ export async function duplicarOS(
 }
 
 interface AtualizarOSInput {
+  problema?: string;
   diagnostico?: string;
   observacoes?: string;
   prioridade?: OSPrioridade;
@@ -370,6 +371,7 @@ interface AtualizarOSInput {
 
 /** Campos de texto livre/KM editados na aba Diagnóstico — os que sofrem com edição simultânea. */
 export interface OSBaseEdicao {
+  problema?: string;
   diagnostico?: string;
   observacoes?: string;
   kmAtual?: number | null;
