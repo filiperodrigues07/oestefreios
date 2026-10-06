@@ -69,12 +69,12 @@ osRouter.get('/:id/mensagem', validate(osIdParamSchema, 'params'), asyncHandler(
 osRouter.get('/:id/mensagem/historico', validate(osIdParamSchema, 'params'), asyncHandler(async (req, res) => {
   success(res, await listOsMessageHistory(req.params.id as string, req.user!.permissions));
 }));
-osRouter.post('/:id/mensagem/revogar-whatsapp', requirePermission('OS_CHANGE_STATUS'), validate(osIdParamSchema, 'params'),
+osRouter.post('/:id/mensagem/revogar-whatsapp', requirePermission('OS_SEND'), validate(osIdParamSchema, 'params'),
   asyncHandler(async (req, res) => {
     await revokeOsWhatsappConsent(req.params.id as string, req.user!, requestContext(req));
     success(res, null, 'Autorização de WhatsApp revogada para este cliente.');
   }));
-osRouter.post('/:id/mensagem', osMessageLimiter, idempotency, requirePermission('OS_CHANGE_STATUS'), validate(osIdParamSchema, 'params'),
+osRouter.post('/:id/mensagem', osMessageLimiter, idempotency, requirePermission('OS_SEND'), validate(osIdParamSchema, 'params'),
   validate(z.object({ channel: z.enum(['whatsapp', 'email']), type: z.enum(['aberta', 'aguardando_cliente', 'aguardando_peca', 'pronta', 'resumo_financeiro']), consent: z.boolean().default(false), attachPdf: z.boolean().default(false) })),
   asyncHandler(async (req, res) => {
     const { channel, type, consent, attachPdf } = req.body as { channel: 'whatsapp' | 'email'; type: 'aberta' | 'aguardando_cliente' | 'aguardando_peca' | 'pronta' | 'resumo_financeiro'; consent: boolean; attachPdf: boolean };

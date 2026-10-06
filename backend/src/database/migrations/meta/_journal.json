@@ -162,6 +162,13 @@
       "when": 1790792704856,
       "tag": "0022_breezy_may_parker",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1791327271368,
+      "tag": "0023_permissao_enviar_os",
+      "breakpoints": true
     }
   ]
 }

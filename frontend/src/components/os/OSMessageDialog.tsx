@@ -37,12 +37,13 @@ export function OSMessageDialog({ id, clientCode, channel, defaultType, onClose 
   const queryClient = useQueryClient();
   const [type, setType] = useState<OsMessageType>(defaultType);
   const [consent, setConsent] = useState(false);
-  const [attachPdf, setAttachPdf] = useState(false);
+  // WhatsApp: o PDF da OS vai sempre anexado (decisão da oficina) e o modelo é o resumo financeiro.
+  const attachPdf = channel === 'whatsapp';
   const [editingClient, setEditingClient] = useState(false);
   const preview = useQuery({ queryKey: ['os', id, 'message-preview'], queryFn: () => getOsMessagePreview(id) });
   const history = useQuery({ queryKey: ['os', id, 'message-history'], queryFn: () => getOsMessageHistory(id) });
   const send = useMutation({
-    mutationFn: () => sendOsMessage(id, channel, type, consent, channel === 'whatsapp' && attachPdf),
+    mutationFn: () => sendOsMessage(id, channel, tipoEfetivo, consent, attachPdf),
     onSuccess: () => {
       showToast(channel === 'whatsapp' ? attachPdf ? 'Mensagem e PDF enviados à integração do WhatsApp.' : 'Mensagem enviada à integração do WhatsApp.' : 'E-mail enviado.', 'success');
       void queryClient.invalidateQueries({ queryKey: ['os', id, 'message-history'] });
@@ -58,9 +59,12 @@ export function OSMessageDialog({ id, clientCode, channel, defaultType, onClose 
       void queryClient.invalidateQueries({ queryKey: ['os', id, 'message-history'] });
     },
   });
+  // Quem não tem permissão financeira não recebe o resumo financeiro do servidor: nesse caso mantém a escolha de modelo.
+  const modeloFixo = channel === 'whatsapp' && !!preview.data?.messages.resumo_financeiro;
+  const tipoEfetivo: OsMessageType = modeloFixo ? 'resumo_financeiro' : type;
   const target = channel === 'whatsapp' ? preview.data?.whatsapp : preview.data?.email;
   const needsConsent = channel === 'whatsapp' && !preview.data?.whatsappConsent;
-  const canSend = !!target && !!preview.data?.messages[type] && (!needsConsent || consent) && !send.isPending;
+  const canSend = !!target && !!preview.data?.messages[tipoEfetivo] && (!needsConsent || consent) && !send.isPending;
 
   return <><Modal open={!editingClient} title={channel === 'whatsapp' ? 'Enviar OS por WhatsApp' : 'Enviar OS por e-mail'} onClose={() => { if (!send.isPending) onClose(); }}
     footer={<><Button variant="secondary" onClick={onClose} disabled={send.isPending}>Cancelar</Button><Button onClick={() => send.mutate()} loading={send.isPending} disabled={!canSend}>Enviar</Button></>}>
@@ -80,9 +84,11 @@ export function OSMessageDialog({ id, clientCode, channel, defaultType, onClose 
             ? <Button type="button" variant="secondary" size="sm" onClick={() => setEditingClient(true)}>Editar cadastro do cliente</Button>
             : <p>Peça a um usuário com permissão para editar clientes que atualize o cadastro.</p>}
         </div>}
-        <Select label="Tipo de mensagem" value={type} options={OPTIONS.filter((item) => preview.data.messages[item.value]).map((item) => ({ value: item.value, label: item.label }))} onChange={(event) => setType(event.target.value as OsMessageType)} />
-        <div className={styles.preview}><strong>Prévia</strong><p>{formattedPreview(preview.data.messages[type] ?? '')}</p></div>
-        {channel === 'whatsapp' && <label className={styles.attachPdf}><input type="checkbox" checked={attachPdf} disabled={send.isPending} onChange={(event) => setAttachPdf(event.target.checked)} /><span><strong>Anexar PDF da OS</strong><small>O texto acima será a legenda do documento. O PDF só terá valores ao enviar o resumo financeiro.</small></span></label>}
+        {modeloFixo
+          ? <p className={styles.target}><strong>Modelo:</strong> Resumo financeiro</p>
+          : <Select label="Tipo de mensagem" value={type} options={OPTIONS.filter((item) => preview.data.messages[item.value]).map((item) => ({ value: item.value, label: item.label }))} onChange={(event) => setType(event.target.value as OsMessageType)} />}
+        <div className={styles.preview}><strong>Prévia</strong><p>{formattedPreview(preview.data.messages[tipoEfetivo] ?? '')}</p></div>
+        {channel === 'whatsapp' && <label className={styles.attachPdf}><input type="checkbox" checked disabled readOnly /><span><strong>Anexar PDF da OS</strong><small>Sempre anexado. O texto acima será a legenda do documento{modeloFixo ? ' e o PDF vai com os valores' : '; o PDF só terá valores ao enviar o resumo financeiro'}.</small></span></label>}
         {channel === 'email' && <p className={styles.note}>O PDF da OS será anexado. O resumo financeiro só inclui valores se você tiver permissão.</p>}
         {needsConsent && target && <label className={styles.consent}><input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} /><span>Confirmo que o cliente autorizou receber atualizações da oficina por WhatsApp neste número.</span></label>}
         {needsConsent && !consent && target && <p className={styles.requirement}>Para liberar o envio, confirme a autorização do cliente acima.</p>}

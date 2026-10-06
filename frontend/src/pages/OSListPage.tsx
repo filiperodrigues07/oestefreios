@@ -115,7 +115,7 @@ export function OSListPage() {
   const [excluindo, setExcluindo] = useState<OrdemServicoDTO | null>(null);
   const [enviando, setEnviando] = useState<{ os: OrdemServicoDTO; canal: OsMessageChannel } | null>(null);
   const [previaPdf, setPreviaPdf] = useState<OrdemServicoDTO | null>(null);
-  const podeEnviar = hasPermission('OS_CHANGE_STATUS');
+  const podeEnviar = hasPermission('OS_SEND');
 
   // Coluna Ações = lápis + "⋯": imprimir, enviar e gerenciar ficam no menu, a coluna não cresce a cada ação nova.
   const acoesDaOS = (os: OrdemServicoDTO): RowActionItem[] => [

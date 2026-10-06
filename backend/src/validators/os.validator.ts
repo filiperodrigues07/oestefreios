@@ -40,6 +40,8 @@ export const duplicarOSSchema = z.object({
 
 export const atualizarOSSchema = z
   .object({
+    /** "Diagnóstico de abertura" no CHERP (ORDEMSERVICO.PROBLEMAABERTURAOS, VARCHAR 5000). */
+    problema: z.string().trim().max(5000, 'Máximo de 5000 caracteres.').transform(toUppercase).optional(),
     diagnostico: z.string().trim().transform(toUppercase).optional(),
     observacoes: z.string().trim().transform(toUppercase).optional(),
     prioridade: z.enum(OS_PRIORIDADE_VALUES).optional(),
@@ -56,6 +58,7 @@ export const atualizarOSSchema = z
      */
     base: z
       .object({
+        problema: z.string().optional(),
         diagnostico: z.string().optional(),
         observacoes: z.string().optional(),
         kmAtual: z.number().nullable().optional(),

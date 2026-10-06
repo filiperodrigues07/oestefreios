@@ -1034,6 +1034,9 @@ export class OSRepositoryFirebird implements IOSRepository {
 
     const camposOSFB: Array<{ coluna: string; valor: unknown }> = [];
 
+    if (patch.problema !== undefined) {
+      camposOSFB.push({ coluna: 'PROBLEMAABERTURAOS', valor: toLatin1Param(patch.problema) });
+    }
     if (patch.diagnostico !== undefined) {
       camposOSFB.push({
         coluna: 'LAUDOTECNICO',
