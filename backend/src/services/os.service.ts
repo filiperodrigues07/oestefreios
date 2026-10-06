@@ -18,6 +18,7 @@ import type {
   OSHistoricoEntry,
   OSPrioridade,
   OSStatus,
+  Produto,
 } from '../types/cherp.types.js';
 import { detectarTipoImagem } from '../utils/imageSignature.js';
 import type { RequestContext } from '../utils/requestContext.js';
@@ -278,6 +279,26 @@ export async function reabrirOS(
  * origem finalizada / com pedido gerado — a origem nunca é alterada, só lida. A OS nova nasce
  * aberta, com número e DAV próprios (gerados pelo `criar` do repositório) e sem fotos/histórico.
  */
+/** A cópia leva os produtos da OS de origem: cada um precisa caber no saldo atual, como num lançamento novo. */
+async function assertSaldoParaDuplicar(origem: OrdemServico): Promise<void> {
+  const porCodigo = new Map<string, number>();
+  for (const p of origem.produtos) porCodigo.set(p.produtoCodigo, (porCodigo.get(p.produtoCodigo) ?? 0) + p.quantidade);
+  const faltando: string[] = [];
+  for (const [codigo, quantidade] of porCodigo) {
+    const produto = await produtoRepository.buscarPorCodigo(codigo);
+    const saldo = produto?.disponivel ?? 0;
+    if (passaDoSaldo(quantidade, saldo)) {
+      const item = origem.produtos.find((p) => p.produtoCodigo === codigo)!;
+      faltando.push(`${produto?.descricao ?? item.descricao} (precisa ${qtdFmt(quantidade)}, tem ${qtdFmt(Math.max(0, saldo))})`);
+    }
+  }
+  if (faltando.length) {
+    throw new ValidationError(
+      `Não dá para duplicar: sem estoque suficiente para ${faltando.join('; ')}. Verifique com o responsável pelo estoque.`,
+    );
+  }
+}
+
 export async function duplicarOS(
   id: string,
   usuario: AuthenticatedUser,
@@ -286,6 +307,7 @@ export async function duplicarOS(
 ): Promise<OperationalOSDTO | AdminOSDTO> {
   assertKmObrigatorios(km.kmAtual, km.kmFinal);
   const origem = await getOSOrThrow(id);
+  await assertSaldoParaDuplicar(origem);
 
   const criada = await osRepository.criar({
     clienteCodigo: origem.clienteCodigo,
@@ -517,6 +539,44 @@ export async function alterarStatusOS(
   return toOSDTO(atualizado, usuario.permissions);
 }
 
+const qtdFmt = (valor: number) => valor.toLocaleString('pt-BR', { maximumFractionDigits: 4 });
+/** Quantidades vêm decimais (litro, metro): compara com tolerância pra 0,1 + 0,2 não virar "acima do saldo". */
+const passaDoSaldo = (quantidade: number, saldo: number) => quantidade - saldo > 1e-6;
+
+/**
+ * Saldo do CHERP contra o que esta OS vai ter do produto. Os itens lançados pelo app não movimentam
+ * estoque (MOVESTOQUE = 0, a baixa é do CHERP no faturamento), então o saldo atual ainda não desconta
+ * o que já está nesta OS: soma as linhas existentes do produto com a quantidade nova.
+ * Sem registro de estoque no CHERP (disponivel ausente) conta como zerado.
+ */
+function assertSaldoSuficiente(
+  produto: Pick<Produto, 'descricao' | 'unidade' | 'disponivel'>,
+  jaLancado: number,
+  quantidadeNova: number,
+): void {
+  const saldo = produto.disponivel ?? 0;
+  if (saldo <= 0) {
+    throw new ValidationError(
+      `"${produto.descricao}" está com estoque zerado e não pode ser lançado. Verifique com o responsável pelo estoque.`,
+    );
+  }
+  if (!passaDoSaldo(jaLancado + quantidadeNova, saldo)) return;
+  const restante = Math.max(0, saldo - jaLancado);
+  const nestaOS = jaLancado > 0 ? `, e ${qtdFmt(jaLancado)} já estão lançados nesta OS` : '';
+  throw new ValidationError(
+    `"${produto.descricao}" tem só ${qtdFmt(saldo)} ${produto.unidade} em estoque${nestaOS}. ` +
+      (restante > 0
+        ? `Dá para lançar no máximo ${qtdFmt(restante)} ${produto.unidade}.`
+        : 'Não dá para lançar mais. Verifique com o responsável pelo estoque.'),
+  );
+}
+
+function quantidadeNaOS(os: OrdemServico, produtoCodigo: string, ignorarItem?: OrdemServico['produtos'][number]): number {
+  return os.produtos
+    .filter((p) => p.produtoCodigo === produtoCodigo && p !== ignorarItem)
+    .reduce((total, p) => total + p.quantidade, 0);
+}
+
 export async function adicionarProdutoOS(
   id: string,
   produtoCodigo: string,
@@ -532,12 +592,7 @@ export async function adicionarProdutoOS(
   if (!produto) {
     throw new ValidationError(`Produto com código "${produtoCodigo}" não encontrado.`);
   }
-  // Sem registro de estoque no CHERP (disponivel ausente) também é zerado.
-  if ((produto.disponivel ?? 0) <= 0) {
-    throw new ValidationError(
-      `"${produto.descricao}" está com estoque zerado e não pode ser lançado. Verifique com o responsável pelo estoque.`,
-    );
-  }
+  assertSaldoSuficiente(produto, quantidadeNaOS(atual, produto.codigo), quantidade);
 
   const precoUnitario =
     usuario.permissions.includes('FINANCIAL_EDIT') && precoUnitarioOverride !== undefined
@@ -702,6 +757,8 @@ export async function restaurarItemOS(
     const item = await osRepository.buscarProdutoRemovido(id, codigo, itemId);
     if (!item)
       throw new NotFoundError('Não há produto removido para restaurar.', 'OS_ITEM_NOT_FOUND');
+    const produto = await produtoRepository.buscarPorCodigo(codigo);
+    assertSaldoSuficiente(produto ?? item, quantidadeNaOS(atual, codigo), item.quantidade);
     const produtos = [...atual.produtos, { ...item, itemId: undefined }];
     const atualizado = await osRepository.atualizar(id, {
       produtos,
@@ -759,6 +816,12 @@ export async function atualizarProdutoOS(
   const item = correspondentes.find((p) => itemId === undefined || p.itemId === itemId);
   if (!item) {
     throw new NotFoundError('Produto não encontrado nesta OS.', 'OS_ITEM_NOT_FOUND');
+  }
+
+  // Diminuir sempre pode (mesmo com o saldo já abaixo do lançado); só aumento confere o estoque.
+  if (patch.quantidade !== undefined && passaDoSaldo(patch.quantidade, item.quantidade)) {
+    const produto = await produtoRepository.buscarPorCodigo(produtoCodigo);
+    assertSaldoSuficiente(produto ?? item, quantidadeNaOS(atual, produtoCodigo, item), patch.quantidade);
   }
 
   const precoUnitario = usuario.permissions.includes('FINANCIAL_EDIT')
