@@ -286,6 +286,7 @@
 }
 
 .addField {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
@@ -535,4 +536,24 @@
   .itemCard .complementoInput {
     grid-column: 1 / -1;
   }
+}
+
+.saldoHint,
+.saldoAlerta {
+  /* Embaixo do campo, fora do fluxo: não desalinha os rótulos da linha de lançamento. */
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 2px;
+  white-space: nowrap;
+  font-size: var(--font-size-xs);
+}
+
+.saldoHint {
+  color: var(--color-text-secondary);
+}
+
+.saldoAlerta {
+  color: var(--color-danger);
+  font-weight: 600;
 }
