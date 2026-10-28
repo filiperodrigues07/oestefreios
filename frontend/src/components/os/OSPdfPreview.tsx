@@ -42,7 +42,9 @@ function PreviewContent({ os, onClose }: { os: NonNullable<Props['os']>; onClose
     <Modal open wide title={`Prévia da OS #${os.numero}`} onClose={onClose}
       footer={<>
         <Button variant="secondary" onClick={onClose}>Fechar</Button>
-        {arquivo && <a className={styles.openLink} href={arquivo.url} target="_blank" rel="noopener noreferrer">Abrir PDF</a>}
+        {arquivo && podeCompartilhar(arquivo.blob, os.numero)
+          ? <Button variant="secondary" onClick={() => { void compartilharPdf(arquivo.blob, os.numero); }}>Compartilhar</Button>
+          : arquivo && <a className={styles.openLink} href={arquivo.url} target="_blank" rel="noopener noreferrer">Abrir PDF</a>}
         <Button disabled={!arquivo} onClick={() => { if (arquivo) salvarOSPdf(arquivo.blob, os.numero); }}>Baixar</Button>
       </>}>
       {erro ? <p role="alert" className={styles.error}>{erro}</p> :
@@ -54,6 +56,26 @@ function PreviewContent({ os, onClose }: { os: NonNullable<Props['os']>; onClose
           </div>}
     </Modal>
   );
+}
+
+function arquivoPdf(blob: Blob, numero: number) {
+  return new File([blob], `os-${numero}.pdf`, { type: 'application/pdf' });
+}
+
+function podeCompartilhar(blob: Blob, numero: number) {
+  return typeof navigator.canShare === 'function' && navigator.canShare({ files: [arquivoPdf(blob, numero)] });
+}
+
+/**
+ * Compartilha só o arquivo. Compartilhar a aba do "Abrir PDF" faz o navegador mandar
+ * a URL `blob:` junto como texto, e o WhatsApp a coloca como legenda do PDF.
+ */
+async function compartilharPdf(blob: Blob, numero: number) {
+  try {
+    await navigator.share({ files: [arquivoPdf(blob, numero)] });
+  } catch (error) {
+    if (!(error instanceof DOMException && error.name === 'AbortError')) salvarOSPdf(blob, numero);
+  }
 }
 
 /** O visualizador nativo de PDF pode abrir um iframe branco no PWA do iOS. */

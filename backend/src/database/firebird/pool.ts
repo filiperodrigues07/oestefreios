@@ -3,6 +3,7 @@ import { env } from '../../config/env.js';
 import { firebirdOptions } from '../../config/firebird.config.js';
 import { ExternalServiceError } from '../../errors/ExternalServiceError.js';
 import { logger } from '../../utils/logger.js';
+import { comoRegistroEmUso } from './lockError.js';
 import { decodeLatin1Row } from './encoding.js';
 import type { FirebirdRow } from './types.js';
 
@@ -86,6 +87,7 @@ function asRows(result: unknown): Record<string, unknown>[] {
 
 export async function firebirdQuery<T = FirebirdRow>(sql: string, params: unknown[] = []): Promise<T[]> {
   const inicio = performance.now();
+  const ehSelect = /^\s*SELECT\b/i.test(sql);
   const db = await acquireConnection();
   return new Promise((resolve, reject) => {
     const finish = (queryErr: Error | null, result?: unknown) => {
@@ -93,7 +95,8 @@ export async function firebirdQuery<T = FirebirdRow>(sql: string, params: unknow
       logSeLenta(sql, inicio, 'query');
       if (queryErr) {
         logger.error({ err: queryErr }, 'Falha ao executar query Firebird');
-        return reject(new ExternalServiceError());
+        // Escrita que ficou esperando uma trava não é "ERP fora do ar"; SELECT não espera trava, então segue 503.
+        return reject((!ehSelect && comoRegistroEmUso(queryErr)) || new ExternalServiceError());
       }
       resolve(asRows(result).map(decodeLatin1Row) as T[]);
     };
@@ -206,7 +209,7 @@ export async function firebirdTransaction<T>(
           const inicio = performance.now();
           transaction.query(sql, params, (queryErr, result) => {
             logSeLenta(sql, inicio, 'transacao');
-            if (queryErr) return rej(queryErr);
+            if (queryErr) return rej(comoRegistroEmUso(queryErr) ?? queryErr);
             res(asRows(result).map(decodeLatin1Row) as R[]);
           }, { timeout: 15_000 });
         });
