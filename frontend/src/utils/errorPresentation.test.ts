@@ -15,6 +15,17 @@ describe('Mensagens de erro', () => {
     },
   );
 
+  it('mostra o texto do servidor quando o registro está em uso no CHERP', () => {
+    const texto = 'Este registro está em uso no CHERP. Feche-o lá e tente novamente.';
+    const mensagem = getUserErrorMessage(
+      { status: 409, code: 'CHERP_REGISTRO_EM_USO', message: texto, requestId: 'abcdef1234' },
+      'Não foi possível salvar.',
+    );
+    expect(mensagem).toBe(texto);
+    // Outro 409 qualquer continua com o texto genérico (não repassa mensagem do servidor).
+    expect(getUserErrorMessage({ status: 409, code: 'OUTRO', message: 'detalhe interno' }, 'x')).not.toContain('detalhe interno');
+  });
+
   it('separa falha de módulo, conexão e erro desconhecido', () => {
     expect(
       getErrorPresentation(
