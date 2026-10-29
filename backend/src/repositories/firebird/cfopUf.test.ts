@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { direcaoCfop, sqlAlinharCfop } from './OSRepository.firebird.js';
+import { direcaoCfop, naoContribuinte, operacaoDeVenda, sqlAlinharCfop } from './OSRepository.firebird.js';
 
 describe('CFOP dentro/fora do estado', () => {
   it('compara a UF do cliente com a da empresa', () => {
@@ -26,3 +26,23 @@ describe('CFOP dentro/fora do estado', () => {
     expect(produtos).toContain('= P.CHAVECFOPPRODFE THEN P.CHAVECFOPPRODDE');
   });
 });
+
+describe('operação de venda para não contribuinte fora do estado', () => {
+  it('pessoa física ou empresa sem IE (vazia ou ISENTO) não é contribuinte', () => {
+    expect(naoContribuinte(1, '12.345.678-9')).toBe(true);
+    expect(naoContribuinte(0, 'ISENTO')).toBe(true);
+    expect(naoContribuinte(0, ' isento ')).toBe(true);
+    expect(naoContribuinte(0, '')).toBe(true);
+    expect(naoContribuinte(0, null)).toBe(true);
+    expect(naoContribuinte(0, '124/0271104')).toBe(false);
+  });
+
+  it('002 só fora do estado e para não contribuinte; o resto fica na 001', () => {
+    expect(operacaoDeVenda('FE', true)).toBe('002');
+    expect(operacaoDeVenda('FE', false)).toBe('001');
+    // Pessoa física em SC continua na 001 (5102), como nos faturamentos.
+    expect(operacaoDeVenda('DE', true)).toBe('001');
+    expect(operacaoDeVenda('DE', false)).toBe('001');
+  });
+});
+

@@ -555,17 +555,70 @@ export function sqlAlinharCfop(direcao: 'DE' | 'FE'): string[] {
   ];
 }
 
+/**
+ * Não contribuinte do ICMS: pessoa física (PESSOA = 1) ou empresa sem inscrição estadual (IERG vazio
+ * ou "ISENTO"). Fora do estado, venda pra não contribuinte sai pela operação de pessoa física (6108).
+ */
+export function naoContribuinte(pessoa: number | null | undefined, ierg: string | null | undefined): boolean {
+  if (pessoa === 1) return true;
+  const ie = (ierg ?? '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+  return ie === '' || ie === 'ISENTO' || ie === 'ISENTA';
+}
+
+/**
+ * Operações desta instalação (CFOPOPERFISCAIS.CODIGO), conferidas nos faturamentos de 2026: cliente de
+ * fora de SC sem IE (ou pessoa física) vai na 002 "Venda de mercadoria para pessoa física" (6108); o
+ * resto na 001 "Venda de mercadoria" (5102/6102). Outras operações (027 com ST, etc.) não são tocadas.
+ */
+export const OPERACAO_VENDA = '001';
+export const OPERACAO_VENDA_NAO_CONTRIBUINTE = '002';
+
+/** Qual das duas operações de venda o produto deve usar: a 002 só fora do estado e pra não contribuinte. */
+export function operacaoDeVenda(direcao: 'DE' | 'FE', semIE: boolean): string {
+  return direcao === 'FE' && semIE ? OPERACAO_VENDA_NAO_CONTRIBUINTE : OPERACAO_VENDA;
+}
+
 type FirebirdQueryFn = <R = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<R[]>;
 
 /**
- * Cliente de fora do estado sai com CFOP 6.xxx (coluna FE da operação), igual ao ajuste que era feito
- * à mão no CHERP antes de faturar. Roda dentro da transação da gravação, depois dos itens e da troca
+ * Cliente de fora do estado sai com CFOP 6.xxx (coluna FE da operação) e, se não for contribuinte,
+ * na operação 002 (6108) — igual ao ajuste que era feito à mão no CHERP antes de faturar. Roda dentro da transação da gravação, depois dos itens e da troca
  * de cliente. Falha aqui (UF/EMPRESA fora do padrão esperado) só registra aviso: nunca impede salvar a OS.
  */
+/**
+ * Troca entre as operações 001 e 002 (cabeçalho e itens de produto) para a operação devida. Item com
+ * CFOP diferente dos padrões da operação de origem (ajustado à mão) não é mexido. O CFOP vai para o
+ * "dentro do estado" da operação nova; o alinhamento pela UF, logo depois, leva ao "fora" quando for o caso.
+ */
+async function trocarOperacaoDeVenda(query: FirebirdQueryFn, chaveOS: number, destino: string): Promise<void> {
+  const origem = destino === OPERACAO_VENDA ? OPERACAO_VENDA_NAO_CONTRIBUINTE : OPERACAO_VENDA;
+  const operacoes = await query<{ CODIGO: string; CHAVE: number; CHAVECFOPPRODDE: number | null; CHAVECFOPPRODFE: number | null }>(
+    `SELECT CODIGO, CHAVE, CHAVECFOPPRODDE, CHAVECFOPPRODFE FROM CFOPOPERFISCAIS
+      WHERE CHAVEEMPRESA = ? AND ATIVO = 1 AND CODIGO IN (?, ?)`,
+    [CHAVE_EMPRESA, origem, destino],
+  );
+  const de = operacoes.find((op) => String(op.CODIGO).trim() === origem);
+  const para = operacoes.find((op) => String(op.CODIGO).trim() === destino);
+  if (!de || !para || para.CHAVECFOPPRODDE === null) return;
+  await query(
+    `UPDATE ITENSORDEMSERVICOPROD SET CHAVECFOPOPERFISCAIS = ?, CHAVECFOP = ?
+      WHERE CHAVEOS = ? AND ATIVO = 1 AND CHAVECFOPOPERFISCAIS = ?
+        AND (CHAVECFOP IS NULL OR CHAVECFOP = ? OR CHAVECFOP = ?)`,
+    [para.CHAVE, para.CHAVECFOPPRODDE, chaveOS, de.CHAVE, de.CHAVECFOPPRODDE, de.CHAVECFOPPRODFE],
+  );
+  await query(
+    `UPDATE ORDEMSERVICO SET CHAVECFOPOPERFISCAIS = ?, CHAVECFOPPROD = ?
+      WHERE CHAVE = ? AND CHAVECFOPOPERFISCAIS = ?
+        AND (CHAVECFOPPROD IS NULL OR CHAVECFOPPROD = ? OR CHAVECFOPPROD = ?)`,
+    [para.CHAVE, para.CHAVECFOPPRODDE, chaveOS, de.CHAVE, de.CHAVECFOPPRODDE, de.CHAVECFOPPRODFE],
+  );
+}
+
 async function alinharCfopPelaUf(query: FirebirdQueryFn, chaveOS: number): Promise<void> {
   try {
-    const rows = await query<{ UF_CLIENTE: string | null; UF_EMPRESA: string | null }>(
-      `SELECT CC.UF AS UF_CLIENTE, CE.UF AS UF_EMPRESA
+    const rows = await query<{ UF_CLIENTE: string | null; UF_EMPRESA: string | null; PESSOA: number | null; IERG: string | null }>(
+      `SELECT CC.UF AS UF_CLIENTE, CE.UF AS UF_EMPRESA, C.PESSOA AS PESSOA,
+              CAST(C.IERG AS VARCHAR(30) CHARACTER SET OCTETS) AS IERG
          FROM ORDEMSERVICO OS
          LEFT JOIN CLIFOR C ON C.CHAVE = OS.CHAVECLIFOR
          LEFT JOIN CIDADE CC ON CC.CHAVE = C.CHAVECIDADE
@@ -579,6 +632,8 @@ async function alinharCfopPelaUf(query: FirebirdQueryFn, chaveOS: number): Promi
       logger.warn({ chaveOS }, 'UF do cliente ou da empresa não cadastrada — CFOP da OS mantido como está.');
       return;
     }
+    const ierg = rows[0]?.IERG;
+    await trocarOperacaoDeVenda(query, chaveOS, operacaoDeVenda(direcao, naoContribuinte(rows[0]?.PESSOA, ierg == null ? null : String(ierg))));
     for (const sql of sqlAlinharCfop(direcao)) await query(sql, [chaveOS]);
   } catch (err) {
     logger.warn({ err, chaveOS }, 'Não foi possível ajustar o CFOP pela UF do cliente — OS salva com o CFOP padrão.');
