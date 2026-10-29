@@ -519,6 +519,72 @@ async function resolvePerfilFiscalPadrao(principalDocumento: 'S' | 'N'): Promise
   };
 }
 
+/**
+ * Dentro ou fora do estado: compara a UF do cliente com a UF da empresa (as duas via CIDADE).
+ * `null` quando alguma UF não está cadastrada — aí nada muda no CFOP.
+ */
+export function direcaoCfop(ufCliente: string | null | undefined, ufEmpresa: string | null | undefined): 'DE' | 'FE' | null {
+  const cliente = (ufCliente ?? '').trim().toUpperCase();
+  const empresa = (ufEmpresa ?? '').trim().toUpperCase();
+  if (!cliente || !empresa) return null;
+  return cliente === empresa ? 'DE' : 'FE';
+}
+
+/**
+ * SQL que põe o CFOP (cabeçalho e itens) na coluna certa da PRÓPRIA operação fiscal de cada linha:
+ * CHAVECFOPPRODDE/SERVDE (dentro do estado) ou CHAVECFOPPRODFE/SERVFE (fora). Só troca quando o CFOP
+ * atual é exatamente o "do outro lado" daquela operação — CFOP escolhido à mão no CHERP fica como está,
+ * e operação sem a coluna de destino preenchida também.
+ */
+export function sqlAlinharCfop(direcao: 'DE' | 'FE'): string[] {
+  const origem = direcao === 'FE' ? 'DE' : 'FE';
+  const trocar = (tabela: string, coluna: string, colunaOperacao: string, tipo: 'PROD' | 'SERV') =>
+    `COALESCE((SELECT CASE WHEN ${tabela}.${coluna} = P.CHAVECFOP${tipo}${origem} THEN P.CHAVECFOP${tipo}${direcao} END
+                 FROM CFOPOPERFISCAIS P WHERE P.CHAVE = ${tabela}.${colunaOperacao}), ${tabela}.${coluna})`;
+  return [
+    `UPDATE ORDEMSERVICO SET
+       CHAVECFOPPROD = ${trocar('ORDEMSERVICO', 'CHAVECFOPPROD', 'CHAVECFOPOPERFISCAIS', 'PROD')},
+       CHAVECFOPSERV = ${trocar('ORDEMSERVICO', 'CHAVECFOPSERV', 'CHAVECFOPOPERFISCAIS', 'SERV')}
+     WHERE CHAVE = ?`,
+    `UPDATE ITENSORDEMSERVICOPROD SET
+       CHAVECFOP = ${trocar('ITENSORDEMSERVICOPROD', 'CHAVECFOP', 'CHAVECFOPOPERFISCAIS', 'PROD')}
+     WHERE CHAVEOS = ? AND ATIVO = 1`,
+    `UPDATE ITENSORDEMSERVICOSERV SET
+       CHAVECFOP = ${trocar('ITENSORDEMSERVICOSERV', 'CHAVECFOP', 'CHAVECFOPOPERFISCAIS', 'SERV')}
+     WHERE CHAVEOS = ? AND ATIVO = 1`,
+  ];
+}
+
+type FirebirdQueryFn = <R = Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<R[]>;
+
+/**
+ * Cliente de fora do estado sai com CFOP 6.xxx (coluna FE da operação), igual ao ajuste que era feito
+ * à mão no CHERP antes de faturar. Roda dentro da transação da gravação, depois dos itens e da troca
+ * de cliente. Falha aqui (UF/EMPRESA fora do padrão esperado) só registra aviso: nunca impede salvar a OS.
+ */
+async function alinharCfopPelaUf(query: FirebirdQueryFn, chaveOS: number): Promise<void> {
+  try {
+    const rows = await query<{ UF_CLIENTE: string | null; UF_EMPRESA: string | null }>(
+      `SELECT CC.UF AS UF_CLIENTE, CE.UF AS UF_EMPRESA
+         FROM ORDEMSERVICO OS
+         LEFT JOIN CLIFOR C ON C.CHAVE = OS.CHAVECLIFOR
+         LEFT JOIN CIDADE CC ON CC.CHAVE = C.CHAVECIDADE
+         LEFT JOIN EMPRESA E ON E.CHAVE = OS.CHAVEEMPRESA
+         LEFT JOIN CIDADE CE ON CE.CHAVE = E.CHAVECIDADE
+        WHERE OS.CHAVE = ?`,
+      [chaveOS],
+    );
+    const direcao = direcaoCfop(rows[0]?.UF_CLIENTE, rows[0]?.UF_EMPRESA);
+    if (!direcao) {
+      logger.warn({ chaveOS }, 'UF do cliente ou da empresa não cadastrada — CFOP da OS mantido como está.');
+      return;
+    }
+    for (const sql of sqlAlinharCfop(direcao)) await query(sql, [chaveOS]);
+  } catch (err) {
+    logger.warn({ err, chaveOS }, 'Não foi possível ajustar o CFOP pela UF do cliente — OS salva com o CFOP padrão.');
+  }
+}
+
 async function resolveProduto(codigo: string): Promise<ProdutoParaOS> {
   const rows = await firebirdQuery<{
     CHAVE: number;
@@ -994,6 +1060,7 @@ export class OSRepositoryFirebird implements IOSRepository {
       if (!identificadorGerado) {
         throw new ExternalServiceError();
       }
+      await alinharCfopPelaUf(query, chave);
       return identificadorGerado;
     });
 
@@ -1179,6 +1246,11 @@ export class OSRepositoryFirebird implements IOSRepository {
         }
         params.push(chaveOS);
         await query(`UPDATE ORDEMSERVICO SET ${sets.join(', ')} WHERE CHAVE = ?`, params);
+      }
+
+      // Depois dos itens e da troca de cliente: CFOP dentro/fora do estado conforme a UF do cliente.
+      if (patch.produtos !== undefined || patch.servicos !== undefined || patch.clienteCodigo !== undefined) {
+        await alinharCfopPelaUf(query, chaveOS);
       }
     });
 
